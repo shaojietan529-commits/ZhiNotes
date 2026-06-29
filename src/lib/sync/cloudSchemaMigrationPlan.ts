@@ -195,6 +195,12 @@ function getLocalEvidence(
       return `${input.uploadedFiles} local uploaded files are currently indexed.`;
     case "sync_log":
       return `${input.syncRows} sync_log rows exist locally; ${input.pendingSyncRows} rows are pending.`;
+    case "sync_batches":
+    case "sync_row_acks":
+    case "sync_retry_events":
+    case "sync_dead_letters":
+    case "sync_ack_cursors":
+      return "Server ack/retry ledger contract exists locally; durable cloud ledger tables are required before enabling sync push.";
     case "users":
     case "audit_events":
       return "No local table exists yet; this must be created server-side.";
@@ -217,7 +223,17 @@ function getTableSensitivity(tableName: string): CloudMigrationSensitivity {
     return "high";
   }
 
-  if (["workspace_members", "audit_events"].includes(tableName)) {
+  if (
+    [
+      "workspace_members",
+      "audit_events",
+      "sync_batches",
+      "sync_row_acks",
+      "sync_retry_events",
+      "sync_dead_letters",
+      "sync_ack_cursors",
+    ].includes(tableName)
+  ) {
     return "medium";
   }
 

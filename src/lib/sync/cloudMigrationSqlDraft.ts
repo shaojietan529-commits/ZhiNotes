@@ -310,6 +310,83 @@ function getCreateTableSql(tableName: string) {
         "  created_at timestamptz not null default now()",
         ");",
       ].join("\n");
+    case "sync_batches":
+      return [
+        "create table if not exists sync_batches (",
+        "  id uuid primary key default gen_random_uuid(),",
+        "  workspace_id uuid not null references workspaces(id) on delete cascade,",
+        "  actor_user_id uuid not null references users(id) on delete restrict,",
+        "  device_id text not null,",
+        "  local_batch_id text not null,",
+        "  idempotency_key text not null,",
+        "  payload_preview_id text,",
+        "  operation_counts jsonb not null default '{}'::jsonb,",
+        "  table_names text[] not null default '{}',",
+        "  payload_hash text not null,",
+        "  status text not null default 'pending',",
+        "  created_at timestamptz not null default now(),",
+        "  updated_at timestamptz not null default now(),",
+        "  unique (workspace_id, device_id, local_batch_id),",
+        "  unique (workspace_id, idempotency_key)",
+        ");",
+      ].join("\n");
+    case "sync_row_acks":
+      return [
+        "create table if not exists sync_row_acks (",
+        "  id uuid primary key default gen_random_uuid(),",
+        "  workspace_id uuid not null references workspaces(id) on delete cascade,",
+        "  batch_id uuid not null references sync_batches(id) on delete cascade,",
+        "  local_sync_log_row_id uuid references sync_log(id) on delete set null,",
+        "  table_name text not null,",
+        "  row_id text not null,",
+        "  operation text not null,",
+        "  ack_status text not null default 'accepted',",
+        "  remote_commit_id text not null,",
+        "  acked_at timestamptz not null default now(),",
+        "  checksum text,",
+        "  unique (workspace_id, batch_id, local_sync_log_row_id)",
+        ");",
+      ].join("\n");
+    case "sync_retry_events":
+      return [
+        "create table if not exists sync_retry_events (",
+        "  id uuid primary key default gen_random_uuid(),",
+        "  workspace_id uuid not null references workspaces(id) on delete cascade,",
+        "  batch_id uuid not null references sync_batches(id) on delete cascade,",
+        "  local_sync_log_row_id uuid references sync_log(id) on delete set null,",
+        "  attempt integer not null,",
+        "  retry_after timestamptz,",
+        "  reason_code text not null,",
+        "  last_error_code text,",
+        "  created_at timestamptz not null default now()",
+        ");",
+      ].join("\n");
+    case "sync_dead_letters":
+      return [
+        "create table if not exists sync_dead_letters (",
+        "  id uuid primary key default gen_random_uuid(),",
+        "  workspace_id uuid not null references workspaces(id) on delete cascade,",
+        "  batch_id uuid references sync_batches(id) on delete set null,",
+        "  local_sync_log_row_id uuid references sync_log(id) on delete set null,",
+        "  table_name text not null,",
+        "  row_id text not null,",
+        "  reason_code text not null,",
+        "  final_error_code text,",
+        "  manual_review_required boolean not null default true,",
+        "  created_at timestamptz not null default now()",
+        ");",
+      ].join("\n");
+    case "sync_ack_cursors":
+      return [
+        "create table if not exists sync_ack_cursors (",
+        "  workspace_id uuid not null references workspaces(id) on delete cascade,",
+        "  device_id text not null,",
+        "  last_ack_cursor text not null,",
+        "  last_remote_commit_id text,",
+        "  updated_at timestamptz not null default now(),",
+        "  primary key (workspace_id, device_id)",
+        ");",
+      ].join("\n");
     case "audit_events":
       return [
         "create table if not exists audit_events (",

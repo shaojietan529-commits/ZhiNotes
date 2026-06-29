@@ -204,6 +204,73 @@ create table if not exists public.sync_log (
   sync_version bigint not null default 0
 );
 
+create table if not exists public.sync_batches (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  actor_user_id uuid not null references public.users(id),
+  device_id text not null,
+  local_batch_id text not null,
+  idempotency_key text not null,
+  payload_preview_id text,
+  operation_counts jsonb not null default '{}'::jsonb,
+  table_names text[] not null default '{}',
+  payload_hash text not null,
+  status text not null default 'pending',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (workspace_id, device_id, local_batch_id),
+  unique (workspace_id, idempotency_key)
+);
+
+create table if not exists public.sync_row_acks (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  batch_id uuid not null references public.sync_batches(id) on delete cascade,
+  local_sync_log_row_id bigint references public.sync_log(id) on delete set null,
+  table_name text not null,
+  row_id text not null,
+  operation text not null,
+  ack_status text not null default 'accepted',
+  remote_commit_id text not null,
+  acked_at timestamptz not null default now(),
+  checksum text,
+  unique (workspace_id, batch_id, local_sync_log_row_id)
+);
+
+create table if not exists public.sync_retry_events (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  batch_id uuid not null references public.sync_batches(id) on delete cascade,
+  local_sync_log_row_id bigint references public.sync_log(id) on delete set null,
+  attempt integer not null,
+  retry_after timestamptz,
+  reason_code text not null,
+  last_error_code text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.sync_dead_letters (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  batch_id uuid references public.sync_batches(id) on delete set null,
+  local_sync_log_row_id bigint references public.sync_log(id) on delete set null,
+  table_name text not null,
+  row_id text not null,
+  reason_code text not null,
+  final_error_code text,
+  manual_review_required boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.sync_ack_cursors (
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  device_id text not null,
+  last_ack_cursor text not null,
+  last_remote_commit_id text,
+  updated_at timestamptz not null default now(),
+  primary key (workspace_id, device_id)
+);
+
 create table if not exists public.audit_events (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid references public.workspaces(id) on delete cascade,
@@ -231,6 +298,14 @@ create index if not exists idx_page_comments_page on public.page_comments(page_i
 create index if not exists idx_block_comments_page on public.block_comments(page_id, resolved, created_at);
 create index if not exists idx_files_workspace on public.files(workspace_id, created_at desc);
 create index if not exists idx_sync_log_workspace on public.sync_log(workspace_id, server_received_at desc);
+create index if not exists idx_sync_batches_workspace on public.sync_batches(workspace_id, created_at desc);
+create index if not exists idx_sync_batches_idempotency on public.sync_batches(workspace_id, idempotency_key);
+create index if not exists idx_sync_row_acks_batch on public.sync_row_acks(batch_id, acked_at desc);
+create index if not exists idx_sync_row_acks_workspace on public.sync_row_acks(workspace_id, acked_at desc);
+create index if not exists idx_sync_retry_events_batch on public.sync_retry_events(batch_id, created_at desc);
+create index if not exists idx_sync_retry_events_workspace on public.sync_retry_events(workspace_id, created_at desc);
+create index if not exists idx_sync_dead_letters_workspace on public.sync_dead_letters(workspace_id, created_at desc);
+create index if not exists idx_sync_ack_cursors_workspace on public.sync_ack_cursors(workspace_id, updated_at desc);
 create index if not exists idx_audit_events_workspace on public.audit_events(workspace_id, created_at desc);
 
 create or replace function public.zhinote_is_workspace_member(target_workspace_id uuid)
@@ -276,6 +351,11 @@ alter table public.page_comments enable row level security;
 alter table public.block_comments enable row level security;
 alter table public.files enable row level security;
 alter table public.sync_log enable row level security;
+alter table public.sync_batches enable row level security;
+alter table public.sync_row_acks enable row level security;
+alter table public.sync_retry_events enable row level security;
+alter table public.sync_dead_letters enable row level security;
+alter table public.sync_ack_cursors enable row level security;
 alter table public.audit_events enable row level security;
 
 drop policy if exists "Users can read own profile" on public.users;
@@ -444,6 +524,62 @@ create policy "Members can read sync log"
 drop policy if exists "Researchers can write sync log" on public.sync_log;
 create policy "Researchers can write sync log"
   on public.sync_log for insert
+  with check (public.zhinote_workspace_role(workspace_id) in ('owner', 'researcher'));
+
+drop policy if exists "Members can read sync batches" on public.sync_batches;
+create policy "Members can read sync batches"
+  on public.sync_batches for select
+  using (public.zhinote_is_workspace_member(workspace_id));
+
+drop policy if exists "Researchers can write sync batches" on public.sync_batches;
+create policy "Researchers can write sync batches"
+  on public.sync_batches for insert
+  with check (public.zhinote_workspace_role(workspace_id) in ('owner', 'researcher'));
+
+drop policy if exists "Members can read sync row acks" on public.sync_row_acks;
+create policy "Members can read sync row acks"
+  on public.sync_row_acks for select
+  using (public.zhinote_is_workspace_member(workspace_id));
+
+drop policy if exists "Researchers can write sync row acks" on public.sync_row_acks;
+create policy "Researchers can write sync row acks"
+  on public.sync_row_acks for insert
+  with check (public.zhinote_workspace_role(workspace_id) in ('owner', 'researcher'));
+
+drop policy if exists "Members can read sync retry events" on public.sync_retry_events;
+create policy "Members can read sync retry events"
+  on public.sync_retry_events for select
+  using (public.zhinote_is_workspace_member(workspace_id));
+
+drop policy if exists "Researchers can write sync retry events" on public.sync_retry_events;
+create policy "Researchers can write sync retry events"
+  on public.sync_retry_events for insert
+  with check (public.zhinote_workspace_role(workspace_id) in ('owner', 'researcher'));
+
+drop policy if exists "Members can read sync dead letters" on public.sync_dead_letters;
+create policy "Members can read sync dead letters"
+  on public.sync_dead_letters for select
+  using (public.zhinote_is_workspace_member(workspace_id));
+
+drop policy if exists "Researchers can write sync dead letters" on public.sync_dead_letters;
+create policy "Researchers can write sync dead letters"
+  on public.sync_dead_letters for insert
+  with check (public.zhinote_workspace_role(workspace_id) in ('owner', 'researcher'));
+
+drop policy if exists "Members can read sync ack cursors" on public.sync_ack_cursors;
+create policy "Members can read sync ack cursors"
+  on public.sync_ack_cursors for select
+  using (public.zhinote_is_workspace_member(workspace_id));
+
+drop policy if exists "Researchers can insert sync ack cursors" on public.sync_ack_cursors;
+create policy "Researchers can insert sync ack cursors"
+  on public.sync_ack_cursors for insert
+  with check (public.zhinote_workspace_role(workspace_id) in ('owner', 'researcher'));
+
+drop policy if exists "Researchers can update sync ack cursors" on public.sync_ack_cursors;
+create policy "Researchers can update sync ack cursors"
+  on public.sync_ack_cursors for update
+  using (public.zhinote_workspace_role(workspace_id) in ('owner', 'researcher'))
   with check (public.zhinote_workspace_role(workspace_id) in ('owner', 'researcher'));
 
 drop policy if exists "Owners can read audit events" on public.audit_events;

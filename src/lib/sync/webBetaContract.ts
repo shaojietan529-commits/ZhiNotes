@@ -157,6 +157,51 @@ export const CLOUD_SCHEMA_TABLES: CloudSchemaTableContract[] = [
     privacyBoundary: "Queue metadata should avoid page body text and file bytes.",
   },
   {
+    tableName: "sync_batches",
+    status: "required",
+    localSource: "sync ack/retry ledger contract",
+    cloudPurpose:
+      "One reviewed upload envelope per local batch, with idempotency keys, operation counts, table names, and payload hashes.",
+    privacyBoundary:
+      "Metadata-only batch receipt; must not store page bodies, database values, comments, file bytes, tokens, or cookies.",
+  },
+  {
+    tableName: "sync_row_acks",
+    status: "required",
+    localSource: "sync ack/retry ledger contract",
+    cloudPurpose:
+      "Durable row-level server acknowledgements that prove when local sync_log rows can be marked synced.",
+    privacyBoundary:
+      "Row id, table name, operation, checksum, and remote commit metadata only; no workspace content payloads.",
+  },
+  {
+    tableName: "sync_retry_events",
+    status: "required",
+    localSource: "sync ack/retry ledger contract",
+    cloudPurpose:
+      "Bounded retry history for transient network, auth, and server errors before a row becomes manual-review.",
+    privacyBoundary:
+      "Retry attempt, reason code, and error code only; no raw request body or private note content.",
+  },
+  {
+    tableName: "sync_dead_letters",
+    status: "required",
+    localSource: "sync ack/retry ledger contract",
+    cloudPurpose:
+      "Rows that stop automatic retry after repeated failures and wait for explicit owner review.",
+    privacyBoundary:
+      "Failure metadata and row ids only; no page text, database cell values, comments, file bytes, or secrets.",
+  },
+  {
+    tableName: "sync_ack_cursors",
+    status: "required",
+    localSource: "sync ack/retry ledger contract",
+    cloudPurpose:
+      "Per-device ack cursor proving the local hot cache can clear pending rows after durable remote commit.",
+    privacyBoundary:
+      "Cursor and remote commit metadata only; never stores content snapshots or payloads.",
+  },
+  {
     tableName: "audit_events",
     status: "planned",
     localSource: "None yet",

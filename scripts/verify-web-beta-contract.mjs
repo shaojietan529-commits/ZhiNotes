@@ -12,6 +12,8 @@ const files = {
   webAlphaReceiptVerifier: "scripts/verify-web-alpha-handoff-receipt.mjs",
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
+  cloudSchemaMigrationPlan: "src/lib/sync/cloudSchemaMigrationPlan.ts",
+  cloudMigrationSqlDraft: "src/lib/sync/cloudMigrationSqlDraft.ts",
   deploymentTarget: "src/lib/sync/webBetaDeploymentTarget.ts",
   webAlphaHandoffBundle: "src/lib/sync/webAlphaHandoffBundle.ts",
   webAlphaLaunchDecisionReceipt:
@@ -355,12 +357,26 @@ function assertMigrationTables(expectedTables, migrationSql) {
   }
 }
 
+function extractMigrationTableBlock(migrationSql, tableName) {
+  const start = migrationSql
+    .toLowerCase()
+    .indexOf(`create table if not exists public.${tableName.toLowerCase()}`);
+  if (start === -1) return "";
+  const afterStart = migrationSql.slice(start);
+  const end = afterStart.indexOf("\n);\n");
+  return end === -1 ? afterStart : afterStart.slice(0, end + 4);
+}
+
 function run() {
   const packageJson = readProjectFile(files.packageJson);
   const envExample = readProjectFile(files.envExample);
   const webAlphaReceiptVerifier = readProjectFile(files.webAlphaReceiptVerifier);
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
+  const cloudSchemaMigrationPlan = readProjectFile(
+    files.cloudSchemaMigrationPlan
+  );
+  const cloudMigrationSqlDraft = readProjectFile(files.cloudMigrationSqlDraft);
   const deploymentTarget = readProjectFile(files.deploymentTarget);
   const webAlphaHandoffBundle = readProjectFile(files.webAlphaHandoffBundle);
   const webAlphaLaunchDecisionReceipt = readProjectFile(
@@ -642,6 +658,8 @@ function run() {
     [files.envExample, envExample],
     [files.apiStubs, apiStubs],
     [files.contract, contract],
+    [files.cloudSchemaMigrationPlan, cloudSchemaMigrationPlan],
+    [files.cloudMigrationSqlDraft, cloudMigrationSqlDraft],
     [files.deploymentTarget, deploymentTarget],
     [files.smokeTestPlan, smokeTestPlan],
     [files.smokeTestVerifier, smokeTestVerifier],
@@ -8525,6 +8543,134 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  const syncAckLedgerTables = [
+    "sync_batches",
+    "sync_row_acks",
+    "sync_retry_events",
+    "sync_dead_letters",
+    "sync_ack_cursors",
+  ];
+  for (const tableName of syncAckLedgerTables) {
+    assertSourceIncludes(
+      files.contract,
+      contract,
+      `tableName: "${tableName}"`,
+      `CLOUD_SCHEMA_TABLES must register ${tableName}.`
+    );
+    assertSourceIncludes(
+      files.cloudSchemaMigrationPlan,
+      cloudSchemaMigrationPlan,
+      `case "${tableName}":`,
+      `Cloud schema migration plan must know ${tableName}.`
+    );
+    assertSourceIncludes(
+      files.cloudMigrationSqlDraft,
+      cloudMigrationSqlDraft,
+      `case "${tableName}":`,
+      `Cloud migration SQL draft must build concrete SQL for ${tableName}.`
+    );
+    assertSourceIncludes(
+      files.migration,
+      migration,
+      `create table if not exists public.${tableName}`,
+      `Supabase migration must create ${tableName}.`
+    );
+    assertSourceIncludes(
+      files.migration,
+      migration,
+      `alter table public.${tableName} enable row level security`,
+      `Supabase migration must enable RLS on ${tableName}.`
+    );
+    assertSourceIncludes(
+      files.migration,
+      migration,
+      `Members can read ${tableName.replaceAll("_", " ")}`,
+      `Supabase migration must add read policy for ${tableName}.`
+    );
+
+    const tableBlock = extractMigrationTableBlock(migration, tableName);
+    if (!tableBlock) {
+      fail(`Could not extract migration table block for ${tableName}`);
+      continue;
+    }
+    for (const [blockedSnippet, message] of [
+      [
+        "content_text",
+        `${tableName} must not store page content text.`,
+      ],
+      [
+        "content_yjs",
+        `${tableName} must not store collaborative page content.`,
+      ],
+      [
+        "field_values",
+        `${tableName} must not store database row values.`,
+      ],
+      [
+        "body text",
+        `${tableName} must not store comment body text.`,
+      ],
+      [
+        "file_bytes",
+        `${tableName} must not store file bytes.`,
+      ],
+      [
+        "token",
+        `${tableName} must not store tokens.`,
+      ],
+      [
+        "cookie",
+        `${tableName} must not store cookies.`,
+      ],
+      [
+        "secret",
+        `${tableName} must not store secrets.`,
+      ],
+    ]) {
+      assertSourceExcludes(
+        `migration:${tableName}`,
+        tableBlock,
+        blockedSnippet,
+        message
+      );
+    }
+  }
+  for (const [snippet, message] of [
+    [
+      "operation_counts jsonb not null default '{}'::jsonb",
+      "sync_batches must store only operation count metadata.",
+    ],
+    [
+      "unique (workspace_id, idempotency_key)",
+      "sync_batches must enforce idempotency per workspace.",
+    ],
+    [
+      "remote_commit_id text not null",
+      "sync_row_acks must require durable remote commit evidence.",
+    ],
+    [
+      "retry_after timestamptz",
+      "sync_retry_events must keep retry scheduling metadata.",
+    ],
+    [
+      "manual_review_required boolean not null default true",
+      "sync_dead_letters must default to manual review.",
+    ],
+    [
+      "primary key (workspace_id, device_id)",
+      "sync_ack_cursors must have one cursor per workspace/device.",
+    ],
+    [
+      "Researchers can insert sync ack cursors",
+      "sync_ack_cursors must allow cursor creation without allowing deletes.",
+    ],
+    [
+      "Researchers can update sync ack cursors",
+      "sync_ack_cursors must allow cursor advancement without allowing deletes.",
+    ],
+  ]) {
+    assertSourceIncludes(files.migration, migration, snippet, message);
   }
   for (const [snippet, message] of [
     [
