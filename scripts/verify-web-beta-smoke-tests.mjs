@@ -3851,6 +3851,26 @@ function run() {
       "PAGE_LOCAL_BODY_HYDRATION_IDLE_MS",
       "Page opening must keep the local body hydration idle timeout explicit and bounded.",
     ],
+    [
+      "const pageLocalBodyHydrationQueue = new Map<",
+      "Page opening must coalesce duplicate local page body reads by page and surface.",
+    ],
+    [
+      "queuePageLocalBodyHydration({",
+      "Page opening scheduled local body hydration must enter the coalesced local body queue.",
+    ],
+    [
+      "while (pageLocalBodyHydrationQueue.get(key) === state)",
+      "Page opening local body hydration queue must drain a stable coalesced state for the page/surface.",
+    ],
+    [
+      "pageLocalBodyHydrationQueue.delete(key);",
+      "Page opening local body hydration queue must clear completed page/surface entries.",
+    ],
+    [
+      "function pageLocalBodyHydrationQueueKey(",
+      "Page opening local body hydration queue must keep page/surface keys explicit and reviewable.",
+    ],
   ]) {
     assertIncludes(files.usePage, usePage, snippet, message);
   }

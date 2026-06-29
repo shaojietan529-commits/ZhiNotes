@@ -273,6 +273,11 @@ check(
     usePageHook.includes("PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_DELAY_MS = 24") &&
     usePageHook.includes("PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_IDLE_MS = 80") &&
     usePageHook.includes('priority === "interactive"') &&
+    usePageHook.includes("const pageLocalBodyHydrationQueue = new Map<") &&
+    usePageHook.includes("queuePageLocalBodyHydration({") &&
+    usePageHook.includes("while (pageLocalBodyHydrationQueue.get(key) === state)") &&
+    usePageHook.includes("pageLocalBodyHydrationQueue.delete(key);") &&
+    usePageHook.includes("function pageLocalBodyHydrationQueueKey(") &&
     usePageHook.includes("const latestLocalPage = getLocalPage();") &&
     usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
     usePageHook.includes("requestIdleCallback(run") &&

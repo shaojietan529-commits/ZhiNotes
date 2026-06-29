@@ -69,11 +69,24 @@ interface PageCloudHydrationJob {
   surface: PageBodyHydrationSurface;
 }
 
+interface PageLocalBodyHydrationJob extends PageCloudHydrationJob {
+  isCurrentLoad: () => boolean;
+}
+
+interface PageLocalBodyHydrationState {
+  latest: PageLocalBodyHydrationJob;
+  rerun: boolean;
+}
+
 interface PageCloudHydrationState {
   latest: PageCloudHydrationJob;
   rerun: boolean;
 }
 
+const pageLocalBodyHydrationQueue = new Map<
+  string,
+  PageLocalBodyHydrationState
+>();
 const pageCloudHydrationQueue = new Map<string, PageCloudHydrationState>();
 
 type PageUpdates = Partial<
@@ -597,14 +610,14 @@ function schedulePageLocalBodyHydration(
   priority: PageLocalBodyHydrationPriority = "background"
 ): void {
   const run = () => {
-    void refreshPageBodyFromLocalCache(
+    queuePageLocalBodyHydration({
       pageId,
       isCurrentLoad,
+      surface,
       getLocalPage,
       setPage,
       upsertPages,
-      surface
-    );
+    });
   };
   if (typeof window === "undefined") {
     run();
@@ -641,6 +654,55 @@ function getPageLocalBodyHydrationPriority(
   source: PageRouteHandoffSource | null
 ): PageLocalBodyHydrationPriority {
   return source ? "interactive" : "background";
+}
+
+function queuePageLocalBodyHydration(job: PageLocalBodyHydrationJob): void {
+  const key = pageLocalBodyHydrationQueueKey(job.pageId, job.surface);
+  const existing = pageLocalBodyHydrationQueue.get(key);
+  if (existing) {
+    existing.latest = job;
+    existing.rerun = true;
+    return;
+  }
+
+  const state: PageLocalBodyHydrationState = {
+    latest: job,
+    rerun: false,
+  };
+  pageLocalBodyHydrationQueue.set(key, state);
+  void drainPageLocalBodyHydrationQueue(key, state);
+}
+
+async function drainPageLocalBodyHydrationQueue(
+  key: string,
+  state: PageLocalBodyHydrationState
+): Promise<void> {
+  try {
+    while (pageLocalBodyHydrationQueue.get(key) === state) {
+      const job = state.latest;
+      state.rerun = false;
+      await refreshPageBodyFromLocalCache(
+        job.pageId,
+        job.isCurrentLoad,
+        job.getLocalPage,
+        job.setPage,
+        job.upsertPages,
+        job.surface
+      );
+      if (!state.rerun) break;
+    }
+  } finally {
+    if (pageLocalBodyHydrationQueue.get(key) === state) {
+      pageLocalBodyHydrationQueue.delete(key);
+    }
+  }
+}
+
+function pageLocalBodyHydrationQueueKey(
+  pageId: string,
+  surface: PageBodyHydrationSurface
+): string {
+  return `${surface}:${pageId}`;
 }
 
 async function refreshPageBodyFromLocalCache(

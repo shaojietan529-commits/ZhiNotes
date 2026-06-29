@@ -2795,6 +2795,26 @@ function run() {
       "usePage must keep the local body hydration idle timeout explicit and bounded.",
     ],
     [
+      "const pageLocalBodyHydrationQueue = new Map<",
+      "usePage must coalesce duplicate local page body reads by page and surface.",
+    ],
+    [
+      "queuePageLocalBodyHydration({",
+      "usePage scheduled local body hydration must enter the coalesced local body queue.",
+    ],
+    [
+      "while (pageLocalBodyHydrationQueue.get(key) === state)",
+      "usePage local body hydration queue must drain a stable coalesced state for the page/surface.",
+    ],
+    [
+      "pageLocalBodyHydrationQueue.delete(key);",
+      "usePage local body hydration queue must clear completed page/surface entries.",
+    ],
+    [
+      "function pageLocalBodyHydrationQueueKey(",
+      "usePage local body hydration queue must keep page/surface keys explicit and reviewable.",
+    ],
+    [
       "clearPageRouteHandoff",
       "usePage must clear route handoffs after durable local or cloud hydration.",
     ],
