@@ -16,6 +16,8 @@ const files = {
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
+  syncAckRetryLedgerContract:
+    "src/lib/sync/syncAckRetryLedgerContract.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -333,6 +335,9 @@ function run() {
   );
   const syncUploadDrainReceipt = readProjectFile(
     files.syncUploadDrainReceipt
+  );
+  const syncAckRetryLedgerContract = readProjectFile(
+    files.syncAckRetryLedgerContract
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
@@ -1971,6 +1976,127 @@ function run() {
     "safe_to_switch_device_now",
     "Sync upload drain receipt must state whether cross-device switching is safe after drain."
   );
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-sync-ack-retry-ledger-contract"',
+      "Sync ack/retry ledger contract must keep a stable format.",
+    ],
+    [
+      'contract_status: "local-contract-only"',
+      "Sync ack/retry ledger contract must stay local-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Sync ack/retry ledger contract must align with cloud-master/local-hot-cache.",
+    ],
+    [
+      "can_enable_sync_push_now: false",
+      "Sync ack/retry ledger contract must not enable sync push.",
+    ],
+    [
+      "can_mark_local_rows_synced_now: false",
+      "Sync ack/retry ledger contract must not allow marking rows synced.",
+    ],
+    [
+      "local_contract_only: true",
+      "Sync ack/retry ledger contract must be local contract only.",
+    ],
+    [
+      "requires_durable_remote_ack: true",
+      "Sync ack/retry ledger contract must require durable remote ack.",
+    ],
+    [
+      "requires_idempotency_key: true",
+      "Sync ack/retry ledger contract must require idempotency keys.",
+    ],
+    [
+      "requires_ack_cursor: true",
+      "Sync ack/retry ledger contract must require ack cursor.",
+    ],
+    [
+      "requires_count_match: true",
+      "Sync ack/retry ledger contract must require count matching.",
+    ],
+    [
+      "max_attempts_before_dead_letter: 3",
+      "Sync ack/retry ledger contract must send repeated failures to dead-letter after three attempts.",
+    ],
+    [
+      "sync_batches",
+      "Sync ack/retry ledger contract must define sync_batches.",
+    ],
+    [
+      "sync_row_acks",
+      "Sync ack/retry ledger contract must define sync_row_acks.",
+    ],
+    [
+      "sync_retry_events",
+      "Sync ack/retry ledger contract must define sync_retry_events.",
+    ],
+    [
+      "sync_dead_letters",
+      "Sync ack/retry ledger contract must define sync_dead_letters.",
+    ],
+    [
+      "sync_ack_cursors",
+      "Sync ack/retry ledger contract must define sync_ack_cursors.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Sync ack/retry ledger contract must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Sync ack/retry ledger contract must not read database row values.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Sync ack/retry ledger contract must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Sync ack/retry ledger contract must not mutate local sync_log.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Sync ack/retry ledger contract must not mark rows synced.",
+    ],
+  ]) {
+    assertIncludes(
+      files.syncAckRetryLedgerContract,
+      syncAckRetryLedgerContract,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildSyncAckRetryLedgerContract",
+      "Sync UI must build the sync ack/retry ledger contract.",
+    ],
+    [
+      "sync-ack-retry-ledger-contract",
+      "Sync UI must render the sync ack/retry ledger contract panel.",
+    ],
+    [
+      "服务端确认与重试账本",
+      "Sync UI must expose the server ack/retry ledger section.",
+    ],
+    [
+      "导出 ack/retry 账本合约",
+      "Sync UI must expose the sync ack/retry ledger export.",
+    ],
+    [
+      "不是上传按钮",
+      "Sync UI must state the ack/retry ledger is not an upload button.",
+    ],
+    [
+      "本地 sync_log 标成已同步",
+      "Sync UI must explain local sync_log rows cannot be marked synced before ack.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
   assertIncludes(
     files.syncShell,
     syncShell,

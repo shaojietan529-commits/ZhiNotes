@@ -425,6 +425,11 @@ import {
   buildSyncPullApiDisabledResponse,
 } from "@/lib/sync/syncPullApiStub";
 import {
+  buildSyncAckRetryLedgerContract,
+  type SyncAckLedgerGateStatus,
+  type SyncAckRetryLedgerContract,
+} from "@/lib/sync/syncAckRetryLedgerContract";
+import {
   buildCommentVersionReplayApiDisabledResponse,
 } from "@/lib/sync/commentVersionReplayApiStub";
 import {
@@ -492,6 +497,7 @@ type SyncQueueAction =
   | "sync-confirmation"
   | "sync-push-api-guard"
   | "sync-pull-api-guard"
+  | "sync-ack-retry-ledger"
   | "comment-version-replay-api-guard"
   | "comment-version-replay-receipt"
   | "rollback-plan"
@@ -1858,6 +1864,16 @@ function SyncDashboard() {
   const syncPullApiGuard = useMemo(
     () => buildSyncPullApiDisabledResponse(),
     []
+  );
+  const syncAckRetryLedgerContract = useMemo(
+    () =>
+      buildSyncAckRetryLedgerContract({
+        syncPushApiGuard,
+        syncPullApiGuard,
+        totalSyncPending: syncSummary?.pending ?? 0,
+        workspaceIdentity,
+      }),
+    [syncPushApiGuard, syncPullApiGuard, syncSummary?.pending, workspaceIdentity]
   );
   const commentVersionReplayApiGuard = useMemo(
     () => buildCommentVersionReplayApiDisabledResponse(),
@@ -4600,6 +4616,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncAckRetryLedgerContract = () => {
+    setBusyQueueAction("sync-ack-retry-ledger");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-ack-retry-ledger-contract-${fileSafeTimestamp()}.json`,
+        {
+          ...syncAckRetryLedgerContract,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync ack/retry ledger contract:",
+        err
+      );
+      window.alert("ack/retry 账本合约导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportCommentVersionReplayApiGuard = () => {
     setBusyQueueAction("comment-version-replay-api-guard");
     try {
@@ -6123,6 +6160,11 @@ function SyncDashboard() {
             forbiddenFields={syncPushApiGuard.request_schema.forbidden_fields}
             fixtures={syncPushApiGuard.local_validator_report.fixtures}
             gates={syncPushApiGuard.enablement_gates}
+          />
+          <SyncAckRetryLedgerPanel
+            contract={syncAckRetryLedgerContract}
+            busy={busyQueueAction === "sync-ack-retry-ledger"}
+            onExport={handleExportSyncAckRetryLedgerContract}
           />
           <ApiGuardPanel
             title="同步拉取 API 防护"
@@ -12299,6 +12341,233 @@ function PayloadRiskPill({ risk }: { risk: SyncPayloadRisk }) {
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {risk}
+    </span>
+  );
+}
+
+function SyncAckRetryLedgerPanel({
+  contract,
+  busy,
+  onExport,
+}: {
+  contract: SyncAckRetryLedgerContract;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="sync-ack-retry-ledger-contract"
+      data-testid="sync-ack-retry-ledger-contract"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              服务端确认与重试账本
+            </h2>
+            <SyncAckRetryLedgerStatusPill status="blocked" />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这不是上传按钮；它只是定义未来云端同步的对账规则。只有 server
+            durable ack、ack cursor、idempotency key、count 校验和权限审计都齐了，
+            才能把本地 sync_log 标成已同步。当前不连接云、不写 server、
+            不读取页面正文或文件字节。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出 ack/retry 账本合约"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <PayloadSummaryCard
+          label="本地 pending"
+          value={contract.summary.total_sync_pending}
+          detail="只看 sync_log count"
+          tone={contract.summary.total_sync_pending > 0 ? "medium" : "low"}
+        />
+        <PayloadSummaryCard
+          label="云端账本"
+          value={contract.summary.ledger_tables}
+          detail="server ledger tables"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="阻塞项"
+          value={contract.summary.blocked_gates}
+          detail="上线前必须补齐"
+          tone={contract.summary.blocked_gates > 0 ? "high" : "low"}
+        />
+        <PayloadSummaryCard
+          label="push route"
+          value={contract.summary.push_route_enabled ? "开启" : "关闭"}
+          detail="当前仍不上传"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="本地改 synced"
+          value={contract.can_mark_local_rows_synced_now ? "允许" : "禁止"}
+          detail="必须等远端 ack"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="dead-letter"
+          value={contract.retry_policy.max_attempts_before_dead_letter}
+          detail="连续失败后人工处理"
+          tone="medium"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="服务端账本表">
+          <div className="space-y-2">
+            {contract.server_ledger_tables.map((table) => (
+              <SyncAckRetryLedgerTableRow key={table.table} table={table} />
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="启用前 gate">
+          <div className="space-y-2">
+            {contract.enablement_gates.map((gate) => (
+              <SyncAckRetryLedgerGateRow key={gate.id} gate={gate} />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="ack 政策">
+          <div className="space-y-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+              durable remote ack：
+              {contract.ack_policy.requires_durable_remote_ack ? "必须" : "可选"}
+            </div>
+            <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+              idempotency key：
+              {contract.ack_policy.requires_idempotency_key ? "必须" : "可选"}
+            </div>
+            <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+              ack cursor：
+              {contract.ack_policy.requires_ack_cursor ? "必须" : "可选"}
+            </div>
+            <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+              count / hash match：
+              {contract.ack_policy.requires_count_match &&
+              contract.ack_policy.requires_payload_hash_match
+                ? "必须"
+                : "可选"}
+            </div>
+          </div>
+        </ContractPanel>
+        <ContractPanel title="重试政策">
+          <div className="space-y-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+              retry delays: {contract.retry_policy.retry_delays_ms.join(" / ")} ms
+            </div>
+            <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+              idempotency scope: {contract.retry_policy.retry_idempotency_scope}
+            </div>
+            <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+              dead-letter manual review：
+              {contract.retry_policy.dead_letter_requires_manual_review
+                ? "必须"
+                : "可选"}
+            </div>
+          </div>
+        </ContractPanel>
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        下一步：{contract.summary.next_action}
+      </p>
+    </section>
+  );
+}
+
+function SyncAckRetryLedgerTableRow({
+  table,
+}: {
+  table: SyncAckRetryLedgerContract["server_ledger_tables"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+        {table.table}
+      </div>
+      <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        {table.purpose}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {table.allowed_fields.slice(0, 8).map((field) => (
+          <span
+            key={field}
+            className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {field}
+          </span>
+        ))}
+        {table.allowed_fields.length > 8 ? (
+          <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-400 dark:bg-zinc-800">
+            +{table.allowed_fields.length - 8}
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        forbidden: {table.forbidden_payloads.join(", ")}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckRetryLedgerGateRow({
+  gate,
+}: {
+  gate: SyncAckRetryLedgerContract["enablement_gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <SyncAckRetryLedgerStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_before_enablement}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckRetryLedgerStatusPill({
+  status,
+}: {
+  status: SyncAckLedgerGateStatus | "blocked";
+}) {
+  const pass = status === "pass";
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${
+        pass
+          ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+          : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+      }`}
+    >
+      {pass ? "pass" : "blocked"}
     </span>
   );
 }

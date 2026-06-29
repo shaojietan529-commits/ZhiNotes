@@ -82,6 +82,8 @@ const files = {
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
+  syncAckRetryLedgerContract:
+    "src/lib/sync/syncAckRetryLedgerContract.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
   commentVersionReplayReceipt:
@@ -465,6 +467,9 @@ function run() {
   const syncUploadDrainReceipt = readProjectFile(
     files.syncUploadDrainReceipt
   );
+  const syncAckRetryLedgerContract = readProjectFile(
+    files.syncAckRetryLedgerContract
+  );
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
   );
@@ -689,6 +694,7 @@ function run() {
     [files.webLaunchWorkbench, webLaunchWorkbench],
     [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
     [files.cloudMasterReconcile, cloudMasterReconcile],
+    [files.syncAckRetryLedgerContract, syncAckRetryLedgerContract],
     [
       files.commentVersionCloudReplayContract,
       commentVersionCloudReplayContract,
@@ -8353,6 +8359,175 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-ack-retry-ledger-contract"',
+      "Sync ack/retry ledger contract must have a stable format.",
+    ],
+    [
+      'contract_status: "local-contract-only"',
+      "Sync ack/retry ledger contract must stay local-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Sync ack/retry ledger contract must align with the cloud-master/local-hot-cache target.",
+    ],
+    [
+      "can_enable_sync_push_now: false",
+      "Sync ack/retry ledger contract must not enable sync push.",
+    ],
+    [
+      "can_mark_local_rows_synced_now: false",
+      "Sync ack/retry ledger contract must not mark local rows synced.",
+    ],
+    [
+      "local_contract_only: true",
+      "Sync ack/retry ledger contract must be a local contract only.",
+    ],
+    [
+      "reads_route_disabled_guards: true",
+      "Sync ack/retry ledger contract must read disabled route guards only.",
+    ],
+    [
+      "reads_pending_counts: true",
+      "Sync ack/retry ledger contract must read pending counts.",
+    ],
+    [
+      "reads_workspace_link_metadata: true",
+      "Sync ack/retry ledger contract must read workspace link metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Sync ack/retry ledger contract must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Sync ack/retry ledger contract must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Sync ack/retry ledger contract must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Sync ack/retry ledger contract must not read file bytes.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Sync ack/retry ledger contract must not send network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Sync ack/retry ledger contract must not connect cloud services.",
+    ],
+    [
+      "writes_server_data: false",
+      "Sync ack/retry ledger contract must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Sync ack/retry ledger contract must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Sync ack/retry ledger contract must not mutate local sync_log.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Sync ack/retry ledger contract must not mark rows synced.",
+    ],
+    [
+      "requires_durable_remote_ack: true",
+      "Sync ack/retry ledger contract must require durable remote ack.",
+    ],
+    [
+      "requires_idempotency_key: true",
+      "Sync ack/retry ledger contract must require idempotency key.",
+    ],
+    [
+      "requires_remote_commit_id: true",
+      "Sync ack/retry ledger contract must require remote commit id.",
+    ],
+    [
+      "requires_ack_cursor: true",
+      "Sync ack/retry ledger contract must require ack cursor.",
+    ],
+    [
+      "requires_count_match: true",
+      "Sync ack/retry ledger contract must require count match.",
+    ],
+    [
+      "requires_payload_hash_match: true",
+      "Sync ack/retry ledger contract must require payload hash match.",
+    ],
+    [
+      "max_attempts_before_dead_letter: 3",
+      "Sync ack/retry ledger contract must dead-letter repeated failures after three attempts.",
+    ],
+    [
+      "retry_delays_ms: [60000, 300000, 1800000]",
+      "Sync ack/retry ledger contract must define bounded retry delays.",
+    ],
+    [
+      "dead_letter_requires_manual_review: true",
+      "Sync ack/retry ledger contract must require manual review for dead letters.",
+    ],
+    [
+      "sync_batches",
+      "Sync ack/retry ledger contract must define sync_batches.",
+    ],
+    [
+      "sync_row_acks",
+      "Sync ack/retry ledger contract must define sync_row_acks.",
+    ],
+    [
+      "sync_retry_events",
+      "Sync ack/retry ledger contract must define sync_retry_events.",
+    ],
+    [
+      "sync_dead_letters",
+      "Sync ack/retry ledger contract must define sync_dead_letters.",
+    ],
+    [
+      "sync_ack_cursors",
+      "Sync ack/retry ledger contract must define sync_ack_cursors.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.syncAckRetryLedgerContract,
+      syncAckRetryLedgerContract,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildSyncAckRetryLedgerContract",
+      "Sync UI must build the ack/retry ledger contract.",
+    ],
+    [
+      "sync-ack-retry-ledger-contract",
+      "Sync UI must render the ack/retry ledger panel.",
+    ],
+    [
+      "服务端确认与重试账本",
+      "Sync UI must expose the server ack/retry ledger section.",
+    ],
+    [
+      "导出 ack/retry 账本合约",
+      "Sync UI must expose the ack/retry ledger export.",
+    ],
+    [
+      "不是上传按钮",
+      "Sync UI must state the ack/retry ledger is not an upload button.",
+    ],
+    [
+      "本地 sync_log 标成已同步",
+      "Sync UI must explain local sync_log cannot be marked synced before remote ack.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "local-performance-diagnosis",
       "Sync UI must render a stable local fluency diagnosis panel.",
     ],
@@ -8590,6 +8765,63 @@ function run() {
     assertSourceExcludes(
       files.syncUploadDrainReceipt,
       syncUploadDrainReceipt,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Sync ack/retry ledger contract must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Sync ack/retry ledger contract must not access page Yjs content.",
+    ],
+    [
+      "field_values",
+      "Sync ack/retry ledger contract must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Sync ack/retry ledger contract must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Sync ack/retry ledger contract must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Sync ack/retry ledger contract must not access file text.",
+    ],
+    [
+      "fetch(",
+      "Sync ack/retry ledger contract must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Sync ack/retry ledger contract must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Sync ack/retry ledger contract must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Sync ack/retry ledger contract must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Sync ack/retry ledger contract must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Sync ack/retry ledger contract must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.syncAckRetryLedgerContract,
+      syncAckRetryLedgerContract,
       snippet,
       message
     );
