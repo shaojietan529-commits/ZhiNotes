@@ -756,6 +756,12 @@ function run() {
       "Page route dynamic fallback must show handed-off metadata before the full page shell hydrates."
     );
   }
+  assertIncludes(
+    files.pageDetailRoute,
+    pageDetailRoute,
+    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
+    "Page route dynamic fallback must prefer metadata-only handoff over heavier pending drafts."
+  );
   for (const snippet of [
     "routePreviewPage",
     "readPageShellRoutePreviewSeed(pageId)",
@@ -769,6 +775,12 @@ function run() {
       "PageShell loading fallback must preserve local-first page metadata after the client shell starts."
     );
   }
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
+    "PageShell loading fallback must prefer metadata-only handoff over heavier pending drafts."
+  );
   for (const [snippet, message] of [
     [
       "useLayoutEffect,",
@@ -4430,14 +4442,14 @@ function run() {
   assertIncludes(
     files.pagePeekModal,
     pagePeekModal,
-    "readPendingPageDraft(pageId) ??",
-    "PagePeekModal must reuse same-tab pending page drafts before waiting on IndexedDB metadata."
+    "readPageRouteHandoff(pageId) ??",
+    "PagePeekModal must reuse local-first route handoff metadata before waiting on IndexedDB metadata."
   );
   assertIncludes(
     files.pagePeekModal,
     pagePeekModal,
-    "readPageRouteHandoff(pageId) ??",
-    "PagePeekModal must reuse local-first route handoff metadata before waiting on IndexedDB metadata."
+    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
+    "PagePeekModal must prefer metadata-only handoff over heavier pending drafts."
   );
   assertIncludes(
     files.pagePeekModal,
@@ -11446,8 +11458,14 @@ function run() {
   assertIncludes(
     files.localFirstPageNavigationUtil,
     localFirstPageNavigationUtil,
-    "rememberPendingPageDraft(page)",
-    "Shared page navigation must keep an immediate draft before opening page routes."
+    "shouldRememberNavigationPendingDraft(page, source)",
+    "Shared page navigation must only keep pending drafts for created or empty pages."
+  );
+  assertIncludes(
+    files.localFirstPageNavigationUtil,
+    localFirstPageNavigationUtil,
+    'source.endsWith("-create")',
+    "Shared page navigation must not inspect page bodies or store full page bodies in pending drafts for normal page opens."
   );
   assertIncludes(
     files.localFirstPageNavigationUtil,

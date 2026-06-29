@@ -216,8 +216,8 @@ function readLocalFirstLoadingSeed(
 ): Page | null {
   if (initialPage?.id === pageId) return initialPage;
   return (
-    readPendingPageDraft(pageId) ??
     readPageRouteHandoff(pageId) ??
+    readPendingPageDraft(pageId) ??
     useWorkspaceStore.getState().getPageById(pageId) ??
     null
   );

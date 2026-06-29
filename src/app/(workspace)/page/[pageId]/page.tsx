@@ -40,8 +40,8 @@ function PageRouteLoadingSkeleton() {
 
 function readLocalFirstPageRouteSeed(pageId: string) {
   return (
-    readPendingPageDraft(pageId) ??
     readPageRouteHandoff(pageId) ??
+    readPendingPageDraft(pageId) ??
     useWorkspaceStore.getState().getPageById(pageId) ??
     null
   );

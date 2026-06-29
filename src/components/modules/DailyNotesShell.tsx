@@ -1472,7 +1472,11 @@ export default function DailyNotesShell() {
     primeDailyNoteOpen(note, "daily-open");
     const seededNote =
       useWorkspaceStore.getState().getPageById(note.id) ?? note;
-    setPeekInitialPage(toDailyNoteMetadataSeed(seededNote, note));
+    if (seededNote.content_text === "") {
+      setPeekInitialPage(toDailyNoteSeed(seededNote, note));
+    } else {
+      setPeekInitialPage(toDailyNoteMetadataSeed(seededNote, note));
+    }
     setOpeningNoteId(note.id);
     setPeekPageId(note.id);
   }, [primeDailyNoteOpen]);

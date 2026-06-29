@@ -41,8 +41,17 @@ export function prepareLocalFirstPageNavigation(
   source: PageRouteHandoffSource = "page-open"
 ): void {
   useWorkspaceStore.getState().upsertPages([page]);
-  rememberPendingPageDraft(page);
+  if (shouldRememberNavigationPendingDraft(page, source)) {
+    rememberPendingPageDraft(page);
+  }
   rememberPageRouteHandoff(page, source);
+}
+
+function shouldRememberNavigationPendingDraft(
+  _page: Page,
+  source: PageRouteHandoffSource
+): boolean {
+  return source.endsWith("-create");
 }
 
 export function resolveLocalFirstPageNavigationSeed(

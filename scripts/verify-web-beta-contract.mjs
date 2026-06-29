@@ -903,6 +903,12 @@ function run() {
   ]) {
     assertSourceIncludes(files.pageDetailRoute, pageDetailRoute, snippet, message);
   }
+  assertSourceIncludes(
+    files.pageDetailRoute,
+    pageDetailRoute,
+    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
+    "The page detail route loading skeleton must prefer metadata-only handoff over heavier pending drafts."
+  );
   for (const [snippet, message] of [
     [
       "routePreviewPage",
@@ -923,6 +929,12 @@ function run() {
   ]) {
     assertSourceIncludes(files.pageShell, pageShell, snippet, message);
   }
+  assertSourceIncludes(
+    files.pageShell,
+    pageShell,
+    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
+    "PageShell local-first preview must prefer metadata-only handoff over heavier pending drafts."
+  );
   assertSourceExcludes(
     files.pageShell,
     pageShell,
@@ -4656,12 +4668,12 @@ function run() {
       "PagePeekModal must seed title and properties from initial metadata before first paint.",
     ],
     [
-      "readPendingPageDraft(pageId) ??",
-      "PagePeekModal must reuse same-tab pending page drafts before waiting on IndexedDB metadata.",
-    ],
-    [
       "readPageRouteHandoff(pageId) ??",
       "PagePeekModal must reuse local-first route handoff metadata before waiting on IndexedDB metadata.",
+    ],
+    [
+      "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
+      "PagePeekModal must prefer metadata-only route handoff over heavier pending body drafts.",
     ],
     [
       "useState(() => initialPeekPage?.title ?? \"\")",
@@ -19884,8 +19896,14 @@ function run() {
     [
       files.localFirstPageNavigationUtil,
       localFirstPageNavigationUtil,
-      "rememberPendingPageDraft(page)",
-      "Shared page navigation must keep an in-memory draft before opening the page route.",
+      "shouldRememberNavigationPendingDraft(page, source)",
+      "Shared page navigation must only keep pending drafts for created or empty pages.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
+      'source.endsWith("-create")',
+      "Shared page navigation must not inspect page bodies or store full page bodies in pending drafts for normal page opens.",
     ],
     [
       files.localFirstPageNavigationUtil,

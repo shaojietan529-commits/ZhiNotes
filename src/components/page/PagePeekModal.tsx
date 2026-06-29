@@ -74,8 +74,8 @@ function getInitialPeekPage(
 
 function readLocalFirstPeekSeed(pageId: string): Page | null {
   return (
-    readPendingPageDraft(pageId) ??
     readPageRouteHandoff(pageId) ??
+    readPendingPageDraft(pageId) ??
     useWorkspaceStore.getState().getPageById(pageId) ??
     null
   );
