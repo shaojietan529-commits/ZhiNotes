@@ -15075,8 +15075,8 @@ function run() {
       "Page route first paint must use the workspace id index before slower local/cloud reads.",
     ],
     [
-      files.localFirstPageNavigation,
-      localFirstPageNavigation,
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
       "useWorkspaceStore.getState().getPageById(target)",
       "Local-first page navigation must avoid scanning all pages when opening by id.",
     ],
@@ -16117,6 +16117,24 @@ function run() {
       pendingPageDrafts,
       'document.addEventListener("visibilitychange"',
       "Pending page drafts must flush buffered recovery writes when the document becomes hidden.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
+      "resolveLocalFirstPageNavigationSeed",
+      "Shared page navigation must resolve an in-memory metadata seed before page route handoff.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
+      "const page = resolveLocalFirstPageNavigationSeed(target);",
+      "Event-dispatched page navigation must resolve a metadata seed before broadcasting.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
+      "prepareLocalFirstPageNavigation(page, options.source ?? \"page-open\")",
+      "Event-dispatched page navigation must prepare route handoff before any fallback route change.",
     ],
     [
       files.localFirstPageNavigationUtil,

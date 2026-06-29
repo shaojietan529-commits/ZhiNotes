@@ -4,10 +4,10 @@ import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   prepareLocalFirstPageNavigation,
+  resolveLocalFirstPageNavigationSeed,
   warmPageShellModule,
   type LocalFirstPageNavigationOptions,
 } from "@/lib/pages/localFirstPageNavigation";
-import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
 export function useLocalFirstPageNavigation() {
@@ -20,10 +20,7 @@ export function useLocalFirstPageNavigation() {
     ) => {
       warmPageShellModule();
       const pageId = typeof target === "string" ? target : target.id;
-      const page =
-        typeof target === "string"
-          ? useWorkspaceStore.getState().getPageById(target) ?? null
-          : target;
+      const page = resolveLocalFirstPageNavigationSeed(target);
 
       if (page) {
         prepareLocalFirstPageNavigation(page, options.source ?? "page-open");

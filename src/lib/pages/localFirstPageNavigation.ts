@@ -45,11 +45,24 @@ export function prepareLocalFirstPageNavigation(
   rememberPageRouteHandoff(page, source);
 }
 
+export function resolveLocalFirstPageNavigationSeed(
+  target: LocalFirstPageNavigationTarget
+): Page | null {
+  return typeof target === "string"
+    ? useWorkspaceStore.getState().getPageById(target) ?? null
+    : target;
+}
+
 export function dispatchLocalFirstPageNavigation(
   target: LocalFirstPageNavigationTarget,
   options: LocalFirstPageNavigationOptions = {}
 ): boolean {
   if (typeof window === "undefined") return false;
+  const page = resolveLocalFirstPageNavigationSeed(target);
+  if (page) {
+    warmPageShellModule();
+    prepareLocalFirstPageNavigation(page, options.source ?? "page-open");
+  }
   const detail: LocalFirstPageNavigationEventDetail = {
     target,
     source: options.source,
