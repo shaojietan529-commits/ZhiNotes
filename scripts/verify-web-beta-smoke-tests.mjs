@@ -10144,6 +10144,9 @@ function run() {
   for (const snippet of [
     "hydrateDeferredPageContentBatches",
     "DEFERRED_CONTENT_HYDRATION_BATCH_SIZE",
+    "PRIORITY_CONTENT_HYDRATION_LIMIT",
+    "getPriorityContentHydrationPageIds",
+    "listPagesForPriorityContentHydration",
     "await waitForIdle(1400)",
   ]) {
     assertIncludes(
@@ -10155,7 +10158,9 @@ function run() {
   }
   for (const snippet of [
     "export async function listPagesForContentHydration",
+    "export async function listPagesForPriorityContentHydration",
     "LIMIT ? OFFSET ?",
+    "AND id IN (${placeholders})",
     "PAGE_CONTENT_HYDRATION_SELECT",
     "NULL AS content_yjs, ${prefix}content_text",
   ]) {
@@ -10181,6 +10186,16 @@ function run() {
     "useWorkspaceStore.getState().upsertPages(contentPages)",
     "Deferred page body hydration must merge content into the existing metadata store instead of replacing cloud metadata."
   );
+  if (
+    !(
+      usePages.indexOf("const priorityPageIds = getPriorityContentHydrationPageIds()") <
+      usePages.indexOf("let offset = 0;")
+    )
+  ) {
+    failures.push(
+      "usePages must hydrate currently visible metadata-only pages before starting offset-based full-library content hydration."
+    );
+  }
   for (const snippet of [
     "canPatchPagesWithoutResort",
     "patchPagesWithoutResort",

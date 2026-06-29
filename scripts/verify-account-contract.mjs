@@ -1780,9 +1780,19 @@ const localPageContentHydrationBody = localQueries.slice(
 check(
   localQueries.includes("PAGE_CONTENT_HYDRATION_SELECT") &&
     localQueries.includes("NULL AS content_yjs, ${prefix}content_text") &&
+    localQueries.includes("export async function listPagesForPriorityContentHydration") &&
+    localQueries.includes("AND id IN (${placeholders})") &&
     localPageContentHydrationBody.includes("PAGE_CONTENT_HYDRATION_SELECT") &&
     !localPageContentHydrationBody.includes("SELECT *"),
   "后台正文补齐应只读取 content_text，不能通过 SELECT * 把 content_yjs 二进制内容一起读入内存"
+);
+check(
+  usePagesHook.includes("PRIORITY_CONTENT_HYDRATION_LIMIT") &&
+    usePagesHook.includes("getPriorityContentHydrationPageIds") &&
+    usePagesHook.includes("listPagesForPriorityContentHydration") &&
+    usePagesHook.indexOf("const priorityPageIds = getPriorityContentHydrationPageIds()") <
+      usePagesHook.indexOf("let offset = 0;"),
+  "后台正文补齐应先补当前已显示的 metadata-only 页面，再进入 offset 全库空闲批次"
 );
 check(
   localPageSyncSummaryBody.includes("SELECT id, updated_at, deleted_at") &&

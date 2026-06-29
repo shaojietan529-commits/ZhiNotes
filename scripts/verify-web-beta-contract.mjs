@@ -18479,6 +18479,24 @@ function run() {
     [
       files.usePages,
       usePages,
+      "PRIORITY_CONTENT_HYDRATION_LIMIT",
+      "Deferred page body hydration must cap the currently visible priority batch.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "getPriorityContentHydrationPageIds",
+      "Deferred page body hydration must select currently rendered metadata-only pages before scanning the full library.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "listPagesForPriorityContentHydration",
+      "Deferred page body hydration must query priority page bodies by id before offset-based hydration.",
+    ],
+    [
+      files.usePages,
+      usePages,
       "await waitForIdle(1400)",
       "Deferred page body hydration must yield between batches.",
     ],
@@ -18491,8 +18509,20 @@ function run() {
     [
       files.localQueries,
       localQueries,
+      "export async function listPagesForPriorityContentHydration",
+      "Local page content hydration must expose a bounded by-id priority query for visible pages.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
       "LIMIT ? OFFSET ?",
       "Local page content hydration batches must be limit/offset bounded.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "AND id IN (${placeholders})",
+      "Priority page content hydration must target specific currently rendered page ids.",
     ],
     [
       files.localQueries,
@@ -19922,6 +19952,16 @@ function run() {
     "SELECT *",
     "Deferred page body hydration must not read content_yjs blobs through SELECT *."
   );
+  if (
+    !(
+      usePages.indexOf("const priorityPageIds = getPriorityContentHydrationPageIds()") <
+      usePages.indexOf("let offset = 0;")
+    )
+  ) {
+    failures.push(
+      "usePages must hydrate currently visible metadata-only pages before starting offset-based full-library content hydration."
+    );
+  }
   assertSourceExcludes(
     files.hotCacheRouteWarmup,
     hotCacheRouteWarmup,

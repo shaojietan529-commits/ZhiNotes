@@ -1109,6 +1109,32 @@ export async function listPagesForContentHydration({
   ) as unknown as Page[];
 }
 
+export async function listPagesForPriorityContentHydration({
+  pageIds,
+  limit = 80,
+}: {
+  pageIds: string[];
+  limit?: number;
+}): Promise<Page[]> {
+  const db = await getDb();
+  const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
+  const uniqueIds = Array.from(new Set(pageIds.filter(Boolean))).slice(
+    0,
+    safeLimit
+  );
+  if (uniqueIds.length === 0) return [];
+  const placeholders = uniqueIds.map(() => "?").join(",");
+  return db.query(
+    `SELECT ${PAGE_CONTENT_HYDRATION_SELECT}
+     FROM pages
+     WHERE deleted_at IS NULL
+       AND id IN (${placeholders})
+     ORDER BY updated_at DESC
+     LIMIT ?`,
+    [...uniqueIds, safeLimit]
+  ) as unknown as Page[];
+}
+
 export async function getAllPageMetadata(): Promise<Page[]> {
   const db = await getDb();
   return db.query(

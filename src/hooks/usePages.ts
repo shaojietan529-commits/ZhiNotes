@@ -7,6 +7,7 @@ import {
   getWorkspaceSetting,
   listHotCachePageMetadata,
   listPagesForContentHydration,
+  listPagesForPriorityContentHydration,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import { syncCloudPageMetadataDelta } from "@/lib/pages/accountPageSync";
@@ -49,6 +50,7 @@ let deferredMetadataHydrationInFlight: Promise<void> | null = null;
 let deferredContentHydrationScheduled = false;
 let deferredContentHydrationInFlight: Promise<void> | null = null;
 const DEFERRED_CONTENT_HYDRATION_BATCH_SIZE = 80;
+const PRIORITY_CONTENT_HYDRATION_LIMIT = 80;
 
 function remoteMetadataToPage(record: RemotePageRecord): Page {
   return {
@@ -140,6 +142,20 @@ function waitForIdle(timeout = 1200): Promise<void> {
   });
 }
 
+function getPriorityContentHydrationPageIds(): string[] {
+  const priorityIds: string[] = [];
+  const seen = new Set<string>();
+  for (const page of useWorkspaceStore.getState().pages) {
+    if (page.deleted_at || page.content_text !== null || seen.has(page.id)) {
+      continue;
+    }
+    priorityIds.push(page.id);
+    seen.add(page.id);
+    if (priorityIds.length >= PRIORITY_CONTENT_HYDRATION_LIMIT) break;
+  }
+  return priorityIds;
+}
+
 function scheduleDeferredMetadataHydration(
   setPages: (pages: Page[]) => void
 ): void {
@@ -168,6 +184,18 @@ function scheduleDeferredMetadataHydration(
 }
 
 async function hydrateDeferredPageContentBatches(): Promise<void> {
+  const priorityPageIds = getPriorityContentHydrationPageIds();
+  if (priorityPageIds.length > 0) {
+    const priorityContentPages = await listPagesForPriorityContentHydration({
+      pageIds: priorityPageIds,
+      limit: PRIORITY_CONTENT_HYDRATION_LIMIT,
+    });
+    if (priorityContentPages.length > 0) {
+      useWorkspaceStore.getState().upsertPages(priorityContentPages);
+      await waitForIdle(900);
+    }
+  }
+
   let offset = 0;
   while (true) {
     const contentPages = await listPagesForContentHydration({
