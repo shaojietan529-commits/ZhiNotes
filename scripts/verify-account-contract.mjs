@@ -77,6 +77,9 @@ check(
 const shell = read("src/components/modules/AccountShell.tsx");
 const accountClientSession = read("src/lib/account/clientSession.ts");
 const accountCloudSyncGate = read("src/lib/account/accountCloudSyncGate.ts");
+const hotCacheRouteWarmup = read("src/lib/sync/hotCacheRouteWarmup.ts");
+const hotCacheRouteWarmupHook = read("src/hooks/useHotCacheRouteWarmup.ts");
+const sidebarShell = read("src/components/sidebar/Sidebar.tsx");
 check(shell.includes("unconfigured"), "AccountShell 缺少未配置状态");
 const effectBodies = shell.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[/g) ?? [];
 check(effectBodies.length > 0, "AccountShell 缺少会话检查 useEffect");
@@ -118,8 +121,8 @@ check(
     shell.includes("getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)") &&
     shell.includes("upsertWorkspaceSetting(") &&
     shell.includes('"account-hot-cache-preferences"') &&
-    shell.includes("getAccountHotCacheRouteTargets") &&
-    shell.includes("prefetchAccountHotCacheRoutes") &&
+    shell.includes("getHotCacheRouteTargets") &&
+    shell.includes("prefetchHotCacheRoutes") &&
     shell.includes("router.prefetch(routeTarget)") &&
     shell.includes('data-testid="account-hot-cache-route-warmup"') &&
     shell.includes("只做 route prefetch") &&
@@ -128,6 +131,31 @@ check(
     shell.includes("不读取正文、文件或行值") &&
     shell.includes("不清理本地缓存"),
   "AccountShell 应在账号页提供选择性本地热缓存偏好入口和 route prefetch 预热，只保存 workspace_settings metadata，不读取正文/文件/行值"
+);
+check(
+  hotCacheRouteWarmup.includes("export function getHotCacheRouteTargets") &&
+    hotCacheRouteWarmup.includes("export function prefetchHotCacheRoutes") &&
+    hotCacheRouteWarmup.includes("prefetches_routes_only: true") &&
+    hotCacheRouteWarmup.includes("uploads_workspace_data: false") &&
+    hotCacheRouteWarmup.includes("enters_sync_log: false") &&
+    !hotCacheRouteWarmup.includes("content_text") &&
+    !hotCacheRouteWarmup.includes("content_yjs") &&
+    !hotCacheRouteWarmup.includes("field_values"),
+  "热缓存 route warmup helper 必须只做 route prefetch，不读取正文、Yjs、数据库行值或进入同步队列"
+);
+check(
+  sidebarShell.includes("useHotCacheRouteWarmup();") &&
+    hotCacheRouteWarmupHook.includes("useHotCacheRouteWarmup") &&
+    hotCacheRouteWarmupHook.includes("scheduleHotCacheIdleTask") &&
+    hotCacheRouteWarmupHook.includes("getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)") &&
+    hotCacheRouteWarmupHook.includes("parseHotCachePreferences(setting)") &&
+    hotCacheRouteWarmupHook.includes("prefetchHotCacheRoutes(") &&
+    hotCacheRouteWarmupHook.includes("lastWarmupKey") &&
+    hotCacheRouteWarmupHook.includes("HOT_CACHE_PREFERENCES_CHANGED_EVENT") &&
+    hotCacheRouteWarmupHook.includes("HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY") &&
+    !hotCacheRouteWarmupHook.includes("upsertWorkspaceSetting") &&
+    !hotCacheRouteWarmupHook.includes("sync_log"),
+  "Sidebar 应在空闲时按热缓存偏好自动预热常用入口，且 hook 不能写设置或同步队列"
 );
 check(
   accountClientSession.includes("/api/account/me") &&

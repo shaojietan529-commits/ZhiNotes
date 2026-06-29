@@ -65,6 +65,10 @@ import {
   type HotCachePreferences,
 } from "@/lib/sync/hotCacheSelectionSettings";
 import {
+  getHotCacheRouteTargets,
+  prefetchHotCacheRoutes,
+} from "@/lib/sync/hotCacheRouteWarmup";
+import {
   readLocalWorkspaceIdentity,
   type LocalWorkspaceIdentity,
 } from "@/lib/sync/workspaceIdentity";
@@ -77,54 +81,6 @@ type Phase =
   | "code"
   | "signed-in"
   | "error";
-
-interface AccountHotCacheRouteWarmupReceipt {
-  attempted: number;
-  failed: number;
-  routeTargets: string[];
-}
-
-function getAccountHotCacheRouteTargets(
-  preferences: HotCachePreferences
-): string[] {
-  const routeTargets = new Set<string>([
-    "/modules/notes",
-    "/modules/sync",
-    "/page/zhinote-route-prefetch",
-  ]);
-  if (preferences.keepCurrentMonthDailyNotes) routeTargets.add("/daily");
-  if (preferences.keepCurrentMonthMeetings) routeTargets.add("/schedule");
-  if (
-    preferences.keepActiveDatabases ||
-    preferences.pinnedDatabaseIds.length > 0
-  ) {
-    routeTargets.add("/modules/databases");
-  }
-  if (preferences.keepRecentFilePreviews) routeTargets.add("/modules/files");
-  if (preferences.keepFavoritePages) routeTargets.add("/knowledge-base");
-  if (preferences.keepCurrentProjects) routeTargets.add("/modules/projects");
-  return [...routeTargets];
-}
-
-function prefetchAccountHotCacheRoutes(
-  prefetch: (routeTarget: string) => void,
-  preferences: HotCachePreferences
-): AccountHotCacheRouteWarmupReceipt {
-  const routeTargets = getAccountHotCacheRouteTargets(preferences);
-  let failed = 0;
-  for (const routeTarget of routeTargets) {
-    try {
-      prefetch(routeTarget);
-    } catch {
-      failed += 1;
-    }
-  }
-  return {
-    attempted: routeTargets.length,
-    failed,
-    routeTargets,
-  };
-}
 
 function getPageCacheRebuildPendingBlocker(): string | null {
   const status = getPendingCloudPageSyncStatus();
@@ -708,7 +664,7 @@ export default function AccountShell() {
   ) {
     setHotCacheRouteWarmupBusy(true);
     setHotCacheRouteWarmupNotice(null);
-    const receipt = prefetchAccountHotCacheRoutes(
+    const receipt = prefetchHotCacheRoutes(
       (routeTarget) => router.prefetch(routeTarget),
       preferences
     );
@@ -1430,7 +1386,7 @@ function AccountHotCachePreferenceCard({
 }) {
   const metadataWindow = metadataRecentLimitForHotCachePreferences(preferences);
   const enabledCount = countEnabledHotCachePreferences(preferences);
-  const routeTargetCount = getAccountHotCacheRouteTargets(preferences).length;
+  const routeTargetCount = getHotCacheRouteTargets(preferences).length;
   const handleRecentDaysChange = (event: ChangeEvent<HTMLSelectElement>) => {
     onChange({ recentDays: event.target.value === "90" ? 90 : 30 });
   };

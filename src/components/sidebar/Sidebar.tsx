@@ -23,6 +23,7 @@ import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
 import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
 import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
+import { useHotCacheRouteWarmup } from "@/hooks/useHotCacheRouteWarmup";
 import {
   getWorkspaceSetting,
   upsertWorkspaceSetting,
@@ -290,6 +291,7 @@ async function persistSidebarPrimaryCustomizations(
 }
 
 export default function Sidebar() {
+  useHotCacheRouteWarmup();
   const { databases, refresh: refreshDatabases } = useDatabases();
   const sidebarOpen = useWorkspaceStore((s) => s.sidebarOpen);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);

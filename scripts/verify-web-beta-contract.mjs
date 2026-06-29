@@ -112,6 +112,8 @@ const files = {
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
+  hotCacheRouteWarmup: "src/lib/sync/hotCacheRouteWarmup.ts",
+  hotCacheRouteWarmupHook: "src/hooks/useHotCacheRouteWarmup.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
@@ -541,6 +543,10 @@ function run() {
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
+  const hotCacheRouteWarmup = readProjectFile(files.hotCacheRouteWarmup);
+  const hotCacheRouteWarmupHook = readProjectFile(
+    files.hotCacheRouteWarmupHook
+  );
   const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
   const calendarFirstPaintRange = readProjectFile(
     files.calendarFirstPaintRange
@@ -18293,13 +18299,13 @@ function run() {
     [
       files.accountShell,
       accountShell,
-      "getAccountHotCacheRouteTargets",
+      "getHotCacheRouteTargets",
       "Account page must expose route targets for safe user-selected hot-cache warmup.",
     ],
     [
       files.accountShell,
       accountShell,
-      "prefetchAccountHotCacheRoutes",
+      "prefetchHotCacheRoutes",
       "Account page hot-cache warmup must stay route-prefetch-only.",
     ],
     [
@@ -18319,6 +18325,66 @@ function run() {
       accountShell,
       "不写 sync_log",
       "Account hot-cache route warmup must disclose that it does not enter the upload queue.",
+    ],
+    [
+      files.hotCacheRouteWarmup,
+      hotCacheRouteWarmup,
+      "export function getHotCacheRouteTargets",
+      "Shared route warmup helper must expose the user-selected hot-cache route list.",
+    ],
+    [
+      files.hotCacheRouteWarmup,
+      hotCacheRouteWarmup,
+      "export function prefetchHotCacheRoutes",
+      "Shared route warmup helper must perform route prefetch from one audited implementation.",
+    ],
+    [
+      files.hotCacheRouteWarmup,
+      hotCacheRouteWarmup,
+      "prefetches_routes_only: true",
+      "Shared route warmup helper must disclose route-prefetch-only behavior.",
+    ],
+    [
+      files.hotCacheRouteWarmup,
+      hotCacheRouteWarmup,
+      "uploads_workspace_data: false",
+      "Shared route warmup helper must not upload workspace data.",
+    ],
+    [
+      files.hotCacheRouteWarmup,
+      hotCacheRouteWarmup,
+      "enters_sync_log: false",
+      "Shared route warmup helper must stay out of the upload queue.",
+    ],
+    [
+      files.hotCacheRouteWarmupHook,
+      hotCacheRouteWarmupHook,
+      "scheduleHotCacheIdleTask",
+      "Global hot-cache route warmup must run during idle time.",
+    ],
+    [
+      files.hotCacheRouteWarmupHook,
+      hotCacheRouteWarmupHook,
+      "getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)",
+      "Global hot-cache route warmup must read only the user preference setting.",
+    ],
+    [
+      files.hotCacheRouteWarmupHook,
+      hotCacheRouteWarmupHook,
+      "prefetchHotCacheRoutes(",
+      "Global hot-cache route warmup must reuse the shared audited helper.",
+    ],
+    [
+      files.hotCacheRouteWarmupHook,
+      hotCacheRouteWarmupHook,
+      "lastWarmupKey",
+      "Global hot-cache route warmup must avoid repeated prefetch work for unchanged preferences.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "useHotCacheRouteWarmup();",
+      "Sidebar must install the global idle hot-cache route warmup hook.",
     ],
     [
       files.usePages,
@@ -19835,6 +19901,30 @@ function run() {
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
   }
+  assertSourceExcludes(
+    files.hotCacheRouteWarmup,
+    hotCacheRouteWarmup,
+    "content_text",
+    "Shared route warmup helper must not read page bodies."
+  );
+  assertSourceExcludes(
+    files.hotCacheRouteWarmup,
+    hotCacheRouteWarmup,
+    "field_values",
+    "Shared route warmup helper must not read database row values."
+  );
+  assertSourceExcludes(
+    files.hotCacheRouteWarmupHook,
+    hotCacheRouteWarmupHook,
+    "upsertWorkspaceSetting",
+    "Global route warmup hook must not write workspace settings."
+  );
+  assertSourceExcludes(
+    files.hotCacheRouteWarmupHook,
+    hotCacheRouteWarmupHook,
+    "sync_log",
+    "Global route warmup hook must not write or inspect sync_log."
+  );
   assertSourceExcludes(
     files.sidebar,
     sidebar,

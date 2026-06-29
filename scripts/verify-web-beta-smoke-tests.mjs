@@ -41,6 +41,8 @@ const files = {
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
+  hotCacheRouteWarmup: "src/lib/sync/hotCacheRouteWarmup.ts",
+  hotCacheRouteWarmupHook: "src/hooks/useHotCacheRouteWarmup.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
@@ -389,6 +391,10 @@ function run() {
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
+  const hotCacheRouteWarmup = readProjectFile(files.hotCacheRouteWarmup);
+  const hotCacheRouteWarmupHook = readProjectFile(
+    files.hotCacheRouteWarmupHook
+  );
   const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
   const calendarFirstPaintRange = readProjectFile(
     files.calendarFirstPaintRange
@@ -10019,8 +10025,8 @@ function run() {
     "Page and sidebar lists must read the rebuildable local snapshot first, with content callers allowed to start metadata-only."
   );
   for (const snippet of [
-    "getAccountHotCacheRouteTargets",
-    "prefetchAccountHotCacheRoutes",
+    "getHotCacheRouteTargets",
+    "prefetchHotCacheRoutes",
     "router.prefetch(routeTarget)",
     'data-testid="account-hot-cache-route-warmup"',
     "只做 route prefetch",
@@ -10033,6 +10039,54 @@ function run() {
       "Account hot-cache preferences must expose safe route-only warmup from the account page."
     );
   }
+  for (const snippet of [
+    "export function getHotCacheRouteTargets",
+    "export function prefetchHotCacheRoutes",
+    "prefetches_routes_only: true",
+    "uploads_workspace_data: false",
+    "enters_sync_log: false",
+  ]) {
+    assertIncludes(
+      files.hotCacheRouteWarmup,
+      hotCacheRouteWarmup,
+      snippet,
+      "Shared hot-cache route warmup helper must stay route-prefetch-only and out of sync."
+    );
+  }
+  for (const snippet of [
+    "useHotCacheRouteWarmup",
+    "scheduleHotCacheIdleTask",
+    "getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)",
+    "parseHotCachePreferences(setting)",
+    "prefetchHotCacheRoutes(",
+    "lastWarmupKey",
+    "HOT_CACHE_PREFERENCES_CHANGED_EVENT",
+  ]) {
+    assertIncludes(
+      files.hotCacheRouteWarmupHook,
+      hotCacheRouteWarmupHook,
+      snippet,
+      "Sidebar must automatically warm high-frequency routes during idle time using only hot-cache preference metadata."
+    );
+  }
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "useHotCacheRouteWarmup();",
+    "Sidebar must install the idle hot-cache route warmup hook globally."
+  );
+  assertExcludes(
+    files.hotCacheRouteWarmup,
+    hotCacheRouteWarmup,
+    "content_text",
+    "Route warmup helper must not read page bodies."
+  );
+  assertExcludes(
+    files.hotCacheRouteWarmupHook,
+    hotCacheRouteWarmupHook,
+    "upsertWorkspaceSetting",
+    "Route warmup hook must not write workspace settings."
+  );
   for (const snippet of [
     "loadHotCachePageMetadataSnapshot",
     "listHotCachePageMetadata",
