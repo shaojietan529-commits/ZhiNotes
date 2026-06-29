@@ -444,6 +444,13 @@ import {
   type SyncAckLedgerReplayProofStatus,
 } from "@/lib/sync/syncAckLedgerReplayProof";
 import {
+  buildSyncAckLedgerReplayEnablement,
+  type SyncAckLedgerReplayEnablement,
+  type SyncAckLedgerReplayEnablementGate,
+  type SyncAckLedgerReplayEnablementMapping,
+  type SyncAckLedgerReplayEnablementStatus,
+} from "@/lib/sync/syncAckLedgerReplayEnablement";
+import {
   buildCommentVersionReplayApiDisabledResponse,
 } from "@/lib/sync/commentVersionReplayApiStub";
 import {
@@ -514,6 +521,7 @@ type SyncQueueAction =
   | "sync-ack-retry-ledger"
   | "sync-ack-ledger-replay-preflight"
   | "sync-ack-ledger-replay-proof"
+  | "sync-ack-ledger-replay-enablement"
   | "comment-version-replay-api-guard"
   | "comment-version-replay-receipt"
   | "rollback-plan"
@@ -2022,6 +2030,19 @@ function SyncDashboard() {
         preflight: syncAckLedgerReplayPreflight,
       }),
     [syncAckLedgerReplayPreflight, syncAckRetryLedgerContract]
+  );
+  const syncAckLedgerReplayEnablement = useMemo(
+    () =>
+      buildSyncAckLedgerReplayEnablement({
+        ackLedgerContract: syncAckRetryLedgerContract,
+        preflight: syncAckLedgerReplayPreflight,
+        proof: syncAckLedgerReplayProof,
+      }),
+    [
+      syncAckLedgerReplayPreflight,
+      syncAckLedgerReplayProof,
+      syncAckRetryLedgerContract,
+    ]
   );
   const syncConflictResolution = useMemo(
     () =>
@@ -4711,6 +4732,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncAckLedgerReplayEnablement = () => {
+    setBusyQueueAction("sync-ack-ledger-replay-enablement");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-ack-ledger-replay-enablement-${fileSafeTimestamp()}.json`,
+        {
+          ...syncAckLedgerReplayEnablement,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync ack ledger replay enablement:",
+        err
+      );
+      window.alert("ack/retry 云端演练启用包导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportCommentVersionReplayApiGuard = () => {
     setBusyQueueAction("comment-version-replay-api-guard");
     try {
@@ -6384,6 +6426,12 @@ function SyncDashboard() {
           proof={syncAckLedgerReplayProof}
           busy={busyQueueAction === "sync-ack-ledger-replay-proof"}
           onExport={handleExportSyncAckLedgerReplayProof}
+        />
+
+        <SyncAckLedgerReplayEnablementPanel
+          enablement={syncAckLedgerReplayEnablement}
+          busy={busyQueueAction === "sync-ack-ledger-replay-enablement"}
+          onExport={handleExportSyncAckLedgerReplayEnablement}
         />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -13099,6 +13147,194 @@ function SyncAckLedgerReplayProofStatusPill({
   };
   const className =
     status === "pass"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function SyncAckLedgerReplayEnablementPanel({
+  enablement,
+  busy,
+  onExport,
+}: {
+  enablement: SyncAckLedgerReplayEnablement;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="sync-ack-ledger-replay-enablement"
+      data-testid="sync-ack-ledger-replay-enablement"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              ack/retry 云端演练启用包
+            </h2>
+            <SyncAckLedgerReplayEnablementStatusPill status="blocked" />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是 owner-gated 的启用清单，不是真实云端 runner。它只把本地预检和纯内存证明翻译成
+            一次性云端工作区需要满足的门槛；不会连接云端、不会上传数据、不会读取正文或文件，
+            也不会打开真实同步推送。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出云端演练启用包"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <PayloadSummaryCard
+          label="状态"
+          value={enablement.enablement_status}
+          detail="owner gated"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="门槛"
+          value={enablement.summary.gates}
+          detail="启用条件"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="本地已证明"
+          value={enablement.summary.local_ready}
+          detail="可复用"
+          tone="low"
+        />
+        <PayloadSummaryCard
+          label="待确认"
+          value={enablement.summary.manual_confirmation}
+          detail="需要你批准"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="Blocked"
+          value={enablement.summary.blocked}
+          detail="仍未放行"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="生产环境"
+          value={enablement.can_run_production_replay_now ? "可运行" : "拒绝"}
+          detail="不能碰真实数据"
+          tone="high"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-[1.1fr_0.9fr]">
+        <ContractPanel title="启用门槛">
+          <div className="grid gap-2 md:grid-cols-2">
+            {enablement.gates.map((gate) => (
+              <SyncAckLedgerReplayEnablementGateRow
+                key={gate.id}
+                gate={gate}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="本地证明映射">
+          <div className="space-y-2">
+            {enablement.source_assertion_mapping.map((mapping) => (
+              <SyncAckLedgerReplayEnablementMappingRow
+                key={mapping.id}
+                mapping={mapping}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <div className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        <div className="font-semibold text-zinc-700 dark:text-zinc-200">
+          下一步
+        </div>
+        <p className="mt-1">{enablement.summary.next_action}</p>
+      </div>
+    </section>
+  );
+}
+
+function SyncAckLedgerReplayEnablementGateRow({
+  gate,
+}: {
+  gate: SyncAckLedgerReplayEnablementGate;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <SyncAckLedgerReplayEnablementStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_before_enablement}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckLedgerReplayEnablementMappingRow({
+  mapping,
+}: {
+  mapping: SyncAckLedgerReplayEnablementMapping;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {mapping.local_source}
+          </div>
+          <div className="mt-1 text-zinc-500 dark:text-zinc-400">
+            -&gt; {mapping.disposable_cloud_gate}
+          </div>
+        </div>
+        <SyncAckLedgerReplayEnablementStatusPill status={mapping.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        {mapping.evidence}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckLedgerReplayEnablementStatusPill({
+  status,
+}: {
+  status: SyncAckLedgerReplayEnablementStatus;
+}) {
+  const labels: Record<SyncAckLedgerReplayEnablementStatus, string> = {
+    "local-proof-ready": "local ready",
+    "manual-confirmation": "待确认",
+    blocked: "blocked",
+  };
+  const className =
+    status === "local-proof-ready"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : status === "manual-confirmation"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"

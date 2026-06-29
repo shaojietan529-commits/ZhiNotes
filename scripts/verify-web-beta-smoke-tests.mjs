@@ -21,6 +21,8 @@ const files = {
   syncAckLedgerReplayPreflight:
     "src/lib/sync/syncAckLedgerReplayPreflight.ts",
   syncAckLedgerReplayProof: "src/lib/sync/syncAckLedgerReplayProof.ts",
+  syncAckLedgerReplayEnablement:
+    "src/lib/sync/syncAckLedgerReplayEnablement.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -347,6 +349,9 @@ function run() {
   );
   const syncAckLedgerReplayProof = readProjectFile(
     files.syncAckLedgerReplayProof
+  );
+  const syncAckLedgerReplayEnablement = readProjectFile(
+    files.syncAckLedgerReplayEnablement
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
@@ -2290,6 +2295,139 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-ack-ledger-replay-enablement"',
+      "Sync ack ledger replay enablement must expose a stable format.",
+    ],
+    [
+      'enablement_status: "owner-gated-disabled"',
+      "Sync ack ledger replay enablement must stay owner gated.",
+    ],
+    [
+      "can_run_disposable_cloud_replay_now: false",
+      "Sync ack ledger replay enablement must not run disposable cloud replay yet.",
+    ],
+    [
+      "can_run_production_replay_now: false",
+      "Sync ack ledger replay enablement must refuse production replay.",
+    ],
+    [
+      "can_enable_sync_push_now: false",
+      "Sync ack ledger replay enablement must not enable sync push.",
+    ],
+    [
+      "requires_owner_confirmation: true",
+      "Sync ack ledger replay enablement must require owner confirmation.",
+    ],
+    [
+      "requires_disposable_workspace: true",
+      "Sync ack ledger replay enablement must require a disposable workspace.",
+    ],
+    [
+      "requires_rls_assertion: true",
+      "Sync ack ledger replay enablement must require RLS proof.",
+    ],
+    [
+      "requires_permission_check: true",
+      "Sync ack ledger replay enablement must require permission proof.",
+    ],
+    [
+      "requires_audit_event: true",
+      "Sync ack ledger replay enablement must require audit proof.",
+    ],
+    [
+      "requires_rollback_proof: true",
+      "Sync ack ledger replay enablement must require rollback proof.",
+    ],
+    [
+      "requires_zero_private_payload: true",
+      "Sync ack ledger replay enablement must require zero private payload proof.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Sync ack ledger replay enablement must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Sync ack ledger replay enablement must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Sync ack ledger replay enablement must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Sync ack ledger replay enablement must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Sync ack ledger replay enablement must not read secrets.",
+    ],
+    [
+      "reads_environment_values: false",
+      "Sync ack ledger replay enablement must not read environment values.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Sync ack ledger replay enablement must not send network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Sync ack ledger replay enablement must not connect cloud services.",
+    ],
+    [
+      "writes_server_data: false",
+      "Sync ack ledger replay enablement must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Sync ack ledger replay enablement must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Sync ack ledger replay enablement must not mutate sync_log.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Sync ack ledger replay enablement must not mark rows synced.",
+    ],
+    [
+      "owner-confirmation-required",
+      "Sync ack ledger replay enablement must gate on owner confirmation.",
+    ],
+    [
+      "disposable-workspace-required",
+      "Sync ack ledger replay enablement must gate on disposable workspace.",
+    ],
+    [
+      "rls-assertion-required",
+      "Sync ack ledger replay enablement must gate on RLS proof.",
+    ],
+    [
+      "permission-audit-required",
+      "Sync ack ledger replay enablement must gate on permission and audit.",
+    ],
+    [
+      "rollback-proof-required",
+      "Sync ack ledger replay enablement must gate on rollback proof.",
+    ],
+    [
+      "zero-private-payload-required",
+      "Sync ack ledger replay enablement must gate on zero private payload.",
+    ],
+    [
+      "production-replay-refused",
+      "Sync ack ledger replay enablement must refuse production replay.",
+    ],
+  ]) {
+    assertIncludes(
+      files.syncAckLedgerReplayEnablement,
+      syncAckLedgerReplayEnablement,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildSyncAckRetryLedgerContract",
       "Sync UI must build the sync ack/retry ledger contract.",
     ],
@@ -2360,6 +2498,30 @@ function run() {
     [
       "不会修改本地 sync_log",
       "Sync UI must state the proof cannot mutate local sync_log.",
+    ],
+    [
+      "buildSyncAckLedgerReplayEnablement",
+      "Sync UI must build the sync ack ledger replay enablement.",
+    ],
+    [
+      "sync-ack-ledger-replay-enablement",
+      "Sync UI must render the sync ack ledger replay enablement panel.",
+    ],
+    [
+      "ack/retry 云端演练启用包",
+      "Sync UI must expose the ack/retry cloud replay enablement section.",
+    ],
+    [
+      "导出云端演练启用包",
+      "Sync UI must expose the sync ack ledger replay enablement export.",
+    ],
+    [
+      "owner-gated 的启用清单",
+      "Sync UI must state the enablement package is owner gated.",
+    ],
+    [
+      "不会打开真实同步推送",
+      "Sync UI must state the enablement package cannot enable real sync push.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);
