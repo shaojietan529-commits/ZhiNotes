@@ -7549,6 +7549,14 @@ function run() {
       "Database cloud sync must retry immediately when a tab becomes visible.",
     ],
     [
+      "rerunAfterCurrentSyncRef",
+      "Database cloud sync must remember triggers received while a sync is already running.",
+    ],
+    [
+      "window.setTimeout(() => {\n            void runSync({",
+      "Database cloud sync must rerun immediately after the current sync finishes when a trigger arrived mid-flight.",
+    ],
+    [
       "window.clearTimeout(quickSyncTimer)",
       "Database pending-status quick sync timers must be cleaned up on unmount.",
     ],

@@ -115,6 +115,9 @@ export function useDatabaseCloudSync() {
   const [pendingStatus, setPendingStatus] =
     useState<PendingCloudDatabaseSyncStatus>(EMPTY_DATABASE_PENDING_STATUS);
   const runningRef = useRef(false);
+  const rerunAfterCurrentSyncRef = useRef<
+    { forceLease?: boolean; quick?: boolean } | null
+  >(null);
   const authRetryAfterRef = useRef(0);
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
 
@@ -138,6 +141,15 @@ export function useDatabaseCloudSync() {
     async (options: { forceLease?: boolean; quick?: boolean } = {}) => {
       if (!isDatabaseSyncEnabled()) {
         setState("disabled");
+        void refreshPendingStatus();
+        return;
+      }
+      if (runningRef.current) {
+        const pendingRerun = rerunAfterCurrentSyncRef.current;
+        rerunAfterCurrentSyncRef.current = {
+          forceLease: Boolean(options.forceLease || pendingRerun?.forceLease),
+          quick: options.quick ?? pendingRerun?.quick ?? true,
+        };
         void refreshPendingStatus();
         return;
       }
@@ -192,6 +204,16 @@ export function useDatabaseCloudSync() {
       } finally {
         runningRef.current = false;
         void refreshPendingStatus();
+        const pendingRerun = rerunAfterCurrentSyncRef.current;
+        rerunAfterCurrentSyncRef.current = null;
+        if (pendingRerun && isDatabaseSyncEnabled()) {
+          window.setTimeout(() => {
+            void runSync({
+              forceLease: pendingRerun.forceLease,
+              quick: pendingRerun.quick ?? true,
+            });
+          }, 0);
+        }
       }
     },
     [gateAccountSync, refreshPendingStatus]

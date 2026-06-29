@@ -1191,6 +1191,14 @@ check(
   "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync"
 );
 check(
+  databaseCloudSyncHook.includes("rerunAfterCurrentSyncRef") &&
+    databaseCloudSyncHook.includes("if (runningRef.current)") &&
+    databaseCloudSyncHook.includes("rerunAfterCurrentSyncRef.current = {") &&
+    databaseCloudSyncHook.includes("const pendingRerun = rerunAfterCurrentSyncRef.current") &&
+    databaseCloudSyncHook.includes("window.setTimeout(() => {\n            void runSync({"),
+  "数据库云同步运行中收到新触发时应记录补跑，当前同步结束后立刻再跑，避免表格/数据库待上传内容等下一次心跳"
+);
+check(
   pageCloudSyncHook.includes("LOCAL_CACHE_RECOVERY_EVENT") &&
     pageCloudSyncHook.includes("LOCAL_CACHE_RECOVERY_SIGNAL_KEY") &&
     pageCloudSyncHook.includes("getLocalCacheRecoverySignal") &&
