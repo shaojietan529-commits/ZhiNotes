@@ -1149,6 +1149,14 @@ check(
   "页面云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync"
 );
 check(
+  pageCloudSyncHook.includes("rerunAfterCurrentSyncRef") &&
+    pageCloudSyncHook.includes("if (runningRef.current)") &&
+    pageCloudSyncHook.includes("rerunAfterCurrentSyncRef.current = {") &&
+    pageCloudSyncHook.includes("const pendingRerun = rerunAfterCurrentSyncRef.current") &&
+    pageCloudSyncHook.includes("window.setTimeout(() => {\n          void runSync({"),
+  "页面云同步运行中收到新触发时应记录补跑，当前同步结束后立刻再跑，避免待上传内容等下一次心跳"
+);
+check(
   pageCloudSyncHook.includes("PAGE_LOCAL_UPDATE_EVENT") &&
     pageCloudSyncHook.includes("type PageUpdateMessage") &&
     pageCloudSyncHook.includes("EDIT_DEBOUNCE_MS") &&

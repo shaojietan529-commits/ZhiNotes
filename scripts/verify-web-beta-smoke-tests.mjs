@@ -4503,6 +4503,18 @@ function run() {
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
+    "rerunAfterCurrentSyncRef",
+    "Page cloud sync must remember triggers received while a sync is already running."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "window.setTimeout(() => {\n          void runSync({",
+    "Page cloud sync must rerun immediately after the current sync finishes when a trigger arrived mid-flight."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
     "window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)",
     "Page cloud sync must listen for same-tab local page updates."
   );

@@ -116,6 +116,9 @@ export function usePageCloudSync() {
     EMPTY_PAGE_PENDING_STATUS
   );
   const runningRef = useRef(false);
+  const rerunAfterCurrentSyncRef = useRef<
+    { quick?: boolean; forceLease?: boolean } | null
+  >(null);
   const authRetryAfterRef = useRef(0);
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
 
@@ -138,6 +141,15 @@ export function usePageCloudSync() {
   const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean } = {}) => {
     if (!isPageSyncEnabled()) {
       setState("disabled");
+      refreshPendingStatus();
+      return;
+    }
+    if (runningRef.current) {
+      const pendingRerun = rerunAfterCurrentSyncRef.current;
+      rerunAfterCurrentSyncRef.current = {
+        quick: options.quick ?? pendingRerun?.quick ?? true,
+        forceLease: Boolean(options.forceLease || pendingRerun?.forceLease),
+      };
       refreshPendingStatus();
       return;
     }
@@ -183,6 +195,16 @@ export function usePageCloudSync() {
     } finally {
       runningRef.current = false;
       refreshPendingStatus();
+      const pendingRerun = rerunAfterCurrentSyncRef.current;
+      rerunAfterCurrentSyncRef.current = null;
+      if (pendingRerun && isPageSyncEnabled()) {
+        window.setTimeout(() => {
+          void runSync({
+            quick: pendingRerun.quick ?? true,
+            forceLease: pendingRerun.forceLease,
+          });
+        }, 0);
+      }
     }
   }, [gateAccountSync, refreshPendingStatus]);
 
