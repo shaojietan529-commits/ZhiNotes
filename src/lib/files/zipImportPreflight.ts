@@ -1,4 +1,5 @@
-import { listZipEntries } from "@/lib/files/zipReader";
+import { getPageFileKind, type PageFileKind } from "@/lib/files/localStore";
+import { listZipEntries, readZipEntries } from "@/lib/files/zipReader";
 
 export interface ZipImportPreflightContract {
   format: "zhinote-zip-import-preflight-contract";
@@ -23,6 +24,43 @@ export interface ZipImportPreflightContract {
   format_routes: ZipImportFormatRoute[];
   required_gates: ZipImportGate[];
   next_steps: string[];
+}
+
+export interface ZipLocalFilePageCandidate {
+  file: File;
+  kind: PageFileKind;
+  extension: string;
+  size_bytes: number;
+  source_path_included_for_local_import_only: true;
+}
+
+export interface ZipLocalFilePageImportResult {
+  format: "zhinote-zip-local-file-page-import";
+  format_version: 1;
+  import_status: "local-file-page-candidates-ready";
+  summary: {
+    entries_scanned: number;
+    candidates: number;
+    skipped_entries: number;
+    unsupported_entries: number;
+    unsafe_path_entries: number;
+    nested_archive_entries: number;
+    total_uncompressed_bytes: number;
+    entry_limit: number;
+    total_uncompressed_limit_bytes: number;
+  };
+  boundaries: {
+    reads_zip_file_now: true;
+    reads_entry_file_names_now: true;
+    reads_entry_bytes_now: true;
+    extracts_files_now: true;
+    creates_pages_now: false;
+    creates_databases_now: false;
+    uploads_data: false;
+    enables_ai: false;
+  };
+  candidates: ZipLocalFilePageCandidate[];
+  privacy_note: string;
 }
 
 export interface ZipCentralDirectoryPreview {
@@ -185,6 +223,9 @@ const REQUIRED_GATES: ZipImportGate[] = [
 ];
 
 const ZIP_PREVIEW_EXTENSION_GROUP_LIMIT = 12;
+const ZIP_LOCAL_FILE_PAGE_IMPORT_ENTRY_LIMIT = 30;
+const ZIP_LOCAL_FILE_PAGE_IMPORT_COMPRESSED_LIMIT_BYTES = 25 * 1024 * 1024;
+const ZIP_LOCAL_FILE_PAGE_IMPORT_TOTAL_BYTES_LIMIT = 25 * 1024 * 1024;
 
 export function buildZipImportPreflightContract(): ZipImportPreflightContract {
   return {
@@ -219,7 +260,7 @@ export function buildZipImportPreflightContract(): ZipImportPreflightContract {
     required_gates: REQUIRED_GATES,
     next_steps: [
       "先实现只读 ZIP central directory 预览，只显示条目数量、扩展名分布和总大小。",
-      "再实现用户确认后的 Markdown/HTML/Text 批量 page 创建。",
+      "受限本地导入已支持在用户输入确认短语后，把 ZIP 内的支持格式创建为本地文件页面。",
       "表格文件进入数据库导入预览；PDF/Office/unknown 先进入本地留存或转换复核。",
       "任何批量创建都必须生成本地 rollback receipt。",
     ],
@@ -302,6 +343,112 @@ export function buildZipCentralDirectoryPreview(
   };
 }
 
+export async function extractZipEntriesForLocalFilePages(
+  arrayBuffer: ArrayBuffer
+): Promise<ZipLocalFilePageImportResult> {
+  const centralDirectoryEntries = listZipEntries(arrayBuffer).filter(
+    (entry) => !entry.path.endsWith("/")
+  );
+  const totalCompressedBytes = centralDirectoryEntries.reduce(
+    (sum, entry) => sum + entry.compressedSize,
+    0
+  );
+
+  if (centralDirectoryEntries.length > ZIP_LOCAL_FILE_PAGE_IMPORT_ENTRY_LIMIT) {
+    throw new Error(
+      `这个 ZIP 包含 ${centralDirectoryEntries.length} 个文件，超过本地批量页面导入上限 ${ZIP_LOCAL_FILE_PAGE_IMPORT_ENTRY_LIMIT} 个。请先拆分 ZIP。`
+    );
+  }
+
+  if (totalCompressedBytes > ZIP_LOCAL_FILE_PAGE_IMPORT_COMPRESSED_LIMIT_BYTES) {
+    throw new Error(
+      "这个 ZIP 压缩后文件体积超过 25 MB。为保持页面流畅，请先拆分或只导入关键文件。"
+    );
+  }
+
+  const entries = await readZipEntries(arrayBuffer);
+  const candidates: ZipLocalFilePageCandidate[] = [];
+  let skippedEntries = 0;
+  let unsupportedEntries = 0;
+  let unsafePathEntries = 0;
+  let nestedArchiveEntries = 0;
+  let totalUncompressedBytes = 0;
+
+  for (const entry of entries) {
+    if (entry.path.endsWith("/")) continue;
+
+    if (isUnsafeZipEntryPath(entry.path)) {
+      skippedEntries += 1;
+      unsafePathEntries += 1;
+      continue;
+    }
+
+    const fileName = getZipEntryFileName(entry.path);
+    const extension = getZipEntryExtension(fileName);
+    const mimeType = inferZipEntryMimeType(fileName);
+    const kind = getPageFileKind(fileName, mimeType);
+
+    if (kind === "unknown") {
+      skippedEntries += 1;
+      unsupportedEntries += 1;
+      continue;
+    }
+
+    if (kind === "archive") {
+      skippedEntries += 1;
+      nestedArchiveEntries += 1;
+      continue;
+    }
+
+    totalUncompressedBytes += entry.data.byteLength;
+    if (totalUncompressedBytes > ZIP_LOCAL_FILE_PAGE_IMPORT_TOTAL_BYTES_LIMIT) {
+      throw new Error(
+        "这个 ZIP 解压后的支持文件超过 25 MB。为保持页面流畅，请先拆分或只导入关键文件。"
+      );
+    }
+
+    candidates.push({
+      file: new File([uint8ArrayToArrayBuffer(entry.data)], fileName, {
+        type: mimeType,
+      }),
+      kind,
+      extension,
+      size_bytes: entry.data.byteLength,
+      source_path_included_for_local_import_only: true,
+    });
+  }
+
+  return {
+    format: "zhinote-zip-local-file-page-import",
+    format_version: 1,
+    import_status: "local-file-page-candidates-ready",
+    summary: {
+      entries_scanned: entries.length,
+      candidates: candidates.length,
+      skipped_entries: skippedEntries,
+      unsupported_entries: unsupportedEntries,
+      unsafe_path_entries: unsafePathEntries,
+      nested_archive_entries: nestedArchiveEntries,
+      total_uncompressed_bytes: totalUncompressedBytes,
+      entry_limit: ZIP_LOCAL_FILE_PAGE_IMPORT_ENTRY_LIMIT,
+      total_uncompressed_limit_bytes: ZIP_LOCAL_FILE_PAGE_IMPORT_TOTAL_BYTES_LIMIT,
+    },
+    boundaries: {
+      reads_zip_file_now: true,
+      reads_entry_file_names_now: true,
+      reads_entry_bytes_now: true,
+      extracts_files_now: true,
+      creates_pages_now: false,
+      creates_databases_now: false,
+      uploads_data: false,
+      enables_ai: false,
+    },
+    candidates,
+    privacy_note:
+      "这个结果只在浏览器本地从用户主动选择的 ZIP 中生成本地文件页面候选。它会读取支持条目的 bytes 以创建本地 File 对象，但不会上传、不会调用 AI、不会创建数据库，也不会自动写入页面；页面创建必须由 UI 在确认短语通过后单独执行。",
+  };
+}
+
 function getZipEntryExtension(path: string) {
   const fileName = path.split("/").filter(Boolean).at(-1) ?? "";
   const dotIndex = fileName.lastIndexOf(".");
@@ -314,4 +461,68 @@ function getZipRouteForExtension(extension: string) {
     FORMAT_ROUTES.find((route) => route.extensions.includes(extension)) ??
     FORMAT_ROUTES.find((route) => route.id === "unknown-blocked")!
   );
+}
+
+function getZipEntryFileName(path: string) {
+  return path.split("/").filter(Boolean).at(-1) || "zip-entry";
+}
+
+function isUnsafeZipEntryPath(path: string) {
+  const normalized = path.replace(/\\/g, "/");
+  if (normalized.startsWith("/") || normalized.startsWith("~")) return true;
+  return normalized.split("/").some((part) => part === ".." || part === "");
+}
+
+function inferZipEntryMimeType(fileName: string) {
+  const extension = getZipEntryExtension(fileName);
+  const mimeTypes: Record<string, string> = {
+    ".html": "text/html",
+    ".htm": "text/html",
+    ".xhtml": "application/xhtml+xml",
+    ".md": "text/markdown",
+    ".markdown": "text/markdown",
+    ".mdx": "text/markdown",
+    ".txt": "text/plain",
+    ".csv": "text/csv",
+    ".tsv": "text/tab-separated-values",
+    ".json": "application/json",
+    ".jsonl": "application/jsonl",
+    ".xml": "application/xml",
+    ".opml": "text/x-opml",
+    ".rtf": "application/rtf",
+    ".pdf": "application/pdf",
+    ".docx":
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".doc": "application/msword",
+    ".odt": "application/vnd.oasis.opendocument.text",
+    ".xlsx":
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".xls": "application/vnd.ms-excel",
+    ".ods": "application/vnd.oasis.opendocument.spreadsheet",
+    ".pptx":
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".odp": "application/vnd.oasis.opendocument.presentation",
+    ".epub": "application/epub+zip",
+    ".ipynb": "application/x-ipynb+json",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".m4a": "audio/mp4",
+    ".mp4": "video/mp4",
+    ".mov": "video/quicktime",
+    ".webm": "video/webm",
+  };
+  return mimeTypes[extension] ?? "application/octet-stream";
+}
+
+function uint8ArrayToArrayBuffer(data: Uint8Array) {
+  const arrayBuffer = new ArrayBuffer(data.byteLength);
+  new Uint8Array(arrayBuffer).set(data);
+  return arrayBuffer;
 }

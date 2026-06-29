@@ -63,6 +63,7 @@ import {
 import {
   buildZipCentralDirectoryPreview,
   buildZipImportPreflightContract,
+  extractZipEntriesForLocalFilePages,
   type ZipCentralDirectoryPreview,
 } from "@/lib/files/zipImportPreflight";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
@@ -73,10 +74,14 @@ import {
   type ReportIntakeReport,
 } from "@/lib/reports/reportIntake";
 import { buildReportReviewQueue } from "@/lib/reports/reportReviewQueue";
+import { getHighRiskRequiredPhrase } from "@/lib/security/highRiskActionRegistry";
+import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
+const ZIP_BULK_IMPORT_CONFIRMATION_PHRASE =
+  getHighRiskRequiredPhrase("bulk-import");
 
 export default function FilesShell() {
   return (
@@ -131,9 +136,20 @@ function FilesDashboard() {
   >(null);
   const [exportingZipPreflight, setExportingZipPreflight] = useState(false);
   const [readingZipPreview, setReadingZipPreview] = useState(false);
+  const [zipPreviewFile, setZipPreviewFile] = useState<File | null>(null);
   const [zipDirectoryPreview, setZipDirectoryPreview] =
     useState<ZipCentralDirectoryPreview | null>(null);
   const [zipPreviewError, setZipPreviewError] = useState<string | null>(null);
+  const [zipImportPhrase, setZipImportPhrase] = useState("");
+  const [zipImportingPages, setZipImportingPages] = useState(false);
+  const [exportingZipImportReceipt, setExportingZipImportReceipt] =
+    useState(false);
+  const [zipImportBatchMessage, setZipImportBatchMessage] = useState<{
+    created: number;
+    failed: number;
+    skipped: number;
+    scanned: number;
+  } | null>(null);
   const [creatingFilePages, setCreatingFilePages] = useState(false);
   const [creatingExistingFilePageId, setCreatingExistingFilePageId] = useState<
     string | null
@@ -198,6 +214,24 @@ function FilesDashboard() {
     []
   );
   const zipImportPreflight = useMemo(() => buildZipImportPreflightContract(), []);
+  const zipBulkImportReceipt = useMemo(
+    () =>
+      buildHighRiskConfirmationReceipt({
+        actionId: "bulk-import",
+        requiredPhrase: ZIP_BULK_IMPORT_CONFIRMATION_PHRASE,
+        typedPhrase: zipImportPhrase,
+        scopeSummary: `ZIP 本地文件页面导入；${
+          zipDirectoryPreview
+            ? `${zipDirectoryPreview.summary.files} 个文件条目，${zipDirectoryPreview.summary.extension_groups} 个扩展名组`
+            : "尚未生成目录预览"
+        }；不会创建数据库行；不会上传。`,
+        riskSummary:
+          "ZIP 批量导入会读取支持格式条目的 bytes，并在本地创建多个文件页面。",
+        destinationSummary:
+          "当前本地浏览器工作区；文件保存在本地 IndexedDB，页面写入本地 workspace。",
+      }),
+    [zipDirectoryPreview, zipImportPhrase]
+  );
 
   const fileNameById = useMemo(
     () => new Map(storedFiles.map((file) => [file.id, file.name])),
@@ -315,6 +349,24 @@ function FilesDashboard() {
     } catch (err) {
       console.error("[Zhinote] Failed to export ZIP directory preview:", err);
       window.alert("ZIP 目录预览导出失败，请查看控制台。");
+    }
+  };
+
+  const handleExportZipImportReceipt = () => {
+    setExportingZipImportReceipt(true);
+    try {
+      downloadJsonFile(
+        `zhinote-zip-bulk-import-confirmation-${fileSafeTimestamp()}.json`,
+        {
+          ...zipBulkImportReceipt,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export ZIP import receipt:", err);
+      window.alert("ZIP 导入确认 receipt 导出失败，请查看控制台。");
+    } finally {
+      setExportingZipImportReceipt(false);
     }
   };
 
@@ -445,9 +497,13 @@ function FilesDashboard() {
     setReadingZipPreview(true);
     setZipPreviewError(null);
     setZipDirectoryPreview(null);
+    setZipPreviewFile(null);
+    setZipImportPhrase("");
+    setZipImportBatchMessage(null);
     try {
       const preview = buildZipCentralDirectoryPreview(await file.arrayBuffer());
       setZipDirectoryPreview(preview);
+      setZipPreviewFile(file);
     } catch (err) {
       console.error("[Zhinote] Failed to preview ZIP central directory:", err);
       setZipPreviewError(
@@ -455,6 +511,82 @@ function FilesDashboard() {
       );
     } finally {
       setReadingZipPreview(false);
+    }
+  };
+
+  const handleCreateZipFilePages = async () => {
+    if (!zipPreviewFile || !zipDirectoryPreview) {
+      window.alert("请先选择 ZIP 并生成只读目录预览。");
+      return;
+    }
+
+    if (!zipBulkImportReceipt.typed_phrase_matches) {
+      window.alert(
+        `请输入确认短语 ${ZIP_BULK_IMPORT_CONFIRMATION_PHRASE} 后再从 ZIP 批量创建文件页面。`
+      );
+      return;
+    }
+
+    const ok = window.confirm(
+      "要从这个 ZIP 中读取支持格式并创建本地文件页面吗？未知格式、嵌套 ZIP 和不安全路径会被跳过；不会创建数据库、上传或调用 AI。"
+    );
+    if (!ok) return;
+
+    setZipImportingPages(true);
+    setZipPreviewError(null);
+    setZipImportBatchMessage(null);
+    warmPagePeekModal();
+    try {
+      const result = await extractZipEntriesForLocalFilePages(
+        await zipPreviewFile.arrayBuffer()
+      );
+      const createdPages: Page[] = [];
+      let failed = 0;
+
+      for (const candidate of result.candidates) {
+        try {
+          const storedFile = await savePageFile(candidate.file);
+          const page = await createFileLibraryPageFromStoredFile(storedFile, {
+            receiptNote:
+              "ZIP 条目已在输入批量导入确认短语后创建为本地文件页面；没有上传、联网、创建数据库或调用 AI。",
+            confirmationRequired: true,
+          });
+          createdPages.push(page);
+        } catch (err) {
+          failed += 1;
+          console.error("[Zhinote] Failed to create page from ZIP entry:", err);
+        }
+      }
+
+      if (createdPages.length > 0) {
+        upsertPages(createdPages);
+      }
+      await loadStoredFiles();
+      setZipImportBatchMessage({
+        created: createdPages.length,
+        failed,
+        skipped: result.summary.skipped_entries,
+        scanned: result.summary.entries_scanned,
+      });
+
+      if (createdPages.length === 1) {
+        openCreatedFilePage(createdPages[0]);
+      }
+
+      if (createdPages.length === 0) {
+        window.alert(
+          "ZIP 中没有可创建为本地文件页面的支持格式，或全部创建失败。没有上传、没有创建数据库。"
+        );
+      }
+    } catch (err) {
+      console.error("[Zhinote] Failed to import ZIP as file pages:", err);
+      setZipPreviewError(
+        err instanceof Error
+          ? err.message
+          : "无法从这个 ZIP 创建本地文件页面。没有上传、没有创建数据库、没有调用 AI。"
+      );
+    } finally {
+      setZipImportingPages(false);
     }
   };
 
@@ -511,7 +643,7 @@ function FilesDashboard() {
 
   const createFileLibraryPageFromStoredFile = async (
     storedFile: StoredPageFile,
-    opts?: { receiptNote?: string }
+    opts?: { receiptNote?: string; confirmationRequired?: boolean }
   ) => {
     const { createPageWithCloud, updatePageWithCloud } =
       await loadPageMutationModule();
@@ -529,7 +661,7 @@ function FilesDashboard() {
         action_kind: actionKind,
         source_surface: "files-module",
         writes_page_content: true,
-        confirmation_required: false,
+        confirmation_required: Boolean(opts?.confirmationRequired),
         confirmation_matched: true,
         note:
           opts?.receiptNote ??
@@ -739,11 +871,20 @@ function FilesDashboard() {
           contract={zipImportPreflight}
           exporting={exportingZipPreflight}
           readingPreview={readingZipPreview}
+          importingPages={zipImportingPages}
+          exportingImportReceipt={exportingZipImportReceipt}
           preview={zipDirectoryPreview}
           previewError={zipPreviewError}
+          importPhrase={zipImportPhrase}
+          requiredPhrase={ZIP_BULK_IMPORT_CONFIRMATION_PHRASE}
+          importReceiptMatches={zipBulkImportReceipt.typed_phrase_matches}
+          batchMessage={zipImportBatchMessage}
           onExport={handleExportZipPreflight}
           onExportPreview={handleExportZipDirectoryPreview}
           onChoosePreview={handleChooseZipPreview}
+          onImportPhraseChange={setZipImportPhrase}
+          onExportImportReceipt={handleExportZipImportReceipt}
+          onCreateFilePages={handleCreateZipFilePages}
         />
 
         <PageImportPlanPanel />
@@ -1342,20 +1483,43 @@ function ZipImportPreflightPanel({
   contract,
   exporting,
   readingPreview,
+  importingPages,
+  exportingImportReceipt,
   preview,
   previewError,
+  importPhrase,
+  requiredPhrase,
+  importReceiptMatches,
+  batchMessage,
   onExport,
   onExportPreview,
   onChoosePreview,
+  onImportPhraseChange,
+  onExportImportReceipt,
+  onCreateFilePages,
 }: {
   contract: ReturnType<typeof buildZipImportPreflightContract>;
   exporting: boolean;
   readingPreview: boolean;
+  importingPages: boolean;
+  exportingImportReceipt: boolean;
   preview: ZipCentralDirectoryPreview | null;
   previewError: string | null;
+  importPhrase: string;
+  requiredPhrase: string;
+  importReceiptMatches: boolean;
+  batchMessage: {
+    created: number;
+    failed: number;
+    skipped: number;
+    scanned: number;
+  } | null;
   onExport: () => void;
   onExportPreview: () => void;
   onChoosePreview: () => void;
+  onImportPhraseChange: (value: string) => void;
+  onExportImportReceipt: () => void;
+  onCreateFilePages: () => void;
 }) {
   return (
     <section
@@ -1368,12 +1532,12 @@ function ZipImportPreflightPanel({
             ZIP 批量导入预检
           </p>
           <h2 className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-            先定义路线，不读取真实 ZIP
+            先只读预览，确认后本地创建页面
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-            这个合同只描述未来 ZIP 导入如何把 Markdown/HTML/Word/EPUB/OPML
-            映射为页面，把 CSV/Excel/ODS 映射为数据库，把 PDF/PPT/未知格式留在
-            本地复核队列。当前不会读取 ZIP、文件名、条目字节，也不会解压或写入工作区。
+            先用 central directory 只读预览看格式分布，不返回内部文件名。
+            输入确认短语后，才会读取 ZIP 条目 bytes，把支持格式创建为本地文件页面；
+            不创建数据库、不上传、不调用 AI。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1405,7 +1569,16 @@ function ZipImportPreflightPanel({
       {preview && (
         <ZipCentralDirectoryPreviewPanel
           preview={preview}
+          importingPages={importingPages}
+          exportingImportReceipt={exportingImportReceipt}
+          importPhrase={importPhrase}
+          requiredPhrase={requiredPhrase}
+          importReceiptMatches={importReceiptMatches}
+          batchMessage={batchMessage}
           onExportPreview={onExportPreview}
+          onImportPhraseChange={onImportPhraseChange}
+          onExportImportReceipt={onExportImportReceipt}
+          onCreateFilePages={onCreateFilePages}
         />
       )}
 
@@ -1479,10 +1652,33 @@ function ZipImportPreflightPanel({
 
 function ZipCentralDirectoryPreviewPanel({
   preview,
+  importingPages,
+  exportingImportReceipt,
+  importPhrase,
+  requiredPhrase,
+  importReceiptMatches,
+  batchMessage,
   onExportPreview,
+  onImportPhraseChange,
+  onExportImportReceipt,
+  onCreateFilePages,
 }: {
   preview: ZipCentralDirectoryPreview;
+  importingPages: boolean;
+  exportingImportReceipt: boolean;
+  importPhrase: string;
+  requiredPhrase: string;
+  importReceiptMatches: boolean;
+  batchMessage: {
+    created: number;
+    failed: number;
+    skipped: number;
+    scanned: number;
+  } | null;
   onExportPreview: () => void;
+  onImportPhraseChange: (value: string) => void;
+  onExportImportReceipt: () => void;
+  onCreateFilePages: () => void;
 }) {
   return (
     <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950/40">
@@ -1567,8 +1763,58 @@ function ZipCentralDirectoryPreviewPanel({
         </ul>
       </div>
 
+      <div className="mt-4 rounded-md border border-sky-200 bg-white p-3 text-xs dark:border-sky-900 dark:bg-zinc-950">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex-1">
+            <label
+              htmlFor="zip-bulk-import-confirmation"
+              className="block font-semibold text-zinc-900 dark:text-zinc-100"
+            >
+              输入确认短语后创建本地文件页面
+            </label>
+            <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+              确认短语：<span className="font-mono">{requiredPhrase}</span>。
+              创建时会读取 ZIP 条目 bytes；未知格式、嵌套 ZIP 和不安全路径会被跳过。
+            </p>
+            <input
+              id="zip-bulk-import-confirmation"
+              value={importPhrase}
+              onChange={(event) => onImportPhraseChange(event.target.value)}
+              placeholder={requiredPhrase}
+              className="mt-3 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-sky-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onExportImportReceipt}
+              disabled={exportingImportReceipt}
+              className="rounded-md border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-900 dark:text-sky-200 dark:hover:bg-sky-900"
+            >
+              {exportingImportReceipt ? "导出中..." : "导出 ZIP 导入 receipt"}
+            </button>
+            <button
+              type="button"
+              onClick={onCreateFilePages}
+              disabled={!importReceiptMatches || importingPages}
+              className="rounded-md bg-sky-700 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importingPages ? "创建中..." : "创建本地文件页面"}
+            </button>
+          </div>
+        </div>
+        {batchMessage && (
+          <p className="mt-3 leading-5 text-sky-900 dark:text-sky-100">
+            ZIP 条目已在输入批量导入确认短语后创建为本地文件页面：
+            扫描 {batchMessage.scanned} 个，创建 {batchMessage.created} 个，
+            跳过 {batchMessage.skipped} 个，失败 {batchMessage.failed} 个。
+          </p>
+        )}
+      </div>
+
       <div className="mt-4 rounded-md bg-white/80 px-3 py-2 text-xs leading-5 text-sky-900 dark:bg-sky-950 dark:text-sky-100">
-        边界：不读取条目 bytes、不解压、不创建 page/database、不上传、不调用 AI。
+        边界：预览阶段不读取条目 bytes、不解压、不创建 page/database；
+        点击创建本地文件页面后，只在本地读取支持格式并创建页面，不创建数据库、不上传、不调用 AI。
       </div>
     </div>
   );
