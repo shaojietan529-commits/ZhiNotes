@@ -931,6 +931,11 @@ check(
 check(
   shells.daily.includes("DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT") &&
     shells.daily.includes("DAILY_CALENDAR_HYDRATION_BATCH") &&
+    shells.daily.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
+    shells.daily.includes("buildOccupiedDailyCalendarHydrationKeys(") &&
+    shells.daily.includes("const occupiedDateKeys = buildOccupiedDailyCalendarHydrationKeys") &&
+    shells.daily.includes("const revealNextOccupiedBatch = () =>") &&
+    shells.daily.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS") &&
     shells.daily.includes("const [hydratedDateKeys, setHydratedDateKeys]") &&
     shells.daily.includes("buildInitialDailyCalendarHydrationKeys(") &&
     shells.daily.includes("const remainingDateKeys = allDateKeys.filter") &&

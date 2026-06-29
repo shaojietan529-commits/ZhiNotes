@@ -752,6 +752,11 @@ check(
     dailyNotesShell.includes("点击补齐") &&
     dailyNotesShell.includes("DAILY_CALENDAR_EXPAND_BATCH") &&
     dailyNotesShell.includes("DAILY_CALENDAR_RENDER_DAY_LIMIT") &&
+    dailyNotesShell.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
+    dailyNotesShell.includes("buildOccupiedDailyCalendarHydrationKeys(") &&
+    dailyNotesShell.includes("const occupiedDateKeys = buildOccupiedDailyCalendarHydrationKeys") &&
+    dailyNotesShell.includes("const revealNextOccupiedBatch = () =>") &&
+    dailyNotesShell.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS") &&
     dailyNotesShell.includes("const dayTotalCount =") &&
     dailyNotesShell.includes("const loadedHiddenCount = Math.max(") &&
     dailyNotesShell.includes("const isRenderCapped =") &&

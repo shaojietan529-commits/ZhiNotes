@@ -126,6 +126,8 @@ const DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT = 160;
 const DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
 const DAILY_CALENDAR_HYDRATION_BATCH = 7;
 const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
+const DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH = 10;
+const DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS = 32;
 const DAILY_VISIBLE_CONTENT_WARMUP_LIMIT = 18;
 const DAILY_VISIBLE_CONTENT_WARMUP_BATCH = 4;
 const DAILY_VISIBLE_CONTENT_WARMUP_DELAY_MS = 420;
@@ -946,6 +948,51 @@ export default function DailyNotesShell() {
   const notesById = calendarIndexes.notesById;
   // Each day can hold multiple note pages (Notion-style), grouped by 日期.
   const notesByDate = calendarIndexes.notesByDate;
+
+  useEffect(() => {
+    const occupiedDateKeys = buildOccupiedDailyCalendarHydrationKeys(
+      grid,
+      notesByDate,
+      dailyNoteCountByDate
+    );
+    if (occupiedDateKeys.length === 0) return;
+
+    let cancelled = false;
+    let cancelScheduledBatch: (() => void) | null = null;
+    const queue = [...occupiedDateKeys];
+
+    const revealNextOccupiedBatch = () => {
+      cancelScheduledBatch = null;
+      if (cancelled || queue.length === 0) return;
+      const nextBatch = queue.splice(
+        0,
+        DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH
+      );
+      setHydratedDateKeys((current) => {
+        let changed = false;
+        const next = new Set(current);
+        for (const dateKey of nextBatch) {
+          if (next.has(dateKey)) continue;
+          next.add(dateKey);
+          changed = true;
+        }
+        return changed ? next : current;
+      });
+      if (queue.length > 0) {
+        cancelScheduledBatch = scheduleDailyIdleTask(
+          revealNextOccupiedBatch,
+          DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS
+        );
+      }
+    };
+
+    revealNextOccupiedBatch();
+
+    return () => {
+      cancelled = true;
+      cancelScheduledBatch?.();
+    };
+  }, [dailyNoteCountByDate, grid, notesByDate]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -2212,6 +2259,27 @@ function buildInitialDailyCalendarHydrationKeys(
   }
 
   return initialKeys;
+}
+
+function buildOccupiedDailyCalendarHydrationKeys(
+  grid: MonthCell[],
+  notesByDate: Map<string, DailyNote[]>,
+  countsByDate: Map<string, number>
+): string[] {
+  const inMonth: string[] = [];
+  const adjacentMonth: string[] = [];
+  for (const cell of grid) {
+    const dateKey = toDateKey(cell.date);
+    const count =
+      countsByDate.get(dateKey) ?? notesByDate.get(dateKey)?.length ?? 0;
+    if (count <= 0) continue;
+    if (cell.inMonth) {
+      inMonth.push(dateKey);
+    } else {
+      adjacentMonth.push(dateKey);
+    }
+  }
+  return [...inMonth, ...adjacentMonth];
 }
 
 function mergeCloudDailyNotes(
