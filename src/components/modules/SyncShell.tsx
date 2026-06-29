@@ -451,6 +451,11 @@ import {
   type SyncAckLedgerReplayEnablementStatus,
 } from "@/lib/sync/syncAckLedgerReplayEnablement";
 import {
+  buildSyncReplayTestApiDisabledResponse,
+  type SyncReplayTestApiDisabledResponse,
+  type SyncReplayTestApiField,
+} from "@/lib/sync/syncReplayTestApiStub";
+import {
   buildCommentVersionReplayApiDisabledResponse,
 } from "@/lib/sync/commentVersionReplayApiStub";
 import {
@@ -522,6 +527,7 @@ type SyncQueueAction =
   | "sync-ack-ledger-replay-preflight"
   | "sync-ack-ledger-replay-proof"
   | "sync-ack-ledger-replay-enablement"
+  | "sync-replay-test-api-guard"
   | "comment-version-replay-api-guard"
   | "comment-version-replay-receipt"
   | "rollback-plan"
@@ -2043,6 +2049,10 @@ function SyncDashboard() {
       syncAckLedgerReplayProof,
       syncAckRetryLedgerContract,
     ]
+  );
+  const syncReplayTestApiGuard = useMemo(
+    () => buildSyncReplayTestApiDisabledResponse(),
+    []
   );
   const syncConflictResolution = useMemo(
     () =>
@@ -4753,6 +4763,24 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncReplayTestApiGuard = () => {
+    setBusyQueueAction("sync-replay-test-api-guard");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-replay-test-api-guard-${fileSafeTimestamp()}.json`,
+        {
+          ...syncReplayTestApiGuard,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to export sync replay test API guard:", err);
+      window.alert("同步回放 API guard 导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportCommentVersionReplayApiGuard = () => {
     setBusyQueueAction("comment-version-replay-api-guard");
     try {
@@ -6432,6 +6460,12 @@ function SyncDashboard() {
           enablement={syncAckLedgerReplayEnablement}
           busy={busyQueueAction === "sync-ack-ledger-replay-enablement"}
           onExport={handleExportSyncAckLedgerReplayEnablement}
+        />
+
+        <SyncReplayTestApiGuardPanel
+          guard={syncReplayTestApiGuard}
+          busy={busyQueueAction === "sync-replay-test-api-guard"}
+          onExport={handleExportSyncReplayTestApiGuard}
         />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -13344,6 +13378,165 @@ function SyncAckLedgerReplayEnablementStatusPill({
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
       {labels[status]}
     </span>
+  );
+}
+
+function SyncReplayTestApiGuardPanel({
+  guard,
+  busy,
+  onExport,
+}: {
+  guard: SyncReplayTestApiDisabledResponse;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="sync-replay-test-api-guard"
+      data-testid="sync-replay-test-api-guard"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              同步回放 API 门卫
+            </h2>
+            <span className="rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300">
+              {guard.stub_status}
+            </span>
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            `/api/sync/replay-test` 现在仍是 501 disabled route。它不会读取 request body、
+            不会创建一次性工作区、不会连接云端、不会写 server、不会上传数据，
+            也不能碰生产工作区；这里先固定未来 disposable replay 的字段边界。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出回放 API 门卫"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <PayloadSummaryCard
+          label="HTTP"
+          value={guard.disabled_response_contract.http_status}
+          detail="disabled"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="可运行"
+          value={guard.can_run_replay_now ? "是" : "否"}
+          detail="仍然关闭"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="请求体"
+          value={guard.can_read_request_body_now ? "读取" : "不读取"}
+          detail="隐私边界"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="生产数据"
+          value={guard.can_touch_production_workspace_now ? "可碰" : "拒绝"}
+          detail="只允许 disposable"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="允许字段"
+          value={guard.request_schema.allowed_fields.length}
+          detail="元数据"
+          tone="low"
+        />
+        <PayloadSummaryCard
+          label="禁止字段"
+          value={guard.request_schema.forbidden_fields.length}
+          detail="正文/文件/密钥"
+          tone="medium"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="未来 request 允许字段">
+          <SyncReplayTestApiFieldList
+            fields={guard.request_schema.allowed_fields}
+          />
+        </ContractPanel>
+        <ContractPanel title="request 禁止字段">
+          <SyncReplayTestApiFieldList
+            fields={guard.request_schema.forbidden_fields}
+          />
+        </ContractPanel>
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="未来 response 允许字段">
+          <SyncReplayTestApiFieldList
+            fields={guard.response_schema.allowed_fields}
+          />
+        </ContractPanel>
+        <ContractPanel title="启用条件">
+          <div className="space-y-2">
+            {guard.enablement_gates.map((gate) => (
+              <article
+                key={gate.id}
+                className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+              >
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {gate.title}
+                </div>
+                <div className="mt-1 font-mono text-[10px] text-zinc-400">
+                  {gate.id}
+                </div>
+                <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+                  {gate.required_before_enablement}
+                </p>
+              </article>
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+    </section>
+  );
+}
+
+function SyncReplayTestApiFieldList({
+  fields,
+}: {
+  fields: SyncReplayTestApiField[];
+}) {
+  return (
+    <div className="space-y-2">
+      {fields.map((field) => (
+        <article
+          key={field.field}
+          className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+              {field.field}
+            </div>
+            <span
+              className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${
+                field.status === "allowed"
+                  ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                  : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+              }`}
+            >
+              {field.status}
+            </span>
+          </div>
+          <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+            {field.reason}
+          </p>
+        </article>
+      ))}
+    </div>
   );
 }
 

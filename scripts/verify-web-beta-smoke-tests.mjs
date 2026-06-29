@@ -23,6 +23,8 @@ const files = {
   syncAckLedgerReplayProof: "src/lib/sync/syncAckLedgerReplayProof.ts",
   syncAckLedgerReplayEnablement:
     "src/lib/sync/syncAckLedgerReplayEnablement.ts",
+  syncReplayTestApiStub: "src/lib/sync/syncReplayTestApiStub.ts",
+  syncReplayTestRoute: "src/app/api/sync/replay-test/route.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -353,6 +355,8 @@ function run() {
   const syncAckLedgerReplayEnablement = readProjectFile(
     files.syncAckLedgerReplayEnablement
   );
+  const syncReplayTestApiStub = readProjectFile(files.syncReplayTestApiStub);
+  const syncReplayTestRoute = readProjectFile(files.syncReplayTestRoute);
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
     files.coreManifestCompareReceipt
@@ -2428,6 +2432,109 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-replay-test-api-disabled"',
+      "Sync replay test API guard must expose a stable disabled format.",
+    ],
+    [
+      "can_run_replay_now: false",
+      "Sync replay test API guard must not run replay.",
+    ],
+    [
+      "can_read_request_body_now: false",
+      "Sync replay test API guard must not read request bodies.",
+    ],
+    [
+      "can_create_disposable_workspace_now: false",
+      "Sync replay test API guard must not create disposable workspaces.",
+    ],
+    [
+      "can_connect_cloud_now: false",
+      "Sync replay test API guard must not connect cloud.",
+    ],
+    [
+      "can_touch_production_workspace_now: false",
+      "Sync replay test API guard must not touch production workspace.",
+    ],
+    [
+      "requires_owner_confirmation_before_replay: true",
+      "Sync replay test API guard must require owner confirmation.",
+    ],
+    [
+      "requires_disposable_workspace_before_enablement: true",
+      "Sync replay test API guard must require disposable workspace.",
+    ],
+    [
+      "requires_rls_assertion_before_enablement: true",
+      "Sync replay test API guard must require RLS proof.",
+    ],
+    [
+      "requires_permission_check_before_enablement: true",
+      "Sync replay test API guard must require permission proof.",
+    ],
+    [
+      "requires_audit_event_before_enablement: true",
+      "Sync replay test API guard must require audit proof.",
+    ],
+    [
+      "requires_rollback_proof_before_enablement: true",
+      "Sync replay test API guard must require rollback proof.",
+    ],
+    [
+      "requires_ack_ledger_enablement_before_replay: true",
+      "Sync replay test API guard must require ack ledger enablement.",
+    ],
+    [
+      "requires_zero_private_payload_before_enablement: true",
+      "Sync replay test API guard must require zero private payload.",
+    ],
+    [
+      "production_workspace_id",
+      "Sync replay test API guard must reject production workspace ids.",
+    ],
+    [
+      "page_body_text",
+      "Sync replay test API guard must reject page body text.",
+    ],
+    [
+      "database_cell_values",
+      "Sync replay test API guard must reject database cell values.",
+    ],
+    [
+      "comment_body",
+      "Sync replay test API guard must reject comment bodies.",
+    ],
+    [
+      "file_bytes",
+      "Sync replay test API guard must reject file bytes.",
+    ],
+    [
+      "token",
+      "Sync replay test API guard must reject tokens.",
+    ],
+    [
+      "force_acknowledge",
+      "Sync replay test API guard must reject forced acknowledgement.",
+    ],
+    [
+      "connect_production_database",
+      "Sync replay test API guard must reject production database connections.",
+    ],
+  ]) {
+    assertIncludes(
+      files.syncReplayTestApiStub,
+      syncReplayTestApiStub,
+      snippet,
+      message
+    );
+  }
+  assertIncludes(
+    files.syncReplayTestRoute,
+    syncReplayTestRoute,
+    "buildSyncReplayTestApiDisabledResponse",
+    "Sync replay test route must return the dedicated disabled replay schema."
+  );
+  for (const [snippet, message] of [
+    [
       "buildSyncAckRetryLedgerContract",
       "Sync UI must build the sync ack/retry ledger contract.",
     ],
@@ -2522,6 +2629,30 @@ function run() {
     [
       "不会打开真实同步推送",
       "Sync UI must state the enablement package cannot enable real sync push.",
+    ],
+    [
+      "buildSyncReplayTestApiDisabledResponse",
+      "Sync UI must build the sync replay test API guard.",
+    ],
+    [
+      "sync-replay-test-api-guard",
+      "Sync UI must render the sync replay test API guard panel.",
+    ],
+    [
+      "同步回放 API 门卫",
+      "Sync UI must expose the sync replay test API guard section.",
+    ],
+    [
+      "导出回放 API 门卫",
+      "Sync UI must expose the sync replay test API guard export.",
+    ],
+    [
+      "不会读取 request body",
+      "Sync UI must state the replay API guard does not read request bodies.",
+    ],
+    [
+      "不能碰生产工作区",
+      "Sync UI must state the replay API guard cannot touch production workspace.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);
