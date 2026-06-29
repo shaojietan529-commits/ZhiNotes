@@ -11498,8 +11498,24 @@ function run() {
       "Route smoke verifier must cover the daily calendar route.",
     ],
     [
+      'path: "/schedule"',
+      "Route smoke verifier must cover the meeting calendar route.",
+    ],
+    [
       'path: "/page/zhinote-route-prefetch"',
       "Route smoke verifier must cover the page shell warmup route.",
+    ],
+    [
+      "findExistingDevServer",
+      "Route smoke verifier must reuse an existing local dev server when available.",
+    ],
+    [
+      "existing-next-dev-http",
+      "Route smoke verifier must report when it reuses an existing local dev server.",
+    ],
+    [
+      "expectedText",
+      "Route smoke verifier must validate route markers without reading private data.",
     ],
     [
       "privacyBoundary",

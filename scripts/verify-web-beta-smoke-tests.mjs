@@ -541,8 +541,32 @@ function run() {
   assertIncludes(
     files.routeSmokeVerifier,
     routeSmokeVerifier,
+    'path: "/schedule"',
+    "Route smoke verifier must cover the meeting calendar route."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
     'path: "/page/zhinote-route-prefetch"',
     "Route smoke verifier must cover the page shell route used for warm navigation."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    "findExistingDevServer",
+    "Route smoke verifier must reuse an existing local dev server when available."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    "existing-next-dev-http",
+    "Route smoke verifier must report when it reuses an existing local dev server."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    "expectedText",
+    "Route smoke verifier must validate route markers without reading private data."
   );
   assertIncludes(
     files.routeSmokeVerifier,
