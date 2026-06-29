@@ -4341,6 +4341,22 @@ function run() {
     "setOpeningNoteId(note.id);",
     "Daily existing-note opens must mark the clicked note before deferred warmup work runs."
   );
+  for (const [snippet, message] of [
+    [
+      "toDailyNoteMetadataSeed(seededNote, note)",
+      "Daily existing-note peek opens must seed metadata-only first paint instead of passing long imported body HTML into the modal.",
+    ],
+    [
+      "toDailyNoteMetadataSeed(note, note)",
+      "Daily existing-note priming must keep route handoff/pending drafts metadata-first for fluent opening.",
+    ],
+    [
+      "function toDailyNoteMetadataSeed(",
+      "Daily metadata-first peek opening must keep a dedicated helper so the long-body boundary is explicit.",
+    ],
+  ]) {
+    assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
@@ -6560,8 +6576,8 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "setPeekInitialPage(toDailyNoteSeed(seededNote, note));",
-    "Daily existing-note opens must seed the peek modal before showing it."
+    "setPeekInitialPage(toDailyNoteMetadataSeed(seededNote, note));",
+    "Daily existing-note opens must seed the peek modal metadata before showing it."
   );
   assertIncludes(
     files.dailyNotesShell,
@@ -6626,8 +6642,8 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "rememberPendingPageDraft(note)",
-    "Daily note full-page opening must keep an in-memory draft for immediate first paint."
+    "rememberPendingPageDraft(initialSeed)",
+    "Daily note full-page opening must keep a metadata-first in-memory seed for immediate first paint."
   );
   assertIncludes(
     files.dailyNotesShell,

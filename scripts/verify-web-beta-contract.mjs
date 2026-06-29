@@ -4200,8 +4200,8 @@ function run() {
       "Daily + creation must hand off the optimistic page before peek or full-page opening.",
     ],
     [
-      "rememberPageRouteHandoff(note, source)",
-      "Daily note opening must hand off metadata before opening a page.",
+      "rememberPageRouteHandoff(initialSeed, source)",
+      "Daily note opening must hand off metadata-only seed before opening a page.",
     ],
     [
       'primeDailyNoteOpen(note, "daily-open");',
@@ -4312,8 +4312,8 @@ function run() {
       "Daily note full-page opening must use the visible-month note id index before checking the global workspace.",
     ],
     [
-      "rememberPendingPageDraft(note)",
-      "Daily note opening must keep an in-memory draft for immediate full-page first paint.",
+      "rememberPendingPageDraft(initialSeed)",
+      "Daily note opening must keep a metadata-first in-memory seed for immediate full-page first paint.",
     ],
     [
       "openDailyNoteFullPageById",
@@ -4466,6 +4466,18 @@ function run() {
     [
       "setOpeningNoteId(note.id);",
       "Daily existing-note opens must mark the clicked note before deferred warmup work runs.",
+    ],
+    [
+      "toDailyNoteMetadataSeed(seededNote, note)",
+      "Daily existing-note peek opens must seed metadata-only first paint instead of passing long imported body HTML into the modal.",
+    ],
+    [
+      "toDailyNoteMetadataSeed(note, note)",
+      "Daily existing-note priming must keep route handoff/pending drafts metadata-first for fluent opening.",
+    ],
+    [
+      "function toDailyNoteMetadataSeed(",
+      "Daily metadata-first peek opening must keep a dedicated helper so the long-body boundary is explicit.",
     ],
     [
       "openingNoteId === note.id",
@@ -4826,8 +4838,8 @@ function run() {
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "setPeekInitialPage(toDailyNoteSeed(seededNote, note));",
-    "Daily existing-note opens must seed the peek modal before showing it."
+    "setPeekInitialPage(toDailyNoteMetadataSeed(seededNote, note));",
+    "Daily existing-note opens must seed the peek modal metadata before showing it."
   );
   assertSourceIncludes(
     files.dailyNotesShell,

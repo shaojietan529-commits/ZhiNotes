@@ -1416,10 +1416,14 @@ export default function DailyNotesShell() {
 
   const primeDailyNoteOpen = useCallback(
     (note: DailyNote, source: "daily-create" | "daily-open" = "daily-open") => {
+      const initialSeed =
+        source === "daily-create" && note.content_text === ""
+          ? toDailyNoteSeed(note, note)
+          : toDailyNoteMetadataSeed(note, note);
       warmDailyPeekOpen();
-      upsertPages([note]);
-      rememberPendingPageDraft(note);
-      rememberPageRouteHandoff(note, source);
+      upsertPages([initialSeed]);
+      rememberPendingPageDraft(initialSeed);
+      rememberPageRouteHandoff(initialSeed, source);
       warmDailyNoteContent(note);
       try {
         router.prefetch(`/page/${note.id}`);
@@ -1468,7 +1472,7 @@ export default function DailyNotesShell() {
     primeDailyNoteOpen(note, "daily-open");
     const seededNote =
       useWorkspaceStore.getState().getPageById(note.id) ?? note;
-    setPeekInitialPage(toDailyNoteSeed(seededNote, note));
+    setPeekInitialPage(toDailyNoteMetadataSeed(seededNote, note));
     setOpeningNoteId(note.id);
     setPeekPageId(note.id);
   }, [primeDailyNoteOpen]);
@@ -2857,6 +2861,14 @@ function toDailyNoteSeed(page: Page, fallback: DailyNote): DailyNote {
     dailyDateKey: dateKey,
     cloudOnly: fallback.cloudOnly,
     hotCacheOnly: fallback.hotCacheOnly,
+  };
+}
+
+function toDailyNoteMetadataSeed(page: Page, fallback: DailyNote): DailyNote {
+  return {
+    ...toDailyNoteSeed(page, fallback),
+    content_text: null,
+    content_yjs: null,
   };
 }
 
