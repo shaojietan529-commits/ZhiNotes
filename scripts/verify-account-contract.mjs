@@ -1043,6 +1043,9 @@ check(
     meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_EXPAND_BATCH") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_RENDER_DAY_LIMIT") &&
+    meetingScheduleShell.includes("MEETING_RENDER_UPCOMING_BUFFER_LIMIT") &&
+    meetingScheduleShell.includes("MEETING_RENDER_COMPLETED_BUFFER_LIMIT") &&
+    meetingScheduleShell.includes("MEETING_RENDER_UNDATED_REVIEW_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_HYDRATION_BATCH") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
@@ -1055,6 +1058,9 @@ check(
     meetingScheduleShell.includes("const [meetingCountByDate, setMeetingCountByDate]") &&
     meetingScheduleShell.includes("const [loadingMoreMeetingDateKey, setLoadingMoreMeetingDateKey]") &&
     meetingScheduleShell.includes("function selectMeetingPagesForCalendarRender(") &&
+    meetingScheduleShell.includes("addUpcomingMeetingEntryCandidate(") &&
+    meetingScheduleShell.includes("addRecentMeetingEntryCandidate(") &&
+    meetingScheduleShell.includes("if (dateKey < startDate || dateKey > endDate)") &&
     meetingScheduleShell.includes("setMeetingCountByDate(selection.countsByDate)") &&
     meetingScheduleShell.includes("expandedMeetingDateKeys") &&
     meetingScheduleShell.includes("visibleMeetingLimitByDate") &&

@@ -2475,6 +2475,18 @@ function run() {
       "stores_passcode: false",
       "Meeting hot cache snapshot must never store passcodes.",
     ],
+    [
+      "page.meeting_date_key >= input.startDate",
+      "Meeting hot cache snapshot writes must keep only the requested calendar range.",
+    ],
+    [
+      "page.meeting_date_key <= input.endDate",
+      "Meeting hot cache snapshot writes must skip pages beyond the requested calendar range.",
+    ],
+    [
+      "range_pages: snapshotPages.length",
+      "Meeting hot cache snapshot summaries must prove all stored pages are in range.",
+    ],
   ]) {
     assertSourceIncludes(
       files.meetingHotCacheSnapshot,
@@ -2604,6 +2616,18 @@ function run() {
       "Meeting calendar must cap per-day rendered entries so high-volume imports do not block the UI.",
     ],
     [
+      "MEETING_RENDER_UPCOMING_BUFFER_LIMIT",
+      "Meeting calendar must cap out-of-range upcoming entries kept for first paint.",
+    ],
+    [
+      "MEETING_RENDER_COMPLETED_BUFFER_LIMIT",
+      "Meeting calendar must cap out-of-range completed meeting notes kept for first paint.",
+    ],
+    [
+      "MEETING_RENDER_UNDATED_REVIEW_LIMIT",
+      "Meeting calendar must cap undated review entries kept for first paint.",
+    ],
+    [
       "MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT",
       "Meeting calendar must support bounded single-day metadata refill for high-volume imported days.",
     ],
@@ -2658,6 +2682,18 @@ function run() {
     [
       "function selectMeetingPagesForCalendarRender(",
       "Meeting calendar must route merged metadata through a render selection step before publishing.",
+    ],
+    [
+      "addUpcomingMeetingEntryCandidate(",
+      "Meeting calendar must keep only a bounded upcoming buffer outside the visible month.",
+    ],
+    [
+      "addRecentMeetingEntryCandidate(",
+      "Meeting calendar must keep only bounded recent/completed buffers outside the visible month.",
+    ],
+    [
+      "if (dateKey < startDate || dateKey > endDate)",
+      "Meeting calendar must not push every out-of-range meeting into first-paint state.",
     ],
     [
       "setMeetingCountByDate(selection.countsByDate)",

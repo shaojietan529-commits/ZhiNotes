@@ -176,6 +176,11 @@ export function writeMeetingHotCacheSnapshot(input: {
   const snapshotPages = input.pages
     .map(toSnapshotPage)
     .filter((page): page is MeetingHotCacheSnapshotPage => Boolean(page))
+    .filter(
+      (page) =>
+        page.meeting_date_key >= input.startDate &&
+        page.meeting_date_key <= input.endDate
+    )
     .slice(0, MEETING_HOT_CACHE_MAX_PAGES);
   if (snapshotPages.length === 0) return null;
 
@@ -209,11 +214,7 @@ export function writeMeetingHotCacheSnapshot(input: {
     },
     summary: {
       pages: snapshotPages.length,
-      range_pages: snapshotPages.filter(
-        (page) =>
-          page.meeting_date_key >= input.startDate &&
-          page.meeting_date_key <= input.endDate
-      ).length,
+      range_pages: snapshotPages.length,
     },
     pages: snapshotPages,
   };

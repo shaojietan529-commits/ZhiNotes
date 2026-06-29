@@ -110,6 +110,9 @@ const DEFAULT_MEETING_PRIORITY = "default";
 const MEETING_CALENDAR_VISIBLE_LIMIT = 6;
 const MEETING_UPCOMING_VISIBLE_LIMIT = 8;
 const MEETING_NOTES_VISIBLE_LIMIT = 20;
+const MEETING_RENDER_UPCOMING_BUFFER_LIMIT = 24;
+const MEETING_RENDER_COMPLETED_BUFFER_LIMIT = 32;
+const MEETING_RENDER_UNDATED_REVIEW_LIMIT = 16;
 const MEETING_CALENDAR_EXPAND_BATCH = 24;
 const MEETING_CALENDAR_REVEAL_BUFFER = 2;
 const MEETING_CALENDAR_RENDER_DAY_LIMIT =
@@ -3301,13 +3304,43 @@ function selectMeetingPagesForCalendarRender(
   const countsByDate = new Map<string, number>();
   const renderedByDate = new Map<string, number>();
   const selectedIds = new Set<string>();
+  const upcomingCandidates: MeetingEntry[] = [];
+  const completedCandidates: MeetingEntry[] = [];
+  const undatedReviewCandidates: MeetingEntry[] = [];
+  const todayKey = toDateKey(new Date());
+
+  const pushSelectedPage = (page: Page) => {
+    if (selectedIds.has(page.id)) return;
+    selectedPages.push(page);
+    selectedIds.add(page.id);
+  };
 
   for (const page of pages) {
-    const dateKey = toMeetingEntry(page).dateKey;
-    if (!dateKey || dateKey < startDate || dateKey > endDate) {
-      if (!selectedIds.has(page.id)) {
-        selectedPages.push(page);
-        selectedIds.add(page.id);
+    const entry = toMeetingEntry(page);
+    const dateKey = entry.dateKey;
+    if (!dateKey) {
+      addRecentMeetingEntryCandidate(
+        undatedReviewCandidates,
+        entry,
+        MEETING_RENDER_UNDATED_REVIEW_LIMIT
+      );
+      continue;
+    }
+
+    if (dateKey < startDate || dateKey > endDate) {
+      if (dateKey >= todayKey) {
+        addUpcomingMeetingEntryCandidate(
+          upcomingCandidates,
+          entry,
+          MEETING_RENDER_UPCOMING_BUFFER_LIMIT
+        );
+      }
+      if (isCompletedMeetingEntry(entry)) {
+        addRecentMeetingEntryCandidate(
+          completedCandidates,
+          entry,
+          MEETING_RENDER_COMPLETED_BUFFER_LIMIT
+        );
       }
       continue;
     }
@@ -3316,12 +3349,58 @@ function selectMeetingPagesForCalendarRender(
     const renderedCount = renderedByDate.get(dateKey) ?? 0;
     if (renderedCount >= MEETING_CALENDAR_RENDER_DAY_LIMIT) continue;
 
-    selectedPages.push(page);
-    selectedIds.add(page.id);
+    pushSelectedPage(page);
     renderedByDate.set(dateKey, renderedCount + 1);
   }
 
+  for (const entry of upcomingCandidates) pushSelectedPage(entry.page);
+  for (const entry of completedCandidates) pushSelectedPage(entry.page);
+  for (const entry of undatedReviewCandidates) pushSelectedPage(entry.page);
+
   return { pages: selectedPages, countsByDate };
+}
+
+function isCompletedMeetingEntry(entry: MeetingEntry): boolean {
+  return (
+    !entry.page.deleted_at &&
+    (entry.recordingStatus === "录制成功" || entry.traceStatus === "已完成")
+  );
+}
+
+function addUpcomingMeetingEntryCandidate(
+  candidates: MeetingEntry[],
+  entry: MeetingEntry,
+  limit: number
+): void {
+  if (limit <= 0) return;
+  let insertAt = candidates.length;
+  while (
+    insertAt > 0 &&
+    compareUpcomingMeetingEntries(entry, candidates[insertAt - 1]) < 0
+  ) {
+    insertAt -= 1;
+  }
+  if (insertAt >= limit) return;
+  candidates.splice(insertAt, 0, entry);
+  if (candidates.length > limit) candidates.pop();
+}
+
+function addRecentMeetingEntryCandidate(
+  candidates: MeetingEntry[],
+  entry: MeetingEntry,
+  limit: number
+): void {
+  if (limit <= 0) return;
+  let insertAt = candidates.length;
+  while (
+    insertAt > 0 &&
+    compareRecentMeetingNoteEntries(entry, candidates[insertAt - 1]) < 0
+  ) {
+    insertAt -= 1;
+  }
+  if (insertAt >= limit) return;
+  candidates.splice(insertAt, 0, entry);
+  if (candidates.length > limit) candidates.pop();
 }
 
 function sumMeetingDateCounts(countsByDate: Map<string, number>): number {
