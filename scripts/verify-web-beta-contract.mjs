@@ -2278,6 +2278,26 @@ function run() {
       "Meeting hot cache snapshot must remain metadata-only.",
     ],
     [
+      'format: "zhinote-meeting-hot-cache-snapshot-index"',
+      "Meeting hot cache must keep a metadata-only index for overlapping range lookups.",
+    ],
+    [
+      "MEETING_HOT_CACHE_INDEX_KEY",
+      "Meeting hot cache overlap reads must use a dedicated local index key.",
+    ],
+    [
+      "scans_local_storage_keys: false",
+      "Meeting hot cache index must prove it avoids broad localStorage scans.",
+    ],
+    [
+      "readMeetingHotCacheSnapshotIndex(storage)",
+      "Meeting hot cache overlap reads must consult the metadata index before opening snapshots.",
+    ],
+    [
+      "writeMeetingHotCacheSnapshotIndex(window.localStorage, snapshot, key)",
+      "Meeting hot cache writes must refresh the metadata index.",
+    ],
+    [
       "stores_join_url: false",
       "Meeting hot cache snapshot must never store join URLs.",
     ],
@@ -2297,6 +2317,12 @@ function run() {
       message
     );
   }
+  assertSourceExcludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "storage.key(",
+    "Meeting hot cache overlap reads must use the local snapshot index instead of scanning every localStorage key."
+  );
   for (const [snippet, message] of [
     [
       "page.content_text",
@@ -2358,6 +2384,10 @@ function run() {
     [
       "readMeetingHotCacheSnapshot",
       "Meeting schedule must read the local hot cache snapshot before slower cache/cloud checks.",
+    ],
+    [
+      "readMeetingHotCacheSnapshotsForRange",
+      "Meeting schedule must read overlapping local hot cache snapshots before slower local/cloud checks.",
     ],
     [
       "hotCacheBootstrapKeyRef",

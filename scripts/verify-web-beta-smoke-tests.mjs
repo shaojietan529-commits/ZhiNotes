@@ -2419,6 +2419,36 @@ function run() {
   assertIncludes(
     files.meetingHotCacheSnapshot,
     meetingHotCacheSnapshot,
+    'format: "zhinote-meeting-hot-cache-snapshot-index"',
+    "Meeting hot cache must keep a metadata-only index for overlapping range lookups."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "MEETING_HOT_CACHE_INDEX_KEY",
+    "Meeting hot cache overlap reads must use a dedicated local index key."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "scans_local_storage_keys: false",
+    "Meeting hot cache index must prove it avoids broad localStorage scans."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "readMeetingHotCacheSnapshotIndex(storage)",
+    "Meeting hot cache overlap reads must consult the metadata index before opening snapshots."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "writeMeetingHotCacheSnapshotIndex(window.localStorage, snapshot, key)",
+    "Meeting hot cache writes must refresh the metadata index."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
     "stores_join_url: false",
     "Meeting hot cache snapshot must never store join URLs."
   );
@@ -2465,6 +2495,11 @@ function run() {
         `${files.meetingHotCacheSnapshot} must not include ${forbiddenMeetingSnapshotSnippet}: meeting hot cache snapshot must stay metadata-only, local-only, and free of meeting credentials.`
       );
     }
+  }
+  if (meetingHotCacheSnapshot.includes("storage.key(")) {
+    failures.push(
+      `${files.meetingHotCacheSnapshot} must not call storage.key(: overlapping meeting hot-cache reads should use the local snapshot index instead of scanning every localStorage key.`
+    );
   }
   for (const [snippet, message] of [
     [
@@ -3223,6 +3258,12 @@ function run() {
     meetingScheduleShell,
     "readMeetingHotCacheSnapshot",
     "Meeting schedule must read a local hot cache snapshot before slower cache/cloud checks."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "readMeetingHotCacheSnapshotsForRange",
+    "Meeting schedule must read overlapping local hot cache snapshots before slower local/cloud checks."
   );
   assertIncludes(
     files.meetingScheduleShell,

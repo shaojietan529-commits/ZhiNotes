@@ -46,6 +46,7 @@ import {
 import {
   meetingHotCacheSnapshotPageToPage,
   readMeetingHotCacheSnapshot,
+  readMeetingHotCacheSnapshotsForRange,
   writeMeetingHotCacheSnapshot,
 } from "@/lib/sync/meetingHotCacheSnapshot";
 import {
@@ -362,10 +363,24 @@ export default function MeetingScheduleShell() {
     hotCacheBootstrapKeyRef.current = bootstrapKey;
 
     const cachedHotSnapshot = readMeetingHotCacheSnapshot(startDate, endDate);
+    const overlappingHotSnapshots = readMeetingHotCacheSnapshotsForRange(
+      startDate,
+      endDate
+    );
     const cachedCloud = readCachedMeetingCloudMetadata(startDate, endDate);
-    if (!cachedHotSnapshot && !cachedCloud?.ok) return;
-    const cachedHotPages =
-      cachedHotSnapshot?.pages.map(meetingHotCacheSnapshotPageToPage) ?? [];
+    if (
+      !cachedHotSnapshot &&
+      overlappingHotSnapshots.length === 0 &&
+      !cachedCloud?.ok
+    ) {
+      return;
+    }
+    const cachedHotPages = [
+      ...(cachedHotSnapshot?.pages.map(meetingHotCacheSnapshotPageToPage) ?? []),
+      ...overlappingHotSnapshots.flatMap((snapshot) =>
+        snapshot.pages.map(meetingHotCacheSnapshotPageToPage)
+      ),
+    ];
     const cachedCloudPages = cachedCloud?.ok ? cachedCloud.pages : [];
     const mergedMeetings = mergeMeetingPages(
       cachedHotPages,
@@ -379,7 +394,11 @@ export default function MeetingScheduleShell() {
       endDate
     );
     const nextMeetings = selection.pages;
-    const rootHint = cachedHotSnapshot?.root_id ?? cachedCloud?.rootId ?? null;
+    const rootHint =
+      cachedHotSnapshot?.root_id ??
+      overlappingHotSnapshots.find((snapshot) => snapshot.root_id)?.root_id ??
+      cachedCloud?.rootId ??
+      null;
 
     if (rootHint) {
       setRootId(rootHint);
@@ -693,7 +712,21 @@ export default function MeetingScheduleShell() {
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
     let localPagesForMerge: Page[] = [];
     const cachedHotSnapshot = readMeetingHotCacheSnapshot(startDate, endDate);
-    const cachedHotCount = cachedHotSnapshot?.pages.length ?? 0;
+    const overlappingHotSnapshots = readMeetingHotCacheSnapshotsForRange(
+      startDate,
+      endDate
+    );
+    const cachedHotPages = [
+      ...(cachedHotSnapshot?.pages.map(meetingHotCacheSnapshotPageToPage) ?? []),
+      ...overlappingHotSnapshots.flatMap((snapshot) =>
+        snapshot.pages.map(meetingHotCacheSnapshotPageToPage)
+      ),
+    ];
+    const cachedHotRootId =
+      cachedHotSnapshot?.root_id ??
+      overlappingHotSnapshots.find((snapshot) => snapshot.root_id)?.root_id ??
+      null;
+    const cachedHotCount = cachedHotPages.length;
 
     const publishRootId = (nextRootId: string | null) => {
       if (loadRequestRef.current !== requestId) return;
@@ -763,12 +796,9 @@ export default function MeetingScheduleShell() {
       });
     };
 
-    if (cachedHotSnapshot) {
-      publishRootId(cachedHotSnapshot.root_id);
-      publishMeetings(
-        [],
-        cachedHotSnapshot.pages.map(meetingHotCacheSnapshotPageToPage)
-      );
+    if (cachedHotPages.length > 0) {
+      publishRootId(cachedHotRootId);
+      publishMeetings([], cachedHotPages);
     }
 
     if (includeCloud && !initialCloudPullAttemptedRef.current) {
