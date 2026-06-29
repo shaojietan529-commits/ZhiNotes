@@ -511,15 +511,17 @@ function run() {
   );
   for (const snippet of [
     "const upsertPages = useWorkspaceStore((s) => s.upsertPages)",
-    "const workspacePages = useWorkspaceStore((s) => s.pages)",
+    "useWorkspaceStore.getState().pages",
+    "groupPagesByParent(pages)",
+    "childrenByParent.get(",
     'const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations")',
     "listPageMetadata(pageId)",
     "upsertPages([child])",
     "upsertPages([pageToOpen])",
     "upsertPages([updatedNote])",
-    "setScopedPages((current) => mergePageLists(current, [child]))",
-    "setScopedPages((current) => mergePageLists(current, [pageToOpen]))",
-    "setScopedPages((current) => mergePageLists(current, [updatedNote]))",
+    "setScopedSnapshot((current) => ({",
+    "current.pageId === pageId ? current.pages : []",
+    "mergePageLists(",
   ]) {
     assertIncludes(
       files.childPageTree,

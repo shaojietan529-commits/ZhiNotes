@@ -43,14 +43,21 @@ const CHILD_TREE_PREFETCH_CHILD_LIMIT = 80;
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 
 type ViewMode = "list" | "calendar";
+type PageTreeSnapshot = { pageId: string; pages: Page[] };
 
 export default function ChildPageTree({ pageId }: { pageId: string }) {
   const openPage = useLocalFirstPageNavigation();
   const dbReady = useWorkspaceStore((s) => s.dbReady);
-  const workspacePages = useWorkspaceStore((s) => s.pages);
   const getPageById = useWorkspaceStore((s) => s.getPageById);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
-  const [scopedPages, setScopedPages] = useState<Page[]>([]);
+  const [scopedSnapshot, setScopedSnapshot] = useState<PageTreeSnapshot>({
+    pageId,
+    pages: [],
+  });
+  const [memorySnapshot, setMemorySnapshot] = useState<PageTreeSnapshot>({
+    pageId,
+    pages: [],
+  });
   const [chainRootId, setChainRootId] = useState<string | null>(null);
   const [dailyRootId, setDailyRootId] = useState<string | null>(null);
   const [meetingRootId, setMeetingRootId] = useState<string | null>(null);
@@ -70,12 +77,17 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
     if (!dbReady) return;
     let cancelled = false;
     queueMicrotask(() => {
+      const memoryPages = collectDescendantsFromMemory(
+        pageId,
+        useWorkspaceStore.getState().pages
+      );
+      if (!cancelled) setMemorySnapshot({ pageId, pages: memoryPages });
       void loadScopedChildPages(pageId)
         .then((nextPages) => {
-          if (!cancelled) setScopedPages(nextPages);
+          if (!cancelled) setScopedSnapshot({ pageId, pages: nextPages });
         })
         .catch(() => {
-          if (!cancelled) setScopedPages([]);
+          if (!cancelled) setScopedSnapshot({ pageId, pages: [] });
         });
     });
     return () => {
@@ -83,14 +95,14 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
     };
   }, [dbReady, pageId]);
 
-  const pages = useMemo(
-    () =>
-      mergePageLists(
-        scopedPages,
-        collectDescendantsFromMemory(pageId, workspacePages)
-      ),
-    [pageId, scopedPages, workspacePages]
-  );
+  const pages = useMemo(() => {
+    const scopedPages =
+      scopedSnapshot.pageId === pageId ? scopedSnapshot.pages : [];
+    const memoryDescendants =
+      memorySnapshot.pageId === pageId ? memorySnapshot.pages : [];
+    return mergePageLists(scopedPages, memoryDescendants);
+  }, [memorySnapshot, pageId, scopedSnapshot]);
+  const childrenByParent = useMemo(() => groupPagesByParent(pages), [pages]);
 
   const isDaily = pageId === dailyRootId;
   const isMeeting = pageId === meetingRootId;
@@ -117,8 +129,12 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
   }, [pages, pageId, chainRootId]);
 
   const children = useMemo(
-    () => pages.filter((p) => p.parent_id === pageId),
-    [pages, pageId]
+    () => childrenByParent.get(pageId) ?? [],
+    [childrenByParent, pageId]
+  );
+  const descendantCount = useMemo(
+    () => countDescendants(childrenByParent, pageId),
+    [childrenByParent, pageId]
   );
 
   const addChild = useCallback(
@@ -126,10 +142,16 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       const { createPageWithCloud } = await loadPageMutationModule();
       const child = await createPageWithCloud({ parentId });
       upsertPages([child]);
-      setScopedPages((current) => mergePageLists(current, [child]));
+      setScopedSnapshot((current) => ({
+        pageId,
+        pages: mergePageLists(
+          current.pageId === pageId ? current.pages : [],
+          [child]
+        ),
+      }));
       openPage(child, { source: "child-page-create" });
     },
-    [openPage, upsertPages]
+    [openPage, pageId, upsertPages]
   );
 
   const addNoteOnDate = useCallback(
@@ -149,7 +171,13 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       });
       const pageToOpen = updatedChild ?? child;
       upsertPages([pageToOpen]);
-      setScopedPages((current) => mergePageLists(current, [pageToOpen]));
+      setScopedSnapshot((current) => ({
+        pageId,
+        pages: mergePageLists(
+          current.pageId === pageId ? current.pages : [],
+          [pageToOpen]
+        ),
+      }));
       openPage(pageToOpen, { source: "child-page-create" });
     },
     [openPage, pageId, upsertPages]
@@ -181,10 +209,16 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
       const updatedNote = await updatePageWithCloud(noteId, updates);
       if (updatedNote) {
         upsertPages([updatedNote]);
-        setScopedPages((current) => mergePageLists(current, [updatedNote]));
+        setScopedSnapshot((current) => ({
+          pageId,
+          pages: mergePageLists(
+            current.pageId === pageId ? current.pages : [],
+            [updatedNote]
+          ),
+        }));
       }
     },
-    [children, upsertPages]
+    [children, pageId, upsertPages]
   );
 
   const handleOpenChild = useCallback(
@@ -214,7 +248,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
             {sectionLabel}
           </h2>
           <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-            {countDescendants(pages, pageId)} 项
+            {descendantCount} 项
           </span>
           {hasCalendar && (
             <div className="ml-2 flex rounded-md border border-zinc-200 dark:border-zinc-700">
@@ -266,7 +300,7 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
             <TreeNode
               key={child.id}
               node={child}
-              allPages={pages}
+              childrenByParent={childrenByParent}
               level={0}
               onOpen={handleOpenChild}
               onAddChild={(id) => void addChild(id)}
@@ -309,6 +343,24 @@ function mergePageLists(...groups: Page[][]): Page[] {
     }
   }
   return [...byId.values()];
+}
+
+function groupPagesByParent(pages: Page[]): Map<string | null, Page[]> {
+  const byParent = new Map<string | null, Page[]>();
+  for (const page of pages) {
+    if (page.deleted_at) continue;
+    const group = byParent.get(page.parent_id) ?? [];
+    group.push(page);
+    byParent.set(page.parent_id, group);
+  }
+  for (const group of byParent.values()) {
+    group.sort((a, b) => {
+      const position = a.position - b.position;
+      if (position !== 0) return position;
+      return (b.updated_at || "").localeCompare(a.updated_at || "");
+    });
+  }
+  return byParent;
 }
 
 function mergePageSnapshot(incoming: Page, existing?: Page): Page {
@@ -531,29 +583,32 @@ function childDateKey(page: Page): string {
   return DATE_KEY_PATTERN.test(title) ? title : "";
 }
 
-function countDescendants(pages: Page[], id: string): number {
-  const kids = pages.filter((p) => p.parent_id === id);
+function countDescendants(
+  childrenByParent: Map<string | null, Page[]>,
+  id: string
+): number {
+  const kids = childrenByParent.get(id) ?? [];
   return kids.reduce(
-    (sum, kid) => sum + 1 + countDescendants(pages, kid.id),
+    (sum, kid) => sum + 1 + countDescendants(childrenByParent, kid.id),
     0
   );
 }
 
 function TreeNode({
   node,
-  allPages,
+  childrenByParent,
   level,
   onOpen,
   onAddChild,
 }: {
   node: Page;
-  allPages: Page[];
+  childrenByParent: Map<string | null, Page[]>;
   level: number;
   onOpen: (id: string) => void;
   onAddChild: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(level < 2);
-  const children = allPages.filter((p) => p.parent_id === node.id);
+  const children = childrenByParent.get(node.id) ?? [];
   const hasChildren = children.length > 0;
   const dot = LEVEL_DOTS[level % LEVEL_DOTS.length];
   const hover = LEVEL_HOVERS[level % LEVEL_HOVERS.length];
@@ -618,7 +673,7 @@ function TreeNode({
             <TreeNode
               key={child.id}
               node={child}
-              allPages={allPages}
+              childrenByParent={childrenByParent}
               level={level + 1}
               onOpen={onOpen}
               onAddChild={onAddChild}

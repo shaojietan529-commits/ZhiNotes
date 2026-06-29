@@ -7433,21 +7433,33 @@ function run() {
   );
   for (const [snippet, message] of [
     [
-      "const workspacePages = useWorkspaceStore((s) => s.pages)",
-      "Smoke verifier must keep child page tree seeded from already-loaded workspace pages.",
+      "useWorkspaceStore.getState().pages",
+      "Smoke verifier must keep child page tree seeded from a one-time loaded workspace snapshot.",
     ],
     [
       "listPageMetadata(pageId)",
       "Smoke verifier must keep child page tree using parent-scoped metadata reads.",
     ],
     [
-      "collectDescendantsFromMemory(pageId, workspacePages)",
+      "collectDescendantsFromMemory(",
       "Smoke verifier must keep child page tree reusing in-memory descendants.",
+    ],
+    [
+      "groupPagesByParent(pages)",
+      "Smoke verifier must keep child page tree using a parent index for descendant rendering.",
+    ],
+    [
+      "childrenByParent.get(",
+      "Smoke verifier must keep child tree nodes from filtering the full page list per rendered node.",
     ],
   ]) {
     assertIncludes(files.childPageTree, childPageTree, snippet, message);
   }
   for (const [snippet, message] of [
+    [
+      "useWorkspaceStore((s) => s.pages)",
+      "Smoke verifier must keep child page tree from subscribing to the global page array.",
+    ],
     [
       'from "@/hooks/usePages"',
       "Smoke verifier must keep child page tree from importing usePages for global auto-loads.",

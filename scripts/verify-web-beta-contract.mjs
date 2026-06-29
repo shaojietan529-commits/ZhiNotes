@@ -6347,21 +6347,33 @@ function run() {
   }
   for (const [snippet, message] of [
     [
-      "const workspacePages = useWorkspaceStore((s) => s.pages)",
-      "Child page tree must seed from already-loaded workspace pages without auto-loading the global page list.",
+      "useWorkspaceStore.getState().pages",
+      "Child page tree must seed from a one-time loaded workspace snapshot without subscribing to the global page list.",
     ],
     [
       "listPageMetadata(pageId)",
       "Child page tree must load children through parent-scoped metadata queries.",
     ],
     [
-      "collectDescendantsFromMemory(pageId, workspacePages)",
+      "collectDescendantsFromMemory(",
       "Child page tree must reuse loaded descendants from memory for fast first paint.",
+    ],
+    [
+      "groupPagesByParent(pages)",
+      "Child page tree must build a parent index so rendering descendants does not repeatedly scan all pages.",
+    ],
+    [
+      "childrenByParent.get(",
+      "Child page tree nodes must read children from the parent index instead of filtering the full page list per node.",
     ],
   ]) {
     assertSourceIncludes(files.childPageTree, childPageTree, snippet, message);
   }
   for (const [snippet, message] of [
+    [
+      "useWorkspaceStore((s) => s.pages)",
+      "Child page tree must not subscribe to the global page array; large imports and hydration batches should not rerender the open page tree.",
+    ],
     [
       'from "@/hooks/usePages"',
       "Child page tree must not import usePages because it auto-loads the global metadata snapshot by default.",
