@@ -129,8 +129,9 @@ const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
 const DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH = 10;
 const DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS = 32;
 const DAILY_VISIBLE_CONTENT_WARMUP_LIMIT = 18;
-const DAILY_VISIBLE_CONTENT_WARMUP_BATCH = 4;
-const DAILY_VISIBLE_CONTENT_WARMUP_DELAY_MS = 420;
+const DAILY_VISIBLE_CONTENT_WARMUP_BATCH = 2;
+const DAILY_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS = 2200;
+const DAILY_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS = 900;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
@@ -1016,14 +1017,14 @@ export default function DailyNotesShell() {
       if (queue.length > 0) {
         cancelScheduledBatch = scheduleDailyIdleTask(
           runNextBatch,
-          DAILY_VISIBLE_CONTENT_WARMUP_DELAY_MS
+          DAILY_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS
         );
       }
     };
 
     cancelScheduledBatch = scheduleDailyIdleTask(
       runNextBatch,
-      DAILY_VISIBLE_CONTENT_WARMUP_DELAY_MS
+      DAILY_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS
     );
     return () => {
       cancelled = true;

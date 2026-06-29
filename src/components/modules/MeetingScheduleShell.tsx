@@ -119,8 +119,9 @@ const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
 const MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH = 10;
 const MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS = 32;
 const MEETING_VISIBLE_CONTENT_WARMUP_LIMIT = 16;
-const MEETING_VISIBLE_CONTENT_WARMUP_BATCH = 4;
-const MEETING_VISIBLE_CONTENT_WARMUP_DELAY_MS = 480;
+const MEETING_VISIBLE_CONTENT_WARMUP_BATCH = 2;
+const MEETING_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS = 2400;
+const MEETING_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS = 1000;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
@@ -1862,14 +1863,14 @@ export default function MeetingScheduleShell() {
       if (queue.length > 0) {
         cancelScheduledBatch = scheduleMeetingIdleTask(
           runNextBatch,
-          MEETING_VISIBLE_CONTENT_WARMUP_DELAY_MS
+          MEETING_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS
         );
       }
     };
 
     cancelScheduledBatch = scheduleMeetingIdleTask(
       runNextBatch,
-      MEETING_VISIBLE_CONTENT_WARMUP_DELAY_MS
+      MEETING_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS
     );
     return () => {
       cancelled = true;

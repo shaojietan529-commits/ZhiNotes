@@ -2848,6 +2848,18 @@ function run() {
       "Daily calendar content warmup must run in small idle batches.",
     ],
     [
+      "DAILY_VISIBLE_CONTENT_WARMUP_BATCH = 2",
+      "Daily calendar content warmup batches must stay small enough to avoid competing with first paint.",
+    ],
+    [
+      "DAILY_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS",
+      "Daily calendar must delay automatic body warmup until after the route has painted.",
+    ],
+    [
+      "DAILY_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS",
+      "Daily calendar must space follow-up body warmup batches instead of reading many imported bodies at once.",
+    ],
+    [
       "collectVisibleDailyContentWarmupCandidates",
       "Daily calendar must collect content warmup candidates from visible date cells, not the whole import corpus.",
     ],
@@ -3378,6 +3390,18 @@ function run() {
     [
       "MEETING_VISIBLE_CONTENT_WARMUP_BATCH",
       "Meeting calendar content warmup must run in small idle batches.",
+    ],
+    [
+      "MEETING_VISIBLE_CONTENT_WARMUP_BATCH = 2",
+      "Meeting calendar content warmup batches must stay small enough to avoid competing with first paint.",
+    ],
+    [
+      "MEETING_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS",
+      "Meeting calendar must delay automatic body warmup until after the route has painted.",
+    ],
+    [
+      "MEETING_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS",
+      "Meeting calendar must space follow-up body warmup batches instead of reading many imported bodies at once.",
     ],
     [
       "collectVisibleMeetingContentWarmupCandidates",
