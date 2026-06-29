@@ -2953,6 +2953,10 @@ function run() {
       "usePage must hydrate the full local page body through a separate background path.",
     ],
     [
+      "getPageForContentHydration",
+      "usePage local body hydration must use the content-text projection instead of getPage SELECT *.",
+    ],
+    [
       "PAGE_LOCAL_BODY_HYDRATION_IDLE_MS",
       "usePage must keep the local body hydration idle timeout explicit and bounded.",
     ],
@@ -3035,6 +3039,15 @@ function run() {
   ]) {
     assertSourceIncludes(files.usePage, usePage, snippet, message);
   }
+  assertSourceExcludes(
+    files.usePage,
+    usePage.slice(
+      usePage.indexOf("async function refreshPageBodyFromLocalCache"),
+      usePage.indexOf("function schedulePageCloudHydration")
+    ),
+    "getPage(pageId)",
+    "usePage local body hydration must not read content_yjs blobs through getPage SELECT *."
+  );
   assertSourceExcludes(
     files.usePage,
     usePage,
@@ -18509,6 +18522,12 @@ function run() {
     [
       files.localQueries,
       localQueries,
+      "export async function getPageForContentHydration",
+      "Local page content hydration must expose a single-page projection for route opens.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
       "export async function listPagesForPriorityContentHydration",
       "Local page content hydration must expose a bounded by-id priority query for visible pages.",
     ],
@@ -19951,6 +19970,15 @@ function run() {
     ),
     "SELECT *",
     "Deferred page body hydration must not read content_yjs blobs through SELECT *."
+  );
+  assertSourceExcludes(
+    files.localQueries,
+    localQueries.slice(
+      localQueries.indexOf("export async function getPageForContentHydration"),
+      localQueries.indexOf("export async function createPage")
+    ),
+    "SELECT *",
+    "Single-page local body hydration must not read content_yjs blobs through SELECT *."
   );
   if (
     !(

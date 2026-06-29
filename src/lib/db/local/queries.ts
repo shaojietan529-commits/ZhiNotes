@@ -1873,6 +1873,19 @@ export async function getPage(id: string): Promise<Page | null> {
   return rows[0] || null;
 }
 
+export async function getPageForContentHydration(
+  id: string
+): Promise<Page | null> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT ${PAGE_CONTENT_HYDRATION_SELECT}
+     FROM pages
+     WHERE id = ? AND deleted_at IS NULL`,
+    [id]
+  ) as unknown as Page[];
+  return rows[0] || null;
+}
+
 export async function createPage(opts?: {
   title?: string;
   parentId?: string | null;

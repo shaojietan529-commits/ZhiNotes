@@ -1142,6 +1142,7 @@ check(
     usePageHook.includes("PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_DELAY_MS = 24") &&
     usePageHook.includes("PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_IDLE_MS = 80") &&
     usePageHook.includes('priority === "interactive"') &&
+    usePageHook.includes("getPageForContentHydration") &&
     usePageHook.includes("const latestLocalPage = getLocalPage();") &&
     usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
     usePageHook.includes("requestIdleCallback(run") &&
@@ -1163,6 +1164,14 @@ check(
     !usePageHook.includes("import {\n  fetchCloudPageById") &&
     !usePageHook.includes("import {\n  pageToRemoteRecord"),
   "usePage 应先显示当前页本地缓存；云端正文只做 idle 后台回填，回填前必须用当前可见页面快照比较，避免覆盖刚输入的本地内容"
+);
+const usePageLocalBodyHydrationBody = usePageHook.slice(
+  usePageHook.indexOf("async function refreshPageBodyFromLocalCache"),
+  usePageHook.indexOf("function schedulePageCloudHydration")
+);
+check(
+  !usePageLocalBodyHydrationBody.includes("getPage(pageId)"),
+  "usePage 当前页本地正文补齐应使用 content_text 投影查询，不能通过 getPage(pageId) 读取 content_yjs"
 );
 check(
     usePageHook.includes("pageToRemoteRecord(optimistic)") &&
@@ -1777,13 +1786,20 @@ const localPageContentHydrationBody = localQueries.slice(
   localQueries.indexOf("export async function listPagesForContentHydration"),
   localQueries.indexOf("export async function getAllPageMetadata")
 );
+const localSinglePageContentHydrationBody = localQueries.slice(
+  localQueries.indexOf("export async function getPageForContentHydration"),
+  localQueries.indexOf("export async function createPage")
+);
 check(
   localQueries.includes("PAGE_CONTENT_HYDRATION_SELECT") &&
     localQueries.includes("NULL AS content_yjs, ${prefix}content_text") &&
+    localQueries.includes("export async function getPageForContentHydration") &&
     localQueries.includes("export async function listPagesForPriorityContentHydration") &&
     localQueries.includes("AND id IN (${placeholders})") &&
     localPageContentHydrationBody.includes("PAGE_CONTENT_HYDRATION_SELECT") &&
-    !localPageContentHydrationBody.includes("SELECT *"),
+    localSinglePageContentHydrationBody.includes("PAGE_CONTENT_HYDRATION_SELECT") &&
+    !localPageContentHydrationBody.includes("SELECT *") &&
+    !localSinglePageContentHydrationBody.includes("SELECT *"),
   "后台正文补齐应只读取 content_text，不能通过 SELECT * 把 content_yjs 二进制内容一起读入内存"
 );
 check(

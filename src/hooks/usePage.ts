@@ -10,6 +10,7 @@ import {
 import {
   applyRemotePages,
   getPage,
+  getPageForContentHydration,
   getPageMetadata,
   createPage,
   deletePage,
@@ -720,7 +721,7 @@ async function refreshPageBodyFromLocalCache(
     metadataOnly: true,
   });
   try {
-    const storedPage = await getPage(pageId);
+    const storedPage = await getPageForContentHydration(pageId);
     if (!isCurrentLoad()) return;
     if (storedPage) {
       clearPendingPageDraft(pageId);
