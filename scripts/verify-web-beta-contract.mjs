@@ -18504,6 +18504,36 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
+      "DATABASE_RELATION_METADATA_FIRST_PAINT_LIMIT",
+      "Database detail pages must bound relation-page metadata hydration before the first paint settles.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "collectDatabaseRelationPageIds",
+      "Database detail pages must collect only row and relation page IDs referenced by the current database.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "loadDatabaseRelationPages",
+      "Database detail pages must load relation metadata by referenced page ID instead of scanning all pages.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "listPageMetadataByIds",
+      "Database detail pages must use bounded page-id metadata reads for relation labels.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "loadExportRelationPages",
+      "Database export must hydrate current visible relation metadata before writing CSV or Excel.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
       "optimisticDatabaseMutationBlockUntilRef",
       "Database row edits must suppress self-triggered reloads while optimistic local state is active.",
     ],
@@ -18612,13 +18642,13 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
-      "exportDatabaseAsXlsx(database, fields, visibleRows, workspacePages)",
+      "exportDatabaseAsXlsx(\n        database,\n        fields,\n        visibleRows,\n        exportRelationPages",
       "Database Excel export must still use the full visible row set, not the render-capped subset.",
     ],
     [
       files.databaseShell,
       databaseShell,
-      "exportDatabaseAsCsv(database, fields, visibleRows, workspacePages)",
+      "exportDatabaseAsCsv(database, fields, visibleRows, exportRelationPages)",
       "Database CSV export must still use the full visible row set, not the render-capped subset.",
     ],
     [
@@ -18636,6 +18666,12 @@ function run() {
     [
       files.localQueries,
       localQueries,
+      "export async function listPageMetadataByIds",
+      "Local page metadata queries must support bounded page-id batches for database relation labels.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
       "includePageContent?: boolean",
       "Local database row queries must expose a page-body opt-out for metadata-only views.",
     ],
@@ -18647,6 +18683,22 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'from "@/hooks/usePages"',
+      "Database detail pages must not import usePages because that can trigger global page metadata scans.",
+    ],
+    [
+      "usePages()",
+      "Database detail pages must not call usePages because relation labels should load by referenced page id.",
+    ],
+    [
+      "usePages({",
+      "Database detail pages must not call usePages because relation labels should load by referenced page id.",
+    ],
+  ]) {
+    assertSourceExcludes(files.databaseShell, databaseShell, snippet, message);
   }
   assertSourceExcludes(
     files.databaseShell,

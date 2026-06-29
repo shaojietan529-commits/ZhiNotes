@@ -520,6 +520,11 @@ function run() {
     "localSnapshotNeedsFullHydration",
     "hydrateFullLocalRows",
     "reloadRequestRef",
+    "DATABASE_RELATION_METADATA_FIRST_PAINT_LIMIT",
+    "collectDatabaseRelationPageIds",
+    "loadDatabaseRelationPages",
+    "listPageMetadataByIds",
+    "loadExportRelationPages",
     "cloud.status === \"ok\" && cloud.records.length > 0",
     "cloud.cacheWriteFailed",
     "applyDatabaseSnapshot(cloudSnapshot)",
@@ -540,6 +545,7 @@ function run() {
     "offset?: number;",
     "normalizeDatabaseRowQueryLimit",
     "ORDER BY dr.position ASC${limitClause}",
+    "export async function listPageMetadataByIds",
   ]) {
     assertIncludes(
       files.queries,
@@ -548,6 +554,24 @@ function run() {
       "Local database row reads must support bounded first-paint queries before full background hydration."
     );
   }
+  assertNotIncludes(
+    files.databaseShell,
+    databaseShell,
+    'from "@/hooks/usePages"',
+    "DatabaseShell must not import usePages because database routes should load relation metadata by referenced page id instead of triggering a global page scan."
+  );
+  assertNotIncludes(
+    files.databaseShell,
+    databaseShell,
+    "usePages()",
+    "DatabaseShell must not call usePages because database routes should load relation metadata by referenced page id instead of triggering a global page scan."
+  );
+  assertNotIncludes(
+    files.databaseShell,
+    databaseShell,
+    "usePages({",
+    "DatabaseShell must not call usePages because database routes should load relation metadata by referenced page id instead of triggering a global page scan."
+  );
   for (const snippet of [
     "createDatabaseWithCloud",
     "updateDatabaseWithCloud",

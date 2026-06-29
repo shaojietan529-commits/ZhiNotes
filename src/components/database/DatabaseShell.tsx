@@ -12,7 +12,6 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
-import { usePages } from "@/hooks/usePages";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
@@ -23,6 +22,7 @@ import {
   getPage,
   getRows,
   getViews,
+  listPageMetadataByIds,
 } from "@/lib/db/local/queries";
 import type { CloudDatabaseRecord } from "@/lib/database/accountDatabaseSync";
 import type { Database, DatabaseField, DatabaseRow, DatabaseView } from "@/lib/utils/types";
@@ -169,6 +169,7 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
 const DATABASE_TABLE_FROZEN_FIELD_LIMIT = 3;
 const DATABASE_VIEW_INITIAL_RENDER_LIMIT = 80;
 const DATABASE_FIRST_PAINT_ROW_LIMIT = DATABASE_VIEW_INITIAL_RENDER_LIMIT * 3;
+const DATABASE_RELATION_METADATA_FIRST_PAINT_LIMIT = 360;
 const DATABASE_ROW_PAGE_PRIME_DEDUPE_MS = 2500;
 const DATABASE_VIEW_RENDER_BATCH = 80;
 const DATABASE_VIEW_RENDER_CAPPED_TYPES = new Set([
@@ -251,7 +252,6 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
   const searchParams = useSearchParams();
-  const { pages: workspacePages } = usePages();
   const upsertPages = useWorkspaceStore((state) => state.upsertPages);
   const initialRowSearch = searchParams.get("q") ?? "";
   const initialViewId = searchParams.get("view") ?? "";
@@ -261,6 +261,9 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const [fields, setFields] = useState<DatabaseField[]>([]);
   const [rows, setRows] = useState<RowWithPage[]>([]);
   const [views, setViews] = useState<DatabaseView[]>([]);
+  const [databaseRelationPages, setDatabaseRelationPages] = useState<Page[]>(
+    []
+  );
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const [sidePeekPageId, setSidePeekPageId] = useState<string | null>(null);
   const [rowPeekMode, setRowPeekMode] =
@@ -608,6 +611,66 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [reload]
   );
 
+  const databaseRelationPageIds = useMemo(
+    () =>
+      collectDatabaseRelationPageIds(
+        rows,
+        fields,
+        focusPageId ? [focusPageId] : []
+      ),
+    [fields, focusPageId, rows]
+  );
+  const databaseRelationPageIdKey = useMemo(
+    () => databaseRelationPageIds.join("|"),
+    [databaseRelationPageIds]
+  );
+
+  useEffect(() => {
+    setDatabaseRelationPages([]);
+  }, [databaseId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const pageIds = databaseRelationPageIdKey
+      ? databaseRelationPageIdKey.split("|")
+      : [];
+
+    queueMicrotask(() => {
+      if (pageIds.length === 0) {
+        if (!cancelled) setDatabaseRelationPages([]);
+        return;
+      }
+
+      const firstPaintPageIds = pageIds.slice(
+        0,
+        DATABASE_RELATION_METADATA_FIRST_PAINT_LIMIT
+      );
+      void loadDatabaseRelationPages(firstPaintPageIds).then((pages) => {
+        if (cancelled) return;
+        setDatabaseRelationPages(pages);
+        if (pageIds.length <= firstPaintPageIds.length) return;
+        scheduleDatabaseIdleTask(() => {
+          void loadDatabaseRelationPages(pageIds).then((allPages) => {
+            if (!cancelled) setDatabaseRelationPages(allPages);
+          });
+        }, 900);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [databaseId, databaseRelationPageIdKey]);
+
+  const relationPages = useMemo(
+    () =>
+      mergeDatabasePageSnapshots([
+        ...rows.map((row) => row.page),
+        ...databaseRelationPages,
+      ]),
+    [databaseRelationPages, rows]
+  );
+
   const warmDatabaseRowPageContent = useCallback(
     (page: Page) => {
       if (page.content_text != null) return;
@@ -678,7 +741,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         return;
       }
       const page =
-        workspacePages.find((item) => item.id === pageId) ??
+        relationPages.find((item) => item.id === pageId) ??
         useWorkspaceStore.getState().getPageById(pageId) ??
         null;
       if (page) {
@@ -693,7 +756,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       openPage,
       prepareDatabaseRowPageOpen,
       rows,
-      workspacePages,
+      relationPages,
     ]
   );
 
@@ -717,14 +780,14 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         return;
       }
       const page =
-        workspacePages.find((item) => item.id === pageId) ??
+        relationPages.find((item) => item.id === pageId) ??
         useWorkspaceStore.getState().getPageById(pageId) ??
         null;
       if (page) {
         primeDatabaseRowPageOpen(page);
       }
     },
-    [primeDatabaseRowPageOpen, rows, workspacePages]
+    [primeDatabaseRowPageOpen, rows, relationPages]
   );
 
   const handleAddRow = useCallback(async () => {
@@ -1071,10 +1134,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     () =>
       focusPageId
         ? rows.find((row) => row.page_id === focusPageId)?.page ??
-          workspacePages.find((page) => page.id === focusPageId) ??
+          relationPages.find((page) => page.id === focusPageId) ??
           null
         : null,
-    [focusPageId, rows, workspacePages]
+    [focusPageId, rows, relationPages]
   );
 
   const visibleRows = useMemo(
@@ -1082,7 +1145,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       getVisibleRows({
         rows,
         fields,
-        relationPages: workspacePages,
+        relationPages: relationPages,
         search: rowSearch,
         filterRules,
         filterMatchMode,
@@ -1091,7 +1154,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     [
       rows,
       fields,
-      workspacePages,
+      relationPages,
       rowSearch,
       filterRules,
       filterMatchMode,
@@ -1112,7 +1175,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
             rows: visibleRows,
             fields,
             field: groupField,
-            relationPages: workspacePages,
+            relationPages: relationPages,
             renderLimit:
               usesGroupedRows && isRenderCappedView
                 ? databaseViewRowRenderLimit
@@ -1126,7 +1189,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       isRenderCappedView,
       usesGroupedRows,
       visibleRows,
-      workspacePages,
+      relationPages,
     ]
   );
   const renderedVisibleRows = useMemo(
@@ -1160,15 +1223,49 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     );
   }, [visibleRows.length]);
 
+  const loadExportRelationPages = useCallback(async () => {
+    const pageIds = collectDatabaseRelationPageIds(
+      visibleRows,
+      fields,
+      focusPageId ? [focusPageId] : []
+    );
+    const loadedPages = await loadDatabaseRelationPages(pageIds);
+    const nextRelationPages = mergeDatabasePageSnapshots([
+      ...relationPages,
+      ...loadedPages,
+    ]);
+    setDatabaseRelationPages((current) =>
+      mergeDatabasePageSnapshots([...current, ...loadedPages])
+    );
+    return nextRelationPages;
+  }, [fields, focusPageId, relationPages, visibleRows]);
+
+  const handleExportCsv = useCallback(async () => {
+    if (!database) return;
+    try {
+      const exportRelationPages = await loadExportRelationPages();
+      exportDatabaseAsCsv(database, fields, visibleRows, exportRelationPages);
+    } catch (err) {
+      console.error("[Zhinote] Failed to export database CSV:", err);
+      window.alert("CSV 导出失败，请查看控制台。");
+    }
+  }, [database, fields, loadExportRelationPages, visibleRows]);
+
   const handleExportXlsx = useCallback(async () => {
     if (!database) return;
     try {
-      await exportDatabaseAsXlsx(database, fields, visibleRows, workspacePages);
+      const exportRelationPages = await loadExportRelationPages();
+      await exportDatabaseAsXlsx(
+        database,
+        fields,
+        visibleRows,
+        exportRelationPages
+      );
     } catch (err) {
       console.error("[Zhinote] Failed to export database XLSX:", err);
       window.alert("Excel 导出失败，请查看控制台。");
     }
-  }, [database, fields, visibleRows, workspacePages]);
+  }, [database, fields, loadExportRelationPages, visibleRows]);
 
   const handleChooseDatabaseImportFile = useCallback(() => {
     databaseImportInputRef.current?.click();
@@ -1338,7 +1435,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     onOpenRow: handleOpenRow,
     onOpenPage: handleOpenPage,
     onPrimeRow: primeDatabaseRowPageOpenById,
-    relationPages: workspacePages,
+    relationPages: relationPages,
     focusPageId,
     focusPage,
     groupFieldId,
@@ -1380,9 +1477,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         </button>
         <button
           type="button"
-          onClick={() =>
-            exportDatabaseAsCsv(database, fields, visibleRows, workspacePages)
-          }
+          onClick={() => void handleExportCsv()}
           className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
           title="导出当前可见行为 CSV"
         >
@@ -1726,7 +1821,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               fields={fields}
               rows={visibleRows}
               chartGroupFieldId={chartGroupFieldId}
-              relationPages={workspacePages}
+              relationPages={relationPages}
               onOpenRow={handleOpenRow}
               onPrimeRow={primeDatabaseRowPageOpenById}
             />
@@ -1734,7 +1829,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           {activeView?.view_type === "form" && (
             <FormView
               fields={visibleFields}
-              relationPages={workspacePages}
+              relationPages={relationPages}
               onOpenPage={handleOpenPage}
               onCreateRow={handleCreateRow}
             />
@@ -1760,7 +1855,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           row={sidePeekRow}
           mode={rowPeekMode}
           fields={fields}
-          relationPages={workspacePages}
+          relationPages={relationPages}
           onClose={() => setSidePeekPageId(null)}
           onOpenFullPage={(pageId) => {
             setSidePeekPageId(null);
@@ -4286,6 +4381,74 @@ function parseFieldValues(fieldValues: string) {
   } catch {
     return {};
   }
+}
+
+function collectDatabaseRelationPageIds(
+  rows: RowWithPage[],
+  fields: DatabaseField[],
+  extraPageIds: string[] = []
+) {
+  const relationFieldIds = new Set(
+    fields
+      .filter((field) => field.field_type === "relation")
+      .map((field) => field.id)
+  );
+  const pageIds = new Set(extraPageIds.filter(Boolean));
+
+  for (const row of rows) {
+    if (row.page_id) pageIds.add(row.page_id);
+    if (row.page?.id) pageIds.add(row.page.id);
+
+    const values = parseFieldValues(row.field_values);
+    for (const fieldId of relationFieldIds) {
+      for (const relationPageId of normalizeRelationValue(values[fieldId])) {
+        pageIds.add(relationPageId);
+      }
+    }
+  }
+
+  return Array.from(pageIds).sort();
+}
+
+async function loadDatabaseRelationPages(pageIds: string[]) {
+  const uniquePageIds = Array.from(new Set(pageIds.filter(Boolean)));
+  if (uniquePageIds.length === 0) return [];
+
+  const pagesById = useWorkspaceStore.getState().pagesById;
+  const cachedPages = uniquePageIds
+    .map((pageId) => pagesById.get(pageId) ?? null)
+    .filter((page): page is Page => Boolean(page));
+  const missingPageIds = uniquePageIds.filter((pageId) => !pagesById.has(pageId));
+  if (missingPageIds.length === 0) {
+    return mergeDatabasePageSnapshots(cachedPages);
+  }
+
+  try {
+    const loadedPages = await listPageMetadataByIds(missingPageIds);
+    return mergeDatabasePageSnapshots([...cachedPages, ...loadedPages]);
+  } catch {
+    return mergeDatabasePageSnapshots(cachedPages);
+  }
+}
+
+function mergeDatabasePageSnapshots(pages: Array<Page | null | undefined>) {
+  const byId = new Map<string, Page>();
+  for (const page of pages) {
+    if (!page?.id) continue;
+    const existing = byId.get(page.id);
+    byId.set(page.id, {
+      ...page,
+      content_text:
+        page.content_text === null && existing?.content_text !== null
+          ? existing?.content_text ?? null
+          : page.content_text,
+      content_yjs:
+        page.content_yjs === null && existing?.content_yjs !== null
+          ? existing?.content_yjs ?? null
+          : page.content_yjs,
+    });
+  }
+  return Array.from(byId.values());
 }
 
 function stringifyValue(value: unknown) {

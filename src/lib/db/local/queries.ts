@@ -1105,6 +1105,27 @@ export async function getPageMetadata(id: string): Promise<Page | null> {
   return rows[0] || null;
 }
 
+export async function listPageMetadataByIds(pageIds: string[]): Promise<Page[]> {
+  const uniqueIds = Array.from(new Set(pageIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return [];
+  const db = await getDb();
+  const pages: Page[] = [];
+  const batchSize = 120;
+  for (let start = 0; start < uniqueIds.length; start += batchSize) {
+    const batch = uniqueIds.slice(start, start + batchSize);
+    const placeholders = batch.map(() => "?").join(",");
+    const rows = db.query(
+      `SELECT ${PAGE_METADATA_SELECT}
+       FROM pages
+       WHERE deleted_at IS NULL AND id IN (${placeholders})
+       ORDER BY updated_at DESC`,
+      batch
+    ) as unknown as Page[];
+    pages.push(...rows);
+  }
+  return pages;
+}
+
 export async function getAllPages(): Promise<Page[]> {
   const db = await getDb();
   return db.query(

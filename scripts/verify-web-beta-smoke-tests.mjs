@@ -10364,6 +10364,26 @@ function run() {
       "Database detail page must avoid applying stale reload snapshots after navigation or newer reloads.",
     ],
     [
+      "DATABASE_RELATION_METADATA_FIRST_PAINT_LIMIT",
+      "Database detail page must bound relation-page metadata hydration before the first paint settles.",
+    ],
+    [
+      "collectDatabaseRelationPageIds",
+      "Database detail page must collect only row and relation page IDs referenced by the current database.",
+    ],
+    [
+      "loadDatabaseRelationPages",
+      "Database detail page must load relation metadata by referenced page ID instead of scanning all pages.",
+    ],
+    [
+      "listPageMetadataByIds",
+      "Database detail page must use bounded page-id metadata reads for relation labels.",
+    ],
+    [
+      "loadExportRelationPages",
+      "Database export must hydrate current visible relation metadata before writing CSV or Excel.",
+    ],
+    [
       "DATABASE_VIEW_INITIAL_RENDER_LIMIT",
       "Database views must keep an explicit first-render row cap for large imports.",
     ],
@@ -10416,11 +10436,11 @@ function run() {
       "Database load-more control must disclose the next bounded row batch.",
     ],
     [
-      "exportDatabaseAsXlsx(database, fields, visibleRows, workspacePages)",
+      "exportDatabaseAsXlsx(\n        database,\n        fields,\n        visibleRows,\n        exportRelationPages",
       "Database Excel export must still use the full visible row set, not the render-capped subset.",
     ],
     [
-      "exportDatabaseAsCsv(database, fields, visibleRows, workspacePages)",
+      "exportDatabaseAsCsv(database, fields, visibleRows, exportRelationPages)",
       "Database CSV export must still use the full visible row set, not the render-capped subset.",
     ],
     [
@@ -10434,6 +10454,28 @@ function run() {
   ]) {
     assertIncludes(files.databaseShell, databaseShell, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      'from "@/hooks/usePages"',
+      "Database detail page must not import usePages because that can trigger global page metadata scans.",
+    ],
+    [
+      "usePages()",
+      "Database detail page must not call usePages because relation labels should load by referenced page id.",
+    ],
+    [
+      "usePages({",
+      "Database detail page must not call usePages because relation labels should load by referenced page id.",
+    ],
+  ]) {
+    assertExcludes(files.databaseShell, databaseShell, snippet, message);
+  }
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "export async function listPageMetadataByIds",
+    "Local page metadata queries must support bounded page-id batches for database relation labels."
+  );
   assertIncludes(
     files.localQueries,
     localQueries,
