@@ -16573,6 +16573,36 @@ function run() {
     [
       files.pageTree,
       pageTree,
+      "SIDEBAR_PAGE_TREE_INITIAL_ROOT_LIMIT",
+      "Sidebar page tree must use a smaller first-paint root limit before idle expansion.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "SIDEBAR_PAGE_TREE_INITIAL_CHILD_LIMIT",
+      "Sidebar page tree must use a smaller first-paint child limit before idle expansion.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "SIDEBAR_PAGE_TREE_IDLE_EXPAND_DELAY_MS",
+      "Sidebar page tree must defer extra page-list rendering until the browser is idle.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "scheduleSidebarPageTreeIdleTask",
+      "Sidebar page tree must use an idle task for progressive list expansion.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "children.slice(0, childVisibleLimit)",
+      "Sidebar page tree must render only the current child page batch instead of the full child cap during first paint.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
       "visibleChildren.map((child)",
       "Sidebar page tree must render the capped child subset instead of every child page.",
     ],

@@ -28,8 +28,11 @@ type DropTarget = {
   position: "before" | "inside" | "after";
 };
 
+const SIDEBAR_PAGE_TREE_INITIAL_ROOT_LIMIT = 36;
 const SIDEBAR_PAGE_TREE_ROOT_LIMIT = 80;
+const SIDEBAR_PAGE_TREE_INITIAL_CHILD_LIMIT = 20;
 const SIDEBAR_PAGE_TREE_CHILD_LIMIT = 40;
+const SIDEBAR_PAGE_TREE_IDLE_EXPAND_DELAY_MS = 900;
 const EMPTY_PAGE_TREE_CHILDREN: Page[] = [];
 
 function isInHiddenModuleSubtree(
@@ -85,6 +88,26 @@ function collectHiddenModuleSubtreeIds(
   return hiddenIds;
 }
 
+function scheduleSidebarPageTreeIdleTask(
+  callback: () => void,
+  timeout = SIDEBAR_PAGE_TREE_IDLE_EXPAND_DELAY_MS
+): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  };
+  if (maybeWindow.requestIdleCallback) {
+    const handle = maybeWindow.requestIdleCallback(callback, { timeout });
+    return () => maybeWindow.cancelIdleCallback?.(handle);
+  }
+  const timer = window.setTimeout(callback, timeout);
+  return () => window.clearTimeout(timer);
+}
+
 function isDescendant(
   pageId: string,
   ancestorId: string,
@@ -134,7 +157,7 @@ function PageTreeItem({
   const [expanded, setExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [childVisibleLimit, setChildVisibleLimit] = useState(
-    SIDEBAR_PAGE_TREE_CHILD_LIMIT
+    SIDEBAR_PAGE_TREE_INITIAL_CHILD_LIMIT
   );
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -142,11 +165,7 @@ function PageTreeItem({
   const hasChildren = children.length > 0;
   const visibleChildren = useMemo(() => {
     if (children.length <= childVisibleLimit) return children;
-    const firstVisibleChildren = children.slice(0, SIDEBAR_PAGE_TREE_CHILD_LIMIT);
-    const visible =
-      childVisibleLimit <= SIDEBAR_PAGE_TREE_CHILD_LIMIT
-        ? firstVisibleChildren
-        : children.slice(0, childVisibleLimit);
+    const visible = children.slice(0, childVisibleLimit);
     const childOnCurrentPath = children.find((child) =>
       currentPathIds.has(child.id)
     );
@@ -154,7 +173,11 @@ function PageTreeItem({
       childOnCurrentPath &&
       !visible.some((child) => child.id === childOnCurrentPath.id)
     ) {
-      visible.splice(SIDEBAR_PAGE_TREE_CHILD_LIMIT - 1, 1, childOnCurrentPath);
+      visible.splice(
+        Math.max(0, Math.min(childVisibleLimit, visible.length) - 1),
+        1,
+        childOnCurrentPath
+      );
     }
     return visible;
   }, [childVisibleLimit, children, currentPathIds]);
@@ -230,6 +253,19 @@ function PageTreeItem({
     const timer = window.setTimeout(() => setExpanded(true), 600);
     return () => window.clearTimeout(timer);
   }, [isDropInside, hasChildren, expanded]);
+
+  useEffect(() => {
+    if (!expanded || !hasChildren) return;
+    if (childVisibleLimit >= SIDEBAR_PAGE_TREE_CHILD_LIMIT) return;
+    return scheduleSidebarPageTreeIdleTask(() => {
+      setChildVisibleLimit((limit) =>
+        Math.max(
+          limit,
+          Math.min(children.length, SIDEBAR_PAGE_TREE_CHILD_LIMIT)
+        )
+      );
+    });
+  }, [childVisibleLimit, children.length, expanded, hasChildren]);
 
   useEffect(() => {
     if (!hasChildren || page.id === currentPageId || !currentPathIds.has(page.id)) {
@@ -385,7 +421,7 @@ export default function PageTree() {
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const pagesById = useWorkspaceStore((s) => s.pagesById);
   const [rootVisibleLimit, setRootVisibleLimit] = useState(
-    SIDEBAR_PAGE_TREE_ROOT_LIMIT
+    SIDEBAR_PAGE_TREE_INITIAL_ROOT_LIMIT
   );
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
@@ -463,6 +499,15 @@ export default function PageTree() {
     () => getCurrentPagePathIds(currentPageId, pagesById),
     [currentPageId, pagesById]
   );
+
+  useEffect(() => {
+    if (rootVisibleLimit >= SIDEBAR_PAGE_TREE_ROOT_LIMIT) return;
+    return scheduleSidebarPageTreeIdleTask(() => {
+      setRootVisibleLimit((limit) =>
+        Math.max(limit, Math.min(rootPages.length, SIDEBAR_PAGE_TREE_ROOT_LIMIT))
+      );
+    });
+  }, [rootPages.length, rootVisibleLimit]);
 
   const handleNavigate = useCallback(
     (id: string, page?: Page) => {

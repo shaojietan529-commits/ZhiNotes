@@ -9525,6 +9525,11 @@ function run() {
   );
   for (const snippet of [
     "SIDEBAR_PAGE_TREE_CHILD_LIMIT",
+    "SIDEBAR_PAGE_TREE_INITIAL_ROOT_LIMIT",
+    "SIDEBAR_PAGE_TREE_INITIAL_CHILD_LIMIT",
+    "SIDEBAR_PAGE_TREE_IDLE_EXPAND_DELAY_MS",
+    "scheduleSidebarPageTreeIdleTask",
+    "children.slice(0, childVisibleLimit)",
     "visibleChildren.map((child)",
     "getCurrentPagePathIds",
     "currentPathIds.has(page.id)",

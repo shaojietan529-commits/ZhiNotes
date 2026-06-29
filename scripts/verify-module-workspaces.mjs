@@ -473,7 +473,11 @@ check(
 );
 check(
   pageTreeSource.includes("SIDEBAR_PAGE_TREE_ROOT_LIMIT") &&
+    pageTreeSource.includes("SIDEBAR_PAGE_TREE_INITIAL_ROOT_LIMIT") &&
     pageTreeSource.includes("SIDEBAR_PAGE_TREE_CHILD_LIMIT") &&
+    pageTreeSource.includes("SIDEBAR_PAGE_TREE_INITIAL_CHILD_LIMIT") &&
+    pageTreeSource.includes("SIDEBAR_PAGE_TREE_IDLE_EXPAND_DELAY_MS") &&
+    pageTreeSource.includes("scheduleSidebarPageTreeIdleTask") &&
     pageTreeSource.includes("childrenByParent") &&
     pageTreeSource.includes("visibleRootPages") &&
     pageTreeSource.includes("visibleChildren") &&
@@ -484,7 +488,7 @@ check(
     pageTreeSource.includes("page.id === currentPageId") &&
     pageTreeSource.includes("currentPathIds.has(page.id)") &&
     pageTreeSource.includes("setExpanded(true)") &&
-    pageTreeSource.includes("children.slice(0, SIDEBAR_PAGE_TREE_CHILD_LIMIT)") &&
+    pageTreeSource.includes("children.slice(0, childVisibleLimit)") &&
     pageTreeSource.includes("visibleChildren.map((child)") &&
     pageTreeSource.includes("已折叠 {hiddenChildCount} 个子页面") &&
     pageTreeSource.includes("isInHiddenModuleSubtree") &&
