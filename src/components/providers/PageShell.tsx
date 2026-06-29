@@ -115,6 +115,7 @@ const PAGE_PROPERTIES_EDITOR_IDLE_TIMEOUT_MS = 520;
 const PAGE_HEADER_ICON_PICKER_IDLE_TIMEOUT_MS = 650;
 const PAGE_ACTIONS_MENU_IDLE_TIMEOUT_MS = 900;
 const PAGE_EDITOR_SIDE_EFFECT_DEBOUNCE_MS = 1500;
+const PAGE_TITLE_SAVE_DEBOUNCE_MS = 420;
 const PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000;
 const PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000;
 const PAGE_SYNC_STATUS_FIRST_REFRESH_DELAY_MS = 900;
@@ -205,6 +206,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const editorRef = useRef<EditorRef>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const copyNoticeTimeoutRef = useRef<number | null>(null);
+  const titleSaveTimerRef = useRef<number | null>(null);
+  const pendingTitleRef = useRef<string | null>(null);
   const { page, loading, update, remove } = usePage(pageId);
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
@@ -822,13 +825,57 @@ function PageContent({ pageId }: { pageId: string }) {
     };
   }, [flushEditorSideEffects]);
 
-  const handleTitleChange = useCallback(
+  const persistTitleNow = useCallback(
     async (newTitle: string) => {
-      if (locked) return;
-      setTitle(newTitle);
       await update({ title: newTitle });
     },
-    [locked, update]
+    [update]
+  );
+
+  const flushTitleSave = useCallback(async () => {
+    if (titleSaveTimerRef.current !== null) {
+      window.clearTimeout(titleSaveTimerRef.current);
+      titleSaveTimerRef.current = null;
+    }
+    const newTitle = pendingTitleRef.current;
+    pendingTitleRef.current = null;
+    if (newTitle === null) return;
+    await persistTitleNow(newTitle);
+  }, [persistTitleNow]);
+
+  const scheduleTitleSave = useCallback(
+    (newTitle: string) => {
+      pendingTitleRef.current = newTitle;
+      if (titleSaveTimerRef.current !== null) {
+        window.clearTimeout(titleSaveTimerRef.current);
+      }
+      titleSaveTimerRef.current = window.setTimeout(() => {
+        titleSaveTimerRef.current = null;
+        void flushTitleSave();
+      }, PAGE_TITLE_SAVE_DEBOUNCE_MS);
+    },
+    [flushTitleSave]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (titleSaveTimerRef.current !== null) {
+        window.clearTimeout(titleSaveTimerRef.current);
+        titleSaveTimerRef.current = null;
+      }
+      const newTitle = pendingTitleRef.current;
+      pendingTitleRef.current = null;
+      if (newTitle !== null) void persistTitleNow(newTitle);
+    };
+  }, [persistTitleNow]);
+
+  const handleTitleChange = useCallback(
+    (newTitle: string) => {
+      if (locked) return;
+      setTitle(newTitle);
+      scheduleTitleSave(newTitle);
+    },
+    [locked, scheduleTitleSave]
   );
 
   const handlePropertiesChange = useCallback(
@@ -1540,6 +1587,7 @@ function PageContent({ pageId }: { pageId: string }) {
                 type="text"
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
+                onBlur={() => void flushTitleSave()}
                 disabled={locked}
                 placeholder="新页面"
                 className="zhinote-title-input w-full text-3xl font-bold bg-transparent border-none outline-none text-zinc-900 disabled:cursor-default dark:text-zinc-100 placeholder-zinc-300 dark:placeholder-zinc-600 mt-1"

@@ -1501,14 +1501,22 @@ const pageVisualUpdateBody = pageShell.slice(
   pageShell.indexOf("const handleToggleLock")
 );
 check(
-  pageSimpleUpdateBody.includes("await update({ title: newTitle })") &&
+  pageShell.includes("const PAGE_TITLE_SAVE_DEBOUNCE_MS = 420") &&
+    pageShell.includes("const titleSaveTimerRef = useRef<number | null>(null)") &&
+    pageShell.includes("const pendingTitleRef = useRef<string | null>(null)") &&
+    pageShell.includes("const persistTitleNow = useCallback") &&
+    pageShell.includes("await update({ title: newTitle })") &&
+    pageShell.includes("const flushTitleSave = useCallback") &&
+    pageShell.includes("const scheduleTitleSave = useCallback") &&
+    pageShell.includes("scheduleTitleSave(newTitle)") &&
+    pageShell.includes("onBlur={() => void flushTitleSave()}") &&
     pageSimpleUpdateBody.includes("await update({ properties: stringifyPageProperties(next) })") &&
     pageSimpleUpdateBody.includes("await update({ content_text: html })") &&
     !pageSimpleUpdateBody.includes("refresh()") &&
     pageVisualUpdateBody.includes("await update({ icon })") &&
     pageVisualUpdateBody.includes("await update({ cover_url: dataUrl })") &&
     !pageVisualUpdateBody.includes("refresh()"),
-  "PageShell 标题/属性/正文/图标/封面更新应依赖 usePage 的单页 upsert，不能触发全量页面 metadata 刷新"
+  "PageShell 标题输入必须本地即时显示并防抖保存；属性/正文/图标/封面更新仍依赖 usePage 的单页 upsert，不能触发全量页面 metadata 刷新"
 );
 const pageStructureMutationBody = pageShell.slice(
   pageShell.indexOf("const handlePastePage"),
@@ -1749,7 +1757,7 @@ check(
     dailyNotesShell.includes('onFocus={() => primeDailyNoteOpen(note, "daily-open")}') &&
     dailyNotesShell.includes("const warmDailyNoteContent = useCallback") &&
     dailyNotesShell.includes("onMouseEnter={() => warmDailyNoteContent(note)}") &&
-    dailyNotesShell.includes("setPeekInitialPage(toDailyNoteSeed(seededNote, note));") &&
+    dailyNotesShell.includes("setPeekInitialPage(toDailyNoteMetadataSeed(seededNote, note));") &&
     dailyNotesShell.includes("openingNoteId === note.id") &&
     dailyNotesShell.includes("正在打开纪要…") &&
     dailyNotesShell.includes("const handlePeekReady = useCallback") &&
