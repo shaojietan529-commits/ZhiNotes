@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import {
   addShareEmail,
@@ -77,6 +78,54 @@ type Phase =
   | "signed-in"
   | "error";
 
+interface AccountHotCacheRouteWarmupReceipt {
+  attempted: number;
+  failed: number;
+  routeTargets: string[];
+}
+
+function getAccountHotCacheRouteTargets(
+  preferences: HotCachePreferences
+): string[] {
+  const routeTargets = new Set<string>([
+    "/modules/notes",
+    "/modules/sync",
+    "/page/zhinote-route-prefetch",
+  ]);
+  if (preferences.keepCurrentMonthDailyNotes) routeTargets.add("/daily");
+  if (preferences.keepCurrentMonthMeetings) routeTargets.add("/schedule");
+  if (
+    preferences.keepActiveDatabases ||
+    preferences.pinnedDatabaseIds.length > 0
+  ) {
+    routeTargets.add("/modules/databases");
+  }
+  if (preferences.keepRecentFilePreviews) routeTargets.add("/modules/files");
+  if (preferences.keepFavoritePages) routeTargets.add("/knowledge-base");
+  if (preferences.keepCurrentProjects) routeTargets.add("/modules/projects");
+  return [...routeTargets];
+}
+
+function prefetchAccountHotCacheRoutes(
+  prefetch: (routeTarget: string) => void,
+  preferences: HotCachePreferences
+): AccountHotCacheRouteWarmupReceipt {
+  const routeTargets = getAccountHotCacheRouteTargets(preferences);
+  let failed = 0;
+  for (const routeTarget of routeTargets) {
+    try {
+      prefetch(routeTarget);
+    } catch {
+      failed += 1;
+    }
+  }
+  return {
+    attempted: routeTargets.length,
+    failed,
+    routeTargets,
+  };
+}
+
 function getPageCacheRebuildPendingBlocker(): string | null {
   const status = getPendingCloudPageSyncStatus();
   const pending = status.pending + status.queued;
@@ -92,6 +141,7 @@ async function getDatabaseCacheRebuildPendingBlocker(): Promise<string | null> {
 }
 
 export default function AccountShell() {
+  const router = useRouter();
   const { refresh: refreshPages } = usePages({ autoLoad: false });
   const [phase, setPhase] = useState<Phase>("loading");
   const [account, setAccount] = useState<ClientAccountInfo | null>(null);
@@ -135,6 +185,10 @@ export default function AccountShell() {
   const [hotCacheSettingSaved, setHotCacheSettingSaved] = useState(false);
   const [hotCachePreferenceBusy, setHotCachePreferenceBusy] = useState(false);
   const [hotCachePreferenceNotice, setHotCachePreferenceNotice] = useState<
+    string | null
+  >(null);
+  const [hotCacheRouteWarmupBusy, setHotCacheRouteWarmupBusy] = useState(false);
+  const [hotCacheRouteWarmupNotice, setHotCacheRouteWarmupNotice] = useState<
     string | null
   >(null);
   // API Key for external tools (Claude, web clipper extension)
@@ -639,6 +693,7 @@ export default function AccountShell() {
       setHotCachePreferenceNotice(
         "已保存。本机入口会按这个选择保持热缓存；设置会进入待同步队列。"
       );
+      handleHotCacheRouteWarmup(next);
       void refreshCloudUploadReliability();
     } catch {
       setHotCachePreferences(previous);
@@ -646,6 +701,24 @@ export default function AccountShell() {
     } finally {
       setHotCachePreferenceBusy(false);
     }
+  }
+
+  function handleHotCacheRouteWarmup(
+    preferences: HotCachePreferences = hotCachePreferences
+  ) {
+    setHotCacheRouteWarmupBusy(true);
+    setHotCacheRouteWarmupNotice(null);
+    const receipt = prefetchAccountHotCacheRoutes(
+      (routeTarget) => router.prefetch(routeTarget),
+      preferences
+    );
+    setHotCacheRouteWarmupNotice(
+      receipt.failed > 0
+        ? `已尝试预热 ${receipt.attempted} 个入口，其中 ${receipt.failed} 个暂时失败；这只影响首次打开速度，不影响数据。`
+        : `已预热 ${receipt.attempted} 个常用入口。只做 route prefetch，不读取正文、不上传、不写 sync_log。`
+    );
+    setHotCacheRouteWarmupBusy(false);
+    return receipt;
   }
 
   async function handleGenerateApiKey() {
@@ -967,7 +1040,10 @@ export default function AccountShell() {
               hasSavedSetting={hotCacheSettingSaved}
               busy={hotCachePreferenceBusy}
               notice={hotCachePreferenceNotice}
+              warmupBusy={hotCacheRouteWarmupBusy}
+              warmupNotice={hotCacheRouteWarmupNotice}
               onChange={(patch) => void handleHotCachePreferencesChange(patch)}
+              onWarmup={() => handleHotCacheRouteWarmup()}
             />
           )}
 
@@ -1338,16 +1414,23 @@ function AccountHotCachePreferenceCard({
   hasSavedSetting,
   busy,
   notice,
+  warmupBusy,
+  warmupNotice,
   onChange,
+  onWarmup,
 }: {
   preferences: HotCachePreferences;
   hasSavedSetting: boolean;
   busy: boolean;
   notice: string | null;
+  warmupBusy: boolean;
+  warmupNotice: string | null;
   onChange: (patch: Partial<HotCachePreferences>) => void;
+  onWarmup: () => void;
 }) {
   const metadataWindow = metadataRecentLimitForHotCachePreferences(preferences);
   const enabledCount = countEnabledHotCachePreferences(preferences);
+  const routeTargetCount = getAccountHotCacheRouteTargets(preferences).length;
   const handleRecentDaysChange = (event: ChangeEvent<HTMLSelectElement>) => {
     onChange({ recentDays: event.target.value === "90" ? 90 : 30 });
   };
@@ -1391,6 +1474,29 @@ function AccountHotCachePreferenceCard({
           value={`${enabledCount}/7`}
           detail={`指定数据库 ${preferences.pinnedDatabaseIds.length} 个`}
         />
+      </div>
+
+      <div
+        data-testid="account-hot-cache-route-warmup"
+        data-hot-cache-route-targets={routeTargetCount}
+        className="mt-4 flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-800 dark:bg-zinc-950/40 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div>
+          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-200">
+            常用入口预热
+          </p>
+          <p className="mt-1 text-[11px] leading-5 text-zinc-400">
+            按当前选择预热 {routeTargetCount} 个入口。只做 route prefetch，不读取正文、不上传、不写 sync_log。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onWarmup}
+          disabled={warmupBusy}
+          className="w-fit shrink-0 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-white disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        >
+          {warmupBusy ? "预热中…" : "预热入口"}
+        </button>
       </div>
 
       <label className="mt-4 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
@@ -1458,6 +1564,11 @@ function AccountHotCachePreferenceCard({
       {notice ? (
         <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-amber-600 dark:bg-zinc-950 dark:text-amber-400">
           {notice}
+        </p>
+      ) : null}
+      {warmupNotice ? (
+        <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+          {warmupNotice}
         </p>
       ) : null}
     </section>

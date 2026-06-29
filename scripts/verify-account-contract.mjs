@@ -118,10 +118,16 @@ check(
     shell.includes("getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)") &&
     shell.includes("upsertWorkspaceSetting(") &&
     shell.includes('"account-hot-cache-preferences"') &&
+    shell.includes("getAccountHotCacheRouteTargets") &&
+    shell.includes("prefetchAccountHotCacheRoutes") &&
+    shell.includes("router.prefetch(routeTarget)") &&
+    shell.includes('data-testid="account-hot-cache-route-warmup"') &&
+    shell.includes("只做 route prefetch") &&
+    shell.includes("不写 sync_log") &&
     shell.includes("这里只保存偏好") &&
     shell.includes("不读取正文、文件或行值") &&
     shell.includes("不清理本地缓存"),
-  "AccountShell 应在账号页提供选择性本地热缓存偏好入口，只保存 workspace_settings metadata，不读取正文/文件/行值"
+  "AccountShell 应在账号页提供选择性本地热缓存偏好入口和 route prefetch 预热，只保存 workspace_settings metadata，不读取正文/文件/行值"
 );
 check(
   accountClientSession.includes("/api/account/me") &&

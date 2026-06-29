@@ -67,6 +67,7 @@ const files = {
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
   accountClientSession: "src/lib/account/clientSession.ts",
+  accountShell: "src/components/modules/AccountShell.tsx",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
@@ -433,6 +434,7 @@ function run() {
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
   const accountClientSession = readProjectFile(files.accountClientSession);
+  const accountShell = readProjectFile(files.accountShell);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
@@ -10016,6 +10018,21 @@ function run() {
     "metadataFirstContent ? false : includeContent",
     "Page and sidebar lists must read the rebuildable local snapshot first, with content callers allowed to start metadata-only."
   );
+  for (const snippet of [
+    "getAccountHotCacheRouteTargets",
+    "prefetchAccountHotCacheRoutes",
+    "router.prefetch(routeTarget)",
+    'data-testid="account-hot-cache-route-warmup"',
+    "只做 route prefetch",
+    "不写 sync_log",
+  ]) {
+    assertIncludes(
+      files.accountShell,
+      accountShell,
+      snippet,
+      "Account hot-cache preferences must expose safe route-only warmup from the account page."
+    );
+  }
   for (const snippet of [
     "loadHotCachePageMetadataSnapshot",
     "listHotCachePageMetadata",

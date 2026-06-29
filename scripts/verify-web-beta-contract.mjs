@@ -138,6 +138,7 @@ const files = {
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
   accountClientSession: "src/lib/account/clientSession.ts",
+  accountShell: "src/components/modules/AccountShell.tsx",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
@@ -585,6 +586,7 @@ function run() {
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
   const accountClientSession = readProjectFile(files.accountClientSession);
+  const accountShell = readProjectFile(files.accountShell);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
   const pageBodyHydrationStatus = readProjectFile(
@@ -18287,6 +18289,36 @@ function run() {
       usePages,
       "metadataFirstContent ? false : includeContent",
       "Page and sidebar lists must load local IndexedDB snapshots first, with content-heavy modules starting metadata-only.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "getAccountHotCacheRouteTargets",
+      "Account page must expose route targets for safe user-selected hot-cache warmup.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "prefetchAccountHotCacheRoutes",
+      "Account page hot-cache warmup must stay route-prefetch-only.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "router.prefetch(routeTarget)",
+      "Account page hot-cache warmup must use router prefetch instead of reading workspace content.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      'data-testid="account-hot-cache-route-warmup"',
+      "Account page must render a testable hot-cache route warmup control.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "不写 sync_log",
+      "Account hot-cache route warmup must disclose that it does not enter the upload queue.",
     ],
     [
       files.usePages,
