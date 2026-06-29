@@ -93,6 +93,7 @@ const files = {
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
+  calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   meetingHotCacheSnapshot: "src/lib/sync/meetingHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
@@ -475,6 +476,9 @@ function run() {
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
   const hotCacheWarmupReceipt = readProjectFile(files.hotCacheWarmupReceipt);
   const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
+  const calendarFirstPaintRange = readProjectFile(
+    files.calendarFirstPaintRange
+  );
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
   const meetingHotCacheSnapshot = readProjectFile(
     files.meetingHotCacheSnapshot
@@ -2017,12 +2021,53 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "buildCalendarMonthGrid",
+      "Shared calendar first-paint helper must expose the 6-week month grid builder.",
+    ],
+    [
+      "buildCalendarFirstPaintRange",
+      "Shared calendar first-paint helper must expose the visible date range builder.",
+    ],
+    [
+      "buildDateRangeCacheKey",
+      "Shared calendar first-paint helper must centralize visible-range cache keys.",
+    ],
+    [
+      "const offset = (first.getDay() + 6) % 7",
+      "Shared calendar first-paint helper must keep Monday-first calendar math.",
+    ],
+    [
+      "for (let i = 0; i < 42; i += 1)",
+      "Shared calendar first-paint helper must keep a stable 6-week grid.",
+    ],
+    [
+      "cacheKey: buildDateRangeCacheKey(startDate, endDate)",
+      "Shared calendar first-paint helper must use the central cache-key builder.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.calendarFirstPaintRange,
+      calendarFirstPaintRange,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "readDailyHotCacheSnapshot",
       "Daily notes must read the local hot cache snapshot before slower cache/cloud checks.",
     ],
     [
       "hotCacheBootstrapKeyRef",
       "Daily notes must bootstrap the visible month from browser hot cache before IndexedDB readiness.",
+    ],
+    [
+      "buildCalendarFirstPaintRange(viewMonth, toDateKey)",
+      "Daily notes must use the shared visible-month hot-cache range helper.",
+    ],
+    [
+      "cacheKey: bootstrapKey",
+      "Daily notes must use the shared visible-range cache key for first paint.",
     ],
     [
       "正在启动本地数据库和云端校正",
@@ -2137,11 +2182,13 @@ function run() {
     "import {\n  fetchDailyCloudMetadata",
     "Daily notes must not static-import runtime account sync helpers during first paint."
   );
+  const dailyFirstPaintRangeIndex = dailyNotesShell.indexOf(
+    "buildCalendarFirstPaintRange(viewMonth, toDateKey)"
+  );
   if (
     !(
-      dailyNotesShell.indexOf("const bootstrapKey = `${startDate}:${endDate}`") >=
-        0 &&
-      dailyNotesShell.indexOf("const bootstrapKey = `${startDate}:${endDate}`") <
+      dailyFirstPaintRangeIndex >= 0 &&
+      dailyFirstPaintRangeIndex <
         dailyNotesShell.indexOf("if (!dbReady) return;")
     )
   ) {
@@ -2317,6 +2364,14 @@ function run() {
       "Meeting schedule must bootstrap the visible month from browser hot cache before IndexedDB readiness.",
     ],
     [
+      "buildCalendarFirstPaintRange(viewMonth, toDateKey)",
+      "Meeting schedule must use the shared visible-month hot-cache range helper.",
+    ],
+    [
+      "cacheKey: bootstrapKey",
+      "Meeting schedule must use the shared visible-range cache key for first paint.",
+    ],
+    [
       "meetingHotCacheSnapshotPageToPage",
       "Meeting schedule must convert the local hot cache snapshot back into metadata-only pages.",
     ],
@@ -2432,14 +2487,14 @@ function run() {
       message
     );
   }
+  const meetingFirstPaintRangeIndex = meetingScheduleShell.indexOf(
+    "buildCalendarFirstPaintRange(viewMonth, toDateKey)"
+  );
   if (
     !(
-      meetingScheduleShell.indexOf(
-        "const bootstrapKey = `${startDate}:${endDate}`"
-      ) >= 0 &&
-      meetingScheduleShell.indexOf(
-        "const bootstrapKey = `${startDate}:${endDate}`"
-      ) < meetingScheduleShell.indexOf("if (!dbReady) return;")
+      meetingFirstPaintRangeIndex >= 0 &&
+      meetingFirstPaintRangeIndex <
+        meetingScheduleShell.indexOf("if (!dbReady) return;")
     )
   ) {
     fail(

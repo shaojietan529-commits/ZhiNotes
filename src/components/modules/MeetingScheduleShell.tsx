@@ -49,6 +49,11 @@ import {
   writeMeetingHotCacheSnapshot,
 } from "@/lib/sync/meetingHotCacheSnapshot";
 import {
+  buildCalendarFirstPaintRange,
+  buildCalendarMonthGrid as buildMonthGrid,
+  type CalendarMonthCell as MonthCell,
+} from "@/lib/sync/calendarFirstPaintRange";
+import {
   DEFAULT_HOT_CACHE_PREFERENCES,
   HOT_CACHE_PREFERENCES_CHANGED_EVENT,
   HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY,
@@ -328,10 +333,11 @@ export default function MeetingScheduleShell() {
   }, [meetings]);
 
   useEffect(() => {
-    const visibleRange = buildMonthGrid(viewMonth);
-    const startDate = toDateKey(visibleRange[0].date);
-    const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
-    const bootstrapKey = `${startDate}:${endDate}`;
+    const {
+      startDate,
+      endDate,
+      cacheKey: bootstrapKey,
+    } = buildCalendarFirstPaintRange(viewMonth, toDateKey);
     if (hotCacheBootstrapKeyRef.current === bootstrapKey) return;
     hotCacheBootstrapKeyRef.current = bootstrapKey;
 
@@ -3872,29 +3878,6 @@ function CalNavButton({
       {label}
     </button>
   );
-}
-
-interface MonthCell {
-  date: Date;
-  inMonth: boolean;
-}
-
-function buildMonthGrid(monthStart: Date): MonthCell[] {
-  const year = monthStart.getFullYear();
-  const month = monthStart.getMonth();
-  const first = new Date(year, month, 1);
-  const offset = (first.getDay() + 6) % 7;
-  const gridStart = new Date(year, month, 1 - offset);
-  const cells: MonthCell[] = [];
-  for (let i = 0; i < 42; i += 1) {
-    const date = new Date(
-      gridStart.getFullYear(),
-      gridStart.getMonth(),
-      gridStart.getDate() + i
-    );
-    cells.push({ date, inMonth: date.getMonth() === month });
-  }
-  return cells;
 }
 
 function collectVisibleMeetingContentWarmupCandidates(
