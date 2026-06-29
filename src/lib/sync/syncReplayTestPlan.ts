@@ -158,11 +158,11 @@ function buildScenarios(
       status: "blocked",
       endpoint: "/api/sync/push",
       evidence:
-        "No server persistence or remote acknowledgement table exists yet.",
+        "Cloud ledger table contracts exist locally, but no replay runner has proved durable remote acknowledgements yet.",
       expected_result:
         "Each pushed row receives a durable remote acknowledgement and local sync_log status only changes after ack.",
       required_action:
-        "Implement durable server write, idempotency key, remote ack timestamp, retry state, and rollback behavior.",
+        "Implement durable server write, sync_batches, sync_row_acks, sync_ack_cursors, idempotency key, remote ack timestamp, retry state, and rollback behavior.",
       privacy_boundary:
         "Acknowledgement should store ids, status, timestamps, and checksums, not research payload text.",
     },
@@ -202,11 +202,11 @@ function buildScenarios(
       status: "blocked",
       endpoint: "/api/sync/push",
       evidence:
-        "No batch id, idempotency key, retry limit, or dead-letter queue exists yet.",
+        "Batch, idempotency, retry event, dead-letter, and ack cursor table contracts are drafted locally, but no disposable replay proof has run yet.",
       expected_result:
         "Network failures can retry without duplicate remote rows or lost local pending rows.",
       required_action:
-        "Add sync batch ids, idempotency keys, retry caps, dead-letter status, and user-visible failure recovery.",
+        "Prove sync_batches, sync_retry_events, sync_dead_letters, sync_ack_cursors, retry caps, and user-visible failure recovery with disposable fixture data before live sync.",
       privacy_boundary:
         "Retry metadata should include ids, counts, and statuses only.",
     },

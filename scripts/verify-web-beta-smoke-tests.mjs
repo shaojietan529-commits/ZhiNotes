@@ -18,6 +18,8 @@ const files = {
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   syncAckRetryLedgerContract:
     "src/lib/sync/syncAckRetryLedgerContract.ts",
+  syncAckLedgerReplayPreflight:
+    "src/lib/sync/syncAckLedgerReplayPreflight.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -338,6 +340,9 @@ function run() {
   );
   const syncAckRetryLedgerContract = readProjectFile(
     files.syncAckRetryLedgerContract
+  );
+  const syncAckLedgerReplayPreflight = readProjectFile(
+    files.syncAckLedgerReplayPreflight
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
@@ -2071,6 +2076,123 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-ack-ledger-replay-preflight"',
+      "Sync ack ledger replay preflight must expose a stable format.",
+    ],
+    [
+      'preflight_status: "local-fixture-only"',
+      "Sync ack ledger replay preflight must stay fixture-only.",
+    ],
+    [
+      "can_run_replay_now: false",
+      "Sync ack ledger replay preflight must not run replay.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Sync ack ledger replay preflight must align with the cloud-master/local-hot-cache target.",
+    ],
+    [
+      "local_fixture_only: true",
+      "Sync ack ledger replay preflight must be local fixture only.",
+    ],
+    [
+      "uses_disposable_workspace_only: true",
+      "Sync ack ledger replay preflight must use a disposable workspace.",
+    ],
+    [
+      "uses_synthetic_rows_only: true",
+      "Sync ack ledger replay preflight must use synthetic rows only.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Sync ack ledger replay preflight must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Sync ack ledger replay preflight must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Sync ack ledger replay preflight must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Sync ack ledger replay preflight must not read file bytes.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Sync ack ledger replay preflight must not send network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Sync ack ledger replay preflight must not connect cloud services.",
+    ],
+    [
+      "writes_server_data: false",
+      "Sync ack ledger replay preflight must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Sync ack ledger replay preflight must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Sync ack ledger replay preflight must not mutate sync_log.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Sync ack ledger replay preflight must not mark rows synced.",
+    ],
+    [
+      "sync_batches",
+      "Sync ack ledger replay preflight must cover sync_batches fixtures.",
+    ],
+    [
+      "sync_row_acks",
+      "Sync ack ledger replay preflight must cover sync_row_acks fixtures.",
+    ],
+    [
+      "sync_retry_events",
+      "Sync ack ledger replay preflight must cover sync_retry_events fixtures.",
+    ],
+    [
+      "sync_dead_letters",
+      "Sync ack ledger replay preflight must cover sync_dead_letters fixtures.",
+    ],
+    [
+      "sync_ack_cursors",
+      "Sync ack ledger replay preflight must cover sync_ack_cursors fixtures.",
+    ],
+    [
+      "idempotency-key-replay",
+      "Sync ack ledger replay preflight must assert idempotent retry.",
+    ],
+    [
+      "row-ack-before-local-synced",
+      "Sync ack ledger replay preflight must assert remote ack before local synced.",
+    ],
+    [
+      "retry-limit-to-dead-letter",
+      "Sync ack ledger replay preflight must assert dead-letter after retry cap.",
+    ],
+    [
+      "refuse-live-workspace",
+      "Sync ack ledger replay preflight must refuse live workspace replay.",
+    ],
+    [
+      "refuse-real-sync-push",
+      "Sync ack ledger replay preflight must refuse real sync push.",
+    ],
+  ]) {
+    assertIncludes(
+      files.syncAckLedgerReplayPreflight,
+      syncAckLedgerReplayPreflight,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildSyncAckRetryLedgerContract",
       "Sync UI must build the sync ack/retry ledger contract.",
     ],
@@ -2093,6 +2215,30 @@ function run() {
     [
       "本地 sync_log 标成已同步",
       "Sync UI must explain local sync_log rows cannot be marked synced before ack.",
+    ],
+    [
+      "buildSyncAckLedgerReplayPreflight",
+      "Sync UI must build the sync ack ledger replay preflight.",
+    ],
+    [
+      "sync-ack-ledger-replay-preflight",
+      "Sync UI must render the sync ack ledger replay preflight panel.",
+    ],
+    [
+      "ack/retry 一次性回放预检",
+      "Sync UI must expose the ack/retry replay preflight section.",
+    ],
+    [
+      "导出 ack/retry 回放预检",
+      "Sync UI must expose the sync ack ledger replay preflight export.",
+    ],
+    [
+      "只使用一次性工作区 fixture",
+      "Sync UI must state the preflight only uses disposable workspace fixtures.",
+    ],
+    [
+      "不能把本地 sync_log 标成 synced",
+      "Sync UI must state the preflight cannot mark local sync_log rows synced.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);

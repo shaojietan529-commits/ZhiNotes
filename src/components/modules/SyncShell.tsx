@@ -430,6 +430,13 @@ import {
   type SyncAckRetryLedgerContract,
 } from "@/lib/sync/syncAckRetryLedgerContract";
 import {
+  buildSyncAckLedgerReplayPreflight,
+  type SyncAckLedgerReplayAssertion,
+  type SyncAckLedgerReplayPreflight,
+  type SyncAckLedgerReplayPreflightStatus,
+  type SyncAckLedgerReplayRefusal,
+} from "@/lib/sync/syncAckLedgerReplayPreflight";
+import {
   buildCommentVersionReplayApiDisabledResponse,
 } from "@/lib/sync/commentVersionReplayApiStub";
 import {
@@ -498,6 +505,7 @@ type SyncQueueAction =
   | "sync-push-api-guard"
   | "sync-pull-api-guard"
   | "sync-ack-retry-ledger"
+  | "sync-ack-ledger-replay-preflight"
   | "comment-version-replay-api-guard"
   | "comment-version-replay-receipt"
   | "rollback-plan"
@@ -1990,6 +1998,14 @@ function SyncDashboard() {
       syncPayloadPreview,
       workspaceIdentity,
     ]
+  );
+  const syncAckLedgerReplayPreflight = useMemo(
+    () =>
+      buildSyncAckLedgerReplayPreflight({
+        ackLedgerContract: syncAckRetryLedgerContract,
+        replayTestPlan: syncReplayTestPlan,
+      }),
+    [syncAckRetryLedgerContract, syncReplayTestPlan]
   );
   const syncConflictResolution = useMemo(
     () =>
@@ -4637,6 +4653,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncAckLedgerReplayPreflight = () => {
+    setBusyQueueAction("sync-ack-ledger-replay-preflight");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-ack-ledger-replay-preflight-${fileSafeTimestamp()}.json`,
+        {
+          ...syncAckLedgerReplayPreflight,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync ack ledger replay preflight:",
+        err
+      );
+      window.alert("ack/retry 回放预检导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportCommentVersionReplayApiGuard = () => {
     setBusyQueueAction("comment-version-replay-api-guard");
     try {
@@ -6299,6 +6336,12 @@ function SyncDashboard() {
             gates={commentVersionReplayApiGuard.enablement_gates}
           />
         </section>
+
+        <SyncAckLedgerReplayPreflightPanel
+          preflight={syncAckLedgerReplayPreflight}
+          busy={busyQueueAction === "sync-ack-ledger-replay-preflight"}
+          onExport={handleExportSyncAckLedgerReplayPreflight}
+        />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -12568,6 +12611,253 @@ function SyncAckRetryLedgerStatusPill({
       }`}
     >
       {pass ? "pass" : "blocked"}
+    </span>
+  );
+}
+
+function SyncAckLedgerReplayPreflightPanel({
+  preflight,
+  busy,
+  onExport,
+}: {
+  preflight: SyncAckLedgerReplayPreflight;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="sync-ack-ledger-replay-preflight"
+      data-testid="sync-ack-ledger-replay-preflight"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              ack/retry 一次性回放预检
+            </h2>
+            <SyncAckLedgerReplayPreflightStatusPill status="blocked" />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            只使用一次性工作区 fixture 和合成行做预检。它不会运行回放、不会连接云端、
+            不会上传工作区数据、不会读取页面正文 / 数据库行值 / 评论正文 / 文件字节，
+            也不能把本地 sync_log 标成 synced。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出 ack/retry 回放预检"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <PayloadSummaryCard
+          label="状态"
+          value={preflight.preflight_status}
+          detail="本地 fixture only"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="Fixture"
+          value={preflight.summary.fixtures}
+          detail="合成账本表"
+          tone="low"
+        />
+        <PayloadSummaryCard
+          label="断言"
+          value={preflight.summary.assertions}
+          detail="回放验收点"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="拒绝动作"
+          value={preflight.summary.blocked_refusals}
+          detail="仍然阻塞"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="关联场景"
+          value={preflight.summary.replay_scenarios_linked}
+          detail="server ack / retry"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="可运行"
+          value={preflight.can_run_replay_now ? "是" : "否"}
+          detail="endpoint 关闭"
+          tone="high"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="一次性 fixture">
+          <div className="space-y-2">
+            {preflight.fixtures.map((fixture) => (
+              <SyncAckLedgerReplayFixtureRow
+                key={fixture.id}
+                fixture={fixture}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="禁止动作">
+          <div className="space-y-2">
+            {preflight.refusals.map((refusal) => (
+              <SyncAckLedgerReplayRefusalRow
+                key={refusal.id}
+                refusal={refusal}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <div className="mt-4">
+        <ContractPanel title="回放验收断言">
+          <div className="grid gap-2 xl:grid-cols-2">
+            {preflight.assertions.map((assertion) => (
+              <SyncAckLedgerReplayAssertionRow
+                key={assertion.id}
+                assertion={assertion}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        下一步：{preflight.summary.next_action}
+      </p>
+    </section>
+  );
+}
+
+function SyncAckLedgerReplayFixtureRow({
+  fixture,
+}: {
+  fixture: SyncAckLedgerReplayPreflight["fixtures"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {fixture.table}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {fixture.purpose}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-md bg-blue-50 px-2 py-1 text-[10px] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+          {fixture.rows} rows
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {fixture.allowed_fields.slice(0, 7).map((field) => (
+          <span
+            key={field}
+            className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {field}
+          </span>
+        ))}
+        {fixture.allowed_fields.length > 7 ? (
+          <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-400 dark:bg-zinc-800">
+            +{fixture.allowed_fields.length - 7}
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        forbidden: {fixture.forbidden_payloads.join(", ")}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckLedgerReplayAssertionRow({
+  assertion,
+}: {
+  assertion: SyncAckLedgerReplayAssertion;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {assertion.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {assertion.id}
+          </div>
+        </div>
+        <SyncAckLedgerReplayPreflightStatusPill status={assertion.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {assertion.assertion}
+      </p>
+      <p className="mt-2 leading-5 text-zinc-400 dark:text-zinc-500">
+        evidence: {assertion.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        failure: {assertion.failure_condition}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckLedgerReplayRefusalRow({
+  refusal,
+}: {
+  refusal: SyncAckLedgerReplayRefusal;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {refusal.refused_action}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {refusal.id}
+          </div>
+        </div>
+        <SyncAckLedgerReplayPreflightStatusPill status={refusal.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {refusal.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {refusal.required_before_enablement}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckLedgerReplayPreflightStatusPill({
+  status,
+}: {
+  status: SyncAckLedgerReplayPreflightStatus | "blocked";
+}) {
+  const labels: Record<SyncAckLedgerReplayPreflightStatus | "blocked", string> =
+    {
+      "local-fixture-ready": "fixture ready",
+      "manual-confirmation": "待确认",
+      blocked: "blocked",
+    };
+  const className =
+    status === "local-fixture-ready"
+      ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
     </span>
   );
 }
