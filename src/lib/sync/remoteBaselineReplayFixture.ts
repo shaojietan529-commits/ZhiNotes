@@ -200,7 +200,7 @@ export function buildRemoteBaselineReplayFixturePackage(
     payload_column_denylist: payloadColumnDenylist,
     validation_checks: validationChecks,
     final_replay_requirements: [
-      "Owner confirmation receipt must match ENABLE DISPOSABLE REPLAY before any real disposable replay can run.",
+      "Owner confirmation receipt must match APPROVE DISPOSABLE SYNC REPLAY ONLY before any real disposable replay can run.",
       "Replay uses empty disposable workspaces only; fixture package must keep page, database, comment, and file counts at zero.",
       "Stage and cursor proof seed rows remain empty until the replay runner builds metadata-only synthetic rows.",
       "Payload-column denylist must fail the replay if page body text, database row values, comment bodies, file bytes, signed URLs, tokens, cookies, or payload bodies appear.",

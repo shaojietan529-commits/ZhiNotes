@@ -134,7 +134,10 @@ import {
   type HighRiskActionCoverage,
   type HighRiskActionRegistryReport,
 } from "@/lib/security/highRiskActionRegistry";
-import { buildHighRiskConfirmationReceipt } from "@/lib/security/typedConfirmation";
+import {
+  buildHighRiskConfirmationReceipt,
+  type HighRiskConfirmationReceipt,
+} from "@/lib/security/typedConfirmation";
 import {
   buildAccountSessionBoundary,
   type AccountSessionBoundary,
@@ -6510,6 +6513,7 @@ function SyncDashboard() {
 
         <SyncReplayOwnerReviewPacketPanel
           packet={syncReplayOwnerReviewPacket}
+          confirmationReceipt={remoteBaselineReplayConfirmationReceipt}
           busy={busyQueueAction === "sync-replay-owner-review-packet"}
           onExport={handleExportSyncReplayOwnerReviewPacket}
         />
@@ -13588,13 +13592,18 @@ function SyncReplayTestApiFieldList({
 
 function SyncReplayOwnerReviewPacketPanel({
   packet,
+  confirmationReceipt,
   busy,
   onExport,
 }: {
   packet: SyncReplayOwnerReviewPacket;
+  confirmationReceipt: HighRiskConfirmationReceipt;
   busy: boolean;
   onExport: () => void;
 }) {
+  const phraseAligned =
+    packet.required_confirmation_phrase === confirmationReceipt.required_phrase;
+
   return (
     <section
       id="sync-replay-owner-review-packet"
@@ -13625,7 +13634,7 @@ function SyncReplayOwnerReviewPacketPanel({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-7">
         <PayloadSummaryCard
           label="结论"
           value={packet.replay_verdict}
@@ -13662,6 +13671,12 @@ function SyncReplayOwnerReviewPacketPanel({
           detail="仍然关闭"
           tone="high"
         />
+        <PayloadSummaryCard
+          label="收据短语"
+          value={phraseAligned ? "一致" : "不一致"}
+          detail="和回放收据"
+          tone={phraseAligned ? "low" : "high"}
+        />
       </div>
 
       <div className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
@@ -13674,6 +13689,14 @@ function SyncReplayOwnerReviewPacketPanel({
         <p className="mt-1 text-zinc-500 dark:text-zinc-400">
           这个 packet 只列出短语，不会因为导出而批准或运行回放；真正启用仍需要单独的确认收据、
           权限检查、审计事件、RLS 和回滚证明。
+        </p>
+        <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+          当前一次性回放确认收据短语：
+          <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-200">
+            {" "}
+            {confirmationReceipt.required_phrase}
+          </span>
+          ；短语{phraseAligned ? "已对齐" : "未对齐，必须先修正"}。
         </p>
       </div>
 

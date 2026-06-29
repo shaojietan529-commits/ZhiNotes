@@ -328,7 +328,7 @@ function buildRunnerPhases(
       "confirmation",
       "remoteBaselineReplayConfirmationReceipt",
       `Confirmation status is ${input.fixturePackage.local_evidence.confirmation_status}; phrase match is ${input.fixturePackage.local_evidence.confirmation_phrase_matches}.`,
-      "Owner types ENABLE DISPOSABLE REPLAY and exports a matching local receipt."
+      "Owner types APPROVE DISPOSABLE SYNC REPLAY ONLY and exports a matching local receipt."
     ),
     phase(
       "prepare-redacted-audit",
@@ -412,7 +412,7 @@ function buildRunnerRefusals(
       input.fixturePackage.local_evidence.confirmation_phrase_matches
         ? "Owner confirmation receipt phrase matches locally."
         : "Owner confirmation receipt phrase does not match yet.",
-      "Require matching ENABLE DISPOSABLE REPLAY receipt before execution."
+      "Require matching APPROVE DISPOSABLE SYNC REPLAY ONLY receipt before execution."
     ),
     refusal(
       "no-disposable-database",

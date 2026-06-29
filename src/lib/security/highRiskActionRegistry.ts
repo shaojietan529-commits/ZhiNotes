@@ -60,7 +60,7 @@ export const HIGH_RISK_CONFIRMATION_PHRASES: Record<
   string
 > = {
   "cloud-sync-first-push": "ENABLE PRIVATE ALPHA SYNC",
-  "remote-baseline-stage-replay": "ENABLE DISPOSABLE REPLAY",
+  "remote-baseline-stage-replay": "APPROVE DISPOSABLE SYNC REPLAY ONLY",
   "restore-writeback": "ENABLE RESTORE WRITEBACK",
   "ai-external-run": "ENABLE AI EXTERNAL RUN",
   "external-resource-load": "ENABLE EXTERNAL RESOURCES",

@@ -9517,6 +9517,14 @@ function run() {
       "不会因为导出而批准或运行回放",
       "Sync UI must state export does not approve or run replay.",
     ],
+    [
+      "收据短语",
+      "Sync UI must expose replay receipt phrase alignment.",
+    ],
+    [
+      "当前一次性回放确认收据短语",
+      "Sync UI must compare the owner packet phrase to the replay receipt phrase.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
@@ -15198,7 +15206,7 @@ function run() {
     [
       files.highRiskActionRegistry,
       highRiskActionRegistry,
-      '"remote-baseline-stage-replay": "ENABLE DISPOSABLE REPLAY"',
+      '"remote-baseline-stage-replay": "APPROVE DISPOSABLE SYNC REPLAY ONLY"',
       "High-risk registry must require a typed phrase before disposable replay.",
     ],
     [
@@ -15215,6 +15223,19 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(file, source, snippet, message);
+  }
+  for (const [file, source] of [
+    [files.highRiskActionRegistry, highRiskActionRegistry],
+    [files.remoteBaselineReplayFixture, remoteBaselineReplayFixture],
+    [files.remoteBaselineReplayHarness, remoteBaselineReplayHarness],
+    [files.remoteBaselineReplayRunner, remoteBaselineReplayRunner],
+  ]) {
+    assertSourceExcludes(
+      file,
+      source,
+      "ENABLE DISPOSABLE REPLAY",
+      "Disposable replay confirmation must use the owner review packet phrase."
+    );
   }
   assertSourceIncludes(
     files.remoteBaselineReplayFixture,

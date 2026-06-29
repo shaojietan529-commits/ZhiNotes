@@ -2840,6 +2840,14 @@ function run() {
       "不会因为导出而批准或运行回放",
       "Sync UI must state export does not approve or run replay.",
     ],
+    [
+      "收据短语",
+      "Sync UI must expose replay receipt phrase alignment.",
+    ],
+    [
+      "当前一次性回放确认收据短语",
+      "Sync UI must compare the owner packet phrase to the replay receipt phrase.",
+    ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);
   }

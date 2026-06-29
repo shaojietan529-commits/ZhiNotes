@@ -235,7 +235,7 @@ function buildHarnessSteps(
       "planned-only",
       "remoteBaselineReplayConfirmationReceipt",
       `Receipt status is ${input.fixturePackage.local_evidence.confirmation_status}; phrase match is ${input.fixturePackage.local_evidence.confirmation_phrase_matches}.`,
-      "Owner types ENABLE DISPOSABLE REPLAY and exports a matching local receipt."
+      "Owner types APPROVE DISPOSABLE SYNC REPLAY ONLY and exports a matching local receipt."
     ),
     step(
       "review-stage-schema-sql",
