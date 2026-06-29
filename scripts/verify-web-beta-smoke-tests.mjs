@@ -15,6 +15,7 @@ const files = {
   cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
+  syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -329,6 +330,9 @@ function run() {
   );
   const cloudUploadReliabilityReport = readProjectFile(
     files.cloudUploadReliabilityReport
+  );
+  const syncUploadDrainReceipt = readProjectFile(
+    files.syncUploadDrainReceipt
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
@@ -1918,6 +1922,54 @@ function run() {
     cloudUploadReliabilityReport,
     "failure-reasons-visible",
     "Cloud upload reliability report must keep failure reasons visible."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    'format: "zhinote-sync-upload-drain-receipt"',
+    "Smoke verifier must keep a stable sync upload drain receipt format."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    'receipt_status: "metadata-only-upload-drain-result"',
+    "Sync upload drain receipt must stay metadata-only."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "triggered_upload_from_pending_queue: true",
+    "Sync upload drain receipt must clearly mark user-triggered pending queue upload."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "uploads_only_explicit_pending_rows: true",
+    "Sync upload drain receipt must limit upload scope to explicit pending rows."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "reads_page_body_text_for_receipt: false",
+    "Sync upload drain receipt must not read page bodies for the receipt."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "reads_database_row_values_for_receipt: false",
+    "Sync upload drain receipt must not read database row values for the receipt."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "exports_raw_workspace_content: false",
+    "Sync upload drain receipt must not export raw workspace content."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "safe_to_switch_device_now",
+    "Sync upload drain receipt must state whether cross-device switching is safe after drain."
   );
   assertIncludes(
     files.syncShell,
@@ -4929,6 +4981,36 @@ function run() {
     syncShell,
     "补传数据库",
     "Sync upload safety panel must expose the database pending retry action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handleDrainAllPendingPush",
+    "Sync upload safety panel must expose a unified pending queue drain action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildSyncUploadDrainReceipt",
+    "Sync upload safety panel must build a local receipt after unified pending queue drain."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "补传全部本地输入",
+    "Sync upload safety panel must provide a one-click pending queue drain button."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "sync-upload-drain-receipt",
+    "Sync upload safety panel must render a stable drain receipt hook."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出补传收据",
+    "Sync upload safety panel must let the user export the latest drain receipt."
   );
   assertExcludes(
     files.pagePeekModal,

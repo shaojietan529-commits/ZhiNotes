@@ -308,6 +308,12 @@ import {
   type CloudUploadReliabilityStatus,
 } from "@/lib/sync/cloudUploadReliabilityReport";
 import {
+  buildSyncUploadDrainReceipt,
+  type SyncUploadDrainReceipt,
+  type SyncUploadDrainResultSnapshot,
+  type SyncUploadDrainStatus,
+} from "@/lib/sync/syncUploadDrainReceipt";
+import {
   buildLocalMetadataManifest,
   type LocalMetadataManifestDomain,
   type LocalMetadataManifestDomainStatus,
@@ -467,6 +473,7 @@ type SyncQueueAction =
   | "queue"
   | "handoff-readiness"
   | "manual-review-packet"
+  | "drain-all-pending"
   | "page-pending"
   | "database-pending"
   | "payload-preview"
@@ -1375,6 +1382,9 @@ function SyncDashboard() {
   const [databasePendingMessage, setDatabasePendingMessage] = useState<
     string | null
   >(null);
+  const [syncDrainReceipt, setSyncDrainReceipt] =
+    useState<SyncUploadDrainReceipt | null>(null);
+  const [syncDrainMessage, setSyncDrainMessage] = useState<string | null>(null);
   const [coreManifestCompareReport, setCoreManifestCompareReport] =
     useState<CoreManifestCompareReport | null>(null);
   const [coreManifestCompareBusy, setCoreManifestCompareBusy] =
@@ -3934,6 +3944,118 @@ function SyncDashboard() {
       );
       window.alert(
         "Sync handoff readiness export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportSyncDrainReceipt = () => {
+    if (!syncDrainReceipt) return;
+    downloadJsonFile(
+      `zhinote-sync-upload-drain-receipt-${fileSafeTimestamp()}.json`,
+      {
+        ...syncDrainReceipt,
+        exported_at: new Date().toISOString(),
+      }
+    );
+  };
+
+  const handleDrainAllPendingPush = async () => {
+    setBusyQueueAction("drain-all-pending");
+    setPagePendingMessage(null);
+    setDatabasePendingMessage(null);
+    setSyncDrainMessage(null);
+    setSyncDrainReceipt(null);
+    try {
+      const [beforeDatabaseStatus, beforeSyncLogSummary] = await Promise.all([
+        getPendingCloudDatabaseSyncStatus(),
+        getSyncLogSummary(),
+      ]);
+      const beforePageStatus = getPendingCloudPageSyncStatus();
+
+      const pageResult: SyncUploadDrainResultSnapshot = await reconcilePageSync({
+        quick: true,
+      })
+        .then((result) => ({
+          status: result.status,
+          pushed: result.pushed,
+          pulled: result.pulled,
+          skipped: result.skipped ? 1 : 0,
+          message: result.message,
+        }))
+        .catch((err) => ({
+          status: "error",
+          pushed: 0,
+          pulled: 0,
+          skipped: 0,
+          message: err instanceof Error ? err.message : "页面补传失败。",
+        }));
+
+      const databaseResult: SyncUploadDrainResultSnapshot =
+        await reconcileDatabaseSync({ quick: true })
+          .then((result) => ({
+            status: result.status,
+            pushed: result.pushed,
+            pulled: result.pulled,
+            skipped: result.skipped,
+            message: result.message,
+          }))
+          .catch((err) => ({
+            status: "error",
+            pushed: 0,
+            pulled: 0,
+            skipped: 0,
+            message:
+              err instanceof Error ? err.message : "数据库补传失败。",
+          }));
+
+      const [afterDatabaseStatus, nextSyncSummary, nextSyncEntries] =
+        await Promise.all([
+          getPendingCloudDatabaseSyncStatus(),
+          getSyncLogSummary(),
+          getPendingSyncLogEntries(25),
+        ]);
+      const afterPageStatus = getPendingCloudPageSyncStatus();
+      const receipt = buildSyncUploadDrainReceipt({
+        beforePageStatus,
+        beforeDatabaseStatus,
+        beforeSyncLogPending: beforeSyncLogSummary.pending,
+        afterPageStatus,
+        afterDatabaseStatus,
+        afterSyncLogPending: nextSyncSummary.pending,
+        pageResult,
+        databaseResult,
+      });
+
+      setPagePendingStatus(afterPageStatus);
+      setDatabasePendingStatus(afterDatabaseStatus);
+      setSyncSummary(nextSyncSummary);
+      setSyncEntries(nextSyncEntries);
+      setSyncDrainReceipt(receipt);
+      setPagePendingMessage(
+        `统一补传后：页面推送 ${pageResult.pushed} 个，拉取 ${pageResult.pulled} 个；当前页面待上传 ${
+          afterPageStatus.pending + afterPageStatus.queued
+        } 个。`
+      );
+      setDatabasePendingMessage(
+        `统一补传后：数据库推送 ${databaseResult.pushed} 条，拉取 ${databaseResult.pulled} 条；当前数据库待上传 ${
+          afterDatabaseStatus.pending +
+          afterDatabaseStatus.queued +
+          afterDatabaseStatus.syncLogPending
+        } 条。`
+      );
+      setSyncDrainMessage(
+        receipt.summary.safe_to_switch_device_now
+          ? `补传全部完成：页面和数据库待上传队列已清空，当前适合切换设备。`
+          : `补传全部已运行：仍有 ${receipt.summary.waiting_rows_after} 条待上传、${receipt.summary.failed_rows_after} 条失败、${receipt.summary.manual_review_rows_after} 条需人工处理。${receipt.next_action}`
+      );
+    } catch (err) {
+      console.error("[Zhinote] Failed to drain pending sync queues:", err);
+      setSyncDrainMessage(
+        err instanceof Error
+          ? `补传全部失败：${err.message}`
+          : "补传全部失败：未知错误。"
       );
     } finally {
       setBusyQueueAction(null);
@@ -9702,8 +9824,12 @@ function SyncDashboard() {
                   handleExportSyncHandoffReadinessReceipt
                 }
                 onExportManualReview={handleExportSyncManualReviewPacket}
+                onDrainAll={() => void handleDrainAllPendingPush()}
+                onExportDrainReceipt={handleExportSyncDrainReceipt}
                 onRetryPage={() => void handleRetryPagePendingPush()}
                 onRetryDatabase={() => void handleRetryDatabasePendingPush()}
+                drainReceipt={syncDrainReceipt}
+                drainMessage={syncDrainMessage}
               />
             </div>
             <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
@@ -16069,8 +16195,12 @@ function SyncUploadSafetyPanel({
   busyQueueAction,
   onExportHandoffReadiness,
   onExportManualReview,
+  onDrainAll,
+  onExportDrainReceipt,
   onRetryPage,
   onRetryDatabase,
+  drainReceipt,
+  drainMessage,
 }: {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
@@ -16078,8 +16208,12 @@ function SyncUploadSafetyPanel({
   busyQueueAction: SyncQueueAction | null;
   onExportHandoffReadiness: () => void;
   onExportManualReview: () => void;
+  onDrainAll: () => void;
+  onExportDrainReceipt: () => void;
   onRetryPage: () => void;
   onRetryDatabase: () => void;
+  drainReceipt: SyncUploadDrainReceipt | null;
+  drainMessage: string | null;
 }) {
   const pageWaiting = pageStatus.pending + pageStatus.queued;
   const databaseWaiting =
@@ -16239,6 +16373,26 @@ function SyncUploadSafetyPanel({
         <div className="flex shrink-0 flex-wrap gap-2">
           <button
             type="button"
+            onClick={onDrainAll}
+            disabled={busyQueueAction === "drain-all-pending"}
+            className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            {busyQueueAction === "drain-all-pending"
+              ? "补传全部中..."
+              : "补传全部本地输入"}
+          </button>
+          {drainReceipt ? (
+            <button
+              type="button"
+              onClick={onExportDrainReceipt}
+              disabled={busyQueueAction === "drain-all-pending"}
+              className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              导出补传收据
+            </button>
+          ) : null}
+          <button
+            type="button"
             onClick={onExportHandoffReadiness}
             disabled={busyQueueAction === "handoff-readiness"}
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
@@ -16260,7 +16414,10 @@ function SyncUploadSafetyPanel({
           <button
             type="button"
             onClick={onRetryPage}
-            disabled={busyQueueAction === "page-pending"}
+            disabled={
+              busyQueueAction === "page-pending" ||
+              busyQueueAction === "drain-all-pending"
+            }
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyQueueAction === "page-pending" ? "补传中..." : "补传页面"}
@@ -16268,7 +16425,10 @@ function SyncUploadSafetyPanel({
           <button
             type="button"
             onClick={onRetryDatabase}
-            disabled={busyQueueAction === "database-pending"}
+            disabled={
+              busyQueueAction === "database-pending" ||
+              busyQueueAction === "drain-all-pending"
+            }
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyQueueAction === "database-pending" ? "补传中..." : "补传数据库"}
@@ -16295,6 +16455,66 @@ function SyncUploadSafetyPanel({
           </div>
         ))}
       </div>
+
+      {drainReceipt ? (
+        <div
+          data-testid="sync-upload-drain-receipt"
+          className="rounded-md border border-zinc-200 bg-white p-3 text-xs dark:border-zinc-800 dark:bg-zinc-950"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                最近一次补传全部收据
+              </div>
+              <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                {drainMessage ?? drainReceipt.next_action}
+              </p>
+            </div>
+            <span
+              className={`w-fit rounded-md px-2 py-1 text-[10px] ${syncUploadDrainStatusClass(
+                drainReceipt.status
+              )}`}
+            >
+              {formatSyncUploadDrainStatus(drainReceipt.status)}
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <CacheRebuildFact
+              label="推送"
+              value={`${drainReceipt.summary.pushed_records} 条`}
+              detail={`${drainReceipt.summary.pulled_records} 条拉取`}
+            />
+            <CacheRebuildFact
+              label="补传前"
+              value={`${drainReceipt.summary.waiting_rows_before} 条`}
+              detail="待上传队列合计"
+            />
+            <CacheRebuildFact
+              label="补传后"
+              value={`${drainReceipt.summary.waiting_rows_after} 条`}
+              detail={`${drainReceipt.summary.failed_rows_after} 条失败`}
+            />
+            <CacheRebuildFact
+              label="人工处理"
+              value={`${drainReceipt.summary.manual_review_rows_after} 条`}
+              detail="反复失败样本"
+            />
+            <CacheRebuildFact
+              label="跨设备"
+              value={
+                drainReceipt.summary.safe_to_switch_device_now
+                  ? "可以"
+                  : "先等等"
+              }
+              detail="清空 pending 后最稳"
+            />
+          </div>
+          <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            边界：补传全部只触发现有 pending queue 的普通上传；收据只记录
+            counts、状态、失败原因和动作结果，不读取页面正文、数据库行值、评论正文或文件字节。
+          </p>
+        </div>
+      ) : null}
 
       {manualReviewCount > 0 ? (
         <div
@@ -16323,6 +16543,26 @@ function SyncUploadSafetyPanel({
       </p>
     </div>
   );
+}
+
+function formatSyncUploadDrainStatus(status: SyncUploadDrainStatus) {
+  if (status === "ready") return "已清空";
+  if (status === "pending") return "等待中";
+  if (status === "needs-attention") return "待处理";
+  return "阻断";
+}
+
+function syncUploadDrainStatusClass(status: SyncUploadDrainStatus) {
+  if (status === "ready") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  if (status === "pending") {
+    return "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300";
+  }
+  if (status === "needs-attention") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 }
 
 function PagePendingQueueDetails({

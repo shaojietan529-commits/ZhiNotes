@@ -81,6 +81,7 @@ const files = {
   cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
+  syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
   commentVersionReplayReceipt:
@@ -460,6 +461,9 @@ function run() {
   );
   const cloudUploadReliabilityReport = readProjectFile(
     files.cloudUploadReliabilityReport
+  );
+  const syncUploadDrainReceipt = readProjectFile(
+    files.syncUploadDrainReceipt
   );
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
@@ -6977,6 +6981,38 @@ function run() {
       "Upload safety overview must expose the manual database retry action.",
     ],
     [
+      "handleDrainAllPendingPush",
+      "Upload safety overview must expose a unified pending queue drain action.",
+    ],
+    [
+      "buildSyncUploadDrainReceipt",
+      "Upload safety overview must build a metadata-only receipt after unified pending queue drain.",
+    ],
+    [
+      "drain-all-pending",
+      "Upload safety overview must track unified drain as its own busy action.",
+    ],
+    [
+      "补传全部本地输入",
+      "Upload safety overview must provide a one-click pending queue drain button.",
+    ],
+    [
+      'data-testid="sync-upload-drain-receipt"',
+      "Upload safety overview must expose a stable drain receipt hook.",
+    ],
+    [
+      "最近一次补传全部收据",
+      "Upload safety overview must render the latest drain receipt summary.",
+    ],
+    [
+      "导出补传收据",
+      "Upload safety overview must let the user export the latest drain receipt.",
+    ],
+    [
+      "补传全部只触发现有 pending queue 的普通上传",
+      "Upload safety overview must disclose that unified drain only uploads explicit pending queue rows.",
+    ],
+    [
       "页面 pending 上传队列",
       "Sync UI must render page pending upload queue status.",
     ],
@@ -8248,6 +8284,75 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-upload-drain-receipt"',
+      "Sync upload drain receipt must have a stable receipt format.",
+    ],
+    [
+      'receipt_status: "metadata-only-upload-drain-result"',
+      "Sync upload drain receipt must stay metadata-only.",
+    ],
+    [
+      "triggered_upload_from_pending_queue: true",
+      "Sync upload drain receipt must clearly mark user-triggered pending queue upload.",
+    ],
+    [
+      "uploads_only_explicit_pending_rows: true",
+      "Sync upload drain receipt must limit upload scope to explicit pending rows.",
+    ],
+    [
+      "reads_queue_counts: true",
+      "Sync upload drain receipt must read queue counts.",
+    ],
+    [
+      "reads_queue_timestamps: true",
+      "Sync upload drain receipt must read queue timestamps.",
+    ],
+    [
+      "reads_failure_counts: true",
+      "Sync upload drain receipt must read failure counts.",
+    ],
+    [
+      "reads_failure_messages: true",
+      "Sync upload drain receipt must surface recent failure messages.",
+    ],
+    [
+      "reads_page_body_text_for_receipt: false",
+      "Sync upload drain receipt must not read page bodies for the receipt.",
+    ],
+    [
+      "reads_database_row_values_for_receipt: false",
+      "Sync upload drain receipt must not read database row values for the receipt.",
+    ],
+    [
+      "exports_raw_workspace_content: false",
+      "Sync upload drain receipt must not export raw workspace content.",
+    ],
+    [
+      "clears_local_cache: false",
+      "Sync upload drain receipt must not clear local cache.",
+    ],
+    [
+      "rebuilds_local_cache: false",
+      "Sync upload drain receipt must not rebuild local cache.",
+    ],
+    [
+      "safe_to_switch_device_now",
+      "Sync upload drain receipt must state whether cross-device switching is safe after drain.",
+    ],
+    [
+      "buildSyncUploadDrainReceipt",
+      "Sync upload drain receipt builder must be exported.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.syncUploadDrainReceipt,
+      syncUploadDrainReceipt,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "local-performance-diagnosis",
       "Sync UI must render a stable local fluency diagnosis panel.",
     ],
@@ -8428,6 +8533,63 @@ function run() {
     assertSourceExcludes(
       files.cloudUploadReliabilityReport,
       cloudUploadReliabilityReport,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Sync upload drain receipt must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Sync upload drain receipt must not access page Yjs content.",
+    ],
+    [
+      "field_values",
+      "Sync upload drain receipt must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Sync upload drain receipt must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Sync upload drain receipt must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Sync upload drain receipt must not access file text.",
+    ],
+    [
+      "fetch(",
+      "Sync upload drain receipt must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Sync upload drain receipt must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Sync upload drain receipt must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Sync upload drain receipt must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Sync upload drain receipt must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Sync upload drain receipt must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.syncUploadDrainReceipt,
+      syncUploadDrainReceipt,
       snippet,
       message
     );
