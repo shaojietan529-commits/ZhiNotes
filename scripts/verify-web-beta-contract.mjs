@@ -4062,6 +4062,46 @@ function run() {
     "DAILY_CLOUD_METADATA_RECHECK_DELAY_MS",
     "Daily calendar local page updates must schedule a delayed cloud metadata recheck after the fast local refresh."
   );
+  for (const [snippet, message] of [
+    [
+      "type DailyCalendarLoadOptions",
+      "Daily calendar load options must distinguish user-visible loads from background refreshes.",
+    ],
+    [
+      "const cloudLoadingRef = useRef(false)",
+      "Daily calendar must track active cloud loading outside the load callback dependency churn.",
+    ],
+    [
+      "cloudLoadingRef.current = cloudLoading",
+      "Daily calendar cloud loading ref must follow visible cloud loading state.",
+    ],
+    [
+      "const interruptCloud = opts?.interruptCloud ?? includeCloud",
+      "Daily calendar background local refreshes must be able to avoid cancelling an active cloud correction.",
+    ],
+    [
+      "!interruptCloud && loadRequestRef.current > 0",
+      "Daily calendar non-interrupting refreshes must reuse the current load generation.",
+    ],
+    [
+      "seedVisibleDailyNotesForBackgroundRefresh(",
+      "Daily calendar background refreshes must retain currently visible notes while local indexes catch up.",
+    ],
+    [
+      "function seedVisibleDailyNotesForBackgroundRefresh(",
+      "Daily calendar must keep the visible-note retention logic explicit and testable.",
+    ],
+    [
+      "interruptCloud: false",
+      "Daily calendar local refresh call sites must not interrupt cloud metadata correction.",
+    ],
+    [
+      "preserveVisibleNotes: true",
+      "Daily calendar local refresh call sites must preserve already-rendered notes.",
+    ],
+  ]) {
+    assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,

@@ -748,6 +748,18 @@ check(
     dailyNotesShell.includes("notesRenderFingerprintRef.current === nextFingerprint") &&
     dailyNotesShell.includes("setNotes(renderableNotes)") &&
     dailyNotesShell.includes("setDailyNoteCountByDate(selection.countsByDate)") &&
+    dailyNotesShell.includes("type DailyCalendarLoadOptions") &&
+    dailyNotesShell.includes("const cloudLoadingRef = useRef(false)") &&
+    dailyNotesShell.includes("cloudLoadingRef.current = cloudLoading") &&
+    dailyNotesShell.includes("interruptCloud?: boolean") &&
+    dailyNotesShell.includes("preserveVisibleNotes?: boolean") &&
+    dailyNotesShell.includes("const interruptCloud = opts?.interruptCloud ?? includeCloud") &&
+    dailyNotesShell.includes("!interruptCloud && loadRequestRef.current > 0") &&
+    dailyNotesShell.includes("if (!includeCloud && interruptCloud) setCloudLoading(false)") &&
+    dailyNotesShell.includes("seedVisibleDailyNotesForBackgroundRefresh(") &&
+    dailyNotesShell.includes("function seedVisibleDailyNotesForBackgroundRefresh(") &&
+    dailyNotesShell.includes("interruptCloud: false") &&
+    dailyNotesShell.includes("preserveVisibleNotes: true") &&
     dailyNotesShell.includes("buildDailyCalendarLoadStatusView") &&
     dailyNotesShell.includes("createDailyCalendarLoadStatus") &&
     dailyNotesShell.includes("DailyCalendarLoadStatusStrip") &&

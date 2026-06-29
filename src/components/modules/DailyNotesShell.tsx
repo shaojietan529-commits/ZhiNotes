@@ -118,6 +118,12 @@ type OpeningDailyDraft = {
   dateKey: string;
 };
 
+type DailyCalendarLoadOptions = {
+  includeCloud?: boolean;
+  interruptCloud?: boolean;
+  preserveVisibleNotes?: boolean;
+};
+
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 const MONTH_LABELS = [
   "1 月", "2 月", "3 月", "4 月", "5 月", "6 月",
@@ -173,6 +179,7 @@ export default function DailyNotesShell() {
   >(() => new Map());
   const [cloudNotice, setCloudNotice] = useState<string | null>(null);
   const [cloudLoading, setCloudLoading] = useState(false);
+  const cloudLoadingRef = useRef(false);
   const [calendarLoadStatus, setCalendarLoadStatus] =
     useState<DailyCalendarLoadStatusState>(() =>
       createDailyCalendarLoadStatus({
@@ -232,6 +239,10 @@ export default function DailyNotesShell() {
   useEffect(() => {
     notesRef.current = notes;
   }, [notes]);
+
+  useEffect(() => {
+    cloudLoadingRef.current = cloudLoading;
+  }, [cloudLoading]);
 
   useEffect(() => {
     const {
@@ -435,16 +446,22 @@ export default function DailyNotesShell() {
     };
   }, [dbReady]);
 
-  const load = useCallback(async (opts?: { includeCloud?: boolean }) => {
+  const load = useCallback(async (opts?: DailyCalendarLoadOptions) => {
     const includeCloud = opts?.includeCloud !== false;
-    const requestId = loadRequestRef.current + 1;
+    const interruptCloud = opts?.interruptCloud ?? includeCloud;
+    const preserveVisibleNotes =
+      opts?.preserveVisibleNotes ?? (!includeCloud && !interruptCloud);
+    const requestId =
+      !interruptCloud && loadRequestRef.current > 0
+        ? loadRequestRef.current
+        : loadRequestRef.current + 1;
     loadRequestRef.current = requestId;
     const performanceStartedAt = new Date().toISOString();
     const performanceStart = getLocalPerformanceNow();
     let firstVisibleMs: number | null = null;
     let firstVisibleCount = 0;
     let localNoteCount = 0;
-    if (!includeCloud) setCloudLoading(false);
+    if (!includeCloud && interruptCloud) setCloudLoading(false);
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
@@ -453,11 +470,13 @@ export default function DailyNotesShell() {
         phase: "booting",
         visibleNotes: notesRef.current.length,
         visibleDays: countDailyVisibleDays(notesRef.current, startDate, endDate),
-        cloudLoading: includeCloud,
+        cloudLoading: includeCloud || (!interruptCloud && cloudLoadingRef.current),
         backgroundActive: true,
-        message: includeCloud
-          ? "正在读取热缓存、本地索引，并准备云端 metadata 校正。"
-          : "正在刷新本地每日纪要索引。",
+        message: preserveVisibleNotes
+          ? "正在后台刷新本地每日纪要索引，已显示的日历条目会先保留。"
+          : includeCloud
+            ? "正在读取热缓存、本地索引，并准备云端 metadata 校正。"
+            : "正在刷新本地每日纪要索引。",
       })
     );
     const byId = new Map<string, DailyNote>();
@@ -670,6 +689,22 @@ export default function DailyNotesShell() {
           ? `已先显示较早缓存的云端每日纪要目录 ${cachedCloud.pages.length} 条，正在后台更新到最新…`
           : `已先显示缓存的云端每日纪要 ${cachedCloud.pages.length} 条，正在后台更新…`
       );
+    }
+
+    if (preserveVisibleNotes) {
+      const retained = seedVisibleDailyNotesForBackgroundRefresh(
+        byId,
+        notesRef.current
+      );
+      if (retained > 0) {
+        publishNotes(Array.from(byId.values()), {
+          phase: "hot-cache",
+          backgroundActive: true,
+          cloudLoading: !interruptCloud && cloudLoadingRef.current,
+          staleCloud: Boolean(cachedCloud?.stale),
+          message: `后台刷新会先保留当前已显示的 ${retained} 条纪要，避免本地索引短暂缺失时日历闪空。`,
+        });
+      }
     }
 
     const storedDailyRootId = getModuleRootIdSync("daily");
@@ -922,7 +957,11 @@ export default function DailyNotesShell() {
     if (observedPageRevisionRef.current === pageRevision) return;
     observedPageRevisionRef.current = pageRevision;
     const timer = window.setTimeout(() => {
-      void load({ includeCloud: false });
+      void load({
+        includeCloud: false,
+        interruptCloud: false,
+        preserveVisibleNotes: true,
+      });
     }, 120);
     return () => window.clearTimeout(timer);
   }, [dbReady, pageRevision, load]);
@@ -938,10 +977,18 @@ export default function DailyNotesShell() {
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
       if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
       localReloadTimer = window.setTimeout(() => {
-        void load({ includeCloud: false });
+        void load({
+          includeCloud: false,
+          interruptCloud: false,
+          preserveVisibleNotes: true,
+        });
       }, DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
       fallbackReloadTimer = window.setTimeout(() => {
-        void load({ includeCloud: false });
+        void load({
+          includeCloud: false,
+          interruptCloud: false,
+          preserveVisibleNotes: true,
+        });
       }, DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS);
       cloudRecheckTimer = window.setTimeout(() => {
         void load({ includeCloud: true });
@@ -2092,7 +2139,13 @@ export default function DailyNotesShell() {
             openDailyNoteFullPageById(id);
           }}
           onOpenFull={openDailyNoteFullPageById}
-          onChanged={() => void load({ includeCloud: false })}
+          onChanged={() =>
+            void load({
+              includeCloud: false,
+              interruptCloud: false,
+              preserveVisibleNotes: true,
+            })
+          }
         />
       )}
       {peekPageId && (
@@ -2111,7 +2164,13 @@ export default function DailyNotesShell() {
             openDailyNoteFullPageById(id);
           }}
           onReady={handlePeekReady}
-          onChanged={() => void load({ includeCloud: false })}
+          onChanged={() =>
+            void load({
+              includeCloud: false,
+              interruptCloud: false,
+              preserveVisibleNotes: true,
+            })
+          }
         />
       )}
     </div>
@@ -2617,6 +2676,19 @@ function mergeDailyHotCacheSnapshot(
     merged += 1;
   }
   return merged;
+}
+
+function seedVisibleDailyNotesForBackgroundRefresh(
+  byId: Map<string, DailyNote>,
+  visibleNotes: DailyNote[]
+): number {
+  let retained = 0;
+  for (const note of visibleNotes) {
+    if (byId.has(note.id)) continue;
+    byId.set(note.id, note);
+    retained += 1;
+  }
+  return retained;
 }
 
 function dailyCloudCacheKey(startDate: string, endDate: string): string {
