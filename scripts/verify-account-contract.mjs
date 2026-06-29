@@ -611,6 +611,15 @@ check(
   usePagesHook.includes("syncCloudPageMetadataDelta") &&
     usePagesHook.includes("renderLocalPagesSnapshot") &&
     usePagesHook.includes("await renderLocalPagesSnapshot()") &&
+    usePagesHook.includes("loadHotCachePageMetadataSnapshot") &&
+    usePagesHook.includes("listHotCachePageMetadata") &&
+    usePagesHook.includes("HOT_CACHE_PREFERENCES_SETTING_KEY") &&
+    usePagesHook.includes("metadataRecentLimitForHotCachePreferences(preferences)") &&
+    usePagesHook.includes("scheduleDeferredMetadataHydration(setPages)") &&
+    usePagesHook.includes("mergeFullMetadataWithCurrentStore(metadataPages)") &&
+    usePagesHook.includes("const currentIsNewer =") &&
+    usePagesHook.includes("HOT_CACHE_PREFERENCES_CHANGED_EVENT") &&
+    usePagesHook.includes("HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY") &&
     usePagesHook.includes("loadPagesSnapshot(") &&
     usePagesHook.includes("metadataFirstContent ? false : includeContent") &&
     usePagesHook.includes("setPages(all);") &&

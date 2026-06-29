@@ -1110,6 +1110,51 @@ export async function getAllPageMetadata(): Promise<Page[]> {
   ) as unknown as Page[];
 }
 
+export async function listHotCachePageMetadata({
+  recentLimit = 24,
+  rootLimit = 80,
+}: {
+  recentLimit?: number;
+  rootLimit?: number;
+} = {}): Promise<Page[]> {
+  const db = await getDb();
+  const safeRecentLimit = Math.max(1, Math.min(120, Math.floor(recentLimit)));
+  const safeRootLimit = Math.max(12, Math.min(160, Math.floor(rootLimit)));
+  return db.query(
+    `WITH RECURSIVE
+       recent_seed(id) AS (
+         SELECT id
+         FROM pages
+         WHERE deleted_at IS NULL
+         ORDER BY updated_at DESC
+         LIMIT ?
+       ),
+       root_seed(id) AS (
+         SELECT id
+         FROM pages
+         WHERE parent_id IS NULL AND deleted_at IS NULL
+         ORDER BY position ASC, updated_at DESC
+         LIMIT ?
+       ),
+       hot(id) AS (
+         SELECT id FROM recent_seed
+         UNION
+         SELECT id FROM root_seed
+         UNION
+         SELECT p.parent_id
+         FROM pages p
+         JOIN hot h ON p.id = h.id
+         WHERE p.parent_id IS NOT NULL AND p.deleted_at IS NULL
+       )
+     SELECT ${PAGE_METADATA_SELECT}
+     FROM pages
+     WHERE deleted_at IS NULL
+       AND id IN (SELECT id FROM hot WHERE id IS NOT NULL)
+     ORDER BY updated_at DESC`,
+    [safeRecentLimit, safeRootLimit]
+  ) as unknown as Page[];
+}
+
 export async function countActivePages(): Promise<number> {
   const db = await getDb();
   const rows = db.query(

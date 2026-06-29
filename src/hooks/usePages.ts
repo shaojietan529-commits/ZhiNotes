@@ -4,6 +4,8 @@ import { useEffect, useCallback } from "react";
 import {
   getAllPageMetadata,
   getAllPages,
+  getWorkspaceSetting,
+  listHotCachePageMetadata,
   listPagesForContentHydration,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
@@ -17,6 +19,14 @@ import {
   type PageUpdateReason,
 } from "@/lib/pages/pageUpdateBus";
 import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
+import {
+  DEFAULT_HOT_CACHE_PREFERENCES,
+  HOT_CACHE_PREFERENCES_CHANGED_EVENT,
+  HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY,
+  HOT_CACHE_PREFERENCES_SETTING_KEY,
+  metadataRecentLimitForHotCachePreferences,
+  parseHotCachePreferences,
+} from "@/lib/sync/hotCacheSelectionSettings";
 import type { Page } from "@/lib/utils/types";
 
 interface UsePagesOptions {
@@ -33,6 +43,9 @@ interface RefreshOptions {
 
 let metadataSnapshotInFlight: Promise<Page[]> | null = null;
 let contentSnapshotInFlight: Promise<Page[]> | null = null;
+let hotMetadataSnapshotInFlight: Promise<Page[]> | null = null;
+let deferredMetadataHydrationScheduled = false;
+let deferredMetadataHydrationInFlight: Promise<void> | null = null;
 let deferredContentHydrationScheduled = false;
 let deferredContentHydrationInFlight: Promise<void> | null = null;
 const DEFERRED_CONTENT_HYDRATION_BATCH_SIZE = 80;
@@ -82,6 +95,29 @@ function loadPagesSnapshot(includeContent: boolean): Promise<Page[]> {
   return promise;
 }
 
+function loadHotCachePageMetadataSnapshot(): Promise<Page[]> {
+  if (hotMetadataSnapshotInFlight) return hotMetadataSnapshotInFlight;
+
+  const promise = getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)
+    .catch(() => null)
+    .then((setting) => {
+      const preferences = setting
+        ? parseHotCachePreferences(setting)
+        : DEFAULT_HOT_CACHE_PREFERENCES;
+      return listHotCachePageMetadata({
+        recentLimit: metadataRecentLimitForHotCachePreferences(preferences),
+      });
+    })
+    .finally(() => {
+      if (hotMetadataSnapshotInFlight === promise) {
+        hotMetadataSnapshotInFlight = null;
+      }
+    });
+
+  hotMetadataSnapshotInFlight = promise;
+  return promise;
+}
+
 function scheduleIdleTask(callback: () => void, timeout = 1200): void {
   if (typeof window === "undefined") return;
   const maybeWindow = window as Window & {
@@ -102,6 +138,33 @@ function waitForIdle(timeout = 1200): Promise<void> {
   return new Promise((resolve) => {
     scheduleIdleTask(() => resolve(), timeout);
   });
+}
+
+function scheduleDeferredMetadataHydration(
+  setPages: (pages: Page[]) => void
+): void {
+  if (
+    deferredMetadataHydrationScheduled ||
+    deferredMetadataHydrationInFlight ||
+    typeof window === "undefined"
+  ) {
+    return;
+  }
+  deferredMetadataHydrationScheduled = true;
+  scheduleIdleTask(() => {
+    deferredMetadataHydrationScheduled = false;
+    deferredMetadataHydrationInFlight = loadPagesSnapshot(false)
+      .then((metadataPages) => {
+        setPages(mergeFullMetadataWithCurrentStore(metadataPages));
+      })
+      .catch(() => {
+        // The fast hot-cache metadata already rendered; full local metadata
+        // hydration can retry on the next page update or refresh.
+      })
+      .finally(() => {
+        deferredMetadataHydrationInFlight = null;
+      });
+  }, 900);
 }
 
 async function hydrateDeferredPageContentBatches(): Promise<void> {
@@ -164,6 +227,33 @@ function mergeMetadataForCount(base: Page[], incoming: Page[]): Page[] {
   return [...byId.values()];
 }
 
+function mergeFullMetadataWithCurrentStore(localMetadata: Page[]): Page[] {
+  const currentPages = useWorkspaceStore.getState().pages;
+  const byId = new Map(localMetadata.map((page) => [page.id, page]));
+  for (const current of currentPages) {
+    const local = byId.get(current.id);
+    if (!local) {
+      byId.set(current.id, current);
+      continue;
+    }
+    const currentIsNewer =
+      (current.updated_at || "").localeCompare(local.updated_at || "") >= 0;
+    const preferred = currentIsNewer ? current : local;
+    byId.set(current.id, {
+      ...preferred,
+      content_text:
+        preferred.content_text === null && current.content_text !== null
+          ? current.content_text
+          : preferred.content_text,
+      content_yjs:
+        preferred.content_yjs === null && current.content_yjs !== null
+          ? current.content_yjs
+          : preferred.content_yjs,
+    });
+  }
+  return [...byId.values()];
+}
+
 export function usePages(options: UsePagesOptions = {}) {
   const includeContent = options.includeContent ?? false;
   const deferContent = options.deferContent ?? false;
@@ -198,6 +288,16 @@ export function usePages(options: UsePagesOptions = {}) {
 
     const renderLocalPagesSnapshot = async (): Promise<boolean> => {
       try {
+        if (!includeContent || metadataFirstContent) {
+          const hotPages = await loadHotCachePageMetadataSnapshot();
+          if (hotPages.length > 0) {
+            all = hotPages;
+            localSnapshotLoaded = true;
+            setPages(hotPages);
+            scheduleDeferredMetadataHydration(setPages);
+            return true;
+          }
+        }
         all = await loadPagesSnapshot(
           metadataFirstContent ? false : includeContent
         );
@@ -300,6 +400,31 @@ export function usePages(options: UsePagesOptions = {}) {
   useEffect(() => {
     if (!autoLoad) return;
     refresh({ broadcast: false });
+  }, [autoLoad, refresh]);
+
+  useEffect(() => {
+    if (!autoLoad) return;
+    if (typeof window === "undefined") return;
+    const handleHotCachePreferencesChanged = () => {
+      void refresh({ broadcast: false, reason: "local-refresh" });
+    };
+    const handleHotCachePreferencesStorage = (event: StorageEvent) => {
+      if (event.key === HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY) {
+        handleHotCachePreferencesChanged();
+      }
+    };
+    window.addEventListener(
+      HOT_CACHE_PREFERENCES_CHANGED_EVENT,
+      handleHotCachePreferencesChanged
+    );
+    window.addEventListener("storage", handleHotCachePreferencesStorage);
+    return () => {
+      window.removeEventListener(
+        HOT_CACHE_PREFERENCES_CHANGED_EVENT,
+        handleHotCachePreferencesChanged
+      );
+      window.removeEventListener("storage", handleHotCachePreferencesStorage);
+    };
   }, [autoLoad, refresh]);
 
   useEffect(() => {

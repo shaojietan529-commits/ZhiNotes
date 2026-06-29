@@ -10016,6 +10016,36 @@ function run() {
     "metadataFirstContent ? false : includeContent",
     "Page and sidebar lists must read the rebuildable local snapshot first, with content callers allowed to start metadata-only."
   );
+  for (const snippet of [
+    "loadHotCachePageMetadataSnapshot",
+    "listHotCachePageMetadata",
+    "HOT_CACHE_PREFERENCES_SETTING_KEY",
+    "metadataRecentLimitForHotCachePreferences(preferences)",
+    "scheduleDeferredMetadataHydration(setPages)",
+    "HOT_CACHE_PREFERENCES_CHANGED_EVENT",
+  ]) {
+    assertIncludes(
+      files.usePages,
+      usePages,
+      snippet,
+      "Page and sidebar lists must use user hot-cache preferences for a bounded metadata first paint."
+    );
+  }
+  for (const snippet of [
+    "export async function listHotCachePageMetadata",
+    "WITH RECURSIVE",
+    "recent_seed(id)",
+    "root_seed(id)",
+    "SELECT ${PAGE_METADATA_SELECT}",
+    "LIMIT ?",
+  ]) {
+    assertIncludes(
+      files.localQueries,
+      localQueries,
+      snippet,
+      "Local page hot-cache metadata queries must stay bounded and metadata-only."
+    );
+  }
   assertIncludes(
     files.usePages,
     usePages,
