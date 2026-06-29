@@ -69,6 +69,39 @@ export interface HtmlAssetSourceFile {
   webkit_relative_path?: string;
 }
 
+export interface HtmlAssetLocalBundle {
+  format: "zhinote-html-assets-local-bundle";
+  format_version: 1;
+  bundle_status: "local-bundle-ready";
+  suggested_file_name: string;
+  html_text: string;
+  summary: {
+    selected_files: number;
+    candidate_asset_files: number;
+    rewritten_references: number;
+    inlined_stylesheets: number;
+    inlined_scripts: number;
+    missing_local_assets: number;
+    remote_resources_left_blocked: number;
+    blocked_protocol_resources_left_blocked: number;
+    total_asset_bytes_read: number;
+  };
+  boundaries: {
+    reads_html_text_now: true;
+    reads_asset_file_names_now: true;
+    reads_asset_bytes_now: true;
+    returns_html_text_to_caller: true;
+    returns_resource_urls: false;
+    returns_asset_file_names: false;
+    rewrites_html_now: true;
+    creates_pages_now: false;
+    loads_external_resources: false;
+    uploads_data: false;
+    enables_ai: false;
+  };
+  privacy_note: string;
+}
+
 export interface HtmlAssetBundleSource {
   id: string;
   label: string;
@@ -123,6 +156,8 @@ interface ExtractedHtmlReference {
   kind: HtmlAssetReferenceKind;
   value: string;
 }
+
+const HTML_ASSET_LOCAL_BUNDLE_MAX_BYTES = 25 * 1024 * 1024;
 
 const RESOURCE_CLASSES: HtmlAssetResourceClass[] = [
   {
@@ -364,6 +399,70 @@ export function buildHtmlAssetReferencePreview(input: {
   };
 }
 
+export async function buildBundledHtmlWithLocalAssets(input: {
+  htmlFile: File;
+  files: File[];
+}): Promise<HtmlAssetLocalBundle> {
+  const selectedFiles = input.files.length > 0 ? input.files : [input.htmlFile];
+  const assetFiles = selectedFiles.filter((file) => file !== input.htmlFile);
+  const totalAssetBytes = assetFiles.reduce((sum, file) => sum + file.size, 0);
+  if (totalAssetBytes > HTML_ASSET_LOCAL_BUNDLE_MAX_BYTES) {
+    throw new Error(
+      "本地 assets 超过 25 MB。为保持页面流畅，请先精简 assets、拆分报告，或改用 ZIP 预检路线。"
+    );
+  }
+  const htmlText = await input.htmlFile.text();
+  const assetIndex = await buildHtmlAssetDataIndex(assetFiles);
+  const stats = {
+    rewritten_references: 0,
+    inlined_stylesheets: 0,
+    inlined_scripts: 0,
+    missing_local_assets: 0,
+    remote_resources_left_blocked: 0,
+    blocked_protocol_resources_left_blocked: 0,
+  };
+
+  let bundledHtml = rewriteStylesheetLinks(htmlText, assetIndex, stats);
+  bundledHtml = rewriteScriptSources(bundledHtml, assetIndex, stats);
+  bundledHtml = rewriteInlineStyleBlocks(bundledHtml, assetIndex, stats);
+  bundledHtml = rewriteElementAssetAttributes(bundledHtml, assetIndex, stats);
+
+  return {
+    format: "zhinote-html-assets-local-bundle",
+    format_version: 1,
+    bundle_status: "local-bundle-ready",
+    suggested_file_name: buildBundledHtmlFileName(input.htmlFile.name),
+    html_text: bundledHtml,
+    summary: {
+      selected_files: selectedFiles.length,
+      candidate_asset_files: assetFiles.length,
+      rewritten_references: stats.rewritten_references,
+      inlined_stylesheets: stats.inlined_stylesheets,
+      inlined_scripts: stats.inlined_scripts,
+      missing_local_assets: stats.missing_local_assets,
+      remote_resources_left_blocked: stats.remote_resources_left_blocked,
+      blocked_protocol_resources_left_blocked:
+        stats.blocked_protocol_resources_left_blocked,
+      total_asset_bytes_read: totalAssetBytes,
+    },
+    boundaries: {
+      reads_html_text_now: true,
+      reads_asset_file_names_now: true,
+      reads_asset_bytes_now: true,
+      returns_html_text_to_caller: true,
+      returns_resource_urls: false,
+      returns_asset_file_names: false,
+      rewrites_html_now: true,
+      creates_pages_now: false,
+      loads_external_resources: false,
+      uploads_data: false,
+      enables_ai: false,
+    },
+    privacy_note:
+      "这个 bundle 只在浏览器本地读取用户主动选择的 HTML 和 assets，把可匹配的本地相对资源改写为 data URL 或内联样式/脚本；不会加载远程资源、不会上传、不会调用 AI，也不会在导出报告中返回资源 URL 或 assets 文件名。",
+  };
+}
+
 function extractHtmlAssetReferences(htmlText: string): ExtractedHtmlReference[] {
   const references: ExtractedHtmlReference[] = [];
   const attrPattern =
@@ -403,6 +502,245 @@ function extractHtmlAssetReferences(htmlText: string): ExtractedHtmlReference[] 
   }
 
   return references;
+}
+
+interface HtmlAssetDataEntry {
+  dataUrl: string;
+  text: string | null;
+  mimeType: string;
+  size: number;
+}
+
+interface HtmlAssetBundleStats {
+  rewritten_references: number;
+  inlined_stylesheets: number;
+  inlined_scripts: number;
+  missing_local_assets: number;
+  remote_resources_left_blocked: number;
+  blocked_protocol_resources_left_blocked: number;
+}
+
+async function buildHtmlAssetDataIndex(files: File[]) {
+  const index = new Map<string, HtmlAssetDataEntry>();
+
+  for (const file of files) {
+    const entry: HtmlAssetDataEntry = {
+      dataUrl: await readFileAsDataUrl(file),
+      text: isTextAsset(file) ? await file.text() : null,
+      mimeType: file.type || inferMimeType(file.name),
+      size: file.size,
+    };
+    const withPath = file as File & { webkitRelativePath?: string };
+    for (const candidate of [file.name, withPath.webkitRelativePath]) {
+      const normalized = normalizeLocalPath(candidate ?? "");
+      if (normalized) index.set(normalized, entry);
+    }
+  }
+
+  return index;
+}
+
+function rewriteStylesheetLinks(
+  html: string,
+  assetIndex: Map<string, HtmlAssetDataEntry>,
+  stats: HtmlAssetBundleStats
+) {
+  return html.replace(/<link\b[^>]*>/gi, (tag) => {
+    const rel = getHtmlAttribute(tag, "rel")?.toLowerCase() ?? "";
+    const href = getHtmlAttribute(tag, "href");
+    if (!rel.includes("stylesheet") || !href) {
+      return rewriteTagAssetAttributes(tag, assetIndex, stats, ["href"]);
+    }
+
+    const entry = resolveLocalAsset(href, assetIndex, stats);
+    if (!entry?.text) return tag;
+
+    stats.inlined_stylesheets += 1;
+    return `<style data-zhinote-local-asset="stylesheet">\n${rewriteCssUrls(
+      entry.text,
+      assetIndex,
+      stats
+    )}\n</style>`;
+  });
+}
+
+function rewriteScriptSources(
+  html: string,
+  assetIndex: Map<string, HtmlAssetDataEntry>,
+  stats: HtmlAssetBundleStats
+) {
+  return html.replace(/<script\b[^>]*\bsrc\s*=\s*(["'])(.*?)\1[^>]*>\s*<\/script>/gi, (tag, _quote, src) => {
+    const entry = resolveLocalAsset(src, assetIndex, stats);
+    if (!entry?.text) return tag;
+
+    stats.inlined_scripts += 1;
+    return `<script data-zhinote-local-asset="script">\n${escapeScriptText(
+      entry.text
+    )}\n</script>`;
+  });
+}
+
+function rewriteInlineStyleBlocks(
+  html: string,
+  assetIndex: Map<string, HtmlAssetDataEntry>,
+  stats: HtmlAssetBundleStats
+) {
+  return html.replace(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi, (_tag, attrs, css) => {
+    return `<style${attrs}>${rewriteCssUrls(css, assetIndex, stats)}</style>`;
+  });
+}
+
+function rewriteElementAssetAttributes(
+  html: string,
+  assetIndex: Map<string, HtmlAssetDataEntry>,
+  stats: HtmlAssetBundleStats
+) {
+  return html.replace(
+    /<\s*(img|source|video|audio|track|embed|object|iframe)\b[^>]*>/gi,
+    (tag) =>
+      rewriteTagAssetAttributes(tag, assetIndex, stats, [
+        "src",
+        "poster",
+        "data",
+        "srcset",
+      ])
+  );
+}
+
+function rewriteTagAssetAttributes(
+  tag: string,
+  assetIndex: Map<string, HtmlAssetDataEntry>,
+  stats: HtmlAssetBundleStats,
+  attributeNames: string[]
+) {
+  let nextTag = tag;
+  for (const attributeName of attributeNames) {
+    const pattern = new RegExp(
+      `\\b${attributeName}\\s*=\\s*(["'])(.*?)\\1`,
+      "i"
+    );
+    nextTag = nextTag.replace(pattern, (attr, quote, value) => {
+      if (attributeName === "srcset") {
+        const rewritten = rewriteSrcset(value, assetIndex, stats);
+        return rewritten === value ? attr : `${attributeName}=${quote}${rewritten}${quote}`;
+      }
+      const entry = resolveLocalAsset(value, assetIndex, stats);
+      return entry ? `${attributeName}=${quote}${entry.dataUrl}${quote}` : attr;
+    });
+  }
+  return nextTag;
+}
+
+function rewriteSrcset(
+  value: string,
+  assetIndex: Map<string, HtmlAssetDataEntry>,
+  stats: HtmlAssetBundleStats
+) {
+  return value
+    .split(",")
+    .map((part) => {
+      const pieces = part.trim().split(/\s+/);
+      const url = pieces[0];
+      const entry = resolveLocalAsset(url, assetIndex, stats);
+      if (!entry) return part.trim();
+      return [entry.dataUrl, ...pieces.slice(1)].join(" ");
+    })
+    .join(", ");
+}
+
+function rewriteCssUrls(
+  css: string,
+  assetIndex: Map<string, HtmlAssetDataEntry>,
+  stats: HtmlAssetBundleStats
+) {
+  return css.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (match, quote, value) => {
+    const entry = resolveLocalAsset(value, assetIndex, stats);
+    if (!entry) return match;
+    return `url(${quote}${entry.dataUrl}${quote})`;
+  });
+}
+
+function resolveLocalAsset(
+  reference: string,
+  assetIndex: Map<string, HtmlAssetDataEntry>,
+  stats: HtmlAssetBundleStats
+) {
+  const normalized = normalizeReference(reference);
+  if (!normalized || normalized.startsWith("#")) return null;
+  if (/^(https?:)?\/\//i.test(normalized) || /^(data|blob):/i.test(normalized)) {
+    if (/^(https?:)?\/\//i.test(normalized)) {
+      stats.remote_resources_left_blocked += 1;
+    }
+    return null;
+  }
+  if (/^(javascript|file|ftp|mailto|tel):/i.test(normalized)) {
+    stats.blocked_protocol_resources_left_blocked += 1;
+    return null;
+  }
+
+  const localPath = normalizeLocalPath(normalized.replace(/^\/+/, ""));
+  for (const [path, entry] of assetIndex.entries()) {
+    if (path === localPath || path.endsWith(`/${localPath}`)) {
+      stats.rewritten_references += 1;
+      return entry;
+    }
+  }
+
+  stats.missing_local_assets += 1;
+  return null;
+}
+
+function getHtmlAttribute(tag: string, attributeName: string) {
+  const match = tag.match(
+    new RegExp(`\\b${attributeName}\\s*=\\s*(["'])(.*?)\\1`, "i")
+  );
+  return match?.[2] ?? null;
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function isTextAsset(file: File) {
+  const extension = getReferenceExtension(file.name);
+  return (
+    file.type.startsWith("text/") ||
+    [".css", ".js", ".mjs", ".json", ".svg", ".xml"].includes(extension)
+  );
+}
+
+function inferMimeType(fileName: string) {
+  const extension = getReferenceExtension(fileName);
+  const mimeTypes: Record<string, string> = {
+    ".css": "text/css",
+    ".js": "text/javascript",
+    ".mjs": "text/javascript",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".ttf": "font/ttf",
+    ".otf": "font/otf",
+  };
+  return mimeTypes[extension] ?? "application/octet-stream";
+}
+
+function buildBundledHtmlFileName(fileName: string) {
+  const base = fileName.replace(/\.(html|htm|xhtml)$/i, "").trim();
+  return `${base || "html-report"} bundled.html`;
+}
+
+function escapeScriptText(value: string) {
+  return value.replace(/<\/script/gi, "<\\/script");
 }
 
 function inferReferenceKind(

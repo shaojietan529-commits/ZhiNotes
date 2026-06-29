@@ -55,6 +55,7 @@ import {
   getFileLibraryReceiptActionKind,
 } from "@/lib/files/filePage";
 import {
+  buildBundledHtmlWithLocalAssets,
   buildHtmlAssetPreflightContract,
   buildHtmlAssetReferencePreview,
   type HtmlAssetReferencePreview,
@@ -120,7 +121,12 @@ function FilesDashboard() {
   const [readingHtmlAssetPreview, setReadingHtmlAssetPreview] = useState(false);
   const [htmlAssetReferencePreview, setHtmlAssetReferencePreview] =
     useState<HtmlAssetReferencePreview | null>(null);
+  const [htmlAssetPreviewFiles, setHtmlAssetPreviewFiles] = useState<File[]>([]);
   const [htmlAssetPreviewError, setHtmlAssetPreviewError] = useState<
+    string | null
+  >(null);
+  const [creatingHtmlAssetPage, setCreatingHtmlAssetPage] = useState(false);
+  const [htmlAssetBundleMessage, setHtmlAssetBundleMessage] = useState<
     string | null
   >(null);
   const [exportingZipPreflight, setExportingZipPreflight] = useState(false);
@@ -359,25 +365,73 @@ function FilesDashboard() {
         "请选择至少一个 HTML/HTM/XHTML 主文件。没有保存文件、没有创建页面。"
       );
       setHtmlAssetReferencePreview(null);
+      setHtmlAssetPreviewFiles([]);
+      setHtmlAssetBundleMessage(null);
       return;
     }
 
     setReadingHtmlAssetPreview(true);
     setHtmlAssetPreviewError(null);
     setHtmlAssetReferencePreview(null);
+    setHtmlAssetPreviewFiles([]);
+    setHtmlAssetBundleMessage(null);
     try {
       const preview = buildHtmlAssetReferencePreview({
         htmlText: await htmlFile.text(),
         files: selectedFiles.map(toHtmlAssetSourceFile),
       });
       setHtmlAssetReferencePreview(preview);
+      setHtmlAssetPreviewFiles(selectedFiles);
     } catch (err) {
       console.error("[Zhinote] Failed to preview HTML assets:", err);
       setHtmlAssetPreviewError(
         "无法读取这个 HTML 的资源引用。没有保存文件、没有加载外部资源、没有创建页面。"
       );
+      setHtmlAssetPreviewFiles([]);
     } finally {
       setReadingHtmlAssetPreview(false);
+    }
+  };
+
+  const handleCreateHtmlAssetPage = async () => {
+    const htmlFile = htmlAssetPreviewFiles.find((file) =>
+      isHtmlPreviewFile(file)
+    );
+    if (!htmlFile) {
+      window.alert("请先选择 HTML 主文件和可选 assets，再创建本地保真页面。");
+      return;
+    }
+
+    setCreatingHtmlAssetPage(true);
+    setHtmlAssetPreviewError(null);
+    setHtmlAssetBundleMessage(null);
+    warmPagePeekModal();
+    try {
+      const bundle = await buildBundledHtmlWithLocalAssets({
+        htmlFile,
+        files: htmlAssetPreviewFiles,
+      });
+      const bundledFile = new File([bundle.html_text], bundle.suggested_file_name, {
+        type: "text/html",
+      });
+      const storedFile = await savePageFile(bundledFile);
+      const page = await createFileLibraryPageFromStoredFile(storedFile, {
+        receiptNote:
+          "HTML assets 已在浏览器本地改写为保真 HTML 页面；没有上传、联网、调用 AI 或加载外部资源。",
+      });
+      upsertPages([page]);
+      await loadStoredFiles();
+      setHtmlAssetBundleMessage(
+        `已创建本地保真页面：改写 ${bundle.summary.rewritten_references} 个本地资源，内联 ${bundle.summary.inlined_stylesheets} 个样式和 ${bundle.summary.inlined_scripts} 个脚本。文件仍只保存在本地浏览器。`
+      );
+      openCreatedFilePage(page);
+    } catch (err) {
+      console.error("[Zhinote] Failed to create bundled HTML asset page:", err);
+      setHtmlAssetPreviewError(
+        "无法创建 HTML assets 本地保真页面。没有上传、没有联网、没有调用 AI。"
+      );
+    } finally {
+      setCreatingHtmlAssetPage(false);
     }
   };
 
@@ -455,7 +509,10 @@ function FilesDashboard() {
     }
   };
 
-  const createFileLibraryPageFromStoredFile = async (storedFile: StoredPageFile) => {
+  const createFileLibraryPageFromStoredFile = async (
+    storedFile: StoredPageFile,
+    opts?: { receiptNote?: string }
+  ) => {
     const { createPageWithCloud, updatePageWithCloud } =
       await loadPageMutationModule();
     const page = await createPageWithCloud({
@@ -475,9 +532,10 @@ function FilesDashboard() {
         confirmation_required: false,
         confirmation_matched: true,
         note:
-          actionKind === "download-retain"
+          opts?.receiptNote ??
+          (actionKind === "download-retain"
             ? "文件已从文件模块本地留存，并创建通用文件页面；没有上传、同步或调用 AI。"
-            : "文件已从文件模块创建为本地页面预览；没有上传、同步或调用 AI。",
+            : "文件已从文件模块创建为本地页面预览；没有上传、同步或调用 AI。"),
       })
     );
     return updatedPage ?? page;
@@ -667,11 +725,14 @@ function FilesDashboard() {
           contract={htmlAssetPreflight}
           exporting={exportingHtmlAssetPreflight}
           readingPreview={readingHtmlAssetPreview}
+          creatingBundledPage={creatingHtmlAssetPage}
           preview={htmlAssetReferencePreview}
           previewError={htmlAssetPreviewError}
+          bundleMessage={htmlAssetBundleMessage}
           onExport={handleExportHtmlAssetPreflight}
           onExportPreview={handleExportHtmlAssetReferencePreview}
           onChoosePreview={handleChooseHtmlAssetPreview}
+          onCreateBundledPage={handleCreateHtmlAssetPage}
         />
 
         <ZipImportPreflightPanel
@@ -990,20 +1051,26 @@ function HtmlAssetPreflightPanel({
   contract,
   exporting,
   readingPreview,
+  creatingBundledPage,
   preview,
   previewError,
+  bundleMessage,
   onExport,
   onExportPreview,
   onChoosePreview,
+  onCreateBundledPage,
 }: {
   contract: ReturnType<typeof buildHtmlAssetPreflightContract>;
   exporting: boolean;
   readingPreview: boolean;
+  creatingBundledPage: boolean;
   preview: HtmlAssetReferencePreview | null;
   previewError: string | null;
+  bundleMessage: string | null;
   onExport: () => void;
   onExportPreview: () => void;
   onChoosePreview: () => void;
+  onCreateBundledPage: () => void;
 }) {
   return (
     <section
@@ -1020,9 +1087,10 @@ function HtmlAssetPreflightPanel({
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
             面向 AI 生成的 HTML 可视化报告。你可以一次选择 HTML 主文件和同目录
-            assets，ZhiNotes 只统计资源类别、本地匹配数量和扩展名分布；
-            不返回资源 URL 或 assets 文件名，不读取图片/脚本 bytes，不改写 HTML，
-            不创建页面、不上传、不调用 AI。
+            assets。预检阶段只统计资源类别、本地匹配数量和扩展名分布；
+            不返回资源 URL 或 assets 文件名，不读取 asset bytes。
+            确认后可创建一个本地保真页面，把匹配到的 assets 改写进 HTML；
+            仍不上传、不联网、不调用 AI。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1051,10 +1119,18 @@ function HtmlAssetPreflightPanel({
         </div>
       )}
 
+      {bundleMessage && (
+        <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+          {bundleMessage}
+        </div>
+      )}
+
       {preview && (
         <HtmlAssetReferencePreviewPanel
           preview={preview}
+          creatingBundledPage={creatingBundledPage}
           onExportPreview={onExportPreview}
+          onCreateBundledPage={onCreateBundledPage}
         />
       )}
 
@@ -1122,10 +1198,14 @@ function HtmlAssetPreflightPanel({
 
 function HtmlAssetReferencePreviewPanel({
   preview,
+  creatingBundledPage,
   onExportPreview,
+  onCreateBundledPage,
 }: {
   preview: HtmlAssetReferencePreview;
+  creatingBundledPage: boolean;
   onExportPreview: () => void;
+  onCreateBundledPage: () => void;
 }) {
   return (
     <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/40">
@@ -1151,6 +1231,14 @@ function HtmlAssetReferencePreviewPanel({
             className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 dark:hover:bg-emerald-900"
           >
             导出 HTML assets 引用预览
+          </button>
+          <button
+            type="button"
+            onClick={onCreateBundledPage}
+            disabled={creatingBundledPage}
+            className="rounded-md bg-emerald-700 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-emerald-600 disabled:cursor-wait disabled:opacity-60"
+          >
+            {creatingBundledPage ? "创建中..." : "创建本地保真页面"}
           </button>
         </div>
       </div>
@@ -1235,12 +1323,16 @@ function HtmlAssetReferencePreviewPanel({
           {preview.next_steps.map((step) => (
             <li key={step}>{step}</li>
           ))}
+          <li>
+            点击“创建本地保真页面”后才会读取匹配 assets 的 bytes、改写 HTML
+            并创建 page；这个动作不会上传、不会联网、不会调用 AI。
+          </li>
         </ul>
       </div>
 
       <div className="mt-4 rounded-md bg-white/80 px-3 py-2 text-xs leading-5 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
-        边界：读取 HTML 文本和 assets 文件名用于本地匹配；不读取 asset bytes、
-        不返回 URL 或文件名、不改写 HTML、不创建 page、不上传、不调用 AI。
+        边界：预检只读取 HTML 文本和 assets 文件名用于本地匹配；点击创建后只在本地读取匹配
+        assets bytes 并改写 HTML，不上传、不联网、不调用 AI。
       </div>
     </div>
   );
