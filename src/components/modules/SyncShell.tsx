@@ -464,6 +464,11 @@ import {
   type SyncReplayOwnerReviewStatus,
 } from "@/lib/sync/syncReplayOwnerReviewPacket";
 import {
+  buildSyncReplayEnablementGate,
+  type SyncReplayEnablementGate,
+  type SyncReplayEnablementGateStatus,
+} from "@/lib/sync/syncReplayEnablementGate";
+import {
   buildCommentVersionReplayApiDisabledResponse,
 } from "@/lib/sync/commentVersionReplayApiStub";
 import {
@@ -537,6 +542,7 @@ type SyncQueueAction =
   | "sync-ack-ledger-replay-enablement"
   | "sync-replay-test-api-guard"
   | "sync-replay-owner-review-packet"
+  | "sync-replay-enablement-gate"
   | "comment-version-replay-api-guard"
   | "comment-version-replay-receipt"
   | "rollback-plan"
@@ -2255,6 +2261,25 @@ function SyncDashboard() {
       remoteBaselineReplayHarnessPreflight,
       remoteBaselineStageReplay,
       workspaceIdentity,
+    ]
+  );
+  const syncReplayEnablementGate = useMemo(
+    () =>
+      buildSyncReplayEnablementGate({
+        ownerReviewPacket: syncReplayOwnerReviewPacket,
+        confirmationReceipt: remoteBaselineReplayConfirmationReceipt,
+        replayApiGuard: syncReplayTestApiGuard,
+        fixturePackage: remoteBaselineReplayFixturePackage,
+        harnessPreflight: remoteBaselineReplayHarnessPreflight,
+        runnerSkeleton: remoteBaselineReplayRunnerSkeleton,
+      }),
+    [
+      remoteBaselineReplayConfirmationReceipt,
+      remoteBaselineReplayFixturePackage,
+      remoteBaselineReplayHarnessPreflight,
+      remoteBaselineReplayRunnerSkeleton,
+      syncReplayOwnerReviewPacket,
+      syncReplayTestApiGuard,
     ]
   );
   const restoreRollbackPlan = useMemo(
@@ -4627,6 +4652,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncReplayEnablementGate = () => {
+    setBusyQueueAction("sync-replay-enablement-gate");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-replay-enablement-gate-${fileSafeTimestamp()}.json`,
+        {
+          ...syncReplayEnablementGate,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync replay enablement gate:",
+        err
+      );
+      window.alert("同步回放启用门禁导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncOptInGate = () => {
     setBusyQueueAction("opt-in-gate");
     try {
@@ -6516,6 +6562,12 @@ function SyncDashboard() {
           confirmationReceipt={remoteBaselineReplayConfirmationReceipt}
           busy={busyQueueAction === "sync-replay-owner-review-packet"}
           onExport={handleExportSyncReplayOwnerReviewPacket}
+        />
+
+        <SyncReplayEnablementGatePanel
+          gate={syncReplayEnablementGate}
+          busy={busyQueueAction === "sync-replay-enablement-gate"}
+          onExport={handleExportSyncReplayEnablementGate}
         />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -13820,6 +13872,191 @@ function SyncReplayOwnerReviewStatusPill({
     status === "local-ready"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : status === "owner-decision"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function SyncReplayEnablementGatePanel({
+  gate,
+  busy,
+  onExport,
+}: {
+  gate: SyncReplayEnablementGate;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="sync-replay-enablement-gate"
+      data-testid="sync-replay-enablement-gate"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              同步回放启用门禁
+            </h2>
+            <SyncReplayEnablementGateStatusPill status="blocked" />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            把 Owner Review Packet、确认收据、disabled API、空 fixture、harness
+            和 runner skeleton 串成一张本地门禁表。当前仍禁止云端回放、禁止启用 API、
+            禁止连接数据库、禁止应用 SQL、禁止上传数据。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出启用门禁"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <PayloadSummaryCard
+          label="结论"
+          value={gate.replay_decision}
+          detail="当前仍禁止"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="Gates"
+          value={gate.summary.gates}
+          detail={`${gate.summary.blocked} blocked`}
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="确认"
+          value={
+            gate.local_evidence.confirmation_phrase_matches
+              ? "已匹配"
+              : "未匹配"
+          }
+          detail={gate.local_evidence.confirmation_status}
+          tone={
+            gate.local_evidence.confirmation_phrase_matches ? "low" : "medium"
+          }
+        />
+        <PayloadSummaryCard
+          label="API"
+          value={gate.local_evidence.replay_api_disabled ? "关闭" : "开启"}
+          detail="/api/sync/replay-test"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="Fixture"
+          value={gate.local_evidence.fixture_empty_workspaces}
+          detail={`${gate.local_evidence.fixture_stage_seed_rows} stage rows`}
+          tone="low"
+        />
+        <PayloadSummaryCard
+          label="Runner"
+          value={gate.local_evidence.runner_can_run_now ? "可运行" : "关闭"}
+          detail={`${gate.local_evidence.runner_blocked} blockers`}
+          tone="high"
+        />
+      </div>
+
+      <div className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        <div className="font-semibold text-zinc-700 dark:text-zinc-200">
+          当前仍禁止
+        </div>
+        <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+          这个门禁是本地只读检查，不会因为导出而批准或运行回放。它不会连接云端、
+          不会创建一次性数据库、不会应用 SQL、不会写服务端数据、不会上传工作区数据。
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="启用 gate">
+          <div className="space-y-2">
+            {gate.gates.map((item) => (
+              <SyncReplayEnablementGateRow key={item.id} item={item} />
+            ))}
+          </div>
+        </ContractPanel>
+        <div className="grid gap-3">
+          <ContractPanel title="禁止动作">
+            <div className="flex flex-wrap gap-2">
+              {gate.blocked_actions.map((action) => (
+                <span
+                  key={action}
+                  className="rounded-md bg-red-50 px-2 py-1 font-mono text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300"
+                >
+                  {action}
+                </span>
+              ))}
+            </div>
+          </ContractPanel>
+          <ContractPanel title="下一步控制项">
+            <div className="space-y-2">
+              {gate.next_required_controls.map((control) => (
+                <div
+                  key={control}
+                  className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+                >
+                  {control}
+                </div>
+              ))}
+            </div>
+          </ContractPanel>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SyncReplayEnablementGateRow({
+  item,
+}: {
+  item: SyncReplayEnablementGate["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {item.id} · {item.source}
+          </div>
+        </div>
+        <SyncReplayEnablementGateStatusPill status={item.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {item.required_before_replay}
+      </p>
+    </article>
+  );
+}
+
+function SyncReplayEnablementGateStatusPill({
+  status,
+}: {
+  status: SyncReplayEnablementGateStatus;
+}) {
+  const labels: Record<SyncReplayEnablementGateStatus, string> = {
+    "local-ready": "local ready",
+    "owner-confirmation": "owner",
+    blocked: "blocked",
+  };
+  const className =
+    status === "local-ready"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "owner-confirmation"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 

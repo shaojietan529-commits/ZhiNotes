@@ -95,6 +95,8 @@ const files = {
   syncReplayTestRoute: "src/app/api/sync/replay-test/route.ts",
   syncReplayOwnerReviewPacket:
     "src/lib/sync/syncReplayOwnerReviewPacket.ts",
+  syncReplayEnablementGate:
+    "src/lib/sync/syncReplayEnablementGate.ts",
   commentVersionCloudReplayContract:
     "src/lib/sync/commentVersionCloudReplayContract.ts",
   commentVersionReplayReceipt:
@@ -509,6 +511,9 @@ function run() {
   const syncReplayOwnerReviewPacket = readProjectFile(
     files.syncReplayOwnerReviewPacket
   );
+  const syncReplayEnablementGate = readProjectFile(
+    files.syncReplayEnablementGate
+  );
   const commentVersionCloudReplayContract = readProjectFile(
     files.commentVersionCloudReplayContract
   );
@@ -741,6 +746,7 @@ function run() {
     [files.syncAckLedgerReplayEnablement, syncAckLedgerReplayEnablement],
     [files.syncReplayTestApiStub, syncReplayTestApiStub],
     [files.syncReplayOwnerReviewPacket, syncReplayOwnerReviewPacket],
+    [files.syncReplayEnablementGate, syncReplayEnablementGate],
     [
       files.commentVersionCloudReplayContract,
       commentVersionCloudReplayContract,
@@ -9353,6 +9359,195 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-replay-enablement-gate"',
+      "Sync replay enablement gate must expose a stable format.",
+    ],
+    [
+      'gate_status: "local-disabled-enablement-gate"',
+      "Sync replay enablement gate must stay local and disabled.",
+    ],
+    [
+      'replay_decision: "blocked-local-prep-only"',
+      "Sync replay enablement gate must keep replay blocked.",
+    ],
+    [
+      "buildSyncReplayEnablementGate",
+      "Sync replay enablement gate must expose a builder.",
+    ],
+    [
+      "can_export_gate_now: true",
+      "Sync replay enablement gate must be exportable locally.",
+    ],
+    [
+      "can_run_disposable_cloud_replay_now: false",
+      "Sync replay enablement gate must not run disposable replay.",
+    ],
+    [
+      "can_enable_replay_api_now: false",
+      "Sync replay enablement gate must not enable replay API.",
+    ],
+    [
+      "can_connect_cloud_now: false",
+      "Sync replay enablement gate must not connect cloud.",
+    ],
+    [
+      "can_create_disposable_database_now: false",
+      "Sync replay enablement gate must not create disposable database.",
+    ],
+    [
+      "can_apply_sql_now: false",
+      "Sync replay enablement gate must not apply SQL.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Sync replay enablement gate must not write server data.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Sync replay enablement gate must not upload workspace data.",
+    ],
+    [
+      "local_gate_only: true",
+      "Sync replay enablement gate must be local gate only.",
+    ],
+    [
+      "reads_owner_review_metadata: true",
+      "Sync replay enablement gate must read owner review metadata only.",
+    ],
+    [
+      "reads_confirmation_metadata: true",
+      "Sync replay enablement gate must read confirmation metadata only.",
+    ],
+    [
+      "reads_api_guard_metadata: true",
+      "Sync replay enablement gate must read API guard metadata only.",
+    ],
+    [
+      "reads_fixture_metadata: true",
+      "Sync replay enablement gate must read fixture metadata only.",
+    ],
+    [
+      "reads_harness_metadata: true",
+      "Sync replay enablement gate must read harness metadata only.",
+    ],
+    [
+      "reads_runner_metadata: true",
+      "Sync replay enablement gate must read runner metadata only.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Sync replay enablement gate must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Sync replay enablement gate must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Sync replay enablement gate must not read comment bodies.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Sync replay enablement gate must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Sync replay enablement gate must not read secrets.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Sync replay enablement gate must not send network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Sync replay enablement gate must not connect cloud services.",
+    ],
+    [
+      "creates_disposable_database: false",
+      "Sync replay enablement gate must not create disposable database.",
+    ],
+    [
+      "applies_sql: false",
+      "Sync replay enablement gate must not apply SQL.",
+    ],
+    [
+      "writes_server_data: false",
+      "Sync replay enablement gate must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Sync replay enablement gate must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Sync replay enablement gate must not mutate sync_log.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Sync replay enablement gate must not mark rows synced.",
+    ],
+    [
+      "enables_replay_api: false",
+      "Sync replay enablement gate must not enable replay API.",
+    ],
+    [
+      "enables_sync_push: false",
+      "Sync replay enablement gate must not enable sync push.",
+    ],
+    [
+      "touches_production_workspace: false",
+      "Sync replay enablement gate must not touch production workspace.",
+    ],
+    [
+      "owner-review-packet-present",
+      "Sync replay enablement gate must check owner review packet.",
+    ],
+    [
+      "confirmation-phrase-aligned",
+      "Sync replay enablement gate must check phrase alignment.",
+    ],
+    [
+      "owner-confirmation-matches",
+      "Sync replay enablement gate must check owner confirmation receipt.",
+    ],
+    [
+      "replay-api-disabled",
+      "Sync replay enablement gate must keep replay API disabled.",
+    ],
+    [
+      "empty-fixture-only",
+      "Sync replay enablement gate must check empty fixture only.",
+    ],
+    [
+      "harness-disabled",
+      "Sync replay enablement gate must keep harness disabled.",
+    ],
+    [
+      "runner-disabled",
+      "Sync replay enablement gate must keep runner disabled.",
+    ],
+    [
+      "zero-private-payload",
+      "Sync replay enablement gate must check zero private payload.",
+    ],
+    [
+      "run_disposable_cloud_replay",
+      "Sync replay enablement gate must block disposable replay.",
+    ],
+    [
+      "touch_production_workspace",
+      "Sync replay enablement gate must block production workspace access.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.syncReplayEnablementGate,
+      syncReplayEnablementGate,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "NextRequest",
       "Sync replay test route must not accept a request object while disabled.",
     ],
@@ -9524,6 +9719,26 @@ function run() {
     [
       "当前一次性回放确认收据短语",
       "Sync UI must compare the owner packet phrase to the replay receipt phrase.",
+    ],
+    [
+      "buildSyncReplayEnablementGate",
+      "Sync UI must build the sync replay enablement gate.",
+    ],
+    [
+      "sync-replay-enablement-gate",
+      "Sync UI must render the sync replay enablement gate panel.",
+    ],
+    [
+      "同步回放启用门禁",
+      "Sync UI must expose the sync replay enablement gate section.",
+    ],
+    [
+      "导出启用门禁",
+      "Sync UI must expose the sync replay enablement gate export.",
+    ],
+    [
+      "当前仍禁止",
+      "Sync UI must state replay is still forbidden.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -10233,6 +10448,63 @@ function run() {
     assertSourceExcludes(
       files.syncReplayOwnerReviewPacket,
       syncReplayOwnerReviewPacket,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Sync replay enablement gate must not access page content text.",
+    ],
+    [
+      "field_values",
+      "Sync replay enablement gate must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Sync replay enablement gate must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Sync replay enablement gate must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Sync replay enablement gate must not access file text.",
+    ],
+    [
+      "fetch(",
+      "Sync replay enablement gate must not call network APIs.",
+    ],
+    [
+      "process.env",
+      "Sync replay enablement gate must not read environment variables.",
+    ],
+    [
+      "localStorage.setItem",
+      "Sync replay enablement gate must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Sync replay enablement gate must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Sync replay enablement gate must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Sync replay enablement gate must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Sync replay enablement gate must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.syncReplayEnablementGate,
+      syncReplayEnablementGate,
       snippet,
       message
     );

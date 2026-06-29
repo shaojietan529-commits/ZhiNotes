@@ -27,6 +27,8 @@ const files = {
   syncReplayTestRoute: "src/app/api/sync/replay-test/route.ts",
   syncReplayOwnerReviewPacket:
     "src/lib/sync/syncReplayOwnerReviewPacket.ts",
+  syncReplayEnablementGate:
+    "src/lib/sync/syncReplayEnablementGate.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -361,6 +363,9 @@ function run() {
   const syncReplayTestRoute = readProjectFile(files.syncReplayTestRoute);
   const syncReplayOwnerReviewPacket = readProjectFile(
     files.syncReplayOwnerReviewPacket
+  );
+  const syncReplayEnablementGate = readProjectFile(
+    files.syncReplayEnablementGate
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
@@ -2697,6 +2702,115 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-replay-enablement-gate"',
+      "Sync replay enablement gate must expose a stable format.",
+    ],
+    [
+      'gate_status: "local-disabled-enablement-gate"',
+      "Sync replay enablement gate must stay local and disabled.",
+    ],
+    [
+      'replay_decision: "blocked-local-prep-only"',
+      "Sync replay enablement gate must keep replay blocked.",
+    ],
+    [
+      "can_run_disposable_cloud_replay_now: false",
+      "Sync replay enablement gate must not run disposable replay.",
+    ],
+    [
+      "can_enable_replay_api_now: false",
+      "Sync replay enablement gate must not enable replay API.",
+    ],
+    [
+      "can_connect_cloud_now: false",
+      "Sync replay enablement gate must not connect cloud.",
+    ],
+    [
+      "can_create_disposable_database_now: false",
+      "Sync replay enablement gate must not create disposable database.",
+    ],
+    [
+      "can_apply_sql_now: false",
+      "Sync replay enablement gate must not apply SQL.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Sync replay enablement gate must not write server data.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Sync replay enablement gate must not upload workspace data.",
+    ],
+    [
+      "local_gate_only: true",
+      "Sync replay enablement gate must be local gate only.",
+    ],
+    [
+      "reads_owner_review_metadata: true",
+      "Sync replay enablement gate must read owner review metadata only.",
+    ],
+    [
+      "reads_confirmation_metadata: true",
+      "Sync replay enablement gate must read confirmation metadata only.",
+    ],
+    [
+      "reads_fixture_metadata: true",
+      "Sync replay enablement gate must read fixture metadata only.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Sync replay enablement gate must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Sync replay enablement gate must not read database row values.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Sync replay enablement gate must not send network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Sync replay enablement gate must not connect cloud services.",
+    ],
+    [
+      "creates_disposable_database: false",
+      "Sync replay enablement gate must not create disposable database.",
+    ],
+    [
+      "applies_sql: false",
+      "Sync replay enablement gate must not apply SQL.",
+    ],
+    [
+      "writes_server_data: false",
+      "Sync replay enablement gate must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Sync replay enablement gate must not upload workspace data.",
+    ],
+    [
+      "enables_replay_api: false",
+      "Sync replay enablement gate must not enable replay API.",
+    ],
+    [
+      "run_disposable_cloud_replay",
+      "Sync replay enablement gate must block disposable replay.",
+    ],
+    [
+      "touch_production_workspace",
+      "Sync replay enablement gate must block production workspace access.",
+    ],
+  ]) {
+    assertIncludes(
+      files.syncReplayEnablementGate,
+      syncReplayEnablementGate,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildSyncAckRetryLedgerContract",
       "Sync UI must build the sync ack/retry ledger contract.",
     ],
@@ -2847,6 +2961,26 @@ function run() {
     [
       "当前一次性回放确认收据短语",
       "Sync UI must compare the owner packet phrase to the replay receipt phrase.",
+    ],
+    [
+      "buildSyncReplayEnablementGate",
+      "Sync UI must build the sync replay enablement gate.",
+    ],
+    [
+      "sync-replay-enablement-gate",
+      "Sync UI must render the sync replay enablement gate panel.",
+    ],
+    [
+      "同步回放启用门禁",
+      "Sync UI must expose the sync replay enablement gate section.",
+    ],
+    [
+      "导出启用门禁",
+      "Sync UI must expose the sync replay enablement gate export.",
+    ],
+    [
+      "当前仍禁止",
+      "Sync UI must state replay is still forbidden.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);
