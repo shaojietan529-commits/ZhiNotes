@@ -24,6 +24,8 @@ import {
 import {
   clearPageRouteHandoff,
   readPageRouteHandoff,
+  readPageRouteHandoffSource,
+  type PageRouteHandoffSource,
 } from "@/lib/pages/pageRouteHandoff";
 import {
   publishPageBodyHydrationStatus,
@@ -42,8 +44,12 @@ import type { Page } from "@/lib/utils/types";
 
 const PAGE_CLOUD_HYDRATION_IDLE_MS = 700;
 const PAGE_LOCAL_BODY_HYDRATION_IDLE_MS = 220;
+const PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_DELAY_MS = 24;
+const PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_IDLE_MS = 80;
 const MAX_REMOTE_COVER_CHARS = 300 * 1024;
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
+
+type PageLocalBodyHydrationPriority = "background" | "interactive";
 
 interface OptimisticPageLocalCachePersistState {
   latest: RemotePageRecord;
@@ -115,6 +121,9 @@ export function usePage(
       setLoadingForCurrentLoad(false);
       return;
     }
+    const localBodyHydrationPriority = getPageLocalBodyHydrationPriority(
+      readPageRouteHandoffSource(pageId)
+    );
     let localPage =
       visiblePageRef.current?.id === pageId
         ? visiblePageRef.current
@@ -168,7 +177,8 @@ export function usePage(
               : localPage,
           setPageForCurrentLoad,
           upsertPages,
-          surface
+          surface,
+          localBodyHydrationPriority
         );
         return;
       }
@@ -568,7 +578,8 @@ function schedulePageLocalBodyHydration(
   getLocalPage: () => Page | null,
   setPage: (page: Page | null) => void,
   upsertPages: (pages: Page[]) => void,
-  surface: PageBodyHydrationSurface
+  surface: PageBodyHydrationSurface,
+  priority: PageLocalBodyHydrationPriority = "background"
 ): void {
   const run = () => {
     void refreshPageBodyFromLocalCache(
@@ -590,6 +601,18 @@ function schedulePageLocalBodyHydration(
       options?: { timeout?: number }
     ) => number;
   };
+  if (priority === "interactive") {
+    window.setTimeout(() => {
+      if (maybeWindow.requestIdleCallback) {
+        maybeWindow.requestIdleCallback(run, {
+          timeout: PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_IDLE_MS,
+        });
+        return;
+      }
+      run();
+    }, PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_DELAY_MS);
+    return;
+  }
   if (maybeWindow.requestIdleCallback) {
     maybeWindow.requestIdleCallback(run, {
       timeout: PAGE_LOCAL_BODY_HYDRATION_IDLE_MS,
@@ -597,6 +620,12 @@ function schedulePageLocalBodyHydration(
     return;
   }
   window.setTimeout(run, Math.min(PAGE_LOCAL_BODY_HYDRATION_IDLE_MS, 80));
+}
+
+function getPageLocalBodyHydrationPriority(
+  source: PageRouteHandoffSource | null
+): PageLocalBodyHydrationPriority {
+  return source ? "interactive" : "background";
 }
 
 async function refreshPageBodyFromLocalCache(

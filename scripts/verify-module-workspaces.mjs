@@ -267,6 +267,12 @@ check(
     usePageHook.includes("setLoadingForCurrentLoad(false);") &&
     usePageHook.includes("schedulePageCloudHydration(\n        pageId,\n        () =>") &&
     usePageHook.includes("visiblePageRef.current?.id === pageId") &&
+    usePageHook.includes("readPageRouteHandoffSource(pageId)") &&
+    usePageHook.includes("getPageLocalBodyHydrationPriority") &&
+    usePageHook.includes("localBodyHydrationPriority") &&
+    usePageHook.includes("PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_DELAY_MS = 24") &&
+    usePageHook.includes("PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_IDLE_MS = 80") &&
+    usePageHook.includes('priority === "interactive"') &&
     usePageHook.includes("const latestLocalPage = getLocalPage();") &&
     usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
     usePageHook.includes("requestIdleCallback(run") &&

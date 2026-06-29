@@ -3755,6 +3755,30 @@ function run() {
       "Page opening must defer local full-body reads until after metadata first paint.",
     ],
     [
+      "readPageRouteHandoffSource(pageId)",
+      "Page opening must identify explicit local-first navigation sources before scheduling body hydration.",
+    ],
+    [
+      "getPageLocalBodyHydrationPriority",
+      "Page opening must derive a body hydration priority from the route handoff source.",
+    ],
+    [
+      "localBodyHydrationPriority",
+      "Page opening must pass the navigation-aware local body hydration priority into the scheduler.",
+    ],
+    [
+      "PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_DELAY_MS = 24",
+      "Page opening must keep explicit-click local body hydration nearly immediate without blocking first paint.",
+    ],
+    [
+      "PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_IDLE_MS = 80",
+      "Page opening must keep explicit-click local body hydration bounded even when the browser is busy.",
+    ],
+    [
+      'priority === "interactive"',
+      "Page opening must have a distinct interactive body-hydration path for clicked pages.",
+    ],
+    [
       "refreshPageBodyFromLocalCache",
       "Page opening must hydrate the full local page body through a separate background path.",
     ],
