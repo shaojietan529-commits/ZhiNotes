@@ -5678,6 +5678,30 @@ function run() {
       "Meeting schedule creation/import controls must warm the page shell and peek editor even on fast clicks.",
     ],
     [
+      "const creatingMeetingDateKeyRef = useRef<string | null>(null)",
+      "Meeting calendar quick-create must guard duplicate pointer and click events before React state catches up.",
+    ],
+    [
+      "creatingMeetingDateKeyRef.current = dateKey",
+      "Meeting calendar quick-create must mark the date as creating before opening the local draft.",
+    ],
+    [
+      "const addMeetingOnPointerDown = useCallback",
+      "Meeting calendar + must create from pointer-down so the user gets immediate feedback.",
+    ],
+    [
+      "const addMeetingOnMouseDown = useCallback",
+      "Meeting calendar + must also handle mouse-down for browsers that delay click delivery.",
+    ],
+    [
+      "onPointerDown={(event) => addMeetingOnPointerDown(event, key)}",
+      "Meeting calendar date-cell + must bind the pointer-down quick-create path.",
+    ],
+    [
+      "onMouseDown={(event) => addMeetingOnMouseDown(event, key)}",
+      "Meeting calendar date-cell + must bind the mouse-down quick-create path.",
+    ],
+    [
       "onFocus={warmMeetingPeekOpen}",
       "Meeting schedule controls must warm the page shell and peek editor for keyboard users before navigation.",
     ],

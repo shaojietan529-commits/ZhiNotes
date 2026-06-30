@@ -8176,6 +8176,21 @@ function run() {
     "onPointerDown={warmMeetingPeekOpen}",
     "Meeting create/import controls must warm the page shell and peek editor even on fast clicks."
   );
+  for (const snippet of [
+    "const creatingMeetingDateKeyRef = useRef<string | null>(null)",
+    "creatingMeetingDateKeyRef.current = dateKey",
+    "const addMeetingOnPointerDown = useCallback",
+    "const addMeetingOnMouseDown = useCallback",
+    "onPointerDown={(event) => addMeetingOnPointerDown(event, key)}",
+    "onMouseDown={(event) => addMeetingOnMouseDown(event, key)}",
+  ]) {
+    assertIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      "Meeting calendar + must create from pointer/mouse down with a duplicate guard so fast clicks do not feel ignored."
+    );
+  }
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,

@@ -7,6 +7,8 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent,
+  type PointerEvent,
 } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -315,6 +317,7 @@ export default function MeetingScheduleShell() {
   const [creatingMeetingDateKey, setCreatingMeetingDateKey] = useState<
     string | null
   >(null);
+  const creatingMeetingDateKeyRef = useRef<string | null>(null);
   const [openingDraft, setOpeningDraft] =
     useState<OpeningMeetingDraft | null>(null);
   const { viewMonth, setViewMonth } =
@@ -2297,7 +2300,8 @@ export default function MeetingScheduleShell() {
 
   const quickCreateMeetingForDate = useCallback(
     (dateKey: string) => {
-      if (creatingMeetingDateKey !== null) return;
+      if (creatingMeetingDateKeyRef.current !== null) return;
+      creatingMeetingDateKeyRef.current = dateKey;
       setCreatingMeetingDateKey(dateKey);
       setIntakeError("");
       setIntakeMessage(`${dateKey} 的会议页面正在弹出，后台会继续保存到账号云端…`);
@@ -2328,6 +2332,9 @@ export default function MeetingScheduleShell() {
         setIntakeMessage("");
       } finally {
         window.setTimeout(() => {
+          if (creatingMeetingDateKeyRef.current === dateKey) {
+            creatingMeetingDateKeyRef.current = null;
+          }
           setCreatingMeetingDateKey((current) =>
             current === dateKey ? null : current
           );
@@ -2336,10 +2343,33 @@ export default function MeetingScheduleShell() {
     },
     [
       createMeetingPage,
-      creatingMeetingDateKey,
       focusCalendarDate,
       openCreatedMeetingPage,
     ]
+  );
+
+  const addMeetingOnMouseDown = useCallback(
+    (event: MouseEvent<HTMLButtonElement>, dateKey: string) => {
+      if (event.button !== 0) return;
+      if (creatingMeetingDateKeyRef.current !== null) return;
+      event.preventDefault();
+      warmMeetingPeekOpen();
+      hydrateMeetingDateKey(dateKey);
+      quickCreateMeetingForDate(dateKey);
+    },
+    [hydrateMeetingDateKey, quickCreateMeetingForDate, warmMeetingPeekOpen]
+  );
+
+  const addMeetingOnPointerDown = useCallback(
+    (event: PointerEvent<HTMLButtonElement>, dateKey: string) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (creatingMeetingDateKeyRef.current !== null) return;
+      event.preventDefault();
+      warmMeetingPeekOpen();
+      hydrateMeetingDateKey(dateKey);
+      quickCreateMeetingForDate(dateKey);
+    },
+    [hydrateMeetingDateKey, quickCreateMeetingForDate, warmMeetingPeekOpen]
   );
 
   return (
@@ -2860,7 +2890,8 @@ export default function MeetingScheduleShell() {
                       aria-label={`创建 ${key} 的会议页面`}
                       disabled={creatingMeetingDateKey !== null}
                       onPointerEnter={warmMeetingPeekOpen}
-                      onPointerDown={warmMeetingPeekOpen}
+                      onPointerDown={(event) => addMeetingOnPointerDown(event, key)}
+                      onMouseDown={(event) => addMeetingOnMouseDown(event, key)}
                       onFocus={warmMeetingPeekOpen}
                       onClick={() => void quickCreateMeetingForDate(key)}
                       className="text-zinc-300 opacity-0 transition-opacity hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:text-zinc-200"

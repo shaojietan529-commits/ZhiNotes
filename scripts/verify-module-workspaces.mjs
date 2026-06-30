@@ -1303,6 +1303,12 @@ check(
     shells.schedule.includes("warmMeetingPeekOpen();") &&
     shells.schedule.includes("onPointerEnter={warmMeetingPeekOpen}") &&
     shells.schedule.includes("onPointerDown={warmMeetingPeekOpen}") &&
+    shells.schedule.includes("const creatingMeetingDateKeyRef = useRef<string | null>(null)") &&
+    shells.schedule.includes("creatingMeetingDateKeyRef.current = dateKey") &&
+    shells.schedule.includes("const addMeetingOnPointerDown = useCallback") &&
+    shells.schedule.includes("const addMeetingOnMouseDown = useCallback") &&
+    shells.schedule.includes("onPointerDown={(event) => addMeetingOnPointerDown(event, key)}") &&
+    shells.schedule.includes("onMouseDown={(event) => addMeetingOnMouseDown(event, key)}") &&
     shells.schedule.includes("onFocus={warmMeetingPeekOpen}") &&
     shells.schedule.includes("const [openingDraft, setOpeningDraft]") &&
     shells.schedule.includes("const [openingMeetingId, setOpeningMeetingId]") &&
