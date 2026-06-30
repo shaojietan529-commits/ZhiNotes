@@ -137,10 +137,6 @@ const MEETING_CALENDAR_HYDRATION_BATCH = 7;
 const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
 const MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH = 10;
 const MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS = 32;
-const MEETING_VISIBLE_CONTENT_WARMUP_LIMIT = 16;
-const MEETING_VISIBLE_CONTENT_WARMUP_BATCH = 2;
-const MEETING_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS = 2400;
-const MEETING_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS = 1000;
 const MEETING_PEEK_EDITOR_WARMUP_DELAY_MS = 1600;
 const MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
@@ -384,7 +380,6 @@ export default function MeetingScheduleShell() {
   const meetingCalendarRenderFingerprintRef = useRef("");
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
-  const meetingPageContentWarmupIdsRef = useRef<Set<string>>(new Set());
   const completedMeetingDailyLinkKeyRef = useRef("");
   const [hotCachePreferences, setHotCachePreferences] = useState(
     DEFAULT_HOT_CACHE_PREFERENCES
@@ -565,48 +560,6 @@ export default function MeetingScheduleShell() {
     warmPagePeekModal();
     warmMeetingPageRoute();
   }, [warmMeetingPageRoute]);
-
-  const warmMeetingPageContent = useCallback(
-    (page: Page) => {
-      if (!dbReady || page.content_text != null) return;
-      if (meetingPageContentWarmupIdsRef.current.has(page.id)) return;
-      meetingPageContentWarmupIdsRef.current.add(page.id);
-
-      const seededPage = getMeetingPageOpenSeed(page);
-      if (seededPage.content_text != null) {
-        rememberPendingPageDraft(seededPage);
-        rememberPageRouteHandoff(seededPage, "meeting-open");
-        upsertPages([seededPage]);
-        return;
-      }
-
-      scheduleMeetingIdleTask(() => {
-        void getPage(page.id)
-          .then((storedPage) => {
-            if (!storedPage) {
-              meetingPageContentWarmupIdsRef.current.delete(page.id);
-              return;
-            }
-            const warmedPage = getMeetingPageOpenSeed(storedPage);
-            rememberPendingPageDraft(warmedPage);
-            rememberPageRouteHandoff(warmedPage, "meeting-open");
-            upsertPages([warmedPage]);
-            if (warmedPage.content_text == null) {
-              meetingPageContentWarmupIdsRef.current.delete(page.id);
-            }
-            setSelectedMeeting((current) =>
-              current?.page.id === warmedPage.id
-                ? toMeetingEntry(warmedPage)
-                : current
-            );
-          })
-          .catch(() => {
-            meetingPageContentWarmupIdsRef.current.delete(page.id);
-          });
-      }, 80);
-    },
-    [dbReady, upsertPages]
-  );
 
   useEffect(() => {
     const cancelPageShellPreload = scheduleMeetingIdleTask(() => {
@@ -1857,7 +1810,6 @@ export default function MeetingScheduleShell() {
       upsertPages([seededPage]);
       rememberPendingPageDraft(seededPage);
       rememberPageRouteHandoff(seededPage, source);
-      warmMeetingPageContent(seededPage);
       const pageRoute = `/page/${seededPage.id}`;
       try {
         router.prefetch(pageRoute);
@@ -1866,7 +1818,7 @@ export default function MeetingScheduleShell() {
       }
       return seededPage;
     },
-    [router, upsertPages, warmMeetingPageContent, warmMeetingPeekOpen]
+    [router, upsertPages, warmMeetingPeekOpen]
   );
 
   const openCreatedMeetingPage = useCallback(
@@ -1897,10 +1849,10 @@ export default function MeetingScheduleShell() {
 
   const primeMeetingEntryPage = useCallback(
     (page: Page) => {
+      void page;
       warmMeetingPeekOpen();
-      warmMeetingPageContent(page);
     },
-    [warmMeetingPageContent, warmMeetingPeekOpen]
+    [warmMeetingPeekOpen]
   );
 
   const handleCreate = useCallback(() => {
@@ -2229,43 +2181,6 @@ export default function MeetingScheduleShell() {
       cancelScheduledBatch?.();
     };
   }, [entriesByDate, grid, meetingCountByDate]);
-
-  useEffect(() => {
-    if (!dbReady) return;
-    const candidates = collectVisibleMeetingContentWarmupCandidates(
-      entriesByDate,
-      grid,
-      todayKey,
-      MEETING_VISIBLE_CONTENT_WARMUP_LIMIT
-    );
-    if (candidates.length === 0) return;
-
-    let cancelled = false;
-    let cancelScheduledBatch: (() => void) | null = null;
-    const queue = [...candidates];
-
-    const runNextBatch = () => {
-      cancelScheduledBatch = null;
-      if (cancelled || queue.length === 0) return;
-      const batch = queue.splice(0, MEETING_VISIBLE_CONTENT_WARMUP_BATCH);
-      for (const page of batch) warmMeetingPageContent(page);
-      if (queue.length > 0) {
-        cancelScheduledBatch = scheduleMeetingIdleTask(
-          runNextBatch,
-          MEETING_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS
-        );
-      }
-    };
-
-    cancelScheduledBatch = scheduleMeetingIdleTask(
-      runNextBatch,
-      MEETING_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS
-    );
-    return () => {
-      cancelled = true;
-      cancelScheduledBatch?.();
-    };
-  }, [dbReady, entriesByDate, grid, todayKey, warmMeetingPageContent]);
 
   const traceReviewEntries = useMemo(
     () =>
@@ -2601,7 +2516,6 @@ export default function MeetingScheduleShell() {
                         }}
                         className="flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                         onPointerEnter={() => primeMeetingEntryPage(entry.page)}
-                        onMouseEnter={() => warmMeetingPageContent(entry.page)}
                         onFocus={() => primeMeetingEntryPage(entry.page)}
                       >
                         <MeetingStatusBar entry={entry} size="list" />
@@ -2656,7 +2570,6 @@ export default function MeetingScheduleShell() {
                           onClick={() => openMeetingDetail(entry)}
                           className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-1 text-left"
                           onPointerEnter={() => primeMeetingEntryPage(entry.page)}
-                          onMouseEnter={() => warmMeetingPageContent(entry.page)}
                           onFocus={() => primeMeetingEntryPage(entry.page)}
                         >
                           <MeetingStatusBar entry={entry} size="compact" />
@@ -2708,8 +2621,8 @@ export default function MeetingScheduleShell() {
                     <li key={entry.page.id}>
                       <a
                         href={`/page/${entry.page.id}`}
-                        onMouseEnter={() => warmMeetingPageContent(entry.page)}
-                        onFocus={() => warmMeetingPageContent(entry.page)}
+                        onPointerEnter={() => primeMeetingEntryPage(entry.page)}
+                        onFocus={() => primeMeetingEntryPage(entry.page)}
                         onClick={(event) => {
                           markSeen(entry.page.id);
                           if (
@@ -2985,7 +2898,6 @@ export default function MeetingScheduleShell() {
                         type="button"
                         data-testid={`meeting-calendar-entry-${entry.page.id}`}
                         onPointerEnter={() => primeMeetingEntryPage(entry.page)}
-                        onMouseEnter={() => warmMeetingPageContent(entry.page)}
                         onFocus={() => primeMeetingEntryPage(entry.page)}
                         onClick={() => openMeetingDetail(entry)}
                         onContextMenu={(e) => {
@@ -3073,7 +2985,6 @@ export default function MeetingScheduleShell() {
                     <button
                       type="button"
                       onPointerEnter={() => primeMeetingEntryPage(entry.page)}
-                      onMouseEnter={() => warmMeetingPageContent(entry.page)}
                       onFocus={() => primeMeetingEntryPage(entry.page)}
                       onClick={() => openMeetingDetail(entry)}
                       onContextMenu={(e) => {
@@ -4684,39 +4595,6 @@ function CalNavButton({
       {label}
     </button>
   );
-}
-
-function collectVisibleMeetingContentWarmupCandidates(
-  entriesByDate: Map<string, MeetingEntry[]>,
-  grid: MonthCell[],
-  todayKey: string,
-  limit: number
-): Page[] {
-  const candidates: Page[] = [];
-  const visitedDateKeys = new Set<string>();
-  const visitedPageIds = new Set<string>();
-  const pushDate = (dateKey: string) => {
-    if (visitedDateKeys.has(dateKey) || candidates.length >= limit) return;
-    visitedDateKeys.add(dateKey);
-    const dayEntries = entriesByDate.get(dateKey) ?? [];
-    for (const entry of dayEntries.slice(0, MEETING_CALENDAR_VISIBLE_LIMIT)) {
-      if (entry.page.content_text != null || visitedPageIds.has(entry.page.id)) {
-        continue;
-      }
-      visitedPageIds.add(entry.page.id);
-      candidates.push(entry.page);
-      if (candidates.length >= limit) break;
-    }
-  };
-
-  const initialDateKeys = buildInitialMeetingCalendarHydrationKeys(
-    grid,
-    todayKey
-  );
-  for (const dateKey of initialDateKeys) pushDate(dateKey);
-  for (const cell of grid) pushDate(toDateKey(cell.date));
-
-  return candidates;
 }
 
 function buildInitialMeetingCalendarHydrationKeys(

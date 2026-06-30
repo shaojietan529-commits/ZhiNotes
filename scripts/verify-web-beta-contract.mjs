@@ -3086,34 +3086,6 @@ function run() {
       "Meeting calendar idle hydration must use the shared idle scheduler instead of fixed synchronous rendering.",
     ],
     [
-      "MEETING_VISIBLE_CONTENT_WARMUP_LIMIT",
-      "Meeting calendar must cap local content warmup to a small visible subset.",
-    ],
-    [
-      "MEETING_VISIBLE_CONTENT_WARMUP_BATCH",
-      "Meeting calendar content warmup must run in small idle batches.",
-    ],
-    [
-      "MEETING_VISIBLE_CONTENT_WARMUP_BATCH = 2",
-      "Meeting calendar content warmup batches must stay small enough to avoid competing with first paint.",
-    ],
-    [
-      "MEETING_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS",
-      "Meeting calendar must delay automatic body warmup until after the route has painted.",
-    ],
-    [
-      "MEETING_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS",
-      "Meeting calendar must space follow-up body warmup batches instead of reading many imported bodies at once.",
-    ],
-    [
-      "collectVisibleMeetingContentWarmupCandidates",
-      "Meeting calendar must collect content warmup candidates from visible date cells, not the whole import corpus.",
-    ],
-    [
-      "warmMeetingPageContent(page)",
-      "Meeting calendar must prewarm visible meeting page bodies before a direct click when local cache is available.",
-    ],
-    [
       "为保持日历流畅",
       "Meeting calendar must explain why additional high-volume entries are not rendered inline.",
     ],
@@ -3127,6 +3099,31 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "MEETING_VISIBLE_CONTENT_WARMUP",
+      "Meeting calendar must not automatically hydrate imported meeting bodies from the month grid.",
+    ],
+    [
+      "collectVisibleMeetingContentWarmupCandidates",
+      "Meeting calendar body hydration must be demand-driven by the peek/full page, not a grid scan.",
+    ],
+    [
+      "warmMeetingPageContent",
+      "Meeting hover/focus must only prime metadata and route shells; body HTML loads after open.",
+    ],
+    [
+      "onMouseEnter={() => warmMeetingPageContent(entry.page)}",
+      "Meeting hover must not read local body HTML in high-volume imported months.",
+    ],
+  ]) {
+    assertSourceExcludes(
       files.meetingScheduleShell,
       meetingScheduleShell,
       snippet,
@@ -5575,16 +5572,8 @@ function run() {
       "Meeting full-page opens must hand off the best local seed before slower local DB or cloud checks.",
     ],
     [
-      "const warmMeetingPageContent = useCallback",
-      "Meeting full-page opens must support local body warmup without cloud reads.",
-    ],
-    [
-      "onMouseEnter={() => warmMeetingPageContent(entry.page)}",
-      "Meeting hover intent must warm local body content before full-page opening.",
-    ],
-    [
       "const openMeetingDetail = useCallback",
-      "Meeting detail opens must reuse the local body warmup path.",
+      "Meeting detail opens must reuse the local-first open path.",
     ],
     [
       'openMeetingFullPage(entry.page, "meeting-open")',

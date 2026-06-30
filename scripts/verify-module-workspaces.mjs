@@ -1310,8 +1310,11 @@ check(
     shells.schedule.includes("const seededPage = getMeetingPageOpenSeed(page)") &&
     shells.schedule.includes("rememberPendingPageDraft(seededPage)") &&
     shells.schedule.includes("rememberPageRouteHandoff(seededPage, source)") &&
-    shells.schedule.includes("const warmMeetingPageContent = useCallback") &&
-    shells.schedule.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
+    !shells.schedule.includes("const warmMeetingPageContent = useCallback") &&
+    !shells.schedule.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
+    !shells.schedule.includes("warmMeetingPageContent(") &&
+    !shells.schedule.includes("MEETING_VISIBLE_CONTENT_WARMUP") &&
+    !shells.schedule.includes("collectVisibleMeetingContentWarmupCandidates") &&
     shells.schedule.includes("const openMeetingDetail = useCallback") &&
     shells.schedule.includes('openPage(pageId, { source: "meeting-open" })') &&
     shells.schedule.includes("const entriesById = useMemo(() =>") &&
@@ -1332,7 +1335,7 @@ check(
     shells.schedule.includes("disabled={intakeLoading || !intakeText.trim()}") &&
     !shells.schedule.includes("disabled={intakeLoading || !rootId || !intakeText.trim()}") &&
     !shells.schedule.includes('rootId ? "导入" : "加载中..."'),
-  "MeetingScheduleShell 手动创建和导入会议应直接进入本地优先流程，导入按钮不能等待模块根页面先加载；会议页和 root 保存必须走统一云端上传队列"
+  "MeetingScheduleShell 手动创建和导入会议应直接进入本地优先流程，导入按钮不能等待模块根页面先加载；会议页和 root 保存必须走统一云端上传队列；日历和 hover 只能预热页面壳/路由，不能提前读取会议正文"
 );
 check(
   shells.schedule.includes("listDailyPageMetadataForCalendar({") &&

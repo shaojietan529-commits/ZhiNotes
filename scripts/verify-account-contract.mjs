@@ -1109,13 +1109,14 @@ check(
     meetingScheduleShell.includes("const seededPage = getMeetingPageOpenSeed(page)") &&
     meetingScheduleShell.includes("rememberPendingPageDraft(seededPage)") &&
     meetingScheduleShell.includes("rememberPageRouteHandoff(seededPage, source)") &&
-    meetingScheduleShell.includes("const warmMeetingPageContent = useCallback") &&
-    meetingScheduleShell.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
+    !meetingScheduleShell.includes("const warmMeetingPageContent = useCallback") &&
+    !meetingScheduleShell.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
+    !meetingScheduleShell.includes("warmMeetingPageContent(") &&
     meetingScheduleShell.includes("const openMeetingDetail = useCallback") &&
     meetingScheduleShell.indexOf("prepareMeetingPageOpen(page, \"meeting-create\")") <
       meetingScheduleShell.indexOf("setPeekPageId(page.id)") &&
     meetingScheduleShell.includes("后台会继续保存到账号云端"),
-  "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后弹出同页会议页面并后台同步；完整页入口仍走本地优先"
+  "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后弹出同页会议页面并后台同步；完整页入口仍走本地优先，正文必须等 peek/full page 打开后按需补齐"
 );
 check(
     meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&
@@ -1172,13 +1173,13 @@ check(
     meetingScheduleShell.includes("data-testid={`meeting-calendar-day-${key}`}") &&
     meetingScheduleShell.includes("isMeetingDateHydrated && visibleMeetings.map") &&
     meetingScheduleShell.includes("cancelScheduledBatch = scheduleMeetingIdleTask(") &&
-    meetingScheduleShell.includes("MEETING_VISIBLE_CONTENT_WARMUP_LIMIT") &&
-    meetingScheduleShell.includes("MEETING_VISIBLE_CONTENT_WARMUP_BATCH") &&
-    meetingScheduleShell.includes("collectVisibleMeetingContentWarmupCandidates") &&
-    meetingScheduleShell.includes("warmMeetingPageContent(page)") &&
+    !meetingScheduleShell.includes("MEETING_VISIBLE_CONTENT_WARMUP") &&
+    !meetingScheduleShell.includes("collectVisibleMeetingContentWarmupCandidates") &&
+    !meetingScheduleShell.includes("warmMeetingPageContent") &&
+    !meetingScheduleShell.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
     meetingScheduleShell.includes("为保持日历流畅") &&
     !meetingScheduleShell.includes("{dayMeetings.map"),
-  "MeetingScheduleShell 月历单元格应按日期空闲 hydration，只渲染用户已关注日期的可见会议，更多会议必须点击后分批展开；可见会议正文预热必须小批量本地 idle 执行；单日高 volume 会议应限量渲染并可按天补齐"
+  "MeetingScheduleShell 月历单元格应按日期空闲 metadata hydration，只渲染用户已关注日期的可见会议，更多会议必须点击后分批展开；正文必须在 peek/full page 打开后按需补齐，不能 hover 或首屏批量预热正文；单日高 volume 会议应限量渲染并可按天补齐"
 );
 
 const usePageHook = read("src/hooks/usePage.ts");
