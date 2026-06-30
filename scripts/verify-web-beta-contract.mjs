@@ -13,6 +13,8 @@ const files = {
   webBetaFullVerifier: "scripts/verify-web-beta-full.mjs",
   cloudManifestDomainVerifier:
     "scripts/verify-cloud-manifest-domain-contract.mjs",
+  cloudManifestApiGuardVerifier:
+    "scripts/verify-cloud-manifest-api-guard.mjs",
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
   cloudSchemaMigrationPlan: "src/lib/sync/cloudSchemaMigrationPlan.ts",
@@ -403,6 +405,9 @@ function run() {
   const cloudManifestDomainVerifier = readProjectFile(
     files.cloudManifestDomainVerifier
   );
+  const cloudManifestApiGuardVerifier = readProjectFile(
+    files.cloudManifestApiGuardVerifier
+  );
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
   const cloudSchemaMigrationPlan = readProjectFile(
@@ -740,6 +745,7 @@ function run() {
     [files.syncManualReviewPacket, syncManualReviewPacket],
     [files.syncHandoffReadinessReceipt, syncHandoffReadinessReceipt],
     [files.replayHarnessVerifier, replayHarnessVerifier],
+    [files.cloudManifestApiGuardVerifier, cloudManifestApiGuardVerifier],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
     [files.routePreflight, routePreflight],
@@ -15165,6 +15171,12 @@ function run() {
     '"verify:cloud-manifest": "node scripts/verify-cloud-manifest-domain-contract.mjs"',
     "package.json must expose the cloud manifest domain contract runtime verification command."
   );
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
+    '"verify:cloud-manifest-api": "node scripts/verify-cloud-manifest-api-guard.mjs"',
+    "package.json must expose the cloud manifest compare API guard runtime verification command."
+  );
   for (const [snippet, message] of [
     [
       "nextBin",
@@ -15308,6 +15320,10 @@ function run() {
       "Web Beta full verifier must run cloud manifest domain contract verification.",
     ],
     [
+      "npm run verify:cloud-manifest-api",
+      "Web Beta full verifier must run cloud manifest API guard verification.",
+    ],
+    [
       "npm run verify:route-smoke",
       "Web Beta full verifier must run route smoke verification.",
     ],
@@ -15384,6 +15400,81 @@ function run() {
     assertSourceIncludes(
       files.cloudManifestDomainVerifier,
       cloudManifestDomainVerifier,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.cloudManifestApiGuardVerifier,
+    cloudManifestApiGuardVerifier,
+    'format: "zhinote-cloud-manifest-api-guard-verification-receipt"',
+    "Cloud manifest API guard verifier must emit a stable local receipt format."
+  );
+  for (const [snippet, message] of [
+    [
+      "buildCloudManifestCompareApiDisabledResponse",
+      "Cloud manifest API guard verifier must evaluate the disabled response builder.",
+    ],
+    [
+      "requiredTopLevelFalseFlags",
+      "Cloud manifest API guard verifier must assert disabled top-level flags.",
+    ],
+    [
+      "requiredBoundaryFalseFlags",
+      "Cloud manifest API guard verifier must assert disabled boundary flags.",
+    ],
+    [
+      "requiredBoundaryTrueFlags",
+      "Cloud manifest API guard verifier must assert required enablement gates.",
+    ],
+    [
+      "requiredForbiddenRequestFields",
+      "Cloud manifest API guard verifier must assert forbidden request fields.",
+    ],
+    [
+      "requiredForbiddenResponseFields",
+      "Cloud manifest API guard verifier must assert forbidden response fields.",
+    ],
+    [
+      "requiredFixtureIds",
+      "Cloud manifest API guard verifier must assert local validator fixtures.",
+    ],
+    [
+      "requiredGateIds",
+      "Cloud manifest API guard verifier must assert enablement gates.",
+    ],
+    [
+      "builder.length",
+      "Cloud manifest API guard verifier must prove the builder accepts no request argument.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Cloud manifest API guard verifier must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud manifest API guard verifier must not upload workspace data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud manifest API guard verifier must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud manifest API guard verifier must not read database values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud manifest API guard verifier must not read file bytes.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Cloud manifest API guard verifier must not approve cloud sync.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.cloudManifestApiGuardVerifier,
+      cloudManifestApiGuardVerifier,
       snippet,
       message
     );

@@ -352,12 +352,14 @@ export function buildCloudManifestCompareValidatorReport(): CloudManifestCompare
       forbidden_field_names: [
         "file_bytes",
         "backup_payload",
+        "raw_local_manifest",
+        "raw_remote_manifest",
         "signed_upload_url",
         "signed_download_url",
         "local_file_path",
       ],
       reason:
-        "Files, backups, signed URLs, and local paths do not belong in manifest compare payloads.",
+        "Files, backups, raw manifests, signed URLs, and local paths do not belong in manifest compare payloads.",
     },
     {
       id: "credential-fields-blocked",

@@ -42,6 +42,13 @@ const verificationCommands = [
       "Evaluate the metadata-only cloud manifest domain contract for every sync domain.",
   },
   {
+    id: "verify-cloud-manifest-api",
+    command: "npm run verify:cloud-manifest-api",
+    args: ["run", "verify:cloud-manifest-api"],
+    purpose:
+      "Evaluate the disabled cloud manifest compare API response and schema guard.",
+  },
+  {
     id: "verify-route-smoke",
     command: "npm run verify:route-smoke",
     args: ["run", "verify:route-smoke"],
@@ -184,6 +191,7 @@ function printReceipt(startedAt, results, status) {
       "Confirm cloud writes remain disabled until payload preview and typed confirmation pass.",
       "Confirm no local pages, files, databases, backups, holdings, or sync queue rows are uploaded during this verification.",
       "Confirm cloud manifest checks remain metadata-only before any cloud compare or cache rebuild.",
+      "Confirm cloud manifest compare API remains disabled and returns guard metadata only.",
       "Require a separate disposable cloud replay before any production sync enablement.",
     ],
   };
