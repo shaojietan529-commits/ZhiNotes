@@ -8,7 +8,9 @@ import PagePeekModal, {
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
+import { parseLocalFirstDatabaseRoute } from "@/lib/database/localFirstDatabaseNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import {
@@ -89,6 +91,7 @@ function ResearchGraphContent() {
 
 function ResearchGraphDashboard() {
   const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const openPage = useLocalFirstPageNavigation();
   const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages({
@@ -112,6 +115,18 @@ function ResearchGraphDashboard() {
     useState<SchemaFieldCreationResult | null>(null);
   const [peekPageId, setPeekPageId] = useState<string | null>(null);
   const [peekInitialPage, setPeekInitialPage] = useState<Page | null>(null);
+
+  const openRoute = useCallback(
+    (route: string) => {
+      const databaseRoute = parseLocalFirstDatabaseRoute(route);
+      if (databaseRoute) {
+        openDatabase(databaseRoute.databaseId, databaseRoute.options);
+        return;
+      }
+      router.push(route);
+    },
+    [openDatabase, router]
+  );
 
   const researchDatabases = useMemo(
     () => databases.filter((database) => classifyResearchDatabase(database)),
@@ -306,7 +321,7 @@ function ResearchGraphDashboard() {
       return;
     }
 
-    router.push(`${decision.route}#${decision.target_section_id}`);
+    openRoute(`${decision.route}#${decision.target_section_id}`);
   };
 
   const handleCreateSchemaGapField = async (gap: ResearchGraphSchemaGap) => {
@@ -433,7 +448,7 @@ function ResearchGraphDashboard() {
           onHorizonChange={setProjectHorizon}
           onExport={handleExportProjectBrief}
           onCreatePage={handleCreateProjectPage}
-          onOpenRoute={(route) => router.push(route)}
+          onOpenRoute={openRoute}
         />
 
         <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
@@ -446,12 +461,12 @@ function ResearchGraphDashboard() {
 
         <HealthSummaryPanel
           items={graphReport.health_summary}
-          onOpenRoute={(route) => router.push(route)}
+          onOpenRoute={openRoute}
         />
 
         <ResearchWorkbenchPanel
           packet={workbenchPacket}
-          onOpenRoute={(route) => router.push(route)}
+          onOpenRoute={openRoute}
         />
 
         <PriorityQueuePanel
@@ -459,34 +474,34 @@ function ResearchGraphDashboard() {
           totalItems={graphReport.priority_queue.length}
           highPriorityItems={graphReport.summary.high_priority_unlinked_assets}
           actionableItems={graphReport.summary.actionable_priority_items}
-          onOpenRoute={(route) => router.push(route)}
+          onOpenRoute={openRoute}
           onOpenPage={openGraphPage}
         />
 
         <RelationHandoffPanel
           packets={relationHandoffPackets}
           totalPackets={graphReport.summary.relation_handoff_packets}
-          onOpenRoute={(route) => router.push(route)}
+          onOpenRoute={openRoute}
         />
 
         <SchemaGapPanel
           gaps={schemaGaps}
           totalGaps={graphReport.schema_gaps.length}
-          onOpenDatabaseRoute={(route) => router.push(route)}
+          onOpenDatabaseRoute={openRoute}
           busyGapId={schemaGapBusyId}
           onCreateField={(gap) => void handleCreateSchemaGapField(gap)}
         />
 
         <SchemaFieldCreationResultPanel
           result={schemaFieldCreationResult}
-          onOpenDatabase={(route) => router.push(route)}
+          onOpenDatabase={openRoute}
         />
 
         <CompletionPlanPanel
           actions={completionActions}
           totalActions={graphReport.completion_plan.actions.length}
           missingTargets={graphReport.completion_plan.missing_targets}
-          onOpenDatabaseRoute={(route) => router.push(route)}
+          onOpenDatabaseRoute={openRoute}
           onOpenModule={(kind) => router.push(getResearchModuleRoute(kind))}
         />
 
@@ -501,13 +516,13 @@ function ResearchGraphDashboard() {
             total={graph.unlinkedAssets.length}
             actionByAssetId={completionActionByAssetId}
             onOpenPage={openGraphPage}
-            onCompleteAction={(action) => router.push(action.database_route)}
+            onCompleteAction={(action) => openRoute(action.database_route)}
           />
         </section>
 
         <DatabaseSurfacePanel
           surfaces={graphReport.database_surfaces}
-          onOpenDatabase={(databaseId) => router.push(`/database/${databaseId}`)}
+          onOpenDatabase={(databaseId) => openDatabase(databaseId)}
         />
       </div>
       </div>

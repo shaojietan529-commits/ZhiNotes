@@ -11099,6 +11099,12 @@ function run() {
     "Shared database navigation must prefetch database detail routes as a speed hint."
   );
   assertIncludes(
+    files.localFirstDatabaseNavigation,
+    localFirstDatabaseNavigation,
+    "buildLocalFirstDatabaseHref(databaseId, options)",
+    "Shared database navigation hook must preserve query/hash context while warming and prefetching database routes."
+  );
+  assertIncludes(
     files.localFirstDatabaseNavigationUtil,
     localFirstDatabaseNavigationUtil,
     "@/components/providers/DatabasePageShell",
@@ -11169,12 +11175,76 @@ function run() {
       inlineDatabaseNode,
       ["useLocalFirstDatabaseNavigation", "openDatabase(databaseId)"],
     ],
+	    [
+	      files.filePreviewNode,
+	      filePreviewNode,
+	      [
+	        "useLocalFirstDatabaseNavigation",
+	        "openDatabase(importResult.database_id)",
+	      ],
+	    ],
     [
-      files.filePreviewNode,
-      filePreviewNode,
+      files.companyResearchShell,
+      companyResearchShell,
       [
         "useLocalFirstDatabaseNavigation",
-        "openDatabase(importResult.database_id)",
+        "openDatabase(tracker.id,",
+        "openDatabase(database.id)",
+      ],
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "openDatabase(tracker.id,",
+        "openDatabase(database.id)",
+      ],
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "openDatabase(tracker.id,",
+        "openDatabase(database.id)",
+      ],
+    ],
+    [
+      files.portfolioShell,
+      portfolioShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "openDatabase(tracker.id,",
+        "openDatabase(database.id)",
+      ],
+    ],
+    [
+      files.projectsShell,
+      projectsShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "openDatabase(tracker.id,",
+        "openDatabase(databaseId)",
+      ],
+    ],
+    [
+      files.researchConnectionsPanel,
+      researchConnectionsPanel,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "parseLocalFirstDatabaseRoute",
+        "openRoute(buildDatabaseRoute(target.databaseId, asset))",
+      ],
+    ],
+    [
+      files.researchGraphShell,
+      researchGraphShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "parseLocalFirstDatabaseRoute",
+        "onOpenDatabaseRoute={openRoute}",
+        "openDatabase(databaseId)",
       ],
     ],
 	  ]) {
@@ -11187,18 +11257,36 @@ function run() {
 	      );
 	    }
 	  }
+	  for (const [sourceLabel, source] of [
+	    [files.inlineDatabaseNode, inlineDatabaseNode],
+	    [files.filePreviewNode, filePreviewNode],
+    [files.companyResearchShell, companyResearchShell],
+    [files.meetingsShell, meetingsShell],
+    [files.reportsShell, reportsShell],
+    [files.portfolioShell, portfolioShell],
+    [files.projectsShell, projectsShell],
+    [files.researchConnectionsPanel, researchConnectionsPanel],
+    [files.researchGraphShell, researchGraphShell],
+	  ]) {
+	    assertExcludes(
+	      sourceLabel,
+	      source,
+	      "router.push(`/database",
+	      "Database opens must use shared local-first database navigation instead of hard database routing."
+	    );
+	  }
   for (const [sourceLabel, source] of [
-    [files.inlineDatabaseNode, inlineDatabaseNode],
-    [files.filePreviewNode, filePreviewNode],
+    [files.researchConnectionsPanel, researchConnectionsPanel],
+    [files.researchGraphShell, researchGraphShell],
   ]) {
     assertExcludes(
       sourceLabel,
       source,
-      "router.push(`/database",
-      "Editor-embedded database opens must use shared local-first database navigation instead of hard database routing."
+      "router.push(buildDatabaseRoute",
+      "Research graph database route builders must hand off through local-first database navigation."
     );
   }
-	  for (const [snippet, message] of [
+		  for (const [snippet, message] of [
 	    [
 	      'import("@/lib/database/cloudDatabaseMutations")',
 	      "Databases module must lazy-load database creation mutations after create intent.",

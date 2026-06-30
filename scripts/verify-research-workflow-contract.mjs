@@ -751,7 +751,7 @@ function run() {
   assertIncludes(
     files.companyShell,
     companyShell,
-    "handoff=company-workbench",
+    'handoff: "company-workbench"',
     "Company module tracker handoff must tell the database page its source."
   );
   assertIncludes(
@@ -1520,7 +1520,7 @@ function run() {
   assertIncludes(
     files.meetingsShell,
     meetingsShell,
-    "handoff=meeting-workbench",
+    'handoff: "meeting-workbench"',
     "Meeting module tracker handoff must tell the database page its source."
   );
   assertIncludes(
@@ -1785,7 +1785,7 @@ function run() {
   assertIncludes(
     files.portfolioShell,
     portfolioShell,
-    "handoff=portfolio-workbench",
+    'handoff: "portfolio-workbench"',
     "Portfolio module tracker handoff must tell the database page its source."
   );
   assertIncludes(

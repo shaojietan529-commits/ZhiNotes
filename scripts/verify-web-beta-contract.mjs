@@ -21838,6 +21838,18 @@ function run() {
       "Shared database navigation must prefetch database detail routes as a speed hint.",
     ],
     [
+      files.localFirstDatabaseNavigation,
+      localFirstDatabaseNavigation,
+      "buildLocalFirstDatabaseHref(databaseId, options)",
+      "Shared database navigation hook must preserve query/hash context while warming and prefetching database routes.",
+    ],
+    [
+      files.localFirstDatabaseNavigationUtil,
+      localFirstDatabaseNavigationUtil,
+      "parseLocalFirstDatabaseRoute",
+      "Shared database navigation must parse database routes so research handoff links keep local-first behavior.",
+    ],
+    [
       files.localFirstDatabaseNavigationUtil,
       localFirstDatabaseNavigationUtil,
       "@/components/providers/DatabasePageShell",
@@ -21890,6 +21902,48 @@ function run() {
       filePreviewNode,
       "openDatabase(importResult.database_id)",
       "Spreadsheet database imports must warm and prefetch the created database route.",
+    ],
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      "openDatabase(tracker.id,",
+      "Company research tracker handoffs must use local-first database navigation.",
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      "openDatabase(tracker.id,",
+      "Meeting tracker handoffs must use local-first database navigation.",
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      "openDatabase(tracker.id,",
+      "Report tracker handoffs must use local-first database navigation.",
+    ],
+    [
+      files.portfolioShell,
+      portfolioShell,
+      "openDatabase(tracker.id,",
+      "Portfolio tracker handoffs must use local-first database navigation.",
+    ],
+    [
+      files.projectsShell,
+      projectsShell,
+      "openDatabase(tracker.id,",
+      "Project tracker handoffs must use local-first database navigation.",
+    ],
+    [
+      files.researchConnectionsPanel,
+      researchConnectionsPanel,
+      "openRoute(buildDatabaseRoute(target.databaseId, asset))",
+      "Research connection database handoffs must route through local-first database navigation.",
+    ],
+    [
+      files.researchGraphShell,
+      researchGraphShell,
+      "onOpenDatabaseRoute={openRoute}",
+      "Research graph database handoffs must route through local-first database navigation.",
     ],
     [
       files.sidebar,
@@ -22815,12 +22869,30 @@ function run() {
   for (const [sourceLabel, source] of [
     [files.inlineDatabaseNode, inlineDatabaseNode],
     [files.filePreviewNode, filePreviewNode],
+    [files.companyResearchShell, companyResearchShell],
+    [files.meetingsShell, meetingsShell],
+    [files.reportsShell, reportsShell],
+    [files.portfolioShell, portfolioShell],
+    [files.projectsShell, projectsShell],
+    [files.researchConnectionsPanel, researchConnectionsPanel],
+    [files.researchGraphShell, researchGraphShell],
   ]) {
     assertSourceExcludes(
       sourceLabel,
       source,
       "router.push(`/database",
-      "Editor-embedded database opens must use shared local-first database navigation instead of hard database routing."
+      "Database opens must use shared local-first database navigation instead of hard database routing."
+    );
+  }
+  for (const [sourceLabel, source] of [
+    [files.researchConnectionsPanel, researchConnectionsPanel],
+    [files.researchGraphShell, researchGraphShell],
+  ]) {
+    assertSourceExcludes(
+      sourceLabel,
+      source,
+      "router.push(buildDatabaseRoute",
+      "Research graph database route builders must hand off through local-first database navigation."
     );
   }
   assertSourceExcludes(

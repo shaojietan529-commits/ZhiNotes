@@ -28,6 +28,10 @@ const files = {
   databaseCloudMutations: "src/lib/database/cloudDatabaseMutations.ts",
   useDatabases: "src/hooks/useDatabases.ts",
   databaseCloudSyncHook: "src/hooks/useDatabaseCloudSync.ts",
+  localFirstDatabaseNavigation:
+    "src/hooks/useLocalFirstDatabaseNavigation.ts",
+  localFirstDatabaseNavigationUtil:
+    "src/lib/database/localFirstDatabaseNavigation.ts",
   accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
   databaseUpdateBus: "src/lib/database/databaseUpdateBus.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
@@ -64,6 +68,8 @@ const files = {
   portfolioShell: "src/components/modules/PortfolioShell.tsx",
   projectsShell: "src/components/modules/ProjectsShell.tsx",
   reportsShell: "src/components/modules/ReportsShell.tsx",
+  researchConnectionsPanel:
+    "src/components/modules/ResearchConnectionsPanel.tsx",
   researchGraphShell: "src/components/modules/ResearchGraphShell.tsx",
   moduleDashboard: "src/components/modules/ModuleDashboard.tsx",
   relationEditor: "src/components/database/RelationFieldEditor.tsx",
@@ -185,6 +191,12 @@ function run() {
   const databaseCloudMutations = readProjectFile(files.databaseCloudMutations);
   const useDatabases = readProjectFile(files.useDatabases);
   const databaseCloudSyncHook = readProjectFile(files.databaseCloudSyncHook);
+  const localFirstDatabaseNavigation = readProjectFile(
+    files.localFirstDatabaseNavigation
+  );
+  const localFirstDatabaseNavigationUtil = readProjectFile(
+    files.localFirstDatabaseNavigationUtil
+  );
   const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
   const databaseUpdateBus = readProjectFile(files.databaseUpdateBus);
   const accountShell = readProjectFile(files.accountShell);
@@ -220,6 +232,9 @@ function run() {
   const portfolioShell = readProjectFile(files.portfolioShell);
   const projectsShell = readProjectFile(files.projectsShell);
   const reportsShell = readProjectFile(files.reportsShell);
+  const researchConnectionsPanel = readProjectFile(
+    files.researchConnectionsPanel
+  );
   const researchGraphShell = readProjectFile(files.researchGraphShell);
   const moduleDashboard = readProjectFile(files.moduleDashboard);
   const relationEditor = readProjectFile(files.relationEditor);
@@ -858,6 +873,127 @@ function run() {
     "router.push(`/database",
     "Spreadsheet-to-database imports must not direct hard route to database pages."
   );
+  for (const snippet of [
+    "buildLocalFirstDatabaseHref",
+    "parseLocalFirstDatabaseRoute",
+    "normalizeSearch",
+    "normalizeHash",
+  ]) {
+    assertIncludes(
+      files.localFirstDatabaseNavigationUtil,
+      localFirstDatabaseNavigationUtil,
+      snippet,
+      "Shared database navigation must preserve query/hash context for local-first database route opens."
+    );
+  }
+  assertIncludes(
+    files.localFirstDatabaseNavigation,
+    localFirstDatabaseNavigation,
+    "buildLocalFirstDatabaseHref(databaseId, options)",
+    "Database navigation hook must prefetch and navigate the full local-first database href, including query context."
+  );
+  for (const [sourceLabel, source, snippets] of [
+    [
+      files.companyResearchShell,
+      companyResearchShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "const openDatabase = useLocalFirstDatabaseNavigation();",
+        "openDatabase(tracker.id,",
+        "openDatabase(database.id)",
+      ],
+    ],
+    [
+      files.meetingsShell,
+      meetingsShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "const openDatabase = useLocalFirstDatabaseNavigation();",
+        "openDatabase(tracker.id,",
+        "openDatabase(database.id)",
+      ],
+    ],
+    [
+      files.reportsShell,
+      reportsShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "const openDatabase = useLocalFirstDatabaseNavigation();",
+        "openDatabase(tracker.id,",
+        "openDatabase(database.id)",
+      ],
+    ],
+    [
+      files.portfolioShell,
+      portfolioShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "const openDatabase = useLocalFirstDatabaseNavigation();",
+        "openDatabase(tracker.id,",
+        "openDatabase(database.id)",
+      ],
+    ],
+    [
+      files.projectsShell,
+      projectsShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "const openDatabase = useLocalFirstDatabaseNavigation();",
+        "openDatabase(tracker.id,",
+        "openDatabase(databaseId)",
+      ],
+    ],
+    [
+      files.researchConnectionsPanel,
+      researchConnectionsPanel,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "parseLocalFirstDatabaseRoute",
+        "openRoute(buildDatabaseRoute(target.databaseId, asset))",
+      ],
+    ],
+    [
+      files.researchGraphShell,
+      researchGraphShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "parseLocalFirstDatabaseRoute",
+        "onOpenDatabaseRoute={openRoute}",
+        "openDatabase(databaseId)",
+      ],
+    ],
+  ]) {
+    for (const snippet of snippets) {
+      assertIncludes(
+        sourceLabel,
+        source,
+        snippet,
+        "Investment research database opens must use shared local-first database navigation and keep handoff query context."
+      );
+    }
+  }
+  for (const [sourceLabel, source] of [
+    [files.companyResearchShell, companyResearchShell],
+    [files.meetingsShell, meetingsShell],
+    [files.reportsShell, reportsShell],
+    [files.portfolioShell, portfolioShell],
+    [files.projectsShell, projectsShell],
+    [files.researchConnectionsPanel, researchConnectionsPanel],
+    [files.researchGraphShell, researchGraphShell],
+  ]) {
+    assertNotIncludes(
+      sourceLabel,
+      source,
+      "router.push(`/database",
+      "Investment research database opens must not direct hard route to database pages."
+    );
+    assertNotIncludes(
+      sourceLabel,
+      source,
+      "router.push(buildDatabaseRoute",
+      "Investment research graph handoffs must route through local-first database navigation."
+    );
+  }
   assertIncludes(
     files.slashCommandSuggestion,
     slashCommandSuggestion,

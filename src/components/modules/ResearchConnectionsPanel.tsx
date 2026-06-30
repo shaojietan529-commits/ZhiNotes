@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { getFields, getRows } from "@/lib/db/local/queries";
+import { parseLocalFirstDatabaseRoute } from "@/lib/database/localFirstDatabaseNavigation";
 import {
   buildResearchGraph,
   buildResearchGraphReport,
@@ -33,6 +35,7 @@ export default function ResearchConnectionsPanel({
   focusKind,
 }: ResearchConnectionsPanelProps) {
   const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const openPage = useLocalFirstPageNavigation();
   const pagesById = useWorkspaceStore((s) => s.pagesById);
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
@@ -122,6 +125,15 @@ export default function ResearchConnectionsPanel({
     }
   };
 
+  const openRoute = (route: string) => {
+    const databaseRoute = parseLocalFirstDatabaseRoute(route);
+    if (databaseRoute) {
+      openDatabase(databaseRoute.databaseId, databaseRoute.options);
+      return;
+    }
+    router.push(route);
+  };
+
   return (
     <section className="space-y-3">
       <div className="flex flex-col gap-2 border-b border-zinc-200 pb-3 dark:border-zinc-800 md:flex-row md:items-end md:justify-between">
@@ -168,9 +180,7 @@ export default function ResearchConnectionsPanel({
           <CompletionGuidePanel
             targets={completionTargets}
             focusKind={focusKind}
-            onOpenDatabase={(databaseId) =>
-              router.push(buildDatabaseRoute(databaseId))
-            }
+            onOpenDatabase={(databaseId) => openDatabase(databaseId)}
           />
           <CoveragePanel
             coverage={graphReport.coverage}
@@ -187,7 +197,7 @@ export default function ResearchConnectionsPanel({
             (packet) => packet.asset_kind === focusKind
           ).length
         }
-        onOpenRoute={(route) => router.push(route)}
+        onOpenRoute={openRoute}
       />
 
       <UnlinkedAssetList
@@ -198,7 +208,7 @@ export default function ResearchConnectionsPanel({
           openPage(pagesById.get(pageId) ?? pageId, { source: "module-open" })
         }
         onCompleteAsset={(asset, target) =>
-          router.push(buildDatabaseRoute(target.databaseId, asset))
+          openRoute(buildDatabaseRoute(target.databaseId, asset))
         }
       />
     </section>

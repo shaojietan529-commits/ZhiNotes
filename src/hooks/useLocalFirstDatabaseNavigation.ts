@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
+  buildLocalFirstDatabaseHref,
   warmDatabaseShellModule,
   type LocalFirstDatabaseNavigationOptions,
 } from "@/lib/database/localFirstDatabaseNavigation";
@@ -13,7 +14,7 @@ export function useLocalFirstDatabaseNavigation() {
   return useCallback(
     (databaseId: string, options: LocalFirstDatabaseNavigationOptions = {}) => {
       warmDatabaseShellModule();
-      const href = `/database/${databaseId}`;
+      const href = buildLocalFirstDatabaseHref(databaseId, options);
       try {
         router.prefetch(href);
       } catch {

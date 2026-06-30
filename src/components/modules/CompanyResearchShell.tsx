@@ -10,6 +10,7 @@ import PagePeekModal, {
   warmPagePeekModal,
 } from "@/components/page/LazyPagePeekModal";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
@@ -124,6 +125,7 @@ function CompanyResearchContent() {
 
 function CompanyResearchDashboard() {
   const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const openPage = useLocalFirstPageNavigation();
   const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages({
@@ -377,11 +379,13 @@ function CompanyResearchDashboard() {
         setTrackerIntakeMessage(
           `已存在跟踪表行：${existingRow.row_title}。已打开公司跟踪表继续补关系。`
         );
-        router.push(
-          `/database/${tracker.id}?q=${encodeURIComponent(item.page_title)}&focus=${
-            item.page_id
-          }&handoff=company-workbench`
-        );
+        openDatabase(tracker.id, {
+          search: new URLSearchParams({
+            q: item.page_title,
+            focus: item.page_id,
+            handoff: "company-workbench",
+          }),
+        });
         return;
       }
 
@@ -405,11 +409,13 @@ function CompanyResearchDashboard() {
       setTrackerIntakeMessage(
         `已创建跟踪表行：${draft.row_title}。已打开公司跟踪表继续补关系。`
       );
-      router.push(
-        `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
-          item.page_id
-        }&handoff=company-workbench`
-      );
+      openDatabase(tracker.id, {
+        search: new URLSearchParams({
+          q: draft.row_title,
+          focus: item.page_id,
+          handoff: "company-workbench",
+        }),
+      });
     } catch (err) {
       console.error("[Zhinote] Failed to create company tracker row:", err);
       window.alert("公司入库失败，请查看控制台。");
@@ -1066,7 +1072,7 @@ function CompanyResearchDashboard() {
               id: database.id,
               label: database.title || "公司研究跟踪表",
               meta: database.description ?? "本地公司跟踪表",
-              onOpen: () => router.push(`/database/${database.id}`),
+              onOpen: () => openDatabase(database.id),
             }))}
           />
         </section>

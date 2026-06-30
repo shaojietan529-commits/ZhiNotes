@@ -10,6 +10,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import ResearchConnectionsPanel from "@/components/modules/ResearchConnectionsPanel";
 import ResearchWorkflowSchemaPanel from "@/components/modules/ResearchWorkflowSchemaPanel";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
@@ -94,6 +95,7 @@ function PortfolioContent() {
 
 function PortfolioDashboard() {
   const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const openPage = useLocalFirstPageNavigation();
   const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages({
@@ -281,11 +283,13 @@ function PortfolioDashboard() {
         setTrackerIntakeMessage(
           "已存在跟踪表行。已打开组合跟踪表继续补关系和复盘字段。"
         );
-        router.push(
-          `/database/${tracker.id}?q=${encodeURIComponent(
-            item.redacted_label
-          )}&focus=${item.page_id}&handoff=portfolio-workbench`
-        );
+        openDatabase(tracker.id, {
+          search: new URLSearchParams({
+            q: item.redacted_label,
+            focus: item.page_id,
+            handoff: "portfolio-workbench",
+          }),
+        });
         return;
       }
 
@@ -309,11 +313,13 @@ function PortfolioDashboard() {
       setTrackerIntakeMessage(
         "已创建脱敏跟踪表行。已打开组合跟踪表继续补关系和复盘字段。"
       );
-      router.push(
-        `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
-          item.page_id
-        }&handoff=portfolio-workbench`
-      );
+      openDatabase(tracker.id, {
+        search: new URLSearchParams({
+          q: draft.row_title,
+          focus: item.page_id,
+          handoff: "portfolio-workbench",
+        }),
+      });
     } catch (err) {
       console.error("[Zhinote] Failed to create portfolio tracker row:", err);
       window.alert("组合入库失败，请查看控制台。");
@@ -720,7 +726,7 @@ function PortfolioDashboard() {
               id: database.id,
               label: database.title || "组合跟踪表",
               meta: database.description ?? "本地组合跟踪表",
-              onOpen: () => router.push(`/database/${database.id}`),
+              onOpen: () => openDatabase(database.id),
             }))}
           />
         </section>

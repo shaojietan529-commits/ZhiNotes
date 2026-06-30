@@ -8,6 +8,7 @@ import PagePeekModal, {
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { useDatabases } from "@/hooks/useDatabases";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
@@ -72,6 +73,7 @@ function ProjectsContent() {
 
 function ProjectsDashboard() {
   const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const openPage = useLocalFirstPageNavigation();
   const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages();
@@ -231,11 +233,13 @@ function ProjectsDashboard() {
         setTrackerIntakeMessage(
           `已存在跟踪表行：${existingRow.row_title}。已打开项目跟踪表继续补关系。`
         );
-        router.push(
-          `/database/${tracker.id}?q=${encodeURIComponent(page.title)}&focus=${
-            page.id
-          }&handoff=projects-module`
-        );
+        openDatabase(tracker.id, {
+          search: new URLSearchParams({
+            q: page.title,
+            focus: page.id,
+            handoff: "projects-module",
+          }),
+        });
         return;
       }
 
@@ -256,11 +260,13 @@ function ProjectsDashboard() {
       setTrackerIntakeMessage(
         `已创建项目页和跟踪表行：${draft.row_title}。已打开项目跟踪表继续补关系。`
       );
-      router.push(
-        `/database/${tracker.id}?q=${encodeURIComponent(draft.row_title)}&focus=${
-          page.id
-        }&handoff=projects-module`
-      );
+      openDatabase(tracker.id, {
+        search: new URLSearchParams({
+          q: draft.row_title,
+          focus: page.id,
+          handoff: "projects-module",
+        }),
+      });
     } catch (err) {
       console.error("[Zhinote] Failed to create project tracker row:", err);
       window.alert("项目入库失败，请查看控制台。");
@@ -483,7 +489,7 @@ function ProjectsDashboard() {
           canCreateIntakeRow={projectTrackerDatabases.length > 0}
           onCreateProjectPageAndTrackerRow={handleCreateProjectPageAndTrackerRow}
           onRunStarter={handleRunStarter}
-          onOpenDatabase={(databaseId) => router.push(`/database/${databaseId}`)}
+          onOpenDatabase={(databaseId) => openDatabase(databaseId)}
         />
         </div>
       </div>
