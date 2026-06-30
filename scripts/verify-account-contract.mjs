@@ -2290,6 +2290,12 @@ check(
     sidebar.includes("accountSyncAriaLabel") &&
     sidebar.includes("getAccountSyncToneClass") &&
     sidebar.includes("检查中") &&
+    sidebar.includes("accountSyncNeedsSyncCenter") &&
+    sidebar.includes('data-sync-action=') &&
+    sidebar.includes('"open-sync-center"') &&
+    sidebar.includes('"quick-sync"') &&
+    sidebar.includes('openModuleRoute("/modules/sync")') &&
+    sidebar.includes('warmModuleRoute("/modules/sync")') &&
     sidebar.includes("data-sync-state={accountSync.state}") &&
     sidebar.includes("data-pending-total={accountSync.pendingTotal}") &&
     sidebar.includes("data-failed-total={accountSync.failedTotal}") &&

@@ -435,10 +435,26 @@ export default function Sidebar() {
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
   const accountSyncIcon = getAccountSyncIcon(accountSync.state);
   const accountSyncToneClass = getAccountSyncToneClass(accountSync.state);
-  const accountSyncAriaLabel = `${accountSyncShortLabel}：${accountSyncTitle.replace(
+  const accountSyncNeedsSyncCenter =
+    accountSync.failedTotal > 0 ||
+    accountSync.manualReviewTotal > 0 ||
+    accountSync.settingsPendingTotal > 0 ||
+    accountSync.knowledgePendingTotal > 0;
+  const accountSyncActionLabel = accountSyncNeedsSyncCenter
+    ? "打开同步中心"
+    : "快速同步";
+  const accountSyncAriaLabel = `${accountSyncShortLabel}，${accountSyncActionLabel}：${accountSyncTitle.replace(
     /\n/g,
     "；"
   )}`;
+  const accountSyncButtonTitle = `${accountSyncTitle}\n点击：${accountSyncActionLabel}`;
+  const handleAccountSyncButtonClick = useCallback(() => {
+    if (accountSyncNeedsSyncCenter) {
+      openModuleRoute("/modules/sync");
+      return;
+    }
+    void accountSync.syncNow({ forceLease: true });
+  }, [accountSync, accountSyncNeedsSyncCenter, openModuleRoute]);
 
   const refreshAccountLabel = useCallback(async () => {
     try {
@@ -1018,10 +1034,19 @@ export default function Sidebar() {
               data-database-pending-total={accountSync.databasePendingTotal}
               data-settings-pending-total={accountSync.settingsPendingTotal}
               data-knowledge-pending-total={accountSync.knowledgePendingTotal}
+              data-sync-action={
+                accountSyncNeedsSyncCenter ? "open-sync-center" : "quick-sync"
+              }
               aria-label={accountSyncAriaLabel}
-              onClick={() => void accountSync.syncNow({ forceLease: true })}
+              onPointerEnter={() => {
+                if (accountSyncNeedsSyncCenter) warmModuleRoute("/modules/sync");
+              }}
+              onFocus={() => {
+                if (accountSyncNeedsSyncCenter) warmModuleRoute("/modules/sync");
+              }}
+              onClick={handleAccountSyncButtonClick}
               className={`inline-flex h-8 min-w-8 max-w-[7.5rem] shrink-0 items-center justify-center gap-1 rounded-md border px-2 text-[10px] font-medium transition-colors ${accountSyncToneClass}`}
-              title={accountSyncTitle}
+              title={accountSyncButtonTitle}
             >
               <span aria-hidden="true">{accountSyncIcon}</span>
               <span className="min-w-0 truncate">{accountSyncShortLabel}</span>

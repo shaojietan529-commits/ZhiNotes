@@ -21807,6 +21807,24 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "accountSyncNeedsSyncCenter",
+      "Sidebar cloud-sync control must route complex sync states to the Sync module instead of only refreshing local status.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'openModuleRoute("/modules/sync")',
+      "Sidebar cloud-sync control must open the Sync module for settings, knowledge replay, failed, or manual-review queues.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'data-sync-action=',
+      "Sidebar cloud-sync control must expose whether it will quick-sync or open the Sync module.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "accountSyncAriaLabel",
       "Sidebar cloud-sync control must expose an accessible status summary.",
     ],
