@@ -18,6 +18,10 @@ const files = {
     "src/lib/sync/cloudManifestCompareResponseValidator.ts",
   cloudManifestResponseValidatorVerifier:
     "scripts/verify-cloud-manifest-response-validator.mjs",
+  cloudManifestHandshakeGate:
+    "src/lib/sync/cloudManifestCompareHandshakeGate.ts",
+  cloudManifestHandshakeGateVerifier:
+    "scripts/verify-cloud-manifest-handshake-gate.mjs",
   cloudManifestApiGuardVerifier:
     "scripts/verify-cloud-manifest-api-guard.mjs",
   cloudManifestRouteVerifier:
@@ -375,6 +379,12 @@ function run() {
   const cloudManifestResponseValidatorVerifier = readProjectFile(
     files.cloudManifestResponseValidatorVerifier
   );
+  const cloudManifestHandshakeGate = readProjectFile(
+    files.cloudManifestHandshakeGate
+  );
+  const cloudManifestHandshakeGateVerifier = readProjectFile(
+    files.cloudManifestHandshakeGateVerifier
+  );
   const cloudManifestApiGuardVerifier = readProjectFile(
     files.cloudManifestApiGuardVerifier
   );
@@ -634,6 +644,7 @@ function run() {
     "verify:cloud-manifest",
     "verify:cloud-manifest-request",
     "verify:cloud-manifest-response",
+    "verify:cloud-manifest-handshake",
     "verify:cloud-manifest-api",
     "verify:cloud-manifest-route",
     "verify:web-beta:full",
@@ -729,6 +740,10 @@ function run() {
     [
       "npm run verify:cloud-manifest-response",
       "Web Beta full verifier must run cloud manifest response validator verification.",
+    ],
+    [
+      "npm run verify:cloud-manifest-handshake",
+      "Web Beta full verifier must run cloud manifest handshake gate verification.",
     ],
     [
       "npm run verify:cloud-manifest-api",
@@ -910,6 +925,65 @@ function run() {
       "Cloud manifest response validator verifier must not approve cloud sync.",
       files.cloudManifestResponseValidatorVerifier,
       cloudManifestResponseValidatorVerifier,
+    ],
+  ]) {
+    assertIncludes(sourceFile, sourceText, snippet, message);
+  }
+
+  assertIncludes(
+    files.cloudManifestHandshakeGate,
+    cloudManifestHandshakeGate,
+    'format: "zhinote-cloud-manifest-compare-handshake-gate"',
+    "Cloud manifest handshake gate must expose a stable report format."
+  );
+  assertIncludes(
+    files.cloudManifestHandshakeGateVerifier,
+    cloudManifestHandshakeGateVerifier,
+    'format: "zhinote-cloud-manifest-handshake-gate-verification-receipt"',
+    "Cloud manifest handshake gate verifier must expose a stable receipt format."
+  );
+  for (const [snippet, message, sourceFile, sourceText] of [
+    [
+      "buildCloudManifestCompareHandshakeGateReport",
+      "Cloud manifest handshake gate must export the report builder.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "compare_handshake_can_start_now: false",
+      "Cloud manifest handshake gate must not start compare handshakes.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "cache_rebuild_can_start_now: false",
+      "Cloud manifest handshake gate must not start cache rebuild.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Cloud manifest handshake gate verifier must not approve cloud sync.",
+      files.cloudManifestHandshakeGateVerifier,
+      cloudManifestHandshakeGateVerifier,
+    ],
+    [
+      "uses_synthetic_fixtures_only: true",
+      "Cloud manifest handshake gate must use synthetic fixtures only.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "reads_route_response_over_http: false",
+      "Cloud manifest handshake gate must not read route responses over HTTP.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "owner-review-before-missing-ids",
+      "Cloud manifest handshake gate must block missing ids before owner review.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
     ],
   ]) {
     assertIncludes(sourceFile, sourceText, snippet, message);

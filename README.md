@@ -1306,6 +1306,11 @@ Current local actions:
   comments, version snapshots, file bytes, backups, signed URLs, credentials,
   and missing-id payloads, and verifies the validator returns field names and
   issue codes only, not raw values.
+- Review the future cloud manifest compare handshake locally. `npm run
+  verify:cloud-manifest-handshake` cross-checks the request validator, response
+  validator, and disabled API guard as a single local gate. It keeps compare,
+  cache rebuild, missing-id return, and cloud sync blocked until owner review,
+  permission, audit, rate-limit, and metadata-only schema gates are approved.
 - Verify the disabled cloud manifest compare API guard locally. `npm run
   verify:cloud-manifest-api` evaluates the disabled response builder, checks
   that compare/query/cloud/read/write/upload switches stay off, confirms
@@ -1679,6 +1684,7 @@ The first cloud phase is a private alpha, not full sync:
   account gates, module workspace gates, Web Beta contract checks, smoke checks,
   cloud manifest domain checks, metadata-only manifest request validator checks,
   metadata-only manifest response validator checks,
+  cloud manifest compare handshake gate checks,
   disabled cloud manifest API guard checks, disabled cloud manifest route
   checks, local route smoke, replay harness safety, lint, and production build.
   It prints a local receipt, does not deploy, connect cloud services, upload
@@ -1722,6 +1728,7 @@ npm run verify:web-beta:full
 npm run verify:cloud-manifest
 npm run verify:cloud-manifest-request
 npm run verify:cloud-manifest-response
+npm run verify:cloud-manifest-handshake
 npm run verify:cloud-manifest-api
 npm run verify:cloud-manifest-route
 npm run verify:web-alpha

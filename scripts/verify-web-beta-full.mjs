@@ -56,6 +56,13 @@ const verificationCommands = [
       "Evaluate the metadata-only cloud manifest compare response validator.",
   },
   {
+    id: "verify-cloud-manifest-handshake",
+    command: "npm run verify:cloud-manifest-handshake",
+    args: ["run", "verify:cloud-manifest-handshake"],
+    purpose:
+      "Evaluate the local cloud manifest compare handshake gate that joins request, response, and API guards.",
+  },
+  {
     id: "verify-cloud-manifest-api",
     command: "npm run verify:cloud-manifest-api",
     args: ["run", "verify:cloud-manifest-api"],
@@ -214,6 +221,7 @@ function printReceipt(startedAt, results, status) {
       "Confirm cloud manifest checks remain metadata-only before any cloud compare or cache rebuild.",
       "Confirm cloud manifest compare request validation rejects private payload fields without returning raw values.",
       "Confirm cloud manifest compare response validation rejects private payload fields without returning raw values or missing ids.",
+      "Confirm cloud manifest compare handshake remains blocked until request, response, API, owner-review, and cache-rebuild gates are approved.",
       "Confirm cloud manifest compare API remains disabled and returns guard metadata only.",
       "Confirm the real cloud manifest compare route returns disabled guard JSON and does not echo query values.",
       "Require a separate disposable cloud replay before any production sync enablement.",

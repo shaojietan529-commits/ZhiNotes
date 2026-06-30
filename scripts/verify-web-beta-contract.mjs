@@ -21,6 +21,10 @@ const files = {
     "src/lib/sync/cloudManifestCompareResponseValidator.ts",
   cloudManifestResponseValidatorVerifier:
     "scripts/verify-cloud-manifest-response-validator.mjs",
+  cloudManifestHandshakeGate:
+    "src/lib/sync/cloudManifestCompareHandshakeGate.ts",
+  cloudManifestHandshakeGateVerifier:
+    "scripts/verify-cloud-manifest-handshake-gate.mjs",
   cloudManifestApiGuardVerifier:
     "scripts/verify-cloud-manifest-api-guard.mjs",
   cloudManifestRouteVerifier:
@@ -427,6 +431,12 @@ function run() {
   const cloudManifestResponseValidatorVerifier = readProjectFile(
     files.cloudManifestResponseValidatorVerifier
   );
+  const cloudManifestHandshakeGate = readProjectFile(
+    files.cloudManifestHandshakeGate
+  );
+  const cloudManifestHandshakeGateVerifier = readProjectFile(
+    files.cloudManifestHandshakeGateVerifier
+  );
   const cloudManifestApiGuardVerifier = readProjectFile(
     files.cloudManifestApiGuardVerifier
   );
@@ -779,6 +789,11 @@ function run() {
     [
       files.cloudManifestResponseValidatorVerifier,
       cloudManifestResponseValidatorVerifier,
+    ],
+    [files.cloudManifestHandshakeGate, cloudManifestHandshakeGate],
+    [
+      files.cloudManifestHandshakeGateVerifier,
+      cloudManifestHandshakeGateVerifier,
     ],
     [files.cloudManifestApiGuardVerifier, cloudManifestApiGuardVerifier],
     [files.cloudManifestRouteVerifier, cloudManifestRouteVerifier],
@@ -15222,6 +15237,12 @@ function run() {
   assertSourceIncludes(
     files.packageJson,
     packageJson,
+    '"verify:cloud-manifest-handshake": "node scripts/verify-cloud-manifest-handshake-gate.mjs"',
+    "package.json must expose the cloud manifest handshake gate runtime verification command."
+  );
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
     '"verify:cloud-manifest-api": "node scripts/verify-cloud-manifest-api-guard.mjs"',
     "package.json must expose the cloud manifest compare API guard runtime verification command."
   );
@@ -15380,6 +15401,10 @@ function run() {
     [
       "npm run verify:cloud-manifest-response",
       "Web Beta full verifier must run cloud manifest response validator verification.",
+    ],
+    [
+      "npm run verify:cloud-manifest-handshake",
+      "Web Beta full verifier must run cloud manifest handshake gate verification.",
     ],
     [
       "npm run verify:cloud-manifest-api",
@@ -15693,6 +15718,118 @@ function run() {
       "Cloud manifest response validator verifier must compare against the response forbidden field schema.",
       files.cloudManifestResponseValidatorVerifier,
       cloudManifestResponseValidatorVerifier,
+    ],
+  ]) {
+    assertSourceIncludes(sourceFile, sourceText, snippet, message);
+  }
+  assertSourceIncludes(
+    files.cloudManifestHandshakeGate,
+    cloudManifestHandshakeGate,
+    'format: "zhinote-cloud-manifest-compare-handshake-gate"',
+    "Cloud manifest handshake gate must expose a stable report format."
+  );
+  assertSourceIncludes(
+    files.cloudManifestHandshakeGateVerifier,
+    cloudManifestHandshakeGateVerifier,
+    'format: "zhinote-cloud-manifest-handshake-gate-verification-receipt"',
+    "Cloud manifest handshake gate verifier must emit a stable local receipt format."
+  );
+  for (const [snippet, message, sourceFile, sourceText] of [
+    [
+      "buildCloudManifestCompareHandshakeGateReport",
+      "Cloud manifest handshake gate must export the report builder.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "buildCloudManifestCompareRequestValidatorReport",
+      "Cloud manifest handshake gate must include the request validator report.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "buildCloudManifestCompareResponseValidatorReport",
+      "Cloud manifest handshake gate must include the response validator report.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "buildCloudManifestCompareApiDisabledResponse",
+      "Cloud manifest handshake gate must include the disabled API guard.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "compare_handshake_can_start_now: false",
+      "Cloud manifest handshake gate must not start compare handshakes.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "cloud_compare_can_execute_now: false",
+      "Cloud manifest handshake gate must not execute cloud compare.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "cache_rebuild_can_start_now: false",
+      "Cloud manifest handshake gate must not start cache rebuild.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Cloud manifest handshake gate verifier must not approve cloud sync.",
+      files.cloudManifestHandshakeGateVerifier,
+      cloudManifestHandshakeGateVerifier,
+    ],
+    [
+      "uses_synthetic_fixtures_only: true",
+      "Cloud manifest handshake gate must use synthetic fixtures only.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "reads_route_response_over_http: false",
+      "Cloud manifest handshake gate must not read route responses over HTTP.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "returns_missing_ids: false",
+      "Cloud manifest handshake gate must not return missing ids.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "requires_owner_review_before_enablement: true",
+      "Cloud manifest handshake gate must require owner review before enablement.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "request-validator-before-cloud",
+      "Cloud manifest handshake gate must track request validator readiness.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "response-validator-before-cache",
+      "Cloud manifest handshake gate must track response validator readiness.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "owner-review-before-missing-ids",
+      "Cloud manifest handshake gate must block missing ids before owner review.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
+    ],
+    [
+      "no-cache-rebuild-before-validated-response",
+      "Cloud manifest handshake gate must block cache rebuild before validated response.",
+      files.cloudManifestHandshakeGate,
+      cloudManifestHandshakeGate,
     ],
   ]) {
     assertSourceIncludes(sourceFile, sourceText, snippet, message);
