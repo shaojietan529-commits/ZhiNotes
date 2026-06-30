@@ -295,6 +295,13 @@ import {
   type CommentVersionReplayAckGate,
 } from "@/lib/sync/commentVersionReplayAckGate";
 import {
+  buildKnowledgeReplayBatchPlan,
+  type KnowledgeReplayBatchPlan,
+  type KnowledgeReplayBatchRow,
+  type KnowledgeReplaySurfacePlan,
+  type KnowledgeReplaySurfaceStatus,
+} from "@/lib/sync/knowledgeReplayBatchPlan";
+import {
   buildCloudMasterReconcileReport,
   type CloudMasterDomain,
   type CloudMasterDomainStatus,
@@ -599,6 +606,7 @@ type SyncQueueAction =
   | "sync-replay-owner-review-packet"
   | "sync-replay-enablement-gate"
   | "comment-version-replay-api-guard"
+  | "knowledge-replay-batch-plan"
   | "comment-version-replay-receipt"
   | "rollback-plan"
   | "restore-writeback"
@@ -2097,6 +2105,23 @@ function SyncDashboard() {
   const commentVersionReplayAckGate = useMemo(
     () => buildCommentVersionReplayAckGate(commentVersionReplayReceiptDraft),
     [commentVersionReplayReceiptDraft]
+  );
+  const knowledgeReplayBatchPlan = useMemo(
+    () =>
+      buildKnowledgeReplayBatchPlan({
+        syncEntries,
+        syncPayloadPreview,
+        workspaceIdentity,
+        receipt: commentVersionReplayReceiptDraft,
+        ackGate: commentVersionReplayAckGate,
+      }),
+    [
+      commentVersionReplayAckGate,
+      commentVersionReplayReceiptDraft,
+      syncEntries,
+      syncPayloadPreview,
+      workspaceIdentity,
+    ]
   );
   const syncConfirmationReceipt = useMemo(
     () =>
@@ -5182,6 +5207,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportKnowledgeReplayBatchPlan = () => {
+    setBusyQueueAction("knowledge-replay-batch-plan");
+    try {
+      downloadJsonFile(
+        `zhinote-knowledge-replay-batch-plan-${fileSafeTimestamp()}.json`,
+        {
+          ...knowledgeReplayBatchPlan,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export knowledge replay batch plan:",
+        err
+      );
+      window.alert("知识回放批次计划导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncReplayTestPlan = () => {
     setBusyQueueAction("replay-test-plan");
     try {
@@ -7255,6 +7301,11 @@ function SyncDashboard() {
 
         <CommentVersionCloudReplayPanel
           contract={commentVersionCloudReplayContract}
+        />
+        <KnowledgeReplayBatchPlanPanel
+          plan={knowledgeReplayBatchPlan}
+          busy={busyQueueAction === "knowledge-replay-batch-plan"}
+          onExport={handleExportKnowledgeReplayBatchPlan}
         />
         <CommentVersionReplayReceiptPanel
           receipt={commentVersionReplayReceiptDraft}
@@ -15254,6 +15305,271 @@ function CommentVersionCloudReplayPanel({
         </ContractPanel>
       </div>
     </section>
+  );
+}
+
+function KnowledgeReplayBatchPlanPanel({
+  plan,
+  busy,
+  onExport,
+}: {
+  plan: KnowledgeReplayBatchPlan;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  const visibleRows = plan.batch_rows.slice(0, 8);
+
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            知识回放批次计划
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是评论、版本历史和页面关系进入云主库前的本地批次计划。它只整理
+            sync_log id、表名、row id、操作、变更字段名和 idempotency key；
+            不读取评论正文、版本快照、页面正文、数据库行值或文件内容，也不会上传、
+            写服务器或 ACK 本地队列。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出知识回放批次计划"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-6">
+        <PayloadSummaryCard
+          label="批次行"
+          value={plan.summary.pending_rows}
+          detail="row-id-only"
+          tone={plan.summary.pending_rows > 0 ? "medium" : "low"}
+        />
+        <PayloadSummaryCard
+          label="目标面"
+          value={plan.summary.surfaces}
+          detail="评论 / 版本 / 关系"
+          tone="low"
+        />
+        <PayloadSummaryCard
+          label="幂等 key"
+          value={plan.summary.idempotency_keys}
+          detail="防重复回放"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="高风险表"
+          value={plan.summary.high_risk_tables}
+          detail="仅字段名"
+          tone={plan.summary.high_risk_tables > 0 ? "high" : "low"}
+        />
+        <PayloadSummaryCard
+          label="云发送"
+          value={plan.summary.can_send_to_cloud_now ? "可" : "不可"}
+          detail="仍需 owner gate"
+          tone="high"
+        />
+        <PayloadSummaryCard
+          label="ACK"
+          value={plan.ack_policy.can_acknowledge_any_rows_now ? "可" : "关闭"}
+          detail="等待远端回执"
+          tone="high"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-3">
+        {plan.surfaces.map((surface) => (
+          <KnowledgeReplaySurfaceRow key={surface.id} surface={surface} />
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="批次行样本">
+          {visibleRows.length > 0 ? (
+            <div className="space-y-2">
+              {visibleRows.map((row) => (
+                <KnowledgeReplayBatchRowCard key={row.sync_log_id} row={row} />
+              ))}
+              {plan.batch_rows.length > visibleRows.length && (
+                <p className="text-xs text-zinc-400">
+                  还剩 {plan.batch_rows.length - visibleRows.length} 行；导出
+                  JSON 可查看完整 row-id-only 批次。
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              当前没有评论、版本历史或页面关系的待回放 sync_log 行。
+            </p>
+          )}
+        </ContractPanel>
+        <ContractPanel title="禁止进入批次的字段">
+          <div className="flex flex-wrap gap-1">
+            {plan.replay_request_envelope.forbidden_fields.map((field) => (
+              <span
+                key={field}
+                className="rounded bg-red-50 px-1.5 py-0.5 font-mono text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300"
+              >
+                {field}
+              </span>
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="ACK 仍关闭">
+          <div className="space-y-2">
+            {plan.ack_policy.required_remote_evidence.map((item) => (
+              <div
+                key={item}
+                className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="启用门槛">
+          <div className="space-y-2">
+            {plan.enablement_gates.map((gate) => (
+              <div
+                key={gate.id}
+                className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+              >
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {gate.title}
+                </div>
+                <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                  {gate.required_before_enablement}
+                </p>
+              </div>
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <p className="mt-4 border-t border-zinc-100 pt-3 text-xs leading-5 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        {plan.next_action}
+      </p>
+    </section>
+  );
+}
+
+function KnowledgeReplaySurfaceRow({
+  surface,
+}: {
+  surface: KnowledgeReplaySurfacePlan;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {surface.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            {surface.pending_rows} pending rows / {surface.cloud_target}
+          </div>
+        </div>
+        <KnowledgeReplayStatusPill status={surface.status} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {surface.local_tables.map((table) => (
+          <span
+            key={table}
+            className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {table}
+          </span>
+        ))}
+        <span className="rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+          {surface.cloud_target}
+        </span>
+        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          row_ids_only: {surface.row_ids_only ? "true" : "false"}
+        </span>
+      </div>
+      {surface.operation_counts.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {surface.operation_counts.map((operation) => (
+            <span
+              key={operation.operation}
+              className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              {operation.operation}: {operation.count}
+            </span>
+          ))}
+        </div>
+      )}
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {surface.content_payload_policy}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {surface.ack_policy}
+      </p>
+    </article>
+  );
+}
+
+function KnowledgeReplayBatchRowCard({
+  row,
+}: {
+  row: KnowledgeReplayBatchRow;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            sync_log_id {row.sync_log_id} / {row.table_name}
+          </div>
+          <div className="mt-1 font-mono text-[11px] text-zinc-400">
+            row_id {row.row_id}
+          </div>
+        </div>
+        <span className="w-fit rounded bg-zinc-200 px-2 py-1 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          {row.operation}
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {row.changed_field_names.map((field) => (
+          <span
+            key={field}
+            className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {field}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2 truncate font-mono text-[10px] text-zinc-400">
+        {row.idempotency_key}
+      </p>
+    </article>
+  );
+}
+
+function KnowledgeReplayStatusPill({
+  status,
+}: {
+  status: KnowledgeReplaySurfaceStatus;
+}) {
+  const ready = status === "ready-for-owner-gated-replay";
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${
+        ready
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          : "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      }`}
+    >
+      {ready ? "owner gate" : "no local pending"}
+    </span>
   );
 }
 

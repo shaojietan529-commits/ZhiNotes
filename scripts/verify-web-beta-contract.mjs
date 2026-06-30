@@ -135,6 +135,8 @@ const files = {
     "src/lib/sync/commentVersionReplayReceipt.ts",
   commentVersionReplayAckGate:
     "src/lib/sync/commentVersionReplayAckGate.ts",
+  knowledgeReplayBatchPlan:
+    "src/lib/sync/knowledgeReplayBatchPlan.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -624,6 +626,9 @@ function run() {
   );
   const commentVersionReplayAckGate = readProjectFile(
     files.commentVersionReplayAckGate
+  );
+  const knowledgeReplayBatchPlan = readProjectFile(
+    files.knowledgeReplayBatchPlan
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
@@ -6468,6 +6473,177 @@ function run() {
     [
       "不能把任何本地 pending sync_log 行改成 synced",
       "Sync UI must explain the ack gate blocks local sync_log updates.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-knowledge-replay-batch-plan"',
+      "Knowledge replay batch plan must expose a stable format.",
+    ],
+    [
+      'plan_status: "local-metadata-only-owner-gated"',
+      "Knowledge replay batch plan must remain owner-gated and metadata-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Knowledge replay batch plan must target cloud master with local hot cache.",
+    ],
+    [
+      "reads_sync_log_metadata: true",
+      "Knowledge replay batch plan must read only sync_log metadata.",
+    ],
+    [
+      "reads_sync_log_payloads: false",
+      "Knowledge replay batch plan must not read sync_log payloads.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Knowledge replay batch plan must not read comment bodies.",
+    ],
+    [
+      "reads_block_comment_bodies: false",
+      "Knowledge replay batch plan must not read block comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Knowledge replay batch plan must not read version snapshots.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Knowledge replay batch plan must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Knowledge replay batch plan must not read database row values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Knowledge replay batch plan must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Knowledge replay batch plan must not read file bytes.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Knowledge replay batch plan must not connect cloud services.",
+    ],
+    [
+      "writes_server_data: false",
+      "Knowledge replay batch plan must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Knowledge replay batch plan must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Knowledge replay batch plan must not mutate sync_log.",
+    ],
+    [
+      "can_acknowledge_rows_now: false",
+      "Knowledge replay batch plan must keep ACK closed.",
+    ],
+    [
+      "row_ids_only: true",
+      "Knowledge replay batch plan must keep row-id-only batch rows.",
+    ],
+    [
+      "cloud.comments",
+      "Knowledge replay batch plan must include comments as a cloud target.",
+    ],
+    [
+      "cloud.page_versions",
+      "Knowledge replay batch plan must include page_versions as a cloud target.",
+    ],
+    [
+      "cloud.wiki_links",
+      "Knowledge replay batch plan must include wiki_links as a cloud target.",
+    ],
+    [
+      "idempotency_key",
+      "Knowledge replay batch plan must include idempotency keys.",
+    ],
+    [
+      "planned-row-id-and-idempotency-only",
+      "Knowledge replay batch plan must expose a row-id/idempotency envelope.",
+    ],
+    [
+      "cloud.wiki_links manifest count",
+      "Knowledge replay batch plan must require wiki link manifest counts before ACK.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.knowledgeReplayBatchPlan,
+      knowledgeReplayBatchPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "reads_comment_bodies: true",
+      "Knowledge replay batch plan must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: true",
+      "Knowledge replay batch plan must not read version snapshots.",
+    ],
+    [
+      "uploads_workspace_data: true",
+      "Knowledge replay batch plan must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: true",
+      "Knowledge replay batch plan must not mutate sync_log.",
+    ],
+    [
+      "can_acknowledge_rows_now: true",
+      "Knowledge replay batch plan must not open local ACK.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.knowledgeReplayBatchPlan,
+      knowledgeReplayBatchPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildKnowledgeReplayBatchPlan",
+      "Sync UI must build the knowledge replay batch plan.",
+    ],
+    [
+      "knowledgeReplayBatchPlan",
+      "Sync UI must memoize the knowledge replay batch plan.",
+    ],
+    [
+      "handleExportKnowledgeReplayBatchPlan",
+      "Sync UI must export the knowledge replay batch plan.",
+    ],
+    [
+      "知识回放批次计划",
+      "Sync UI must render the knowledge replay batch panel.",
+    ],
+    [
+      "导出知识回放批次计划",
+      "Sync UI must render the knowledge replay batch export button.",
+    ],
+    [
+      "row-id-only",
+      "Sync UI must show the row-id-only boundary.",
+    ],
+    [
+      "不读取评论正文、版本快照、页面正文、数据库行值或文件内容",
+      "Sync UI must show the no-private-content boundary.",
+    ],
+    [
+      "ACK 仍关闭",
+      "Sync UI must render the ACK-closed knowledge replay contract.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);

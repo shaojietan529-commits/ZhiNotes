@@ -212,6 +212,8 @@ const files = {
     "src/lib/sync/commentVersionReplayReceipt.ts",
   commentVersionReplayAckGate:
     "src/lib/sync/commentVersionReplayAckGate.ts",
+  knowledgeReplayBatchPlan:
+    "src/lib/sync/knowledgeReplayBatchPlan.ts",
   commentVersionReplayApiStub:
     "src/lib/sync/commentVersionReplayApiStub.ts",
   commentVersionReplayRoute:
@@ -658,6 +660,9 @@ function run() {
   );
   const commentVersionReplayAckGate = readProjectFile(
     files.commentVersionReplayAckGate
+  );
+  const knowledgeReplayBatchPlan = readProjectFile(
+    files.knowledgeReplayBatchPlan
   );
   const commentVersionReplayApiStub = readProjectFile(
     files.commentVersionReplayApiStub
@@ -1761,6 +1766,136 @@ function run() {
     [
       "不能把任何本地 pending sync_log 行改成 synced",
       "Sync smoke coverage must explain the ack gate blocks sync_log updates.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-knowledge-replay-batch-plan"',
+      "Knowledge replay batch smoke coverage must include the stable format.",
+    ],
+    [
+      'plan_status: "local-metadata-only-owner-gated"',
+      "Knowledge replay batch smoke coverage must stay owner-gated and metadata-only.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Knowledge replay batch smoke coverage must target cloud master plus local hot cache.",
+    ],
+    [
+      "reads_sync_log_metadata: true",
+      "Knowledge replay batch smoke coverage must read only sync_log metadata.",
+    ],
+    [
+      "reads_sync_log_payloads: false",
+      "Knowledge replay batch smoke coverage must not read sync_log payloads.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Knowledge replay batch smoke coverage must not read comment bodies.",
+    ],
+    [
+      "reads_block_comment_bodies: false",
+      "Knowledge replay batch smoke coverage must not read block comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Knowledge replay batch smoke coverage must not read version snapshots.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Knowledge replay batch smoke coverage must not read database row values.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Knowledge replay batch smoke coverage must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Knowledge replay batch smoke coverage must not mutate sync_log.",
+    ],
+    [
+      "can_acknowledge_rows_now: false",
+      "Knowledge replay batch smoke coverage must keep ACK closed.",
+    ],
+    [
+      "row_ids_only: true",
+      "Knowledge replay batch smoke coverage must keep row-id-only batch rows.",
+    ],
+    [
+      "cloud.wiki_links",
+      "Knowledge replay batch smoke coverage must include backlinks/wiki link replay.",
+    ],
+    [
+      "idempotency_key",
+      "Knowledge replay batch smoke coverage must include idempotency keys.",
+    ],
+    [
+      "cloud.wiki_links manifest count",
+      "Knowledge replay batch smoke coverage must require wiki link manifest counts.",
+    ],
+  ]) {
+    assertIncludes(
+      files.knowledgeReplayBatchPlan,
+      knowledgeReplayBatchPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "reads_comment_bodies: true",
+      "Knowledge replay batch must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: true",
+      "Knowledge replay batch must not read version snapshots.",
+    ],
+    [
+      "uploads_workspace_data: true",
+      "Knowledge replay batch must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: true",
+      "Knowledge replay batch must not mutate sync_log.",
+    ],
+  ]) {
+    assertExcludes(
+      files.knowledgeReplayBatchPlan,
+      knowledgeReplayBatchPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildKnowledgeReplayBatchPlan",
+      "Sync smoke coverage must build the knowledge replay batch plan.",
+    ],
+    [
+      "knowledgeReplayBatchPlan",
+      "Sync smoke coverage must memoize the knowledge replay batch plan.",
+    ],
+    [
+      "知识回放批次计划",
+      "Sync smoke coverage must render the knowledge replay batch panel.",
+    ],
+    [
+      "导出知识回放批次计划",
+      "Sync smoke coverage must expose the knowledge replay batch export.",
+    ],
+    [
+      "row-id-only",
+      "Sync smoke coverage must show the row-id-only boundary.",
+    ],
+    [
+      "不读取评论正文、版本快照、页面正文、数据库行值或文件内容",
+      "Sync smoke coverage must show the no-private-content boundary.",
+    ],
+    [
+      "ACK 仍关闭",
+      "Sync smoke coverage must render the ACK-closed contract.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);
