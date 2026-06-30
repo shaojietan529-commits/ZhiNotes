@@ -536,6 +536,9 @@ function run() {
     "buildDatabaseSnapshotFromCloudRecords(",
     "reload({ preferLocalCache: true })",
     "setCacheNotice",
+    "useLocalFirstDatabaseNavigation",
+    "const openDatabase = useLocalFirstDatabaseNavigation();",
+    "openDatabase(databaseId);",
   ]) {
     assertIncludes(
       files.databaseShell,
@@ -581,6 +584,12 @@ function run() {
     databaseShell,
     "usePages()",
     "DatabaseShell must not call usePages because database routes should load relation metadata by referenced page id instead of triggering a global page scan."
+  );
+  assertNotIncludes(
+    files.databaseShell,
+    databaseShell,
+    "router.push(`/database/${databaseId}`)",
+    "DatabaseShell must not hard-navigate database routes because that bypasses shared local-first database warming and prefetch."
   );
   assertNotIncludes(
     files.databaseShell,

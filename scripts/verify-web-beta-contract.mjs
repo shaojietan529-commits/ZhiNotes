@@ -19837,6 +19837,24 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
+      "useLocalFirstDatabaseNavigation",
+      "Database detail pages must use the shared local-first database navigation path for internal database route clears.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "const openDatabase = useLocalFirstDatabaseNavigation();",
+      "Database detail pages must initialize the shared local-first database navigation helper.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "openDatabase(databaseId);",
+      "Database detail relation handoff clears must warm and prefetch the database route instead of hard navigating.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
       "useLocalFirstPageNavigation",
       "Database row full-page opens must use the shared local-first page navigation path.",
     ],
@@ -20354,6 +20372,10 @@ function run() {
     [
       "usePages({",
       "Database detail pages must not call usePages because relation labels should load by referenced page id.",
+    ],
+    [
+      "router.push(`/database/${databaseId}`)",
+      "Database detail pages must not hard-navigate database routes because that bypasses shared local-first database warming and prefetch.",
     ],
   ]) {
     assertSourceExcludes(files.databaseShell, databaseShell, snippet, message);

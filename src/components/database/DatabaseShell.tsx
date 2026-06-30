@@ -9,7 +9,8 @@ import {
   type ChangeEvent,
   type RefObject,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { usePage } from "@/hooks/usePage";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -250,7 +251,7 @@ interface DatabaseViewConfig {
 }
 
 export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
-  const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const openPage = useLocalFirstPageNavigation();
   const searchParams = useSearchParams();
   const upsertPages = useWorkspaceStore((state) => state.upsertPages);
@@ -1135,8 +1136,8 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   );
 
   const handleClearRelationHandoff = useCallback(() => {
-    router.push(`/database/${databaseId}`);
-  }, [databaseId, router]);
+    openDatabase(databaseId);
+  }, [databaseId, openDatabase]);
 
   const activeView = views.find((v) => v.id === activeViewId) || views[0];
   const activeViewConfig = activeView

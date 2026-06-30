@@ -11130,6 +11130,15 @@ function run() {
       ],
     ],
     [
+      files.databaseShell,
+      databaseShell,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "const openDatabase = useLocalFirstDatabaseNavigation();",
+        "openDatabase(databaseId);",
+      ],
+    ],
+    [
       files.moduleDashboard,
       moduleDashboard,
       ["useLocalFirstDatabaseNavigation", "openDatabase(database.id)"],
@@ -11410,6 +11419,10 @@ function run() {
     [
       "usePages({",
       "Database detail page must not call usePages because relation labels should load by referenced page id.",
+    ],
+    [
+      "router.push(`/database/${databaseId}`)",
+      "Database detail page must not hard-navigate database routes because that bypasses shared local-first database warming and prefetch.",
     ],
   ]) {
     assertExcludes(files.databaseShell, databaseShell, snippet, message);
