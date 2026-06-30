@@ -2010,12 +2010,15 @@ check(
 check(
   accountShell.includes("getPendingCloudPageSyncStatus") &&
     accountShell.includes("getPageCacheRebuildPendingBlocker") &&
-    accountShell.includes("pending queue，未上传输入清零前会被拦截") &&
+    accountShell.includes("pending queue、失败记录和人工处理记录") &&
+    accountShell.includes("页面 pending、failed、manual review 都清零后再重建") &&
+    accountShell.includes("status.failed === 0") &&
+    accountShell.includes("status.manualReviewCount === 0") &&
     pageCacheRebuildBody.includes("getPageCacheRebuildPendingBlocker()") &&
     pageCacheRebuildBody.includes("setPageSyncNotice(pendingBlocker)") &&
     pageCacheRebuildBody.indexOf("getPageCacheRebuildPendingBlocker()") <
       pageCacheRebuildBody.indexOf("window.confirm"),
-  "AccountShell 重建本机页面缓存前必须先检查页面 pending queue；未上传输入清零前不能进入确认弹窗"
+  "AccountShell 重建本机页面缓存前必须先检查页面 pending、failed 和 manual review；未上传或失败输入清零前不能进入确认弹窗"
 );
 check(
   accountShell.includes("数据库云同步") &&
@@ -2033,7 +2036,10 @@ check(
 check(
   accountShell.includes("getPendingCloudDatabaseSyncStatus") &&
     accountShell.includes("getDatabaseCacheRebuildPendingBlocker") &&
-    accountShell.includes("database pending queue 和本地 sync_log") &&
+    accountShell.includes("database pending queue、本地 sync_log、失败记录和人工处理记录") &&
+    accountShell.includes("pending、failed、manual review 都清零后再重建") &&
+    accountShell.includes("status.failed === 0") &&
+    accountShell.includes("status.manualReviewCount === 0") &&
     databaseCacheRebuildBody.includes(
       "await getDatabaseCacheRebuildPendingBlocker()"
     ) &&
@@ -2041,7 +2047,7 @@ check(
     databaseCacheRebuildBody.indexOf(
       "await getDatabaseCacheRebuildPendingBlocker()"
     ) < databaseCacheRebuildBody.indexOf("window.confirm"),
-  "AccountShell 重建本机数据库缓存前必须先检查 database pending queue 和本地 sync_log；未上传数据库变更清零前不能进入确认弹窗"
+  "AccountShell 重建本机数据库缓存前必须先检查 database pending queue、本地 sync_log、failed 和 manual review；未上传或失败数据库变更清零前不能进入确认弹窗"
 );
 check(
   syncDashboardShell.includes("本机缓存重建入口") &&

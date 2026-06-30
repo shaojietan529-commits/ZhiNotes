@@ -1292,6 +1292,9 @@ Current local actions:
   device handoff after durable ACK gates pass. The sync page still cannot clear
   local cache, mark rows synced, upload workspace data, write server data, or
   enable AI; cache rebuild remains an account-page, owner-confirmed action.
+  The account page rebuild actions now block not only pending rows, but also
+  failed rows and manual-review rows, before showing the destructive local-cache
+  confirmation.
 - Inspect page/database pending queues with ACK-style retry visibility:
   last upload attempt time, failed receipt count, latest failure reason, and a
   small failed id/key sample. This is still metadata-only: it does not read page

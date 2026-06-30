@@ -85,15 +85,27 @@ type Phase =
 function getPageCacheRebuildPendingBlocker(): string | null {
   const status = getPendingCloudPageSyncStatus();
   const pending = status.pending + status.queued;
-  if (pending === 0) return null;
-  return `页面仍有 ${pending} 条待上传/内存排队变更。为避免未上传输入在重建本机缓存时被隐藏，请先点击“立即同步”，确认页面 pending 清零后再重建。`;
+  if (
+    pending === 0 &&
+    status.failed === 0 &&
+    status.manualReviewCount === 0
+  ) {
+    return null;
+  }
+  return `页面缓存重建已拦截：仍有 ${pending} 条待上传/内存排队变更、${status.failed} 条失败记录、${status.manualReviewCount} 条需要人工处理。为避免未上传或失败输入在重建本机缓存时被隐藏，请先点击“立即同步”，确认页面 pending、failed、manual review 都清零后再重建。`;
 }
 
 async function getDatabaseCacheRebuildPendingBlocker(): Promise<string | null> {
   const status = await getPendingCloudDatabaseSyncStatus();
   const pending = status.pending + status.queued + status.syncLogPending;
-  if (pending === 0) return null;
-  return `数据库仍有 ${pending} 条待上传变更（cloud key ${status.pending} 条、内存排队 ${status.queued} 条、本地 sync_log ${status.syncLogPending} 条）。为避免本机新输入被云端旧 manifest 隐藏，请先“上传待同步变更”或“立即同步数据库”，确认 pending 清零后再重建。`;
+  if (
+    pending === 0 &&
+    status.failed === 0 &&
+    status.manualReviewCount === 0
+  ) {
+    return null;
+  }
+  return `数据库缓存重建已拦截：仍有 ${pending} 条待上传变更（cloud key ${status.pending} 条、内存排队 ${status.queued} 条、本地 sync_log ${status.syncLogPending} 条）、${status.failed} 条失败记录、${status.manualReviewCount} 条需要人工处理。为避免本机新输入被云端旧 manifest 隐藏，请先“上传待同步变更”或“立即同步数据库”，确认 pending、failed、manual review 都清零后再重建。`;
 }
 
 export default function AccountShell() {
@@ -1104,7 +1116,8 @@ export default function AccountShell() {
                 页面同步本身不上传：数据库表格、本地文件、评论、版本历史。同步走你自己的
                 Upstash 云存储，只有登录此账号的浏览器能读取。冲突时保留较新的修改。
                 本机页面缓存可随时重建，不会删除云端真数据；但重建前会重新检查页面
-                pending queue，未上传输入清零前会被拦截。数据库表格由下方独立同步面板管理。
+                pending queue、失败记录和人工处理记录，未上传或失败输入清零前会被拦截。
+                数据库表格由下方独立同步面板管理。
               </p>
             </div>
           )}
@@ -1194,7 +1207,8 @@ export default function AccountShell() {
               <p className="mt-3 text-[11px] leading-5 text-zinc-400">
                 这相当于把数据库主账本放到云端保险柜，本机只保留复印件。复印件坏了可以清掉重拉；
                 手动上传只会提交本机明确记录过的待同步修改，不会把整份本机缓存覆盖到云端。
-                重建前会重新检查 database pending queue 和本地 sync_log，未上传数据库变更清零前会被拦截。
+                重建前会重新检查 database pending queue、本地 sync_log、失败记录和人工处理记录，
+                未上传或失败的数据库变更清零前会被拦截。
               </p>
             </div>
           )}
