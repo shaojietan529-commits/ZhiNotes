@@ -152,6 +152,8 @@ const DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 1800;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
+const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 1800;
+const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 3200;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
 const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
@@ -973,8 +975,27 @@ export default function DailyNotesShell() {
   useEffect(() => {
     if (!dbReady) return;
     queueMicrotask(() => {
-      void load({ includeCloud: true });
+      void load({
+        includeCloud: false,
+        interruptCloud: false,
+        preserveVisibleNotes: true,
+      });
     });
+
+    let cancelCloudRecheck: (() => void) | null = null;
+    const cloudRecheckTimer = window.setTimeout(() => {
+      cancelCloudRecheck = scheduleDailyIdleTask(() => {
+        void load({
+          includeCloud: true,
+          preserveVisibleNotes: true,
+        });
+      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);
+    }, DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(cloudRecheckTimer);
+      cancelCloudRecheck?.();
+    };
   }, [dbReady, load]);
 
   useEffect(() => {

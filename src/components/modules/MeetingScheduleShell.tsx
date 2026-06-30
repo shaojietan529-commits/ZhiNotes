@@ -146,6 +146,8 @@ const MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
+const MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS = 2000;
+const MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 3400;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
@@ -1121,8 +1123,27 @@ export default function MeetingScheduleShell() {
   useEffect(() => {
     if (!dbReady) return;
     queueMicrotask(() => {
-      void load({ includeCloud: true });
+      void load({
+        includeCloud: false,
+        interruptCloud: false,
+        preserveVisibleMeetings: true,
+      });
     });
+
+    let cancelCloudRecheck: (() => void) | null = null;
+    const cloudRecheckTimer = window.setTimeout(() => {
+      cancelCloudRecheck = scheduleMeetingIdleTask(() => {
+        void load({
+          includeCloud: true,
+          preserveVisibleMeetings: true,
+        });
+      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);
+    }, MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(cloudRecheckTimer);
+      cancelCloudRecheck?.();
+    };
   }, [dbReady, load]);
 
   useEffect(() => {

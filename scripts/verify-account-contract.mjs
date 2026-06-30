@@ -788,6 +788,12 @@ check(
     dailyNotesShell.includes("DAILY_LOCAL_METADATA_REFRESH_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_CLOUD_METADATA_RECHECK_DELAY_MS") &&
+    dailyNotesShell.includes("DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
+    dailyNotesShell.includes("DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
+    dailyNotesShell.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleNotes: true,\n      });") &&
+    dailyNotesShell.includes("cancelCloudRecheck = scheduleDailyIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });\n      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
+    dailyNotesShell.includes("}, DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS);") &&
+    dailyNotesShell.includes("cancelCloudRecheck?.()") &&
     dailyNotesShell.includes("let cloudRecheckTimer: number | null = null") &&
     dailyNotesShell.includes("cloudRecheckTimer = window.setTimeout(() => {") &&
     dailyNotesShell.includes("}, DAILY_CLOUD_METADATA_RECHECK_DELAY_MS)") &&
@@ -998,9 +1004,15 @@ check(
     meetingScheduleShell.includes("parseHotCachePreferences") &&
     meetingScheduleShell.includes("metadataRecentLimitForHotCachePreferences") &&
     meetingScheduleShell.includes("recentLimit: recentMetadataLimit") &&
+    meetingScheduleShell.includes("MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
+    meetingScheduleShell.includes("MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
+    meetingScheduleShell.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n      });") &&
+    meetingScheduleShell.includes("cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
+    meetingScheduleShell.includes("}, MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS);") &&
+    meetingScheduleShell.includes("cancelCloudRecheck?.()") &&
     meetingScheduleShell.indexOf("publishMeetings([], cachedCloud.pages)") <
       meetingScheduleShell.indexOf("getModuleRootId(\"meeting-schedule\")"),
-  "MeetingScheduleShell 首屏应先读云端当前日历窗口，再回退本机缓存；recent metadata 窗口按热缓存偏好有界扩大，全局 metadata 同步只能空闲后台预热；本地刷新也应记录流畅度快照"
+  "MeetingScheduleShell 首屏应先读本地/热缓存会议目录，云端当前窗口 metadata 必须延后到空闲校正；recent metadata 窗口按热缓存偏好有界扩大，全局 metadata 同步只能空闲后台预热；本地刷新也应记录流畅度快照"
 );
 check(
   meetingScheduleShell.includes("MEETING_CLOUD_CACHE_PREFIX") &&

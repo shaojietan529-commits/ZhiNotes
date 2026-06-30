@@ -5160,6 +5160,34 @@ function run() {
     "cloudRecheckTimer = window.setTimeout(() => {\n        void load({ includeCloud: true });",
     "Daily notes delayed recheck must run cloud-enabled metadata loading."
   );
+  for (const [snippet, message] of [
+    [
+      "DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS",
+      "Daily notes initial cloud correction must have an explicit delay so first paint remains local-first.",
+    ],
+    [
+      "DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS",
+      "Daily notes initial cloud correction must have a bounded idle timeout.",
+    ],
+    [
+      "void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleNotes: true,\n      });",
+      "Daily notes first dbReady load must render local/cache metadata before starting cloud correction.",
+    ],
+    [
+      "cancelCloudRecheck = scheduleDailyIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });\n      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);",
+      "Daily notes initial cloud metadata correction must run as a delayed idle task.",
+    ],
+    [
+      "}, DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS);",
+      "Daily notes initial cloud correction must wait briefly after local first paint.",
+    ],
+    [
+      "cancelCloudRecheck?.()",
+      "Daily notes initial cloud correction must be cancellable when leaving the route.",
+    ],
+  ]) {
+    assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
@@ -5780,6 +5808,34 @@ function run() {
     "cloudRecheckTimer = window.setTimeout(() => {\n        void load({ includeCloud: true });",
     "Meeting schedule delayed recheck must run cloud-enabled metadata loading."
   );
+  for (const [snippet, message] of [
+    [
+      "MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS",
+      "Meeting schedule initial cloud correction must have an explicit delay so first paint remains local-first.",
+    ],
+    [
+      "MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS",
+      "Meeting schedule initial cloud correction must have a bounded idle timeout.",
+    ],
+    [
+      "void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n      });",
+      "Meeting schedule first dbReady load must render local/cache metadata before starting cloud correction.",
+    ],
+    [
+      "cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);",
+      "Meeting schedule initial cloud metadata correction must run as a delayed idle task.",
+    ],
+    [
+      "}, MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS);",
+      "Meeting schedule initial cloud correction must wait briefly after local first paint.",
+    ],
+    [
+      "cancelCloudRecheck?.()",
+      "Meeting schedule initial cloud correction must be cancellable when leaving the route.",
+    ],
+  ]) {
+    assertIncludes(files.meetingScheduleShell, meetingScheduleShell, snippet, message);
+  }
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,

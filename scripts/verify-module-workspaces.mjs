@@ -273,6 +273,10 @@ check(
 );
 check(
   shells.daily.includes('await findLocalModuleRootId("daily")') &&
+    shells.daily.includes("DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
+    shells.daily.includes("DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
+    shells.daily.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleNotes: true,\n      });") &&
+    shells.daily.includes("cancelCloudRecheck = scheduleDailyIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });\n      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
     shells.daily.includes(
       'const dailyRootId = localDailyRootId ?? (await getModuleRootId("daily"))'
     ) &&
@@ -1330,10 +1334,14 @@ check(
 );
 check(
   shells.schedule.includes("localPagesForMerge = await listMeetingPageMetadataForCalendar({") &&
+    shells.schedule.includes("MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
+    shells.schedule.includes("MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
+    shells.schedule.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n      });") &&
+    shells.schedule.includes("cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
     !shells.schedule.includes("localPagesForMerge = await listPages(id)") &&
     !shells.schedule.includes("localPagesForMerge = await listPageMetadata(id)") &&
     !shells.schedule.includes("import { listPages"),
-  "MeetingScheduleShell 日历首屏应按日期范围只读本地会议 metadata，不能为渲染日历扫描完整会议根或读取正文"
+  "MeetingScheduleShell 日历首屏应按日期范围只读本地会议 metadata，云端校正延后到空闲任务，不能为渲染日历扫描完整会议根或读取正文"
 );
 check(
   !shells.schedule.includes('from "@/hooks/usePages"') &&
