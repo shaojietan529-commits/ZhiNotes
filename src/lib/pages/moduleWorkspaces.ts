@@ -97,13 +97,16 @@ export async function findLocalModuleRootId(
   if (typeof window === "undefined") return null;
   const def = MODULE_WORKSPACES[key];
   const stored = window.localStorage.getItem(storageKey(key));
+  if (stored) {
+    const existing = await getPage(stored).catch(() => null);
+    if (existing) {
+      rememberRoot(key, existing.id);
+      return existing.id;
+    }
+  }
+
   const localTitleSet = new Set([def.title, ...(def.legacyTitles ?? [])]);
   const allPages = await getAllPageMetadata();
-
-  const storedPage = stored
-    ? allPages.find((page) => page.id === stored && !page.deleted_at)
-    : null;
-  if (storedPage) return storedPage.id;
 
   const adopted = allPages
     .filter((page) => page.parent_id === null && localTitleSet.has(page.title ?? ""))

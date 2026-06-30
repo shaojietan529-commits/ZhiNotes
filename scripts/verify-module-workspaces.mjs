@@ -314,6 +314,21 @@ check(
   helper.includes("getModuleRootIdSync"),
   "moduleWorkspaces 必须提供同步 root id 读取，避免新增时扫全量页面"
 );
+const storedRootLookupIndex = helper.indexOf(
+  "const existing = await getPage(stored).catch(() => null);"
+);
+const localRootFallbackScanIndex = helper.indexOf(
+  "const localTitleSet = new Set([def.title, ...(def.legacyTitles ?? [])]);"
+);
+check(
+  storedRootLookupIndex !== -1 &&
+    localRootFallbackScanIndex !== -1 &&
+    storedRootLookupIndex < localRootFallbackScanIndex &&
+    helper.slice(storedRootLookupIndex, localRootFallbackScanIndex).includes(
+      "rememberRoot(key, existing.id)"
+    ),
+  "findLocalModuleRootId 必须先用已缓存 root id 单页查询快速命中，找不到时才扫全量页面兜底"
+);
 check(
   helper.includes("const cloudRoot = await findCloudModuleRoot(key)") &&
     helper.includes("await applyRemotePageMetadata([cloudRoot])") &&
@@ -433,13 +448,15 @@ check(
   localFirstPageNavigationUtil.includes("resolveLocalFirstPageNavigationSeed") &&
     localFirstPageNavigationUtil.includes("readPendingPageDraft(target) ??") &&
     localFirstPageNavigationUtil.includes("readPageRouteHandoff(target) ??") &&
+    localFirstPageNavigationUtil.indexOf("readPendingPageDraft(target) ??") <
+      localFirstPageNavigationUtil.indexOf(
+        "useWorkspaceStore.getState().getPageById(target)"
+      ) &&
     localFirstPageNavigationUtil.indexOf(
       "useWorkspaceStore.getState().getPageById(target)"
     ) <
-      localFirstPageNavigationUtil.indexOf("readPendingPageDraft(target) ??") &&
-    localFirstPageNavigationUtil.indexOf("readPendingPageDraft(target) ??") <
       localFirstPageNavigationUtil.indexOf("readPageRouteHandoff(target) ??"),
-  "localFirstPageNavigation 必须让 openPage(pageId) 先查内存、本地草稿和路由交接，再退回纯 id 跳转"
+  "localFirstPageNavigation 必须让 openPage(pageId) 先查本地草稿、内存和路由交接，再退回纯 id 跳转"
 );
 check(
     pageShell.includes("const loadEditorModule = () => import(\"@/components/editor/Editor\")") &&
