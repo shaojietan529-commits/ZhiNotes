@@ -183,6 +183,8 @@ const files = {
   pageCloudSync: "src/hooks/usePageCloudSync.ts",
   databaseCloudSync: "src/hooks/useDatabaseCloudSync.ts",
   accountCloudSyncCoordinator: "src/hooks/useAccountCloudSyncCoordinator.ts",
+  settingsCloudSyncStatusHook: "src/hooks/useSettingsCloudSyncStatus.ts",
+  settingsSyncStatus: "src/lib/sync/settingsSyncStatus.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
   localFirstDatabaseNavigation:
@@ -699,6 +701,10 @@ function run() {
   const accountCloudSyncCoordinator = readProjectFile(
     files.accountCloudSyncCoordinator
   );
+  const settingsCloudSyncStatusHook = readProjectFile(
+    files.settingsCloudSyncStatusHook
+  );
+  const settingsSyncStatus = readProjectFile(files.settingsSyncStatus);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
@@ -4326,6 +4332,12 @@ function run() {
   assertSourceIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
+    "useSettingsCloudSyncStatus",
+    "Account cloud sync coordinator must include settings sync_log status before claiming the account is fully synced."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
     "COORDINATOR_PENDING_DRAIN_DELAY_MS",
     "Account cloud sync coordinator must coalesce pending queue drain triggers instead of adding immediate duplicate loops."
   );
@@ -4340,6 +4352,54 @@ function run() {
     accountCloudSyncCoordinator,
     "manualReviewTotal",
     "Account cloud sync coordinator must surface manual-review queues before claiming all local input is safely uploaded."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "settingsPendingTotal",
+    "Account cloud sync coordinator must add workspace/account/module settings pending rows to the global pending total."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "getPendingWorkspaceSettingSyncLogEntries",
+    "Settings cloud sync status hook must read workspace settings pending sync_log rows."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "getPendingAccountModuleSettingSyncLogEntries",
+    "Settings cloud sync status hook must read account/module settings pending sync_log rows."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "SETTINGS_SYNC_STATUS_EVENT",
+    "Settings cloud sync status hook must refresh promptly after settings queue metadata changes."
+  );
+  assertSourceIncludes(
+    files.settingsSyncStatus,
+    settingsSyncStatus,
+    "reads_sync_log_metadata: true",
+    "Settings sync status must be metadata-only and read sync_log counts instead of setting values."
+  );
+  assertSourceIncludes(
+    files.settingsSyncStatus,
+    settingsSyncStatus,
+    "reads_workspace_settings_values: false",
+    "Settings sync status must not read workspace setting values for the sidebar cloud indicator."
+  );
+  assertSourceIncludes(
+    files.settingsSyncStatus,
+    settingsSyncStatus,
+    "uploads_workspace_data: false",
+    "Settings sync status must not upload workspace data from the sidebar cloud indicator."
+  );
+  assertSourceIncludes(
+    files.localQueries,
+    localQueries,
+    "emitSettingsSyncStatusEvent",
+    "Local setting queue mutations must emit a content-free status event for the account sync coordinator."
   );
   assertSourceIncludes(
     files.pageUpdateBus,

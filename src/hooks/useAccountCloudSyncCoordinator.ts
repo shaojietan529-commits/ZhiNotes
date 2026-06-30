@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
+import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus";
 
 const COORDINATOR_PENDING_DRAIN_DELAY_MS = 900;
 
@@ -34,17 +35,20 @@ function formatLastSyncTime(value: string | null) {
 export function useAccountCloudSyncCoordinator() {
   const pageSync = usePageCloudSync();
   const databaseSync = useDatabaseCloudSync();
+  const settingsSync = useSettingsCloudSyncStatus();
 
   const pageSyncNow = pageSync.syncNow;
   const databaseSyncNow = databaseSync.syncNow;
+  const refreshSettingsSyncStatus = settingsSync.refresh;
   const syncNow = useCallback(
     async (options: AccountCloudSyncCoordinatorOptions = {}) => {
       await Promise.allSettled([
         pageSyncNow({ quick: true, forceLease: options.forceLease }),
         databaseSyncNow({ quick: true, forceLease: options.forceLease }),
+        refreshSettingsSyncStatus(),
       ]);
     },
-    [databaseSyncNow, pageSyncNow]
+    [databaseSyncNow, pageSyncNow, refreshSettingsSyncStatus]
   );
 
   const pagePendingTotal =
@@ -53,17 +57,23 @@ export function useAccountCloudSyncCoordinator() {
     databaseSync.pendingStatus.pending +
     databaseSync.pendingStatus.queued +
     databaseSync.pendingStatus.syncLogPending;
-  const pendingTotal = pagePendingTotal + databasePendingTotal;
+  const settingsPendingTotal = settingsSync.status.totalPending;
+  const pendingTotal =
+    pagePendingTotal + databasePendingTotal + settingsPendingTotal;
   const failedTotal =
-    pageSync.pendingStatus.failed + databaseSync.pendingStatus.failed;
+    pageSync.pendingStatus.failed +
+    databaseSync.pendingStatus.failed +
+    settingsSync.status.failed;
   const manualReviewTotal =
     pageSync.pendingStatus.manualReviewCount +
-    databaseSync.pendingStatus.manualReviewCount;
+    databaseSync.pendingStatus.manualReviewCount +
+    settingsSync.status.manualReviewCount;
   const enabledDomainCount =
     (pageSync.pendingStatus.enabled || pageSync.state !== "disabled" ? 1 : 0) +
     (databaseSync.pendingStatus.enabled || databaseSync.state !== "disabled"
       ? 1
-      : 0);
+      : 0) +
+    (settingsPendingTotal > 0 ? 1 : 0);
   const lastSyncAt =
     [pageSync.lastSyncAt, databaseSync.lastSyncAt]
       .filter((value): value is string => Boolean(value))
@@ -93,10 +103,19 @@ export function useAccountCloudSyncCoordinator() {
       manualReviewTotal > 0 ? `${manualReviewTotal} 项需要人工确认` : null,
       pagePendingTotal > 0 ? `页面 ${pagePendingTotal}` : null,
       databasePendingTotal > 0 ? `数据库 ${databasePendingTotal}` : null,
+      settingsPendingTotal > 0
+        ? `设置 ${settingsPendingTotal}（同步中心处理）`
+        : null,
       lastSyncAt ? `最近同步 ${formatLastSyncTime(lastSyncAt)}` : null,
     ].filter(Boolean);
     if (state === "syncing") return `账号云同步中${details.length ? `：${details.join("，")}` : ""}`;
-    if (state === "queued") return `后台正在补传本地输入${details.length ? `：${details.join("，")}` : ""}`;
+    if (state === "queued") {
+      const settingsNote =
+        settingsPendingTotal > 0
+          ? "；设置类变更已进入本地队列，需到同步中心执行云端上传"
+          : "";
+      return `后台正在补传本地输入${details.length ? `：${details.join("，")}` : ""}${settingsNote}`;
+    }
     if (state === "attention") return `账号云同步需要处理${details.length ? `：${details.join("，")}` : ""}`;
     if (state === "signed-out") return "账号云同步需要登录后继续";
     if (state === "error") return `账号云同步出错${details.length ? `：${details.join("，")}` : ""}`;
@@ -108,6 +127,7 @@ export function useAccountCloudSyncCoordinator() {
     manualReviewTotal,
     pagePendingTotal,
     pendingTotal,
+    settingsPendingTotal,
     state,
   ]);
 
@@ -134,11 +154,13 @@ export function useAccountCloudSyncCoordinator() {
     databaseSync,
     pagePendingTotal,
     databasePendingTotal,
+    settingsPendingTotal,
     pendingTotal,
     failedTotal,
     manualReviewTotal,
     enabledDomainCount,
     lastSyncAt,
+    settingsSync,
     syncNow,
   };
 }

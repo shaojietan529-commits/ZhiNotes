@@ -1,6 +1,10 @@
 import { getDb, type SqliteDb } from "./client";
 import { generateId, DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import { nowISO } from "@/lib/utils/dates";
+import {
+  emitSettingsSyncStatusEvent,
+  isSettingsSyncTableName,
+} from "@/lib/sync/settingsSyncStatus";
 import type { BlockComment, Page, PageComment, PageVersion } from "@/lib/utils/types";
 
 export interface SyncLogSummary {
@@ -500,6 +504,9 @@ function recordSyncChange(
       ),
     ]
   );
+  if (isSettingsSyncTableName(tableName)) {
+    emitSettingsSyncStatusEvent();
+  }
 }
 
 function buildSyncChangePayloadHash(
@@ -4123,6 +4130,7 @@ export async function markWorkspaceSettingSyncLogEntriesSynced(
     );
     marked += Number(beforeRows[0]?.count ?? 0);
   }
+  if (marked > 0) emitSettingsSyncStatusEvent();
   return marked;
 }
 
@@ -4206,6 +4214,7 @@ async function markWorkspaceSettingSyncLogEntriesStatus(
     }
     marked += Number(beforeRows[0]?.count ?? 0);
   }
+  if (marked > 0) emitSettingsSyncStatusEvent();
   return marked;
 }
 
@@ -4337,6 +4346,7 @@ async function markNamedSettingSyncLogEntriesSynced(
     );
     marked += Number(beforeRows[0]?.count ?? 0);
   }
+  if (marked > 0) emitSettingsSyncStatusEvent();
   return marked;
 }
 
@@ -4400,6 +4410,7 @@ async function markNamedSettingSyncLogEntriesStatus(
     }
     marked += Number(beforeRows[0]?.count ?? 0);
   }
+  if (marked > 0) emitSettingsSyncStatusEvent();
   return marked;
 }
 

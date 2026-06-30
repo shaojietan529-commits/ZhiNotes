@@ -83,6 +83,10 @@ const sidebarShell = read("src/components/sidebar/Sidebar.tsx");
 const accountCloudSyncCoordinator = read(
   "src/hooks/useAccountCloudSyncCoordinator.ts"
 );
+const settingsCloudSyncStatusHook = read(
+  "src/hooks/useSettingsCloudSyncStatus.ts"
+);
+const settingsSyncStatus = read("src/lib/sync/settingsSyncStatus.ts");
 check(shell.includes("unconfigured"), "AccountShell 缺少未配置状态");
 const effectBodies = shell.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[/g) ?? [];
 check(effectBodies.length > 0, "AccountShell 缺少会话检查 useEffect");
@@ -2180,13 +2184,48 @@ const sidebar = read("src/components/sidebar/Sidebar.tsx");
 check(
   accountCloudSyncCoordinator.includes("usePageCloudSync") &&
     accountCloudSyncCoordinator.includes("useDatabaseCloudSync") &&
+    accountCloudSyncCoordinator.includes("useSettingsCloudSyncStatus") &&
     accountCloudSyncCoordinator.includes("COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
     accountCloudSyncCoordinator.includes("Promise.allSettled") &&
     accountCloudSyncCoordinator.includes("pendingTotal") &&
+    accountCloudSyncCoordinator.includes("settingsPendingTotal") &&
     accountCloudSyncCoordinator.includes("manualReviewTotal") &&
     accountCloudSyncCoordinator.includes("enabledDomainCount") &&
     accountCloudSyncCoordinator.includes("syncNow"),
   "账号级云同步协调器应统一页面/数据库后台同步状态，并提供合并 quick sync 入口"
+);
+check(
+  settingsCloudSyncStatusHook.includes(
+    "getPendingWorkspaceSettingSyncLogEntries"
+  ) &&
+    settingsCloudSyncStatusHook.includes(
+      "getPendingAccountModuleSettingSyncLogEntries"
+    ) &&
+    settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_EVENT") &&
+    settingsCloudSyncStatusHook.includes(
+      "summarizeSettingsCloudSyncStatus"
+    ) &&
+    settingsCloudSyncStatusHook.includes(
+      "SETTINGS_STATUS_REFRESH_INTERVAL_MS"
+    ),
+  "设置类云同步状态 hook 应只读 settings sync_log 元数据，并用事件/轮询刷新全局 pending 状态"
+);
+check(
+  settingsSyncStatus.includes("SETTINGS_SYNC_STATUS_EVENT") &&
+    settingsSyncStatus.includes("reads_sync_log_metadata: true") &&
+    settingsSyncStatus.includes("reads_workspace_settings_values: false") &&
+    settingsSyncStatus.includes("reads_account_settings_values: false") &&
+    settingsSyncStatus.includes("reads_module_settings_values: false") &&
+    settingsSyncStatus.includes("uploads_workspace_data: false") &&
+    settingsSyncStatus.includes("mutates_sync_log: false") &&
+    settingsSyncStatus.includes("manualReviewSampleRowIds"),
+  "设置类同步状态必须只暴露 sync_log metadata 计数，不能读取设置值、上传数据或修改 sync_log"
+);
+check(
+  localQueries.includes("emitSettingsSyncStatusEvent") &&
+    localQueries.includes("isSettingsSyncTableName(tableName)") &&
+    localQueries.includes("if (marked > 0) emitSettingsSyncStatusEvent()"),
+  "settings 写入和 ack/失败状态变化后应发出不含内容的刷新事件，让侧边栏同步计数及时更新"
 );
 check(
   sidebar.includes("fetchAccountSession"),
