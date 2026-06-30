@@ -309,7 +309,12 @@ import {
   type CacheRebuildPreflightGateStatus,
   type CacheRebuildPreflightStatus,
 } from "@/lib/sync/cacheRebuildPreflightReceipt";
-import { buildSyncHandoffReadinessReceipt } from "@/lib/sync/syncHandoffReadinessReceipt";
+import {
+  buildSyncHandoffReadinessReceipt,
+  type SyncHandoffReadinessGateStatus,
+  type SyncHandoffReadinessReceipt,
+  type SyncHandoffReadinessStatus,
+} from "@/lib/sync/syncHandoffReadinessReceipt";
 import { buildSyncManualReviewPacket } from "@/lib/sync/syncManualReviewPacket";
 import {
   buildCloudNativeFluidityReport,
@@ -1945,6 +1950,16 @@ function SyncDashboard() {
         workspaceIdentity,
       }),
     [databasePendingStatus, pagePendingStatus, syncSummary, workspaceIdentity]
+  );
+  const syncHandoffReadinessReceipt = useMemo(
+    () =>
+      buildSyncHandoffReadinessReceipt({
+        pageStatus: pagePendingStatus,
+        databaseStatus: databasePendingStatus,
+        totalSyncPending: syncSummary?.pending ?? 0,
+        workspaceIdentity,
+      }),
+    [databasePendingStatus, pagePendingStatus, syncSummary?.pending, workspaceIdentity]
   );
   const syncPayloadPreview = useMemo(
     () =>
@@ -4237,12 +4252,7 @@ function SyncDashboard() {
     try {
       downloadJsonFile(
         `zhinote-sync-handoff-readiness-${fileSafeTimestamp()}.json`,
-        buildSyncHandoffReadinessReceipt({
-          pageStatus: pagePendingStatus,
-          databaseStatus: databasePendingStatus,
-          totalSyncPending: syncSummary?.pending ?? 0,
-          workspaceIdentity,
-        })
+        syncHandoffReadinessReceipt
       );
     } catch (err) {
       console.error(
@@ -10439,6 +10449,7 @@ function SyncDashboard() {
                 onRetryDatabase={() => void handleRetryDatabasePendingPush()}
                 drainReceipt={syncDrainReceipt}
                 drainMessage={syncDrainMessage}
+                handoffReceipt={syncHandoffReadinessReceipt}
               />
             </div>
             <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
@@ -18701,6 +18712,7 @@ function SyncUploadSafetyPanel({
   onRetryDatabase,
   drainReceipt,
   drainMessage,
+  handoffReceipt,
 }: {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
@@ -18714,6 +18726,7 @@ function SyncUploadSafetyPanel({
   onRetryDatabase: () => void;
   drainReceipt: SyncUploadDrainReceipt | null;
   drainMessage: string | null;
+  handoffReceipt: SyncHandoffReadinessReceipt;
 }) {
   const pageWaiting = pageStatus.pending + pageStatus.queued;
   const databaseWaiting =
@@ -18845,6 +18858,11 @@ function SyncUploadSafetyPanel({
       detail: "超过 30 分钟标记滞留风险，超过 6 小时标记长时间未上传。",
     },
   ];
+  const primaryHandoffGate =
+    handoffReceipt.gates.find((gate) => gate.status === "block") ??
+    handoffReceipt.gates.find((gate) => gate.status === "warn") ??
+    handoffReceipt.gates[0] ??
+    null;
 
   return (
     <div
@@ -18956,6 +18974,110 @@ function SyncUploadSafetyPanel({
         ))}
       </div>
 
+      <div
+        data-testid="sync-handoff-readiness-summary"
+        className="rounded-md border border-zinc-200 bg-white p-3 text-xs dark:border-zinc-800 dark:bg-zinc-950"
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                跨设备接力 readiness
+              </div>
+              <span
+                className={`rounded-md px-2 py-1 text-[10px] ${syncHandoffReadinessStatusClass(
+                  handoffReceipt.status
+                )}`}
+              >
+                {formatSyncHandoffReadinessStatus(handoffReceipt.status)}
+              </span>
+            </div>
+            <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+              {handoffReceipt.next_action}
+            </p>
+          </div>
+          <div className="font-mono text-[10px] text-zinc-400">
+            {handoffReceipt.summary.receipt_hash.slice(0, 12)}
+          </div>
+        </div>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          <CacheRebuildFact
+            label="ready_for_cross_device_handoff"
+            value={
+              handoffReceipt.summary.ready_for_cross_device_handoff
+                ? "true"
+                : "false"
+            }
+            detail="云端接力前的总判断"
+          />
+          <CacheRebuildFact
+            label="safe_to_open_other_device"
+            value={
+              handoffReceipt.summary.safe_to_open_other_device
+                ? "true"
+                : "false"
+            }
+            detail="另一台设备能否安全读取"
+          />
+          <CacheRebuildFact
+            label="云工作区"
+            value={
+              handoffReceipt.summary.cloud_workspace_linked ? "已连接" : "未连接"
+            }
+            detail={
+              handoffReceipt.summary.cloud_workspace_fingerprint ??
+              "暂无云 workspace 指纹"
+            }
+          />
+          <CacheRebuildFact
+            label="待上传"
+            value={`${
+              handoffReceipt.summary.page_pending_rows +
+              handoffReceipt.summary.database_pending_rows +
+              handoffReceipt.summary.total_sync_log_pending_rows
+            } 条`}
+            detail={`页面 ${handoffReceipt.summary.page_pending_rows} · 数据库 ${handoffReceipt.summary.database_pending_rows}`}
+          />
+          <CacheRebuildFact
+            label="最早 pending"
+            value={handoffReceipt.summary.oldest_pending_age_label}
+            detail={
+              handoffReceipt.summary.oldest_pending_queued_at ??
+              "暂无 pending 时间戳"
+            }
+          />
+        </div>
+
+        {primaryHandoffGate ? (
+          <div className="mt-3 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/70">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                当前门禁：{primaryHandoffGate.title}
+              </div>
+              <span
+                className={`rounded-md px-2 py-1 text-[10px] ${syncHandoffReadinessGateClass(
+                  primaryHandoffGate.status
+                )}`}
+              >
+                {formatSyncHandoffReadinessGateStatus(primaryHandoffGate.status)}
+              </span>
+            </div>
+            <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+              {primaryHandoffGate.evidence}
+            </p>
+            <p className="mt-1 leading-5 text-zinc-400">
+              下一步：{primaryHandoffGate.next_action}
+            </p>
+          </div>
+        ) : null}
+
+        <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          边界：接力 readiness 只展示 counts、flags、hash、timestamps 和
+          gates；不读取页面正文、数据库行值、评论、文件字节、失败消息或原始 workspace id。
+        </p>
+      </div>
+
       {drainReceipt ? (
         <div
           data-testid="sync-upload-drain-receipt"
@@ -19060,6 +19182,56 @@ function syncUploadDrainStatusClass(status: SyncUploadDrainStatus) {
     return "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300";
   }
   if (status === "needs-attention") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+}
+
+function formatSyncHandoffReadinessStatus(
+  status: SyncHandoffReadinessStatus
+) {
+  const labels: Record<SyncHandoffReadinessStatus, string> = {
+    ready: "可接力",
+    "blocked-local-only": "未连云端",
+    "blocked-sync-disabled": "同步未开启",
+    "blocked-pending": "等待补传",
+    "blocked-stale-pending": "滞留阻断",
+    "blocked-failed": "失败阻断",
+    "blocked-manual-review": "需人工处理",
+  };
+  return labels[status];
+}
+
+function syncHandoffReadinessStatusClass(
+  status: SyncHandoffReadinessStatus
+) {
+  if (status === "ready") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  if (status === "blocked-pending") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  if (status === "blocked-stale-pending") {
+    return "bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300";
+  }
+  return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+}
+
+function formatSyncHandoffReadinessGateStatus(
+  status: SyncHandoffReadinessGateStatus
+) {
+  if (status === "pass") return "通过";
+  if (status === "warn") return "提醒";
+  return "阻断";
+}
+
+function syncHandoffReadinessGateClass(
+  status: SyncHandoffReadinessGateStatus
+) {
+  if (status === "pass") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  if (status === "warn") {
     return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
   }
   return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";

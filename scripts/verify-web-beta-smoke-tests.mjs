@@ -10534,6 +10534,30 @@ function run() {
     "Sync UI must render the cross-device handoff readiness export action."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="sync-handoff-readiness-summary"',
+    "Sync UI must render a visible cross-device handoff readiness summary."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "ready_for_cross_device_handoff",
+    "Sync UI must show the live cross-device handoff readiness boolean."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "safe_to_open_other_device",
+    "Sync UI must show whether another device can safely open cloud data."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "syncHandoffReadinessReceipt",
+    "Sync UI must reuse the same handoff receipt for visible status and export."
+  );
+  assertIncludes(
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
     'format: "zhinote-sync-handoff-readiness-receipt"',

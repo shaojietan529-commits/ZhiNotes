@@ -8415,6 +8415,22 @@ function run() {
       "导出接力收据",
       "Sync UI must render the cross-device handoff readiness export action.",
     ],
+    [
+      'data-testid="sync-handoff-readiness-summary"',
+      "Sync UI must render a visible cross-device handoff readiness summary.",
+    ],
+    [
+      "ready_for_cross_device_handoff",
+      "Sync UI must show the live cross-device handoff readiness boolean.",
+    ],
+    [
+      "safe_to_open_other_device",
+      "Sync UI must show whether another device can safely open cloud data.",
+    ],
+    [
+      "syncHandoffReadinessReceipt",
+      "Sync UI must reuse the same handoff receipt for visible status and export.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
