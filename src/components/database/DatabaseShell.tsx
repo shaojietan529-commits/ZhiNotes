@@ -169,6 +169,7 @@ const DATABASE_IMPORT_CONFIRMATION_PHRASE =
 const DATABASE_TABLE_FROZEN_FIELD_LIMIT = 3;
 const DATABASE_VIEW_INITIAL_RENDER_LIMIT = 80;
 const DATABASE_FIRST_PAINT_ROW_LIMIT = DATABASE_VIEW_INITIAL_RENDER_LIMIT * 3;
+const DATABASE_BACKGROUND_ROW_HYDRATION_BATCH = DATABASE_FIRST_PAINT_ROW_LIMIT;
 const DATABASE_RELATION_METADATA_FIRST_PAINT_LIMIT = 360;
 const DATABASE_ROW_PAGE_PRIME_DEDUPE_MS = 2500;
 const DATABASE_VIEW_RENDER_BATCH = 80;
@@ -334,6 +335,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     const isCurrentReload = () => reloadRequestRef.current === reloadRequestId;
     const readLocalDatabase = async (readOptions: {
       rowLimit?: number;
+      rowOffset?: number;
     } = {}): Promise<DatabaseSnapshot> => {
       const [db, f, r, v] = await Promise.all([
         getDatabase(databaseId),
@@ -341,6 +343,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
         getRows(databaseId, {
           includePageContent: false,
           limit: readOptions.rowLimit,
+          offset: readOptions.rowOffset,
         }),
         getViews(databaseId),
       ]);
@@ -348,6 +351,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
     };
     const readLocalDatabaseSafe = async (readOptions: {
       rowLimit?: number;
+      rowOffset?: number;
     } = {}): Promise<DatabaseSnapshot> => {
       try {
         return await readLocalDatabase(readOptions);
@@ -371,9 +375,43 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       }
       setLoading(false);
     };
-    const hydrateFullLocalRows = () => {
+    const hydrateLocalRowsInBatches = (startOffset: number) => {
+      const loadBatch = (offset: number) => {
+        scheduleDatabaseIdleTask(() => {
+          void getRows(databaseId, {
+            includePageContent: false,
+            limit: DATABASE_BACKGROUND_ROW_HYDRATION_BATCH,
+            offset,
+          })
+            .then((batchRows) => {
+              if (!isCurrentReload() || batchRows.length === 0) return;
+              setRows((current) => upsertLocalRows(current, batchRows));
+              if (batchRows.length >= DATABASE_BACKGROUND_ROW_HYDRATION_BATCH) {
+                loadBatch(offset + batchRows.length);
+              }
+            })
+            .catch(() => {
+              if (isCurrentReload()) {
+                setCacheNotice(
+                  "数据库后台补齐暂时失败，当前显示已加载内容。"
+                );
+              }
+            });
+        }, 180);
+      };
+      loadBatch(Math.max(0, startOffset));
+    };
+    const applyLocalPreviewAndHydrate = (snapshot: DatabaseSnapshot) => {
+      applyDatabaseSnapshot(snapshot);
+      if (snapshot[0] && snapshot[2].length >= DATABASE_FIRST_PAINT_ROW_LIMIT) {
+        hydrateLocalRowsInBatches(snapshot[2].length);
+      }
+    };
+    const refreshLocalPreviewAfterBackground = () => {
       scheduleDatabaseIdleTask(() => {
-        void readLocalDatabaseSafe().then(applyDatabaseSnapshot);
+        void readLocalDatabaseSafe({
+          rowLimit: DATABASE_FIRST_PAINT_ROW_LIMIT,
+        }).then(applyLocalPreviewAndHydrate);
       }, 180);
     };
 
@@ -442,7 +480,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
               return;
             }
             if (backgroundCloud.pulled > 0) {
-              void readLocalDatabaseSafe().then(applyDatabaseSnapshot);
+              refreshLocalPreviewAfterBackground();
             }
           });
         }
@@ -457,7 +495,7 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
           setCacheNotice(null);
         }
         if (localSnapshotNeedsFullHydration) {
-          hydrateFullLocalRows();
+          hydrateLocalRowsInBatches(localSnapshot[2].length);
         }
         return;
       }
@@ -478,7 +516,10 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
       }
     }
 
-    applyDatabaseSnapshot(await readLocalDatabaseSafe());
+    const fallbackSnapshot = await readLocalDatabaseSafe({
+      rowLimit: DATABASE_FIRST_PAINT_ROW_LIMIT,
+    });
+    applyLocalPreviewAndHydrate(fallbackSnapshot);
   }, [databaseId, activeViewId, applyViewConfig, initialViewId]);
 
   useEffect(() => {

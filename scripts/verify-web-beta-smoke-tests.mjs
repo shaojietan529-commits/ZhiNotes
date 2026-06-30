@@ -10344,20 +10344,36 @@ function run() {
       "Database detail background cloud hydration must avoid retaining the full database record set in memory.",
     ],
     [
-      "readLocalDatabaseSafe().then(applyDatabaseSnapshot)",
-      "Database detail page must refresh from local cache after background cloud hydration completes.",
+      "refreshLocalPreviewAfterBackground",
+      "Database detail page must refresh a bounded local preview after background cloud hydration completes.",
     ],
     [
       "DATABASE_FIRST_PAINT_ROW_LIMIT",
       "Database detail page must bound first-paint local row reads before full hydration.",
     ],
     [
+      "DATABASE_BACKGROUND_ROW_HYDRATION_BATCH",
+      "Database detail page must hydrate remaining rows in bounded idle batches after first paint.",
+    ],
+    [
       "limit: readOptions.rowLimit",
       "Database detail first paint must pass a bounded row limit into local SQLite reads.",
     ],
     [
+      "offset: readOptions.rowOffset",
+      "Database detail local row reads must support offset paging for background hydration.",
+    ],
+    [
       "localSnapshotNeedsFullHydration",
       "Database detail page must schedule full local row hydration after a truncated first paint.",
+    ],
+    [
+      "hydrateLocalRowsInBatches",
+      "Database detail page must hydrate local rows through an idle batch loop.",
+    ],
+    [
+      "setRows((current) => upsertLocalRows(current, batchRows))",
+      "Database detail row hydration must merge each background row batch without replacing the visible table.",
     ],
     [
       "reloadRequestRef",
