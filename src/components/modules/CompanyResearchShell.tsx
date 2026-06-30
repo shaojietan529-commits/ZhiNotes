@@ -16,6 +16,7 @@ import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import { pageMetadataMatches } from "@/lib/pages/pageMetadataSearch";
 import {
   buildCompanyCoverageReport,
   getCoverageAreaLabel,
@@ -2027,8 +2028,7 @@ function buildCompanyTrackerIntakeItems(
 }
 
 function pageMatches(page: Page, terms: string[]) {
-  const searchable = `${page.title ?? ""} ${page.content_text ?? ""}`.toLowerCase();
-  return terms.some((term) => searchable.includes(term));
+  return pageMetadataMatches(page, terms);
 }
 
 function isCompanyResearchDatabase(database: Database) {

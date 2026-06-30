@@ -16,6 +16,7 @@ import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { PLATFORM_MODULES, type ModuleStarter } from "@/lib/modules/registry";
 import { getResearchTemplateStarters } from "@/lib/modules/researchTemplateStarters";
+import { pageMetadataMatches } from "@/lib/pages/pageMetadataSearch";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import {
@@ -1426,8 +1427,7 @@ function buildPortfolioTrackerIntakeItems(
 }
 
 function pageMatches(page: Page, terms: string[]) {
-  const searchable = `${page.title ?? ""} ${page.content_text ?? ""}`.toLowerCase();
-  return terms.some((term) => searchable.includes(term));
+  return pageMetadataMatches(page, terms);
 }
 
 function isPortfolioTrackerDatabase(database: Database) {

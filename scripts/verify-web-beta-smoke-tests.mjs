@@ -102,6 +102,7 @@ const files = {
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   pendingPageDrafts: "src/lib/pages/pendingPageDrafts.ts",
+  pageMetadataSearch: "src/lib/pages/pageMetadataSearch.ts",
   pageUpdateBus: "src/lib/pages/pageUpdateBus.ts",
   scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
   pageCloudSync: "src/hooks/usePageCloudSync.ts",
@@ -517,6 +518,7 @@ function run() {
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
+  const pageMetadataSearch = readProjectFile(files.pageMetadataSearch);
   const pageUpdateBus = readProjectFile(files.pageUpdateBus);
   const scopedPageMetadata = readProjectFile(files.scopedPageMetadata);
   const pageCloudSync = readProjectFile(files.pageCloudSync);
@@ -12207,6 +12209,49 @@ function run() {
       "await refresh()",
       "Content-heavy research module create/import flows must not wait for a full page-list refresh."
     );
+  }
+  for (const [sourceLabel, source, label] of [
+    [files.companyResearchShell, companyResearchShell, "Company research"],
+    [files.meetingsShell, meetingsShell, "Meetings"],
+    [files.reportsShell, reportsShell, "Reports"],
+    [files.portfolioShell, portfolioShell, "Portfolio"],
+  ]) {
+    assertIncludes(
+      sourceLabel,
+      source,
+      "pageMetadataMatches",
+      `${label} default page classification must use metadata-first matching.`
+    );
+    assertExcludes(
+      sourceLabel,
+      source,
+      '`${page.title ?? ""} ${page.content_text ?? ""}`',
+      `${label} default page classification must not rescan page body HTML after deferred hydration.`
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      'Pick<Page, "title" | "icon" | "properties">',
+      "Page metadata search must only use lightweight page metadata fields.",
+    ],
+    [
+      "page.properties",
+      "Page metadata search should include local properties for module classification.",
+    ],
+  ]) {
+    assertIncludes(files.pageMetadataSearch, pageMetadataSearch, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Page metadata search must not inspect page body HTML.",
+    ],
+    [
+      "page.content_yjs",
+      "Page metadata search must not inspect Yjs document blobs.",
+    ],
+  ]) {
+    assertExcludes(files.pageMetadataSearch, pageMetadataSearch, snippet, message);
   }
   for (const [snippet, message] of [
     [
