@@ -114,6 +114,7 @@ const files = {
     "src/lib/sync/localFirstCloudInputPlan.ts",
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
+  cloudSyncControlPlane: "src/lib/sync/cloudSyncControlPlane.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   syncAckRetryLedgerContract:
     "src/lib/sync/syncAckRetryLedgerContract.ts",
@@ -584,6 +585,9 @@ function run() {
   const cloudUploadReliabilityReport = readProjectFile(
     files.cloudUploadReliabilityReport
   );
+  const cloudSyncControlPlane = readProjectFile(
+    files.cloudSyncControlPlane
+  );
   const syncUploadDrainReceipt = readProjectFile(
     files.syncUploadDrainReceipt
   );
@@ -878,6 +882,7 @@ function run() {
     [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
     [files.cloudMasterReconcile, cloudMasterReconcile],
     [files.localFirstCloudInputPlan, localFirstCloudInputPlan],
+    [files.cloudSyncControlPlane, cloudSyncControlPlane],
     [files.syncAckRetryLedgerContract, syncAckRetryLedgerContract],
     [files.syncAckLedgerReplayPreflight, syncAckLedgerReplayPreflight],
     [files.syncAckLedgerReplayProof, syncAckLedgerReplayProof],
@@ -9669,6 +9674,207 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-cloud-sync-control-plane"',
+      "Cloud sync control plane must have a stable format.",
+    ],
+    [
+      'plane_status: "metadata-only-local-sync-control"',
+      "Cloud sync control plane must stay metadata-only and local.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Cloud sync control plane must align with the cloud-master/local-hot-cache target.",
+    ],
+    [
+      "local_input_should_feel_native: true",
+      "Cloud sync control plane must preserve local-speed input as a first-class invariant.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Cloud sync control plane must not write server data.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Cloud sync control plane must not upload workspace data.",
+    ],
+    [
+      "can_clear_local_cache_now: false",
+      "Cloud sync control plane must not clear local cache.",
+    ],
+    [
+      "local_control_plane_only: true",
+      "Cloud sync control plane must be local control metadata only.",
+    ],
+    [
+      "reads_queue_counts: true",
+      "Cloud sync control plane must read queue counts.",
+    ],
+    [
+      "reads_queue_timestamps: true",
+      "Cloud sync control plane must read queue timestamps.",
+    ],
+    [
+      "reads_failure_counts: true",
+      "Cloud sync control plane must read failure counts.",
+    ],
+    [
+      "reads_failure_messages: true",
+      "Cloud sync control plane must surface failure messages.",
+    ],
+    [
+      "reads_handoff_hashes: true",
+      "Cloud sync control plane must use handoff hashes rather than raw workspace ids.",
+    ],
+    [
+      "reads_hot_cache_route_counts: true",
+      "Cloud sync control plane must use hot-cache route counts.",
+    ],
+    [
+      "reads_page_ids: false",
+      "Cloud sync control plane must not read page ids.",
+    ],
+    [
+      "reads_database_keys: false",
+      "Cloud sync control plane must not read database keys.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud sync control plane must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud sync control plane must not read database row values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Cloud sync control plane must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud sync control plane must not read file bytes.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Cloud sync control plane must not send network requests.",
+    ],
+    [
+      "writes_server_data: false",
+      "Cloud sync control plane must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud sync control plane must not upload workspace data.",
+    ],
+    [
+      "mutates_local_cache: false",
+      "Cloud sync control plane must not mutate local cache.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Cloud sync control plane must not mark local rows synced.",
+    ],
+    [
+      "enables_sync_push: false",
+      "Cloud sync control plane must not enable sync push.",
+    ],
+    [
+      "enables_sync_pull: false",
+      "Cloud sync control plane must not enable sync pull.",
+    ],
+    [
+      "ready-for-local-speed-input",
+      "Cloud sync control plane must include the local-speed input verdict.",
+    ],
+    [
+      "needs-cloud-workspace-link",
+      "Cloud sync control plane must include the cloud workspace link verdict.",
+    ],
+    [
+      "drain-pending-first",
+      "Cloud sync control plane must include the drain-pending verdict.",
+    ],
+    [
+      "manual-review-required",
+      "Cloud sync control plane must include the manual review verdict.",
+    ],
+    [
+      "ready-for-device-handoff",
+      "Cloud sync control plane must include the device handoff verdict.",
+    ],
+    [
+      "continue-typing",
+      "Cloud sync control plane must keep typing as a non-blocking instruction.",
+    ],
+    [
+      "run-background-drain",
+      "Cloud sync control plane must include background drain instructions.",
+    ],
+    [
+      "warm-selected-cache",
+      "Cloud sync control plane must include hot-cache warmup instructions.",
+    ],
+    [
+      "block-cache-rebuild",
+      "Cloud sync control plane must block unsafe cache rebuilds.",
+    ],
+    [
+      "allow-device-handoff",
+      "Cloud sync control plane must include device handoff instructions.",
+    ],
+    [
+      "buildCloudSyncControlPlane",
+      "Cloud sync control plane builder must be exported.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.cloudSyncControlPlane,
+      cloudSyncControlPlane,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCloudSyncControlPlane",
+      "SyncShell must build the cloud sync control plane.",
+    ],
+    [
+      "cloudSyncControlPlane",
+      "SyncShell must keep a cloud sync control plane instance.",
+    ],
+    [
+      'id="cloud-sync-control-plane"',
+      "SyncShell must render the cloud sync control plane panel.",
+    ],
+    [
+      'data-testid="cloud-sync-control-plane"',
+      "SyncShell must expose a test id for the cloud sync control plane panel.",
+    ],
+    [
+      "云同步控制面",
+      "SyncShell must label the cloud sync control plane in Chinese.",
+    ],
+    [
+      "handleExportCloudSyncControlPlane",
+      "SyncShell must support exporting the cloud sync control plane.",
+    ],
+    [
+      "zhinote-cloud-sync-control-plane",
+      "SyncShell must export cloud sync control plane JSON with a stable filename prefix.",
+    ],
+    [
+      "onDrainAll={() => void handleDrainAllPendingPush()}",
+      "Cloud sync control plane UI must route to the existing drain-all pending action.",
+    ],
+    [
+      "onWarmup={() => void handleRunHotCacheWarmup()}",
+      "Cloud sync control plane UI must route to the existing hot-cache warmup action.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       'format: "zhinote-sync-upload-drain-receipt"',
       "Sync upload drain receipt must have a stable receipt format.",
     ],
@@ -11412,6 +11618,63 @@ function run() {
     assertSourceExcludes(
       files.cloudUploadReliabilityReport,
       cloudUploadReliabilityReport,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "page.content_text",
+      "Cloud sync control plane must not access page content text.",
+    ],
+    [
+      "page.content_yjs",
+      "Cloud sync control plane must not access page Yjs content.",
+    ],
+    [
+      "field_values",
+      "Cloud sync control plane must not access database row values.",
+    ],
+    [
+      "comment.body",
+      "Cloud sync control plane must not access comment bodies.",
+    ],
+    [
+      "file.dataUrl",
+      "Cloud sync control plane must not access file bytes.",
+    ],
+    [
+      "file.textContent",
+      "Cloud sync control plane must not access file text.",
+    ],
+    [
+      "fetch(",
+      "Cloud sync control plane must not call network APIs.",
+    ],
+    [
+      "localStorage.setItem",
+      "Cloud sync control plane must not write browser storage.",
+    ],
+    [
+      "db.run",
+      "Cloud sync control plane must not mutate the local database.",
+    ],
+    [
+      "INSERT INTO",
+      "Cloud sync control plane must not insert rows.",
+    ],
+    [
+      "UPDATE ",
+      "Cloud sync control plane must not update rows.",
+    ],
+    [
+      "DELETE FROM",
+      "Cloud sync control plane must not delete rows.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.cloudSyncControlPlane,
+      cloudSyncControlPlane,
       snippet,
       message
     );
@@ -23684,6 +23947,7 @@ function run() {
     web_beta_stage_gate_checks: 35,
     web_launch_workbench_checks: 73,
     web_beta_timeline_estimate_checks: 42,
+    cloud_sync_control_plane_checks: 59,
     web_beta_autonomy_queue_checks: 37,
     web_alpha_launch_decision_checks: 39,
     web_beta_owner_review_packet_checks: 40,

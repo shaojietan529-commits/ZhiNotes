@@ -354,6 +354,13 @@ import {
   type CloudUploadReliabilityStatus,
 } from "@/lib/sync/cloudUploadReliabilityReport";
 import {
+  buildCloudSyncControlPlane,
+  type CloudSyncControlDecision,
+  type CloudSyncControlPlane,
+  type CloudSyncControlPlaneDecisionStatus,
+  type CloudSyncControlPlaneVerdict,
+} from "@/lib/sync/cloudSyncControlPlane";
+import {
   buildSyncUploadDrainReceipt,
   type SyncUploadDrainReceipt,
   type SyncUploadDrainResultSnapshot,
@@ -601,6 +608,7 @@ type SyncQueueAction =
   | "local-first-cloud-input-plan"
   | "cloud-source-of-truth-plan"
   | "cloud-ack-cache-safety-report"
+  | "cloud-sync-control-plane"
   | "replay-test-plan";
 type PendingDomainId =
   | "pages"
@@ -2238,6 +2246,33 @@ function SyncDashboard() {
       syncDrainReceipt,
     ]
   );
+  const cloudSyncControlPlane = useMemo(
+    () =>
+      buildCloudSyncControlPlane({
+        pageStatus: pagePendingStatus,
+        databaseStatus: databasePendingStatus,
+        syncSummary,
+        localFirstCloudInputPlan,
+        cloudUploadReliabilityReport,
+        cloudAckCacheSafetyReport,
+        handoffReadinessReceipt: syncHandoffReadinessReceipt,
+        hotCacheWarmupPlan,
+        hotCacheWarmupReceipt,
+        lastDrainReceipt: syncDrainReceipt,
+      }),
+    [
+      cloudAckCacheSafetyReport,
+      cloudUploadReliabilityReport,
+      databasePendingStatus,
+      hotCacheWarmupPlan,
+      hotCacheWarmupReceipt,
+      localFirstCloudInputPlan,
+      pagePendingStatus,
+      syncDrainReceipt,
+      syncHandoffReadinessReceipt,
+      syncSummary,
+    ]
+  );
   const syncReplayTestApiGuard = useMemo(
     () => buildSyncReplayTestApiDisabledResponse(),
     []
@@ -3451,6 +3486,27 @@ function SyncDashboard() {
         exported_at: new Date().toISOString(),
       }
     );
+  };
+
+  const handleExportCloudSyncControlPlane = () => {
+    setBusyQueueAction("cloud-sync-control-plane");
+    try {
+      downloadJsonFile(
+        `zhinote-cloud-sync-control-plane-${fileSafeTimestamp()}.json`,
+        {
+          ...cloudSyncControlPlane,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export cloud sync control plane:",
+        err
+      );
+      window.alert("云同步控制面导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
   };
 
   const handleExportLocalMetadataManifest = () => {
@@ -6152,6 +6208,15 @@ function SyncDashboard() {
         <CloudUploadReliabilityPanel
           report={cloudUploadReliabilityReport}
           onExport={handleExportCloudUploadReliabilityReport}
+          onOpenAccount={() => router.push("/account")}
+        />
+
+        <CloudSyncControlPlanePanel
+          plane={cloudSyncControlPlane}
+          busy={busyQueueAction === "cloud-sync-control-plane"}
+          onDrainAll={() => void handleDrainAllPendingPush()}
+          onWarmup={() => void handleRunHotCacheWarmup()}
+          onExport={handleExportCloudSyncControlPlane}
           onOpenAccount={() => router.push("/account")}
         />
 
@@ -20514,6 +20579,310 @@ function CloudManifestOwnerReviewStatusPill({
     status === "local-ready"
       ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
       : status === "owner-decision"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function CloudSyncControlPlanePanel({
+  plane,
+  busy,
+  onDrainAll,
+  onWarmup,
+  onExport,
+  onOpenAccount,
+}: {
+  plane: CloudSyncControlPlane;
+  busy: boolean;
+  onDrainAll: () => void;
+  onWarmup: () => void;
+  onExport: () => void;
+  onOpenAccount: () => void;
+}) {
+  const primaryBlocker =
+    plane.decisions.find((decision) => decision.status === "block") ??
+    plane.decisions.find((decision) => decision.status === "watch") ??
+    plane.decisions[0] ??
+    null;
+
+  return (
+    <section
+      id="cloud-sync-control-plane"
+      data-testid="cloud-sync-control-plane"
+      data-cloud-sync-control-verdict={plane.verdict}
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Cloud Sync Control
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              云同步控制面
+            </h2>
+            <CloudSyncControlVerdictPill verdict={plane.verdict} />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            {plane.owner_visible_banner}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onDrainAll}
+            disabled={!plane.should_run_background_drain_now}
+            className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            补传全部
+          </button>
+          <button
+            type="button"
+            onClick={onWarmup}
+            disabled={!plane.can_warm_selected_hot_cache_now}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            预热热缓存
+          </button>
+          <button
+            type="button"
+            onClick={onOpenAccount}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开账号页
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={busy}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {busy ? "导出中..." : "导出控制面"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <CacheRebuildFact
+          label="继续输入"
+          value={plane.can_keep_typing_now ? "可以" : "先处理"}
+          detail="本地保存优先"
+        />
+        <CacheRebuildFact
+          label="后台补传"
+          value={plane.should_run_background_drain_now ? "建议运行" : "暂不需要"}
+          detail={`${plane.summary.total_waiting_rows} 条等待`}
+        />
+        <CacheRebuildFact
+          label="云端确认"
+          value={plane.can_claim_cloud_confirmed_now ? "已确认" : "未确认"}
+          detail="区分本地 ACK 和云 ACK"
+        />
+        <CacheRebuildFact
+          label="热缓存"
+          value={plane.can_warm_selected_hot_cache_now ? "可预热" : "等待"}
+          detail={`${plane.summary.hot_cache_ready_jobs} 个 ready job`}
+        />
+        <CacheRebuildFact
+          label="缓存重建"
+          value={plane.can_rebuild_local_cache_now ? "可确认" : "禁止"}
+          detail="清缓存必须二次确认"
+        />
+        <CacheRebuildFact
+          label="切换设备"
+          value={plane.can_switch_device_now ? "可以" : "等待"}
+          detail={plane.summary.oldest_pending_age_label}
+        />
+      </div>
+
+      {primaryBlocker ? (
+        <CloudSyncControlDecisionCard decision={primaryBlocker} highlighted />
+      ) : null}
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        {plane.decisions.map((decision) => (
+          <CloudSyncControlDecisionCard
+            key={decision.id}
+            decision={decision}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              推荐调度顺序
+            </p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              这不是上传执行器，只是把输入、补传、热缓存、清缓存和跨设备切换的顺序拆清楚。
+            </p>
+          </div>
+          <span className="w-fit rounded-md bg-zinc-100 px-2 py-1 text-[10px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-300">
+            {plane.summary.go} go · {plane.summary.watch} watch ·{" "}
+            {plane.summary.blocked} block
+          </span>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          {plane.instructions.map((instruction) => (
+            <article
+              key={instruction.order}
+              className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {instruction.order}. {instruction.label}
+                </div>
+                <span className="rounded bg-white px-2 py-0.5 text-[10px] text-zinc-400 dark:bg-zinc-800">
+                  {instruction.action}
+                </span>
+              </div>
+              <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+                {instruction.trigger}
+              </p>
+              <p className="mt-1 leading-5 text-zinc-400">
+                {instruction.execution}
+              </p>
+              <p className="mt-2 rounded bg-white px-2 py-1 leading-5 text-zinc-500 dark:bg-zinc-950">
+                {instruction.owner_visible_copy}
+              </p>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        下一步：{plane.next_action}
+        <br />
+        边界：{plane.privacy_boundary}
+      </p>
+    </section>
+  );
+}
+
+function CloudSyncControlDecisionCard({
+  decision,
+  highlighted = false,
+}: {
+  decision: CloudSyncControlDecision;
+  highlighted?: boolean;
+}) {
+  return (
+    <article
+      className={`rounded-md border px-3 py-2 text-xs ${
+        highlighted
+          ? "mt-4 border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
+          : "border-zinc-200 dark:border-zinc-800"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {highlighted ? "当前重点：" : ""}
+            {decision.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            {decision.user_visible_state}
+          </div>
+        </div>
+        <CloudSyncControlDecisionPill status={decision.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {decision.evidence}
+      </p>
+      <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+        下一步：{decision.next_action}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        <CloudSyncControlBlockFlag
+          active={decision.blocks_typing}
+          label="挡输入"
+        />
+        <CloudSyncControlBlockFlag
+          active={decision.blocks_navigation}
+          label="挡跳转"
+        />
+        <CloudSyncControlBlockFlag
+          active={decision.blocks_cache_rebuild}
+          label="挡清缓存"
+        />
+        <CloudSyncControlBlockFlag
+          active={decision.blocks_device_handoff}
+          label="挡切设备"
+        />
+      </div>
+    </article>
+  );
+}
+
+function CloudSyncControlBlockFlag({
+  active,
+  label,
+}: {
+  active: boolean;
+  label: string;
+}) {
+  return (
+    <span
+      className={`rounded px-1.5 py-0.5 text-[10px] ${
+        active
+          ? "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      }`}
+    >
+      {active ? label : `不${label}`}
+    </span>
+  );
+}
+
+function CloudSyncControlVerdictPill({
+  verdict,
+}: {
+  verdict: CloudSyncControlPlaneVerdict;
+}) {
+  const labels: Record<CloudSyncControlPlaneVerdict, string> = {
+    "ready-for-local-speed-input": "本地流畅",
+    "needs-cloud-workspace-link": "需连接云",
+    "drain-pending-first": "先补传",
+    "blocked-by-failures": "失败阻断",
+    "manual-review-required": "需人工处理",
+    "ready-for-device-handoff": "可切设备",
+  };
+  const className =
+    verdict === "ready-for-device-handoff" ||
+    verdict === "ready-for-local-speed-input"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : verdict === "drain-pending-first" ||
+          verdict === "needs-cloud-workspace-link"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[verdict]}
+    </span>
+  );
+}
+
+function CloudSyncControlDecisionPill({
+  status,
+}: {
+  status: CloudSyncControlPlaneDecisionStatus;
+}) {
+  const labels: Record<CloudSyncControlPlaneDecisionStatus, string> = {
+    go: "go",
+    watch: "watch",
+    block: "block",
+  };
+  const className =
+    status === "go"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "watch"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
 
