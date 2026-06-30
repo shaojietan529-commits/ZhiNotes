@@ -1284,6 +1284,13 @@ Current local actions:
   hot-cache policy metadata; it does not read page bodies, database row values,
   comment bodies, file names, file bytes, secrets, tokens, remote data, or AI
   payloads.
+- Review the metadata-only cloud manifest domain contract used by future
+  local/cloud compare. The contract defines each data domain's cloud tables,
+  local cache scope, required manifest fields, forbidden content fields, diff
+  kinds, pending-queue rule, cache-rebuild rule, and owner-review gates. It is
+  included in the disabled cloud manifest compare guard and does not connect
+  cloud services, read page bodies, database row values, comment bodies, version
+  snapshots, file names, file bytes, secrets, prompts, or upload workspace data.
 - Review and export a local cloud ACK/cache safety report. It combines the
   local-first input plan, latest upload drain receipt, durable ACK/replay
   gates, cache rebuild preflight, and cloud source-of-truth matrix into a

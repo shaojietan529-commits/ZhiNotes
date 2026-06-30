@@ -2,6 +2,10 @@ import {
   buildWebBetaApiStubResponse,
   type WebBetaApiStubResponse,
 } from "@/lib/sync/webBetaApiStubs";
+import {
+  buildCloudManifestDomainContractReport,
+  type CloudManifestDomainContractReport,
+} from "@/lib/sync/cloudManifestDomainContract";
 
 export type CloudManifestCompareFieldStatus = "allowed" | "forbidden";
 export type CloudManifestCompareValidationStatus = "accepted" | "rejected";
@@ -91,6 +95,7 @@ export interface CloudManifestCompareApiDisabledResponse {
     forbidden_fields: CloudManifestCompareField[];
   };
   local_validator_report: CloudManifestCompareValidatorReport;
+  domain_contract_report: CloudManifestDomainContractReport;
   disabled_response_contract: {
     http_status: 501;
     returns_manifest_report: false;
@@ -158,6 +163,7 @@ const CLOUD_MANIFEST_ALLOWED_RESPONSE_FIELDS: CloudManifestCompareField[] = [
   allowed("domain_summaries", "Future count-only summaries by data domain."),
   allowed("local_watermark", "Future local metadata watermark echo."),
   allowed("remote_watermark", "Future remote metadata watermark."),
+  allowed("domain_contract_report", "Local metadata-only domain contract for future cloud/local compare."),
   allowed("required_gates", "Gate ids that block manifest compare."),
   allowed("reason_codes", "Machine-readable refusal reasons."),
 ];
@@ -234,6 +240,7 @@ export function buildCloudManifestCompareApiDisabledResponse(): CloudManifestCom
       forbidden_fields: buildCloudManifestCompareForbiddenResponseFields(),
     },
     local_validator_report: buildCloudManifestCompareValidatorReport(),
+    domain_contract_report: buildCloudManifestDomainContractReport(),
     disabled_response_contract: {
       http_status: 501,
       returns_manifest_report: false,

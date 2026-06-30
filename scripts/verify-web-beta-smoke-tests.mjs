@@ -35,6 +35,8 @@ const files = {
     "src/lib/sync/syncReplayOwnerReviewPacket.ts",
   syncReplayEnablementGate:
     "src/lib/sync/syncReplayEnablementGate.ts",
+  cloudManifestDomainContract:
+    "src/lib/sync/cloudManifestDomainContract.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -389,6 +391,9 @@ function run() {
   );
   const syncReplayEnablementGate = readProjectFile(
     files.syncReplayEnablementGate
+  );
+  const cloudManifestDomainContract = readProjectFile(
+    files.cloudManifestDomainContract
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
@@ -3519,6 +3524,110 @@ function run() {
     "reads_database_row_values: false",
     "Core manifest compare receipt must not read database row values."
   );
+  assertIncludes(
+    files.cloudManifestDomainContract,
+    cloudManifestDomainContract,
+    'format: "zhinote-cloud-manifest-domain-contract-report"',
+    "Cloud manifest domain contract must declare its stable format."
+  );
+  assertIncludes(
+    files.cloudManifestDomainContract,
+    cloudManifestDomainContract,
+    'report_status: "metadata-only-local-contract"',
+    "Cloud manifest domain contract must stay metadata-only."
+  );
+  for (const [snippet, message] of [
+    [
+      "local_contract_only: true",
+      "Cloud manifest domain contract must remain local-only.",
+    ],
+    [
+      "reads_manifest_shape_only: true",
+      "Cloud manifest domain contract must only read manifest shape.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud manifest domain contract must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud manifest domain contract must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Cloud manifest domain contract must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Cloud manifest domain contract must not read version snapshots.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud manifest domain contract must not read file bytes.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Cloud manifest domain contract must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud manifest domain contract must not upload workspace data.",
+    ],
+    [
+      "can_compare_cloud_now: false",
+      "Cloud manifest domain contract must not enable cloud compare.",
+    ],
+    [
+      "can_rebuild_cache_now: false",
+      "Cloud manifest domain contract must not enable cache rebuild.",
+    ],
+    [
+      "id: \"pages\"",
+      "Cloud manifest domain contract must cover pages.",
+    ],
+    [
+      "id: \"daily-notes\"",
+      "Cloud manifest domain contract must cover daily notes.",
+    ],
+    [
+      "id: \"meetings\"",
+      "Cloud manifest domain contract must cover meetings.",
+    ],
+    [
+      "id: \"databases\"",
+      "Cloud manifest domain contract must cover databases.",
+    ],
+    [
+      "id: \"files\"",
+      "Cloud manifest domain contract must cover files.",
+    ],
+    [
+      "id: \"comments\"",
+      "Cloud manifest domain contract must cover comments.",
+    ],
+    [
+      "id: \"versions\"",
+      "Cloud manifest domain contract must cover versions.",
+    ],
+    [
+      "id: \"settings-permissions\"",
+      "Cloud manifest domain contract must cover settings and permissions.",
+    ],
+    [
+      "page_body_text",
+      "Cloud manifest domain contract must forbid page text.",
+    ],
+    [
+      "database_cell_values",
+      "Cloud manifest domain contract must forbid database values.",
+    ],
+    [
+      "file_bytes",
+      "Cloud manifest domain contract must forbid file bytes.",
+    ],
+  ]) {
+    assertIncludes(files.cloudManifestDomainContract, cloudManifestDomainContract, snippet, message);
+  }
   assertIncludes(
     files.coreManifestCompareReceipt,
     coreManifestCompareReceipt,

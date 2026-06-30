@@ -60,6 +60,8 @@ const files = {
   commentVersionReplayRoute:
     "src/app/api/sync/comment-version-replay/route.ts",
   cloudManifestCompareApiStub: "src/lib/sync/cloudManifestCompareApiStub.ts",
+  cloudManifestDomainContract:
+    "src/lib/sync/cloudManifestDomainContract.ts",
   cloudManifestCompareRoute: "src/app/api/cloud/manifest/compare/route.ts",
   cloudMigrationApplyApiStub: "src/lib/sync/cloudMigrationApplyApiStub.ts",
   cloudMigrationApplyRoute: "src/app/api/cloud/migrations/apply/route.ts",
@@ -469,6 +471,9 @@ function run() {
   );
   const cloudManifestCompareApiStub = readProjectFile(
     files.cloudManifestCompareApiStub
+  );
+  const cloudManifestDomainContract = readProjectFile(
+    files.cloudManifestDomainContract
   );
   const cloudManifestCompareRoute = readProjectFile(
     files.cloudManifestCompareRoute
@@ -13576,6 +13581,145 @@ function run() {
     "buildCloudManifestCompareApiDisabledResponse",
     "Cloud manifest compare API guard must expose a reusable disabled response builder."
   );
+  assertSourceIncludes(
+    files.cloudManifestCompareApiStub,
+    cloudManifestCompareApiStub,
+    "buildCloudManifestDomainContractReport",
+    "Cloud manifest compare API guard must include the metadata-only domain contract report."
+  );
+  assertSourceIncludes(
+    files.cloudManifestCompareApiStub,
+    cloudManifestCompareApiStub,
+    "domain_contract_report: buildCloudManifestDomainContractReport()",
+    "Cloud manifest compare API guard must return the domain contract report while disabled."
+  );
+  assertSourceIncludes(
+    files.cloudManifestDomainContract,
+    cloudManifestDomainContract,
+    'format: "zhinote-cloud-manifest-domain-contract-report"',
+    "Cloud manifest domain contract must expose a stable report format."
+  );
+  assertSourceIncludes(
+    files.cloudManifestDomainContract,
+    cloudManifestDomainContract,
+    'report_status: "metadata-only-local-contract"',
+    "Cloud manifest domain contract must stay metadata-only."
+  );
+  for (const item of [
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Cloud manifest domain contract must target cloud-master/local-hot-cache architecture.",
+    ],
+    [
+      "local_contract_only: true",
+      "Cloud manifest domain contract must stay local-only.",
+    ],
+    [
+      "reads_manifest_shape_only: true",
+      "Cloud manifest domain contract may only read manifest shape.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud manifest domain contract must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud manifest domain contract must not read database row values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Cloud manifest domain contract must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Cloud manifest domain contract must not read version snapshots.",
+    ],
+    [
+      "reads_file_names: false",
+      "Cloud manifest domain contract must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud manifest domain contract must not read file bytes.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Cloud manifest domain contract must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud manifest domain contract must not upload workspace data.",
+    ],
+    [
+      "can_compare_cloud_now: false",
+      "Cloud manifest domain contract must not claim cloud compare is available.",
+    ],
+    [
+      "can_rebuild_cache_now: false",
+      "Cloud manifest domain contract must not permit cache rebuild.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Cloud manifest domain contract must not permit uploads.",
+    ],
+    [
+      "buildCloudManifestDomainContracts",
+      "Cloud manifest domain contract must expose reusable per-domain contracts.",
+    ],
+    [
+      "cloud-manifest-compare-enable",
+      "Cloud manifest domain contract must require owner review before compare enablement.",
+    ],
+    [
+      "cache-rebuild-from-cloud",
+      "Cloud manifest domain contract must require owner review before cache rebuild.",
+    ],
+    ["id: \"pages\"", "Cloud manifest domain contract must cover pages."],
+    [
+      "id: \"daily-notes\"",
+      "Cloud manifest domain contract must cover daily notes.",
+    ],
+    ["id: \"meetings\"", "Cloud manifest domain contract must cover meetings."],
+    [
+      "id: \"databases\"",
+      "Cloud manifest domain contract must cover databases.",
+    ],
+    ["id: \"files\"", "Cloud manifest domain contract must cover files."],
+    [
+      "id: \"comments\"",
+      "Cloud manifest domain contract must cover comments.",
+    ],
+    [
+      "id: \"versions\"",
+      "Cloud manifest domain contract must cover versions.",
+    ],
+    [
+      "id: \"settings-permissions\"",
+      "Cloud manifest domain contract must cover settings, permissions, and audit.",
+    ],
+    [
+      "database_cell_values",
+      "Cloud manifest domain contract must forbid database values.",
+    ],
+    [
+      "version_snapshot",
+      "Cloud manifest domain contract must forbid version snapshots.",
+    ],
+    ["file_bytes", "Cloud manifest domain contract must forbid file bytes."],
+    ["prompt_text", "Cloud manifest domain contract must forbid AI prompts."],
+    ["secret_values", "Cloud manifest domain contract must forbid secrets."],
+  ]) {
+    const expected = Array.isArray(item) ? item[0] : item;
+    const message = Array.isArray(item)
+      ? item[1]
+      : "Cloud manifest domain contract must preserve metadata-only domain coverage.";
+    assertSourceIncludes(
+      files.cloudManifestDomainContract,
+      cloudManifestDomainContract,
+      expected,
+      message
+    );
+  }
   for (const item of [
     ['api_id: "cloud-manifest-compare"', "Cloud manifest compare API guard must identify the compare route."],
     ['path: "/api/cloud/manifest/compare?workspaceId=:workspaceId"', "Cloud manifest compare API guard must bind to manifest compare path."],
@@ -13612,6 +13756,7 @@ function run() {
     ['schema_status: "planned-manifest-summary-only"', "Cloud manifest compare API guard must expose manifest summary response schema."],
     ['format: "zhinote-cloud-manifest-compare-api-validator-fixtures"', "Cloud manifest compare API guard must include validator fixtures."],
     ['validator_status: "not-executing-route"', "Cloud manifest compare validator must not execute the route."],
+    "domain_contract_report",
     '"metadata-manifest-compare-request"',
     '"workspace-content-blocked"',
     '"file-and-backup-payload-blocked"',
