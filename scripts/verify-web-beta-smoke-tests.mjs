@@ -8228,8 +8228,38 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "const seededPage = getMeetingPagePrimeSeed(page)",
+    "Meeting entry warmup must create a metadata-only local-first seed before navigation."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'rememberPageRouteHandoff(seededPage, "meeting-open")',
+    "Meeting entry warmup must hand off the metadata seed for full-page opens."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "function getMeetingPagePrimeSeed(page: Page)",
+    "Meeting entry warmup must use a dedicated metadata-only seed helper."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'if (seededPage.content_text === "") return seededPage;',
+    "Meeting entry warmup must preserve optimistic empty drafts while avoiding large body preloads."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "content_text: null,\n    content_yjs: null,",
+    "Meeting entry warmup must strip non-empty bodies from hover/focus seeds."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "primeMeetingEntryPage(entry.page)",
-    "Meeting entry clicks must prime page metadata/body and the peek editor before opening details."
+    "Meeting entry clicks must prime page metadata and the peek editor before opening details."
   );
   assertIncludes(
     files.meetingScheduleShell,

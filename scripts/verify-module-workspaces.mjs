@@ -1314,6 +1314,12 @@ check(
     shells.schedule.includes("prepareMeetingPageOpen") &&
     shells.schedule.includes('import("@/components/providers/PageShell")') &&
     shells.schedule.includes("const primeMeetingEntryPage = useCallback") &&
+    shells.schedule.includes("const seededPage = getMeetingPagePrimeSeed(page)") &&
+    shells.schedule.includes('rememberPageRouteHandoff(seededPage, "meeting-open")') &&
+    shells.schedule.includes("function getMeetingPagePrimeSeed(page: Page)") &&
+    shells.schedule.includes('if (seededPage.content_text === "") return seededPage;') &&
+    shells.schedule.includes("content_text: null") &&
+    shells.schedule.includes("content_yjs: null") &&
     shells.schedule.includes("primeMeetingEntryPage(entry.page)") &&
     shells.schedule.includes("onPrimeOpen={() => primeMeetingEntryPage(selectedMeeting.page)}") &&
     shells.schedule.includes('importSource: "手动创建"') &&

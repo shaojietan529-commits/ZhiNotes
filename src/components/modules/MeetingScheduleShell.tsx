@@ -1849,10 +1849,19 @@ export default function MeetingScheduleShell() {
 
   const primeMeetingEntryPage = useCallback(
     (page: Page) => {
-      void page;
+      const seededPage = getMeetingPagePrimeSeed(page);
       warmMeetingPeekOpen();
+      upsertPages([seededPage]);
+      rememberPendingPageDraft(seededPage);
+      rememberPageRouteHandoff(seededPage, "meeting-open");
+      const pageRoute = `/page/${seededPage.id}`;
+      try {
+        router.prefetch(pageRoute);
+      } catch {
+        // The metadata-only seed still lets the page shell paint immediately.
+      }
     },
-    [warmMeetingPeekOpen]
+    [router, upsertPages, warmMeetingPeekOpen]
   );
 
   const handleCreate = useCallback(() => {
@@ -3724,6 +3733,16 @@ function getMeetingPageOpenSeed(page: Page): Page {
     return { ...page, ...memoryPage };
   }
   return page;
+}
+
+function getMeetingPagePrimeSeed(page: Page): Page {
+  const seededPage = getMeetingPageOpenSeed(page);
+  if (seededPage.content_text === "") return seededPage;
+  return {
+    ...seededPage,
+    content_text: null,
+    content_yjs: null,
+  };
 }
 
 async function persistOptimisticMeetingPage(

@@ -1099,6 +1099,10 @@ check(
     meetingScheduleShell.includes("router.prefetch(pageRoute)") &&
     meetingScheduleShell.includes("useLocalFirstPageNavigation") &&
     meetingScheduleShell.includes("prepareMeetingPageOpen") &&
+    meetingScheduleShell.includes("const seededPage = getMeetingPagePrimeSeed(page)") &&
+    meetingScheduleShell.includes('rememberPageRouteHandoff(seededPage, "meeting-open")') &&
+    meetingScheduleShell.includes("function getMeetingPagePrimeSeed(page: Page)") &&
+    meetingScheduleShell.includes('if (seededPage.content_text === "") return seededPage;') &&
     meetingScheduleShell.includes("setPeekInitialPage(page)") &&
     meetingScheduleShell.includes("setPeekPageId(page.id)") &&
     meetingScheduleShell.includes("<PagePeekModal") &&

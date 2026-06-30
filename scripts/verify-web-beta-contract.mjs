@@ -5706,8 +5706,28 @@ function run() {
       "Meeting schedule must reuse a single meeting-entry open warmup helper.",
     ],
     [
+      "const seededPage = getMeetingPagePrimeSeed(page)",
+      "Meeting entry warmup must create a metadata-only local-first seed before navigation.",
+    ],
+    [
+      'rememberPageRouteHandoff(seededPage, "meeting-open")',
+      "Meeting entry warmup must hand off the metadata seed for full-page opens.",
+    ],
+    [
+      "function getMeetingPagePrimeSeed(page: Page)",
+      "Meeting entry warmup must use a dedicated metadata-only seed helper.",
+    ],
+    [
+      "if (seededPage.content_text === \"\") return seededPage;",
+      "Meeting entry warmup must preserve optimistic empty drafts while avoiding large body preloads.",
+    ],
+    [
+      "content_text: null,\n    content_yjs: null,",
+      "Meeting entry warmup must strip non-empty bodies from hover/focus seeds.",
+    ],
+    [
       "primeMeetingEntryPage(entry.page)",
-      "Meeting entry buttons must prime the selected page body and peek editor before opening details.",
+      "Meeting entry buttons must prime the selected page metadata and peek editor before opening details.",
     ],
     [
       "onPrimeOpen={() => primeMeetingEntryPage(selectedMeeting.page)}",
