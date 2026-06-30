@@ -6284,6 +6284,30 @@ function run() {
   assertIncludes(
     files.pageRouteHandoff,
     pageRouteHandoff,
+    "PAGE_ROUTE_HANDOFF_REUSE_FRESH_MS = 60 * 1000",
+    "Page route handoff must define a short reuse window for unchanged metadata."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    "shouldWritePageRouteHandoff",
+    "Page route handoff must skip unchanged fresh sessionStorage rewrites."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    "buildPageRouteHandoffSignature",
+    "Page route handoff must compare metadata signatures before rewriting sessionStorage."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
+    "if (!shouldWritePageRouteHandoff(key, handoff, now)) return;",
+    "Page route handoff must bypass pruning and rewriting when unchanged metadata is still fresh."
+  );
+  assertIncludes(
+    files.pageRouteHandoff,
+    pageRouteHandoff,
     "stores_source_of_truth: false",
     "Page route handoff must not become the source of truth."
   );

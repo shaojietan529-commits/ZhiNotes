@@ -3,6 +3,7 @@ import type { Page } from "@/lib/utils/types";
 
 const PAGE_ROUTE_HANDOFF_PREFIX = "zhinote.page.routeHandoff.";
 const PAGE_ROUTE_HANDOFF_TTL_MS = 2 * 60 * 1000;
+const PAGE_ROUTE_HANDOFF_REUSE_FRESH_MS = 60 * 1000;
 const PAGE_ROUTE_HANDOFF_MAX_ITEMS = 20;
 
 interface PageRouteHandoffPage {
@@ -105,11 +106,10 @@ export function rememberPageRouteHandoff(
   };
 
   try {
+    const key = pageRouteHandoffKey(page.id);
+    if (!shouldWritePageRouteHandoff(key, handoff, now)) return;
     prunePageRouteHandoffs(now);
-    window.sessionStorage.setItem(
-      pageRouteHandoffKey(page.id),
-      JSON.stringify(handoff)
-    );
+    window.sessionStorage.setItem(key, JSON.stringify(handoff));
   } catch {
     // Route handoff is only a local speed hint. Navigation still works through
     // in-memory store, local cache, or cloud fetch when sessionStorage fails.
@@ -163,6 +163,44 @@ export function clearPageRouteHandoff(pageId: string): void {
 
 function pageRouteHandoffKey(pageId: string): string {
   return `${PAGE_ROUTE_HANDOFF_PREFIX}${pageId}:v1`;
+}
+
+function shouldWritePageRouteHandoff(
+  key: string,
+  next: PageRouteHandoff,
+  now: number
+): boolean {
+  const current = readPageRouteHandoffForWrite(key, next.page.id);
+  if (!current) return true;
+  const expiresAt = Date.parse(current.expires_at);
+  if (!Number.isFinite(expiresAt) || expiresAt < now) return true;
+  if (expiresAt - now <= PAGE_ROUTE_HANDOFF_REUSE_FRESH_MS) return true;
+  return (
+    buildPageRouteHandoffSignature(current) !==
+    buildPageRouteHandoffSignature(next)
+  );
+}
+
+function readPageRouteHandoffForWrite(
+  key: string,
+  pageId: string
+): PageRouteHandoff | null {
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PageRouteHandoff>;
+    if (!isValidPageRouteHandoff(parsed, pageId)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function buildPageRouteHandoffSignature(handoff: PageRouteHandoff): string {
+  return JSON.stringify({
+    source: handoff.source,
+    page: handoff.page,
+  });
 }
 
 function toHandoffPage(page: Page): PageRouteHandoffPage {

@@ -3151,6 +3151,22 @@ function run() {
       "Page route handoff must be a short-lived browser session cache.",
     ],
     [
+      "PAGE_ROUTE_HANDOFF_REUSE_FRESH_MS = 60 * 1000",
+      "Page route handoff must define a short reuse window for unchanged metadata.",
+    ],
+    [
+      "shouldWritePageRouteHandoff",
+      "Page route handoff must skip unchanged fresh sessionStorage rewrites.",
+    ],
+    [
+      "buildPageRouteHandoffSignature",
+      "Page route handoff must compare metadata signatures before rewriting sessionStorage.",
+    ],
+    [
+      "if (!shouldWritePageRouteHandoff(key, handoff, now)) return;",
+      "Page route handoff must bypass pruning and rewriting when unchanged metadata is still fresh.",
+    ],
+    [
       "stores_page_body_text: false",
       "Page route handoff must not store page body text.",
     ],
