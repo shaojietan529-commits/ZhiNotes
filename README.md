@@ -1300,6 +1300,12 @@ Current local actions:
   forbidden content fields and validator fixtures are still covered, and emits a
   local receipt without reading note bodies, file bytes, secrets, remote
   manifests, or starting cloud sync.
+- Verify the real disabled cloud manifest compare route locally. `npm run
+  verify:cloud-manifest-route` requests only the local
+  `/api/cloud/manifest/compare` disabled route, confirms HTTP 501 guard JSON,
+  checks that query values are not echoed, and does not read browser storage,
+  page bodies, database rows, file bytes, secrets, remote manifests, or cloud
+  data.
 - Review and export a local cloud ACK/cache safety report. It combines the
   local-first input plan, latest upload drain receipt, durable ACK/replay
   gates, cache rebuild preflight, and cloud source-of-truth matrix into a
@@ -1659,11 +1665,12 @@ The first cloud phase is a private alpha, not full sync:
   disabled state, Cloudflare staging review, and Sync UI export wiring.
 - `npm run verify:web-beta:full` runs the local Web Beta verification bundle:
   account gates, module workspace gates, Web Beta contract checks, smoke checks,
-  cloud manifest domain checks, disabled cloud manifest API guard checks, local
-  route smoke, replay harness safety, lint, and production build. It prints a
-  local receipt, does not deploy, connect cloud services, upload workspace data,
-  enable sync, enable AI, or read page bodies, database values, file bytes,
-  holdings, trading plans, or secrets.
+  cloud manifest domain checks, disabled cloud manifest API guard checks,
+  disabled cloud manifest route checks, local route smoke, replay harness
+  safety, lint, and production build. It prints a local receipt, does not
+  deploy, connect cloud services, upload workspace data, enable sync, enable AI,
+  or read page bodies, database values, file bytes, holdings, trading plans, or
+  secrets.
 - `npm run verify:replay-harness` checks the disposable replay harness safety
   boundary: replay and apply endpoints stay disabled, fixture payload stays
   empty, no network/database/file-write execution appears in the harness or
@@ -1701,6 +1708,7 @@ npm run verify:web-beta:smoke
 npm run verify:web-beta:full
 npm run verify:cloud-manifest
 npm run verify:cloud-manifest-api
+npm run verify:cloud-manifest-route
 npm run verify:web-alpha
 npm run build
 ```

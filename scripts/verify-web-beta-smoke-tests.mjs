@@ -12,6 +12,8 @@ const files = {
   webBetaFullVerifier: "scripts/verify-web-beta-full.mjs",
   cloudManifestApiGuardVerifier:
     "scripts/verify-cloud-manifest-api-guard.mjs",
+  cloudManifestRouteVerifier:
+    "scripts/verify-cloud-manifest-route-disabled.mjs",
   hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
   cloudSourceOfTruthPlan: "src/lib/sync/cloudSourceOfTruthPlan.ts",
   cloudAckCacheSafetyReport:
@@ -356,6 +358,9 @@ function run() {
   const cloudManifestApiGuardVerifier = readProjectFile(
     files.cloudManifestApiGuardVerifier
   );
+  const cloudManifestRouteVerifier = readProjectFile(
+    files.cloudManifestRouteVerifier
+  );
   const hotDataPlan = readProjectFile(files.hotDataPlan);
   const cloudSourceOfTruthPlan = readProjectFile(
     files.cloudSourceOfTruthPlan
@@ -608,6 +613,7 @@ function run() {
     "verify:route-smoke",
     "verify:cloud-manifest",
     "verify:cloud-manifest-api",
+    "verify:cloud-manifest-route",
     "verify:web-beta:full",
   ]) {
     if (typeof scripts[scriptName] !== "string") {
@@ -699,6 +705,10 @@ function run() {
       "Web Beta full verifier must run cloud manifest API guard verification.",
     ],
     [
+      "npm run verify:cloud-manifest-route",
+      "Web Beta full verifier must run cloud manifest route disabled verification.",
+    ],
+    [
       "npm run verify:route-smoke",
       "Web Beta full verifier must run local route smoke verification.",
     ],
@@ -752,6 +762,50 @@ function run() {
     assertIncludes(
       files.cloudManifestApiGuardVerifier,
       cloudManifestApiGuardVerifier,
+      snippet,
+      message
+    );
+  }
+
+  assertIncludes(
+    files.cloudManifestRouteVerifier,
+    cloudManifestRouteVerifier,
+    'format: "zhinote-cloud-manifest-route-disabled-verification-receipt"',
+    "Cloud manifest route verifier must expose a stable receipt format."
+  );
+  for (const [snippet, message] of [
+    [
+      "ROUTE_PATH",
+      "Cloud manifest route verifier must request the disabled manifest compare route.",
+    ],
+    [
+      "assertEqual(result.statusCode, 501",
+      "Cloud manifest route verifier must assert HTTP 501 while disabled.",
+    ],
+    [
+      "Disabled route must not echo query workspace ids.",
+      "Cloud manifest route verifier must assert query values are not echoed.",
+    ],
+    [
+      "uses_localhost_http: true",
+      "Cloud manifest route verifier must disclose localhost-only HTTP use.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Cloud manifest route verifier must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud manifest route verifier must not upload workspace data.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Cloud manifest route verifier must not approve cloud sync.",
+    ],
+  ]) {
+    assertIncludes(
+      files.cloudManifestRouteVerifier,
+      cloudManifestRouteVerifier,
       snippet,
       message
     );
