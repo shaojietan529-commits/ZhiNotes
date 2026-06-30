@@ -1820,6 +1820,7 @@ check(
     pagePeekModal.includes("const persistPeekTitleNow = useCallback") &&
     pagePeekModal.includes("schedulePeekTitleSave(next)") &&
     pagePeekModal.includes("onBlur={() => void flushPeekTitleSave()}") &&
+    pagePeekModal.includes("rememberPendingPageDraft(nextPage)") &&
     pagePeekModal.includes("void pushPeekCloudPage(nextPage).catch(() => undefined)") &&
     pagePeekModal.includes("{childPagesEnabled ? (") &&
     pagePeekModal.includes("PeekEditorSkeleton"),

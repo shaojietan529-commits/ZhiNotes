@@ -911,6 +911,7 @@ check(
     pagePeekModal.includes(
       'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
     ) &&
+    pagePeekModal.includes("rememberPendingPageDraft(nextPage)") &&
     pagePeekModal.includes("void pushPeekCloudPage(nextPage).catch(() => undefined)") &&
     pagePeekModal.includes("{childPagesEnabled ? (") &&
     shells.knowledge.includes("const peekPage = useMemo") &&

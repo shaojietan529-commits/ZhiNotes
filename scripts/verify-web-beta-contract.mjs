@@ -5321,6 +5321,10 @@ function run() {
       "PagePeekModal fallback cloud queueing must remain fire-and-forget so editing never waits on sync code.",
     ],
     [
+      "rememberPendingPageDraft(nextPage)",
+      "PagePeekModal fallback persistence must refresh the short-lived local draft before cloud queueing.",
+    ],
+    [
       "{childPagesEnabled ? (",
       "PagePeekModal must mount child-page lookup only after the peek editor has already opened.",
     ],

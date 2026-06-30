@@ -24,7 +24,10 @@ import {
   subscribePageBodyHydrationStatus,
 } from "@/lib/pages/pageBodyHydrationStatus";
 import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
-import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import {
+  readPendingPageDraft,
+  rememberPendingPageDraft,
+} from "@/lib/pages/pendingPageDrafts";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
@@ -797,6 +800,7 @@ async function persistPeekUpdate({
   };
   setFallbackPage(nextPage);
   upsertPages([nextPage]);
+  rememberPendingPageDraft(nextPage);
   // Queueing is best-effort; the local editor state remains visible and the
   // next page-sync cycle can still pick up pending changes.
   void pushPeekCloudPage(nextPage).catch(() => undefined);
