@@ -222,6 +222,12 @@ import {
 } from "@/lib/sync/cloudMigrationApplyApiStub";
 import { buildCloudManifestCompareApiDisabledResponse } from "@/lib/sync/cloudManifestCompareApiStub";
 import {
+  buildCloudManifestCompareHandshakeGateReport,
+  type CloudManifestCompareHandshakeGateCheck,
+  type CloudManifestCompareHandshakeGateReport,
+  type CloudManifestCompareHandshakeGateStatus,
+} from "@/lib/sync/cloudManifestCompareHandshakeGate";
+import {
   buildWebBetaSmokeTestPlan,
   type WebBetaSmokeTestPlan,
   type WebBetaSmokeTestStatus,
@@ -720,6 +726,7 @@ type WebBetaContractAction =
   | "account-session"
   | "high-risk-registry"
   | "cloud-manifest-api-guard"
+  | "cloud-manifest-handshake-gate"
   | "migration-sql"
   | "cloud-migration-api-guard"
   | "next-actions"
@@ -2489,6 +2496,10 @@ function SyncDashboard() {
   );
   const cloudManifestCompareApiGuard = useMemo(
     () => buildCloudManifestCompareApiDisabledResponse(),
+    []
+  );
+  const cloudManifestCompareHandshakeGate = useMemo(
+    () => buildCloudManifestCompareHandshakeGateReport(),
     []
   );
   const cloudMigrationApplyApiGuard = useMemo(
@@ -5558,6 +5569,27 @@ function SyncDashboard() {
         err
       );
       window.alert("云端 manifest 对账 API 防护导出失败，请查看控制台。");
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportCloudManifestCompareHandshakeGate = () => {
+    setBusyContractAction("cloud-manifest-handshake-gate");
+    try {
+      downloadJsonFile(
+        `zhinote-cloud-manifest-compare-handshake-gate-${fileSafeTimestamp()}.json`,
+        {
+          ...cloudManifestCompareHandshakeGate,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export cloud manifest compare handshake gate:",
+        err
+      );
+      window.alert("云端 manifest 对账握手门禁导出失败，请查看控制台。");
     } finally {
       setBusyContractAction(null);
     }
@@ -9054,6 +9086,12 @@ function SyncDashboard() {
               </div>
             </div>
           </ContractPanel>
+
+          <CloudManifestCompareHandshakeGatePanel
+            gate={cloudManifestCompareHandshakeGate}
+            busy={busyContractAction === "cloud-manifest-handshake-gate"}
+            onExport={handleExportCloudManifestCompareHandshakeGate}
+          />
 
           <ApiGuardPanel
             title="云端 manifest 对账 API 防护"
@@ -19628,6 +19666,154 @@ function CacheRebuildFact({
       </p>
       <p className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</p>
     </div>
+  );
+}
+
+function CloudManifestCompareHandshakeGatePanel({
+  gate,
+  busy,
+  onExport,
+}: {
+  gate: CloudManifestCompareHandshakeGateReport;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  const primaryBlocker =
+    gate.checks.find((check) => check.status === "blocked") ??
+    gate.checks[0] ??
+    null;
+
+  return (
+    <section
+      id="cloud-manifest-compare-handshake-gate"
+      data-testid="cloud-manifest-compare-handshake-gate"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Cloud Manifest Handshake
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              云端 manifest 对账握手门禁
+            </h2>
+            <CloudManifestHandshakeStatusPill status="blocked" />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            把请求校验、响应校验和 API 防护合成一个本地检查点；真正连接云端前必须保持
+            metadata-only，不返回 missing ids，不启动缓存重建，也不启用云同步。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出握手门禁"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <CacheRebuildFact
+          label="结论"
+          value={gate.compare_handshake_can_start_now ? "可启动" : "不可启动"}
+          detail="真实握手仍关闭"
+        />
+        <CacheRebuildFact
+          label="请求 fixtures"
+          value={`${gate.summary.request_rejections}/${gate.summary.request_fixtures}`}
+          detail="违规请求被拒绝"
+        />
+        <CacheRebuildFact
+          label="响应 fixtures"
+          value={`${gate.summary.response_rejections}/${gate.summary.response_fixtures}`}
+          detail="违规响应被拒绝"
+        />
+        <CacheRebuildFact
+          label="阻断项"
+          value={String(gate.summary.blocked_checks)}
+          detail={`${gate.summary.ready_for_owner_review_checks} 项可复核`}
+        />
+        <CacheRebuildFact
+          label="API gates"
+          value={String(gate.summary.api_guard_enablement_gates)}
+          detail="启用前必须通过"
+        />
+        <CacheRebuildFact
+          label="云同步"
+          value={gate.cloud_sync_can_start_now ? "可启动" : "关闭"}
+          detail="需 owner review"
+        />
+      </div>
+
+      {primaryBlocker ? (
+        <div className="mt-4 rounded-md bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+          <div className="font-semibold">{primaryBlocker.title}</div>
+          <p className="mt-1">{primaryBlocker.required_before_enablement}</p>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+        {gate.checks.map((check) => (
+          <CloudManifestHandshakeCheckRow key={check.id} check={check} />
+        ))}
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        边界：只使用合成 fixture 和本地 guard，不读取 route 响应、不连接云端、不读取正文/数据库值/文件/密钥。
+      </p>
+    </section>
+  );
+}
+
+function CloudManifestHandshakeCheckRow({
+  check,
+}: {
+  check: CloudManifestCompareHandshakeGateCheck;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {check.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {check.id}
+          </div>
+        </div>
+        <CloudManifestHandshakeStatusPill status={check.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {check.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {check.required_before_enablement}
+      </p>
+    </article>
+  );
+}
+
+function CloudManifestHandshakeStatusPill({
+  status,
+}: {
+  status: CloudManifestCompareHandshakeGateStatus;
+}) {
+  const labels: Record<CloudManifestCompareHandshakeGateStatus, string> = {
+    blocked: "阻断",
+    "ready-for-owner-review": "可复核",
+  };
+  const className =
+    status === "ready-for-owner-review"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

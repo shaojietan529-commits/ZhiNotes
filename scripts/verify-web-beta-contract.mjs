@@ -13875,6 +13875,66 @@ function run() {
   assertSourceIncludes(
     files.syncShell,
     syncShell,
+    "buildCloudManifestCompareHandshakeGateReport",
+    "Sync UI must build the cloud manifest compare handshake gate."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "cloudManifestCompareHandshakeGate",
+    "Sync UI must keep the cloud manifest compare handshake gate report in state."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportCloudManifestCompareHandshakeGate",
+    "Sync UI must export the cloud manifest compare handshake gate."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "zhinote-cloud-manifest-compare-handshake-gate",
+    "Sync UI must export the cloud manifest compare handshake gate payload."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "cloud-manifest-compare-handshake-gate",
+    "Sync UI must render a stable cloud manifest handshake gate test id."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "云端 manifest 对账握手门禁",
+    "Sync UI must render the cloud manifest compare handshake gate panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "导出握手门禁",
+    "Sync UI must render the cloud manifest compare handshake gate export button."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "CloudManifestCompareHandshakeGatePanel",
+    "Sync UI must use a dedicated cloud manifest handshake gate panel."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "CloudManifestHandshakeCheckRow",
+    "Sync UI must render each cloud manifest handshake gate check."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "gate.summary.blocked_checks",
+    "Sync UI must surface blocked cloud manifest handshake checks."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
     "handleExportCloudManifestCompareApiGuard",
     "Sync UI must export the cloud manifest compare API guard."
   );

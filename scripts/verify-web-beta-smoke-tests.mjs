@@ -12740,6 +12740,54 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "buildCloudManifestCompareHandshakeGateReport",
+    "Sync UI must build the cloud manifest compare handshake gate."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "cloudManifestCompareHandshakeGate",
+    "Sync UI must keep the cloud manifest compare handshake gate report."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportCloudManifestCompareHandshakeGate",
+    "Sync UI must export the cloud manifest compare handshake gate."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "cloud-manifest-compare-handshake-gate",
+    "Sync UI must render the cloud manifest compare handshake gate test id."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "云端 manifest 对账握手门禁",
+    "Sync UI must render the cloud manifest compare handshake gate."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出握手门禁",
+    "Sync UI must expose the cloud manifest compare handshake export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "CloudManifestHandshakeCheckRow",
+    "Sync UI must render cloud manifest handshake gate checks."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "gate.summary.blocked_checks",
+    "Sync UI must surface blocked cloud manifest handshake checks."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "云端 manifest 对账 API 防护",
     "Sync UI must render the cloud manifest compare API guard."
   );
