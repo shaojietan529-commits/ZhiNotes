@@ -8093,6 +8093,22 @@ function run() {
       "Sync UI must refresh page pending queue details while the sync center stays open.",
     ],
     [
+      'PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync."',
+      "Sync UI page pending panel must restrict storage refreshes to page sync keys.",
+    ],
+    [
+      "function isPageSyncStorageEvent(",
+      "Sync UI page pending panel must centralize page storage-event filtering.",
+    ],
+    [
+      "event.key.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)",
+      "Sync UI page pending panel must ignore unrelated localStorage churn.",
+    ],
+    [
+      'window.addEventListener("storage", handlePageStorageRefresh)',
+      "Sync UI page pending storage listener must use the filtered handler.",
+    ],
+    [
       "数据库 pending 上传队列",
       "Sync UI must render database pending upload queue status.",
     ],
@@ -8139,6 +8155,22 @@ function run() {
     [
       "refreshDatabasePendingStatus",
       "Sync UI must refresh database pending queue details while the sync center stays open.",
+    ],
+    [
+      'DATABASE_SYNC_STORAGE_KEY_PREFIX = "zhinote.databasesync."',
+      "Sync UI database pending panel must restrict storage refreshes to database sync keys.",
+    ],
+    [
+      "function isDatabaseSyncStorageEvent(",
+      "Sync UI database pending panel must centralize database storage-event filtering.",
+    ],
+    [
+      "event.key.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)",
+      "Sync UI database pending panel must ignore unrelated localStorage churn.",
+    ],
+    [
+      'window.addEventListener("storage", handleDatabaseStorageRefresh)',
+      "Sync UI database pending storage listener must use the filtered handler.",
     ],
     [
       "不展示或导出数据库行值",
@@ -8254,6 +8286,18 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'window.addEventListener("storage", refreshPagePendingStatus)',
+      "Sync UI page pending panel must not refresh on every localStorage change.",
+    ],
+    [
+      'window.addEventListener("storage", refreshDatabasePendingStatus)',
+      "Sync UI database pending panel must not refresh on every localStorage change.",
+    ],
+  ]) {
+    assertSourceExcludes(files.syncShell, syncShell, snippet, message);
   }
 
   for (const [snippet, message] of [

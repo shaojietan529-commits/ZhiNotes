@@ -545,6 +545,9 @@ import type { Database, Page } from "@/lib/utils/types";
 
 type ExportAction = "backup" | "zip" | "markdown";
 
+const PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync.";
+const DATABASE_SYNC_STORAGE_KEY_PREFIX = "zhinote.databasesync.";
+
 const loadWorkspaceBackupModule = () => import("@/lib/export/workspaceBackup");
 type SyncQueueAction =
   | "queue"
@@ -1643,11 +1646,16 @@ function SyncDashboard() {
         ?.detail;
       setPagePendingStatus(next ?? getPendingCloudPageSyncStatus());
     };
+    const handlePageStorageRefresh = (event: StorageEvent) => {
+      if (isPageSyncStorageEvent(event)) {
+        refreshPagePendingStatus();
+      }
+    };
 
     refreshPagePendingStatus();
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, refreshPagePendingStatus);
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, refreshPagePendingStatus);
-    window.addEventListener("storage", refreshPagePendingStatus);
+    window.addEventListener("storage", handlePageStorageRefresh);
     const timer = window.setInterval(refreshPagePendingStatus, 5000);
     return () => {
       window.removeEventListener(
@@ -1658,7 +1666,7 @@ function SyncDashboard() {
         PAGE_SYNC_CONFIG_EVENT,
         refreshPagePendingStatus
       );
-      window.removeEventListener("storage", refreshPagePendingStatus);
+      window.removeEventListener("storage", handlePageStorageRefresh);
       window.clearInterval(timer);
     };
   }, []);
@@ -1677,6 +1685,11 @@ function SyncDashboard() {
         if (mounted) setDatabasePendingStatus(status);
       });
     };
+    const handleDatabaseStorageRefresh = (event: StorageEvent) => {
+      if (isDatabaseSyncStorageEvent(event)) {
+        refreshDatabasePendingStatus();
+      }
+    };
 
     refreshDatabasePendingStatus();
     window.addEventListener(
@@ -1687,7 +1700,7 @@ function SyncDashboard() {
       DATABASE_SYNC_CONFIG_EVENT,
       refreshDatabasePendingStatus
     );
-    window.addEventListener("storage", refreshDatabasePendingStatus);
+    window.addEventListener("storage", handleDatabaseStorageRefresh);
     const timer = window.setInterval(refreshDatabasePendingStatus, 5000);
     return () => {
       mounted = false;
@@ -1699,7 +1712,7 @@ function SyncDashboard() {
         DATABASE_SYNC_CONFIG_EVENT,
         refreshDatabasePendingStatus
       );
-      window.removeEventListener("storage", refreshDatabasePendingStatus);
+      window.removeEventListener("storage", handleDatabaseStorageRefresh);
       window.clearInterval(timer);
     };
   }, []);
@@ -24042,6 +24055,18 @@ function formatDatabaseSyncStatus(status: string) {
   if (status === "disabled") return "数据库同步已关闭";
   if (status === "error") return "云端同步错误";
   return status;
+}
+
+function isPageSyncStorageEvent(event: StorageEvent): boolean {
+  return Boolean(
+    event.key && event.key.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)
+  );
+}
+
+function isDatabaseSyncStorageEvent(event: StorageEvent): boolean {
+  return Boolean(
+    event.key && event.key.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)
+  );
 }
 
 function formatPerformanceStatus(status: string) {
