@@ -2692,6 +2692,14 @@ function run() {
       "Daily local metadata query must expose a switch so first paint can skip expensive unindexed import fallback.",
     ],
     [
+      "dailyFastScopeWhere",
+      "Daily first-paint local metadata query must prefilter to the daily module scope before slower fallback recovery.",
+    ],
+    [
+      '${includeUnindexedFallback ? "" : `AND ${dailyFastScopeWhere("p")}`}',
+      "Daily first-paint local metadata query must avoid scanning all dated module pages before fallback recovery.",
+    ],
+    [
       "if (includeUnindexedFallback)",
       "Daily unindexed import fallback must be explicitly gated away from first-paint queries.",
     ],

@@ -1362,6 +1362,14 @@ function dailyDateCandidateWhere(alias = "pages"): string {
   )`;
 }
 
+function dailyFastScopeWhere(alias = "pages"): string {
+  const prefix = alias ? `${alias}.` : "";
+  return `(
+    ${prefix}parent_id = ? OR
+    ${prefix}properties LIKE '%notion-daily-import%'
+  )`;
+}
+
 function buildDailyRangeSearchTokens(startDate: string, endDate: string): string[] {
   const start = parseDateKeyParts(startDate);
   const end = parseDateKeyParts(endDate);
@@ -1541,11 +1549,15 @@ export async function listDailyPageMetadataForCalendar({
      WHERE p.deleted_at IS NULL
        AND p.daily_date_key >= ?
        AND p.daily_date_key <= ?
+       ${includeUnindexedFallback ? "" : `AND ${dailyFastScopeWhere("p")}`}
      ORDER BY p.daily_date_key ASC, p.updated_at DESC
      ${boundedRangeLimit === null ? "" : "LIMIT ?"}`,
-    boundedRangeLimit === null
-      ? [startDate, endDate]
-      : [startDate, endDate, boundedRangeLimit]
+    [
+      startDate,
+      endDate,
+      ...(includeUnindexedFallback ? [] : [rootId]),
+      ...(boundedRangeLimit === null ? [] : [boundedRangeLimit]),
+    ]
   );
   for (const row of rangeRows) addIfDailyScope(row);
 
@@ -1559,9 +1571,13 @@ export async function listDailyPageMetadataForCalendar({
        FROM pages p
        WHERE p.deleted_at IS NULL
          AND p.daily_date_key IS NOT NULL
+         ${includeUnindexedFallback ? "" : `AND ${dailyFastScopeWhere("p")}`}
        ORDER BY p.daily_date_key DESC, p.updated_at DESC
        LIMIT ?`,
-      [recentCandidateLimit]
+      [
+        ...(includeUnindexedFallback ? [] : [rootId]),
+        recentCandidateLimit,
+      ]
     );
     let recentDailyAdded = 0;
     for (const row of recentRows) {

@@ -5147,6 +5147,18 @@ function run() {
     "Daily first-paint local metadata query must skip expensive unindexed Notion-import fallback."
   );
   assertIncludes(
+    files.localQueries,
+    localQueries,
+    "dailyFastScopeWhere",
+    "Daily first-paint local metadata query must prefilter to the daily module scope before slower fallback recovery."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    '${includeUnindexedFallback ? "" : `AND ${dailyFastScopeWhere("p")}`}',
+    "Daily first-paint local metadata query must avoid scanning all dated module pages before fallback recovery."
+  );
+  assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
     "includeUnindexedFallback: true",

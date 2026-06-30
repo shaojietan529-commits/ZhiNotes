@@ -1212,6 +1212,7 @@ for (const token of [
   "DAILY_RANGE_SEARCH_TOKEN_LIMIT",
   "includeUnindexedFallback?: boolean",
   "if (includeUnindexedFallback)",
+  "dailyFastScopeWhere",
   "daily_date_key IS NULL",
 ]) {
   check(
@@ -1225,6 +1226,7 @@ check(
   !localQueries.includes("WITH RECURSIVE daily_descendants") &&
     localQueries.includes("p.daily_date_key >= ?") &&
     localQueries.includes("p.daily_date_key <= ?") &&
+    localQueries.includes('${includeUnindexedFallback ? "" : `AND ${dailyFastScopeWhere("p")}`}') &&
     localQueries.includes("addIfDailyScope(row)") &&
     localQueries.includes("targetedFallbackRows") &&
     localQueries.includes("dateParentIdsForChildren") &&
