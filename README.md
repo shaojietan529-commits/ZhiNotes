@@ -1284,6 +1284,14 @@ Current local actions:
   hot-cache policy metadata; it does not read page bodies, database row values,
   comment bodies, file names, file bytes, secrets, tokens, remote data, or AI
   payloads.
+- Review and export a local cloud ACK/cache safety report. It combines the
+  local-first input plan, latest upload drain receipt, durable ACK/replay
+  gates, cache rebuild preflight, and cloud source-of-truth matrix into a
+  single UI policy: show "local saved" immediately, show "waiting for cloud"
+  while queues or ACK proof are incomplete, and only allow "cloud confirmed" or
+  device handoff after durable ACK gates pass. The sync page still cannot clear
+  local cache, mark rows synced, upload workspace data, write server data, or
+  enable AI; cache rebuild remains an account-page, owner-confirmed action.
 - Inspect page/database pending queues with ACK-style retry visibility:
   last upload attempt time, failed receipt count, latest failure reason, and a
   small failed id/key sample. This is still metadata-only: it does not read page

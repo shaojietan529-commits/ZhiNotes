@@ -11,6 +11,8 @@ const files = {
   routeSmokeVerifier: "scripts/verify-route-smoke.mjs",
   hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
   cloudSourceOfTruthPlan: "src/lib/sync/cloudSourceOfTruthPlan.ts",
+  cloudAckCacheSafetyReport:
+    "src/lib/sync/cloudAckCacheSafetyReport.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
@@ -348,6 +350,9 @@ function run() {
   const hotDataPlan = readProjectFile(files.hotDataPlan);
   const cloudSourceOfTruthPlan = readProjectFile(
     files.cloudSourceOfTruthPlan
+  );
+  const cloudAckCacheSafetyReport = readProjectFile(
+    files.cloudAckCacheSafetyReport
   );
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
@@ -2039,6 +2044,87 @@ function run() {
     [
       "导出云端主库策略",
       "Sync UI must expose the cloud source-of-truth export.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-cloud-ack-cache-safety-report"',
+      "Cloud ACK/cache safety report must keep a stable format.",
+    ],
+    [
+      'report_status: "metadata-only-ack-cache-gate"',
+      "Cloud ACK/cache safety report must stay metadata-only.",
+    ],
+    [
+      "can_show_cloud_confirmed_now",
+      "Cloud ACK/cache safety report must gate cloud-confirmed UI state.",
+    ],
+    [
+      "can_switch_device_now",
+      "Cloud ACK/cache safety report must gate device handoff.",
+    ],
+    [
+      "can_clear_local_cache_now: false",
+      "Cloud ACK/cache safety report must not allow direct local cache clearing.",
+    ],
+    [
+      "can_mark_local_rows_synced_now: false",
+      "Cloud ACK/cache safety report must not mark rows synced.",
+    ],
+    [
+      "reads_ack_gate_status: true",
+      "Cloud ACK/cache safety report must read ACK gate status.",
+    ],
+    [
+      "reads_cache_preflight_status: true",
+      "Cloud ACK/cache safety report must read cache preflight status.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud ACK/cache safety report must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud ACK/cache safety report must not read database row values.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Cloud ACK/cache safety report must not send network requests.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud ACK/cache safety report must not upload workspace data.",
+    ],
+    [
+      "durable-ack-ledger-ready",
+      "Cloud ACK/cache safety report must include a durable ACK ledger gate.",
+    ],
+  ]) {
+    assertIncludes(
+      files.cloudAckCacheSafetyReport,
+      cloudAckCacheSafetyReport,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCloudAckCacheSafetyReport",
+      "Sync UI must build the cloud ACK/cache safety report.",
+    ],
+    [
+      "cloud-ack-cache-safety-report",
+      "Sync UI must render the cloud ACK/cache safety panel.",
+    ],
+    [
+      "云端确认与本地缓存安全",
+      "Sync UI must expose the cloud ACK/cache safety section.",
+    ],
+    [
+      "导出 ACK/缓存报告",
+      "Sync UI must expose the cloud ACK/cache safety export.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);

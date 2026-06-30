@@ -317,6 +317,14 @@ import {
   type CloudSourceOfTruthPlan,
 } from "@/lib/sync/cloudSourceOfTruthPlan";
 import {
+  buildCloudAckCacheSafetyReport,
+  type CloudAckCacheDisplayState,
+  type CloudAckCacheSafetyGate,
+  type CloudAckCacheSafetyGateStatus,
+  type CloudAckCacheSafetyReport,
+  type CloudAckCacheSafetyVerdict,
+} from "@/lib/sync/cloudAckCacheSafetyReport";
+import {
   buildCloudUploadReliabilityReport,
   type CloudUploadReliabilityGateStatus,
   type CloudUploadReliabilityReport,
@@ -564,6 +572,7 @@ type SyncQueueAction =
   | "restore-confirmation"
   | "local-first-cloud-input-plan"
   | "cloud-source-of-truth-plan"
+  | "cloud-ack-cache-safety-report"
   | "replay-test-plan";
 type PendingDomainId =
   | "pages"
@@ -2130,6 +2139,25 @@ function SyncDashboard() {
       syncAckLedgerReplayPreflight,
       syncAckLedgerReplayProof,
       syncAckRetryLedgerContract,
+    ]
+  );
+  const cloudAckCacheSafetyReport = useMemo(
+    () =>
+      buildCloudAckCacheSafetyReport({
+        localFirstCloudInputPlan,
+        cloudSourceOfTruthPlan,
+        lastDrainReceipt: syncDrainReceipt,
+        cacheRebuildPreflightReceipt,
+        syncAckRetryLedgerContract,
+        syncAckLedgerReplayEnablement,
+      }),
+    [
+      cacheRebuildPreflightReceipt,
+      cloudSourceOfTruthPlan,
+      localFirstCloudInputPlan,
+      syncAckLedgerReplayEnablement,
+      syncAckRetryLedgerContract,
+      syncDrainReceipt,
     ]
   );
   const syncReplayTestApiGuard = useMemo(
@@ -5595,6 +5623,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportCloudAckCacheSafetyReport = () => {
+    setBusyQueueAction("cloud-ack-cache-safety-report");
+    try {
+      downloadJsonFile(
+        `zhinote-cloud-ack-cache-safety-report-${fileSafeTimestamp()}.json`,
+        {
+          ...cloudAckCacheSafetyReport,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export cloud ACK/cache safety report:",
+        err
+      );
+      window.alert("云端 ACK/缓存安全报告导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportWebBetaReadiness = () => {
     setBusyContractAction("readiness");
     try {
@@ -5928,6 +5977,13 @@ function SyncDashboard() {
           plan={cloudSourceOfTruthPlan}
           busy={busyQueueAction === "cloud-source-of-truth-plan"}
           onExport={handleExportCloudSourceOfTruthPlan}
+        />
+
+        <CloudAckCacheSafetyPanel
+          report={cloudAckCacheSafetyReport}
+          busy={busyQueueAction === "cloud-ack-cache-safety-report"}
+          onExport={handleExportCloudAckCacheSafetyReport}
+          onOpenAccount={() => router.push("/account")}
         />
 
         <CloudUploadReliabilityPanel
@@ -11551,6 +11607,251 @@ function cloudSourceOfTruthStatusClass(
     blocked: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
   };
   return classes[status];
+}
+
+function CloudAckCacheSafetyPanel({
+  report,
+  busy,
+  onExport,
+  onOpenAccount,
+}: {
+  report: CloudAckCacheSafetyReport;
+  busy: boolean;
+  onExport: () => void;
+  onOpenAccount: () => void;
+}) {
+  return (
+    <section
+      id="cloud-ack-cache-safety-report"
+      data-testid="cloud-ack-cache-safety-report"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            ACK / Cache Safety
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            云端确认与本地缓存安全
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这张检查表决定 UI 什么时候只能显示“本地已保存”、什么时候可以显示“等待云端确认”，
+            以及为什么当前同步页不能直接显示“云端已确认”或清理本地缓存。它只读队列计数、
+            ACK 门禁和缓存预检状态，不读取正文、表格值或文件内容。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onOpenAccount}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开账号页
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={busy}
+            className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {busy ? "导出中..." : "导出 ACK/缓存报告"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <BetaSummaryCard
+          label="结论"
+          value={formatCloudAckCacheVerdict(report.verdict)}
+          detail="当前显示策略"
+          tone={cloudAckCacheVerdictTone(report.verdict)}
+        />
+        <BetaSummaryCard
+          label="等待队列"
+          value={report.summary.total_waiting_rows}
+          detail="pending rows"
+          tone={report.summary.total_waiting_rows === 0 ? "ready" : "partial"}
+        />
+        <BetaSummaryCard
+          label="失败/人工"
+          value={
+            report.summary.failed_rows + report.summary.manual_review_rows
+          }
+          detail="需先处理"
+          tone={
+            report.summary.failed_rows + report.summary.manual_review_rows === 0
+              ? "ready"
+              : "blocked"
+          }
+        />
+        <BetaSummaryCard
+          label="耐久 ACK"
+          value={report.summary.durable_ack_ledger_ready ? "就绪" : "未就绪"}
+          detail="禁止误报"
+          tone={
+            report.summary.durable_ack_ledger_ready
+              ? "ready"
+              : "manual-confirmation"
+          }
+        />
+        <BetaSummaryCard
+          label="切设备"
+          value={report.can_switch_device_now ? "可" : "不可"}
+          detail="需 ACK+预检"
+          tone={report.can_switch_device_now ? "ready" : "blocked"}
+        />
+        <BetaSummaryCard
+          label="清本地缓存"
+          value={report.can_clear_local_cache_now ? "可" : "不可"}
+          detail="同步页禁用"
+          tone="blocked"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-5">
+        {report.display_states.map((state) => (
+          <CloudAckCacheDisplayStateCard key={state.id} state={state} />
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        {report.gates.map((gate) => (
+          <CloudAckCacheGateCard key={gate.id} gate={gate} />
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        {report.next_action}
+      </div>
+    </section>
+  );
+}
+
+function CloudAckCacheDisplayStateCard({
+  state,
+}: {
+  state: CloudAckCacheDisplayState;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {state.label}
+        </h3>
+        <span
+          className={`rounded-md px-2 py-1 text-[10px] font-medium ${
+            state.can_show_now
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+              : "bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+          }`}
+        >
+          {state.can_show_now ? "可显示" : "隐藏"}
+        </span>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {state.reason}
+      </p>
+    </article>
+  );
+}
+
+function CloudAckCacheGateCard({
+  gate,
+}: {
+  gate: CloudAckCacheSafetyGate;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </h3>
+          <p className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </p>
+        </div>
+        <CloudAckCacheGateStatusPill status={gate.status} />
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <IdentityMetric
+          label="云端确认前"
+          value={gate.required_before_cloud_confirmed}
+          detail="display gate"
+        />
+        <IdentityMetric
+          label="清缓存前"
+          value={gate.required_before_cache_clear}
+          detail="cache gate"
+        />
+      </div>
+    </article>
+  );
+}
+
+function CloudAckCacheGateStatusPill({
+  status,
+}: {
+  status: CloudAckCacheSafetyGateStatus;
+}) {
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${cloudAckCacheGateClass(
+        status
+      )}`}
+    >
+      {formatCloudAckCacheGateStatus(status)}
+    </span>
+  );
+}
+
+function formatCloudAckCacheGateStatus(
+  status: CloudAckCacheSafetyGateStatus
+) {
+  const labels: Record<CloudAckCacheSafetyGateStatus, string> = {
+    pass: "通过",
+    warn: "注意",
+    block: "阻塞",
+  };
+  return labels[status];
+}
+
+function cloudAckCacheGateClass(status: CloudAckCacheSafetyGateStatus) {
+  const classes: Record<CloudAckCacheSafetyGateStatus, string> = {
+    pass: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    warn: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    block: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+  };
+  return classes[status];
+}
+
+function formatCloudAckCacheVerdict(verdict: CloudAckCacheSafetyVerdict) {
+  const labels: Record<CloudAckCacheSafetyVerdict, string> = {
+    "local-saved-only": "仅本地",
+    "waiting-cloud-ack": "等云端",
+    "needs-manual-review": "需人工",
+    "durable-ack-required": "需 ACK",
+    "cache-preflight-ready": "预检通过",
+    blocked: "阻塞",
+  };
+  return labels[verdict];
+}
+
+function cloudAckCacheVerdictTone(
+  verdict: CloudAckCacheSafetyVerdict
+): WebBetaReadinessStatus {
+  const tones: Record<CloudAckCacheSafetyVerdict, WebBetaReadinessStatus> = {
+    "local-saved-only": "partial",
+    "waiting-cloud-ack": "partial",
+    "needs-manual-review": "blocked",
+    "durable-ack-required": "manual-confirmation",
+    "cache-preflight-ready": "ready",
+    blocked: "blocked",
+  };
+  return tones[verdict];
 }
 
 function LaunchDecisionMetric({
