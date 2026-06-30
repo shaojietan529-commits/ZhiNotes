@@ -10,6 +10,7 @@ const files = {
   packageJson: "package.json",
   envExample: ".env.example",
   webAlphaReceiptVerifier: "scripts/verify-web-alpha-handoff-receipt.mjs",
+  webBetaFullVerifier: "scripts/verify-web-beta-full.mjs",
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
   cloudSchemaMigrationPlan: "src/lib/sync/cloudSchemaMigrationPlan.ts",
@@ -394,6 +395,7 @@ function run() {
   const packageJson = readProjectFile(files.packageJson);
   const envExample = readProjectFile(files.envExample);
   const webAlphaReceiptVerifier = readProjectFile(files.webAlphaReceiptVerifier);
+  const webBetaFullVerifier = readProjectFile(files.webBetaFullVerifier);
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
   const cloudSchemaMigrationPlan = readProjectFile(
@@ -15001,6 +15003,12 @@ function run() {
     '"verify:route-smoke": "node scripts/verify-route-smoke.mjs"',
     "package.json must expose the no-browser local route smoke command."
   );
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
+    '"verify:web-beta:full": "node scripts/verify-web-beta-full.mjs"',
+    "package.json must expose the Web Beta full local verification receipt command."
+  );
   for (const [snippet, message] of [
     [
       "nextBin",
@@ -15048,6 +15056,115 @@ function run() {
     "playwright",
     "Route smoke verifier must not depend on Playwright because the repo does not install it."
   );
+  assertSourceIncludes(
+    files.webBetaFullVerifier,
+    webBetaFullVerifier,
+    'format: "zhinote-web-beta-full-verification-receipt"',
+    "Web Beta full verifier must expose a stable receipt format."
+  );
+  assertSourceIncludes(
+    files.webBetaFullVerifier,
+    webBetaFullVerifier,
+    "Web Beta full verification receipt passed",
+    "Web Beta full verifier must print a clear pass result."
+  );
+  for (const [snippet, message] of [
+    [
+      "web_beta_can_launch_now: false",
+      "Web Beta full verifier must not approve Web Beta launch.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Web Beta full verifier must not approve cloud sync.",
+    ],
+    [
+      "local_receipt_only: true",
+      "Web Beta full verifier must stay local-only.",
+    ],
+    [
+      "uses_localhost_http_for_route_smoke: true",
+      "Web Beta full verifier must disclose localhost-only route smoke.",
+    ],
+    [
+      "sends_external_network_requests: false",
+      "Web Beta full verifier must not send external network requests.",
+    ],
+    [
+      "deploys_app: false",
+      "Web Beta full verifier must not deploy the app.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Web Beta full verifier must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Web Beta full verifier must not upload workspace data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Web Beta full verifier must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Web Beta full verifier must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Web Beta full verifier must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Web Beta full verifier must not read secrets.",
+    ],
+    [
+      "reads_holding_details: false",
+      "Web Beta full verifier must not read holdings.",
+    ],
+    [
+      "reads_trading_plans: false",
+      "Web Beta full verifier must not read trading plans.",
+    ],
+    ["enables_sync: false", "Web Beta full verifier must not enable sync."],
+    ["enables_ai: false", "Web Beta full verifier must not enable AI."],
+    [
+      "shell: false",
+      "Web Beta full verifier must run commands without shell interpolation.",
+    ],
+    [
+      "npm run verify:account",
+      "Web Beta full verifier must run account verification.",
+    ],
+    [
+      "npm run verify:module-workspaces",
+      "Web Beta full verifier must run module workspace verification.",
+    ],
+    [
+      "npm run verify:web-beta",
+      "Web Beta full verifier must run Web Beta contract verification.",
+    ],
+    [
+      "npm run verify:web-beta:smoke",
+      "Web Beta full verifier must run Web Beta smoke verification.",
+    ],
+    [
+      "npm run verify:route-smoke",
+      "Web Beta full verifier must run route smoke verification.",
+    ],
+    [
+      "npm run verify:replay-harness",
+      "Web Beta full verifier must run replay harness verification.",
+    ],
+    ["npm run lint", "Web Beta full verifier must run lint."],
+    ["npm run build", "Web Beta full verifier must run production build."],
+  ]) {
+    assertSourceIncludes(
+      files.webBetaFullVerifier,
+      webBetaFullVerifier,
+      snippet,
+      message
+    );
+  }
   assertSourceIncludes(
     files.webAlphaReceiptVerifier,
     webAlphaReceiptVerifier,
@@ -15463,6 +15580,22 @@ function run() {
     [
       "excluded_payload_classes",
       "Owner review packet must carry excluded private payload classes.",
+    ],
+    [
+      "npm run verify:web-beta:full",
+      "Owner review packet must include the Web Beta full verification command.",
+    ],
+    [
+      "npm run verify:account",
+      "Owner review packet must include account verification.",
+    ],
+    [
+      "npm run verify:module-workspaces",
+      "Owner review packet must include module workspace verification.",
+    ],
+    [
+      "npm run verify:route-smoke",
+      "Owner review packet must include route smoke verification.",
     ],
   ]) {
     assertSourceIncludes(

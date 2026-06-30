@@ -1641,6 +1641,12 @@ The first cloud phase is a private alpha, not full sync:
   launch: expected pages, disabled/gated high-risk API routes, local-only
   privacy boundaries, Cloud Alpha disabled defaults, private file storage
   disabled state, Cloudflare staging review, and Sync UI export wiring.
+- `npm run verify:web-beta:full` runs the local Web Beta verification bundle:
+  account gates, module workspace gates, Web Beta contract checks, smoke checks,
+  local route smoke, replay harness safety, lint, and production build. It
+  prints a local receipt, does not deploy, connect cloud services, upload
+  workspace data, enable sync, enable AI, or read page bodies, database values,
+  file bytes, holdings, trading plans, or secrets.
 - `npm run verify:replay-harness` checks the disposable replay harness safety
   boundary: replay and apply endpoints stay disabled, fixture payload stays
   empty, no network/database/file-write execution appears in the harness or
@@ -1675,6 +1681,7 @@ npm run verify:research-workflow
 npm run verify:replay-harness
 npm run verify:web-beta
 npm run verify:web-beta:smoke
+npm run verify:web-beta:full
 npm run verify:web-alpha
 npm run build
 ```

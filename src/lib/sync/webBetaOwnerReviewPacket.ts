@@ -121,9 +121,13 @@ export interface WebBetaOwnerReviewPacket {
 }
 
 const OWNER_REVIEW_COMMANDS = [
+  "npm run verify:web-beta:full",
   "npm run lint",
+  "npm run verify:account",
+  "npm run verify:module-workspaces",
   "npm run verify:web-beta",
   "npm run verify:web-beta:smoke",
+  "npm run verify:route-smoke",
   "npm run verify:replay-harness",
   "npm run build",
 ];

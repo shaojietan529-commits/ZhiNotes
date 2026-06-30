@@ -9,6 +9,7 @@ const root = process.cwd();
 const files = {
   packageJson: "package.json",
   routeSmokeVerifier: "scripts/verify-route-smoke.mjs",
+  webBetaFullVerifier: "scripts/verify-web-beta-full.mjs",
   hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
   cloudSourceOfTruthPlan: "src/lib/sync/cloudSourceOfTruthPlan.ts",
   cloudAckCacheSafetyReport:
@@ -347,6 +348,7 @@ function assertFileExists(relativePath, message) {
 function run() {
   const packageJson = JSON.parse(readProjectFile(files.packageJson));
   const routeSmokeVerifier = readProjectFile(files.routeSmokeVerifier);
+  const webBetaFullVerifier = readProjectFile(files.webBetaFullVerifier);
   const hotDataPlan = readProjectFile(files.hotDataPlan);
   const cloudSourceOfTruthPlan = readProjectFile(
     files.cloudSourceOfTruthPlan
@@ -594,10 +596,105 @@ function run() {
     "verify:web-beta",
     "verify:replay-harness",
     "verify:route-smoke",
+    "verify:web-beta:full",
   ]) {
     if (typeof scripts[scriptName] !== "string") {
       failures.push(`package.json missing script ${scriptName}`);
     }
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-web-beta-full-verification-receipt"',
+      "Web Beta full verifier must expose a stable receipt format.",
+    ],
+    [
+      "Web Beta full verification receipt passed",
+      "Web Beta full verifier must print a clear pass result.",
+    ],
+    [
+      "web_beta_can_launch_now: false",
+      "Web Beta full verifier must not approve launch.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Web Beta full verifier must not approve cloud sync.",
+    ],
+    [
+      "uses_localhost_http_for_route_smoke: true",
+      "Web Beta full verifier must disclose localhost-only route smoke.",
+    ],
+    [
+      "sends_external_network_requests: false",
+      "Web Beta full verifier must not send external network requests.",
+    ],
+    [
+      "deploys_app: false",
+      "Web Beta full verifier must not deploy the app.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Web Beta full verifier must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Web Beta full verifier must not upload workspace data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Web Beta full verifier must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Web Beta full verifier must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Web Beta full verifier must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Web Beta full verifier must not read secrets.",
+    ],
+    ["enables_sync: false", "Web Beta full verifier must not enable sync."],
+    ["enables_ai: false", "Web Beta full verifier must not enable AI."],
+    [
+      "shell: false",
+      "Web Beta full verifier must run commands without shell interpolation.",
+    ],
+    [
+      "npm run verify:account",
+      "Web Beta full verifier must run account gate checks.",
+    ],
+    [
+      "npm run verify:module-workspaces",
+      "Web Beta full verifier must run module workspace checks.",
+    ],
+    [
+      "npm run verify:web-beta",
+      "Web Beta full verifier must run Web Beta contract verification.",
+    ],
+    [
+      "npm run verify:web-beta:smoke",
+      "Web Beta full verifier must run Web Beta smoke verification.",
+    ],
+    [
+      "npm run verify:route-smoke",
+      "Web Beta full verifier must run local route smoke verification.",
+    ],
+    [
+      "npm run verify:replay-harness",
+      "Web Beta full verifier must run replay harness verification.",
+    ],
+    ["npm run lint", "Web Beta full verifier must run lint."],
+    ["npm run build", "Web Beta full verifier must run production build."],
+  ]) {
+    assertIncludes(
+      files.webBetaFullVerifier,
+      webBetaFullVerifier,
+      snippet,
+      message
+    );
   }
 
   assertIncludes(
