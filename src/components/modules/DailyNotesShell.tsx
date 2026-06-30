@@ -628,6 +628,34 @@ export default function DailyNotesShell() {
       setRootId(id);
     };
 
+    const earlyCloudMetadata = includeCloud
+      ? startDailyCloudMetadataFetch()
+      : null;
+    if (earlyCloudMetadata) {
+      void earlyCloudMetadata.then((cloud) => {
+        if (loadRequestRef.current !== requestId || firstVisibleMs !== null) {
+          return;
+        }
+        if (cloud.status !== "ok" || !cloud.rootId || cloud.pages.length === 0) {
+          return;
+        }
+        rememberModuleRootId("daily", cloud.rootId);
+        publishRootId(cloud.rootId);
+        const merged = mergeCloudDailyNotes(byId, cloud);
+        if (merged <= 0) return;
+        publishNotes(Array.from(byId.values()), {
+          phase: "cloud-checking",
+          backgroundActive: true,
+          cloudLoading: true,
+          message:
+            "云端每日纪要目录先返回，已先显示 metadata；本地索引和正文继续后台补齐。",
+        });
+        publishNotice(
+          `云端每日纪要目录先返回 ${cloud.pages.length} 条，已先显示日历 metadata；本地索引继续后台校正…`
+        );
+      });
+    }
+
     if (cachedHotSnapshot) {
       const merged = mergeDailyHotCacheSnapshot(
         byId,
@@ -854,7 +882,8 @@ export default function DailyNotesShell() {
       }
 
       try {
-        const cloudMetadata = startDailyCloudMetadataFetch();
+        const cloudMetadata =
+          earlyCloudMetadata ?? startDailyCloudMetadataFetch();
         if (!cloudMetadata) return;
         const cloud = await cloudMetadata;
         if (cloud.status === "ok" && cloud.rootId) {

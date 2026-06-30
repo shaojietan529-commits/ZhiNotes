@@ -2406,7 +2406,15 @@ function run() {
     ],
     [
       "const startDailyCloudMetadataFetch = () => {",
-      "Daily notes must start cloud metadata fetch only after local-first metadata work begins.",
+      "Daily notes must keep cloud metadata fetch in a local helper so it can run in parallel without blocking first paint.",
+    ],
+    [
+      "const earlyCloudMetadata = includeCloud",
+      "Daily notes must start cloud metadata in parallel with local index work to avoid blank calendars after bulk imports.",
+    ],
+    [
+      "云端每日纪要目录先返回",
+      "Daily notes must be able to render metadata from cloud first when local index work is slower.",
     ],
     [
       'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")',
@@ -2421,8 +2429,8 @@ function run() {
       "Daily notes cloud queueing must go through the lazy account-sync module.",
     ],
     [
-      "const cloudMetadata = startDailyCloudMetadataFetch()",
-      "Daily notes must start cloud metadata fetch from the background cloud section, not before first paint.",
+      "const cloudMetadata =\n          earlyCloudMetadata ?? startDailyCloudMetadataFetch()",
+      "Daily notes must reuse the early cloud metadata promise instead of issuing a second cloud request.",
     ],
     [
       "writeOptimisticDailyHotCache",

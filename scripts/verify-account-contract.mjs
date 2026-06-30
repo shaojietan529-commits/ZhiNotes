@@ -714,12 +714,16 @@ check(
     dailyNotesShell.includes("cachedHotSnapshot,\n        startDate,\n        endDate") &&
     dailyNotesShell.includes("let cloudMetadataPromise: Promise<DailyCloudMetadataResult> | null = null;") &&
     dailyNotesShell.includes("const startDailyCloudMetadataFetch = () => {") &&
+    dailyNotesShell.includes("const earlyCloudMetadata = includeCloud") &&
+    dailyNotesShell.includes("云端每日纪要目录先返回") &&
     dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") <
       dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") &&
-    dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") <
-      dailyNotesShell.indexOf("const cloudMetadata = startDailyCloudMetadataFetch()") &&
-    dailyNotesShell.indexOf("publishNotes(Array.from(byId.values()), {") <
-      dailyNotesShell.indexOf("const cloudMetadata = startDailyCloudMetadataFetch()") &&
+    dailyNotesShell.indexOf("const earlyCloudMetadata = includeCloud") <
+      dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") &&
+    dailyNotesShell.indexOf("const earlyCloudMetadata = includeCloud") <
+      dailyNotesShell.indexOf("const cloudMetadata =\n          earlyCloudMetadata ?? startDailyCloudMetadataFetch()") &&
+    dailyNotesShell.indexOf("const earlyCloudMetadata = includeCloud") <
+      dailyNotesShell.indexOf("const storedDailyRootId = getModuleRootIdSync(\"daily\")") &&
     dailyNotesShell.includes("publishNotes(Array.from(byId.values()), {") &&
     dailyNotesShell.includes("void ensureDailyDateIndexBackfilled()") &&
     dailyNotesShell.includes(

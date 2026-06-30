@@ -4961,16 +4961,28 @@ function run() {
     files.dailyNotesShell,
     dailyNotesShell,
     "const startDailyCloudMetadataFetch = () => {",
-    "Daily notes must start cloud metadata fetch only after local-first metadata work begins."
+    "Daily notes must keep cloud metadata fetch in a local helper so it can run in parallel without blocking first paint."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "const earlyCloudMetadata = includeCloud",
+    "Daily notes must start cloud metadata in parallel with local index work to avoid blank calendars after bulk imports."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "云端每日纪要目录先返回",
+    "Daily notes must be able to render metadata from cloud first when local index work is slower."
   );
   if (
     dailyNotesShell.indexOf(
-      "const localMetadata = await listDailyPageMetadataForCalendar"
+      "const earlyCloudMetadata = includeCloud"
     ) >=
-    dailyNotesShell.indexOf("const cloudMetadata = startDailyCloudMetadataFetch()")
+    dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar")
   ) {
     failures.push(
-      `${files.dailyNotesShell} must query local metadata before starting the cloud metadata request.`
+      `${files.dailyNotesShell} must start the cloud metadata request before awaiting local metadata so slow local indexes do not leave the calendar blank.`
     );
   }
   assertIncludes(
