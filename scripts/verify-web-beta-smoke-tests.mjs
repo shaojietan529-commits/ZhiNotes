@@ -12995,6 +12995,30 @@ function run() {
   assertIncludes(
     files.pendingPageDrafts,
     pendingPageDrafts,
+    "PENDING_PAGE_DRAFT_PRUNE_INTERVAL_MS = 15 * 1000",
+    "Pending page drafts must throttle full sessionStorage pruning during rapid page opens."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "pruneExpiredPendingPageDraftsInMemory(now)",
+    "Pending page drafts must still clear expired in-memory drafts on every remember call."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "prunePendingPageDraftSessionStorageIfDue(now)",
+    "Pending page drafts must gate expensive sessionStorage pruning behind a due check."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
+    "lastPendingPageDraftSessionPruneAt = now",
+    "Pending page drafts must record when sessionStorage pruning last ran."
+  );
+  assertIncludes(
+    files.pendingPageDrafts,
+    pendingPageDrafts,
     "pendingPageDraftSessionWrites",
     "Pending page drafts must coalesce large body recovery writes by page id."
   );

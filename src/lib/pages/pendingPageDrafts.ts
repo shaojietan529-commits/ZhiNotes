@@ -6,6 +6,7 @@ const PENDING_PAGE_DRAFT_MAX_ITEMS = 12;
 const PENDING_PAGE_DRAFT_MAX_CHARS = 900 * 1024;
 const PENDING_PAGE_DRAFT_DEBOUNCE_CHARS = 32 * 1024;
 const PENDING_PAGE_DRAFT_STORAGE_WRITE_DELAY_MS = 360;
+const PENDING_PAGE_DRAFT_PRUNE_INTERVAL_MS = 15 * 1000;
 
 const pendingPageDrafts = new Map<
   string,
@@ -17,6 +18,7 @@ const pendingPageDraftSessionWrites = new Map<
 >();
 let pendingPageDraftSessionWriteTimer: number | null = null;
 let pendingPageDraftFlushListenersAttached = false;
+let lastPendingPageDraftSessionPruneAt = 0;
 
 type PendingPageDraftRecordPage = Omit<Page, "content_yjs"> & {
   content_yjs: null;
@@ -74,8 +76,22 @@ export function clearPendingPageDraft(pageId: string): void {
 
 function prunePendingPageDrafts(): void {
   const now = Date.now();
+  pruneExpiredPendingPageDraftsInMemory(now);
+  prunePendingPageDraftSessionStorageIfDue(now);
+}
+
+function pruneExpiredPendingPageDraftsInMemory(now: number): void {
   for (const [pageId, draft] of pendingPageDrafts) {
     if (draft.expiresAt < now) pendingPageDrafts.delete(pageId);
+  }
+}
+
+function prunePendingPageDraftSessionStorageIfDue(now: number): void {
+  if (
+    now - lastPendingPageDraftSessionPruneAt <
+    PENDING_PAGE_DRAFT_PRUNE_INTERVAL_MS
+  ) {
+    return;
   }
   prunePendingPageDraftSessionStorage(now);
 }
@@ -211,6 +227,7 @@ function clearPendingPageDraftFromSessionStorage(pageId: string): void {
 }
 
 function prunePendingPageDraftSessionStorage(now: number): void {
+  lastPendingPageDraftSessionPruneAt = now;
   if (typeof window === "undefined") return;
   try {
     const storage = window.sessionStorage;
