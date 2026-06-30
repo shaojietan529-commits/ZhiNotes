@@ -11104,6 +11104,19 @@ function run() {
     "@/components/providers/DatabasePageShell",
     "Shared database navigation must preload the database page shell without reading database rows."
   );
+  for (const snippet of [
+    "LOCAL_FIRST_DATABASE_NAVIGATION_EVENT",
+    "dispatchLocalFirstDatabaseNavigation",
+    "openLocalFirstDatabaseRoute",
+    "subscribeLocalFirstDatabaseNavigation",
+  ]) {
+    assertIncludes(
+      files.localFirstDatabaseNavigationUtil,
+      localFirstDatabaseNavigationUtil,
+      snippet,
+      "Shared database navigation must expose an event bridge for non-hook editor commands."
+    );
+  }
   for (const [sourceLabel, source, snippets] of [
     [
       files.sidebar,

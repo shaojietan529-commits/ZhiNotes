@@ -2,11 +2,10 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { warmDatabaseShellModule } from "@/lib/database/localFirstDatabaseNavigation";
-
-interface LocalFirstDatabaseNavigationOptions {
-  replace?: boolean;
-}
+import {
+  warmDatabaseShellModule,
+  type LocalFirstDatabaseNavigationOptions,
+} from "@/lib/database/localFirstDatabaseNavigation";
 
 export function useLocalFirstDatabaseNavigation() {
   const router = useRouter();
@@ -30,4 +29,3 @@ export function useLocalFirstDatabaseNavigation() {
     [router]
   );
 }
-

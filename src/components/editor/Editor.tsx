@@ -67,11 +67,13 @@ import { PasteLinkOnSelection } from "./extensions/PasteLinkOnSelection";
 import { PastePageLink } from "./extensions/PastePageLink";
 import { buildChildPageInitialHtml } from "@/lib/pages/childPageSeed";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
-  dispatchLocalFirstPageNavigation,
+  openLocalFirstPageRoute,
   subscribeLocalFirstPageNavigation,
 } from "@/lib/pages/localFirstPageNavigation";
+import { subscribeLocalFirstDatabaseNavigation } from "@/lib/database/localFirstDatabaseNavigation";
 import { BlockDragHandleLayer } from "./BlockDragHandleLayer";
 import EditorBubbleMenu from "./EditorBubbleMenu";
 import {
@@ -138,6 +140,7 @@ export interface EditorRef {
 
 const Editor = forwardRef<EditorRef, EditorProps>(
   ({ pageId, initialContent, editable = true, onUpdate }, ref) => {
+    const openDatabase = useLocalFirstDatabaseNavigation();
     const openPage = useLocalFirstPageNavigation();
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingSaveRef = useRef<{
@@ -465,6 +468,12 @@ const Editor = forwardRef<EditorRef, EditorProps>(
         openPage(target, options);
       });
     }, [openPage]);
+
+    useEffect(() => {
+      return subscribeLocalFirstDatabaseNavigation((databaseId, options) => {
+        openDatabase(databaseId, options);
+      });
+    }, [openDatabase]);
 
     const handleInternalPageLinkClick = useCallback(
       (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -803,10 +812,9 @@ async function createChildPageFromEditorCommand(
   if (openPage) {
     openPage(pageToOpen, { source: "child-page-create" });
   } else {
-    const handled = dispatchLocalFirstPageNavigation(pageToOpen, {
+    openLocalFirstPageRoute(pageToOpen, {
       source: "child-page-create",
     });
-    if (!handled) window.location.href = `/page/${page.id}`;
   }
   return false;
 }

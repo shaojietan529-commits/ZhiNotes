@@ -274,7 +274,7 @@ function run() {
     "\"新页面\"",
     "prepareLocalFirstPageNavigation(pageToOpen, \"child-page-create\")",
     "warmPageShellModule()",
-    "dispatchLocalFirstPageNavigation(pageToOpen",
+    "openLocalFirstPageRoute(pageToOpen",
     "source: \"child-page-create\"",
     "buildChildPageInitialHtml",
     "updatePageWithCloud(page.id",
@@ -464,7 +464,31 @@ function run() {
       "getAllPages(",
       "/page child creation must not scan full page bodies after large imports."
     );
+    assertNotIncludes(
+      sourceLabel,
+      source,
+      "window.location.href = `/page",
+      "/page child creation must not fall back to direct browser hard reloads from editor command code."
+    );
   }
+  assertIncludes(
+    files.editor,
+    editor,
+    "subscribeLocalFirstDatabaseNavigation",
+    "Editor must subscribe to database navigation events so slash-created database pages stay on app-router navigation."
+  );
+  assertIncludes(
+    files.slashSuggestion,
+    slashSuggestion,
+    "openLocalFirstDatabaseRoute(db.id)",
+    "Slash-created full-page databases must use shared local-first database navigation."
+  );
+  assertNotIncludes(
+    files.slashSuggestion,
+    slashSuggestion,
+    "window.location.href = `/database",
+    "Slash-created full-page databases must not direct hard reload the browser."
+  );
   for (const snippet of [
     "handleInternalPageLinkClick",
     'a[data-type="mention"][data-id], a[href^="/page/"]',

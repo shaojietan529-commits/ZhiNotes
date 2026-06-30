@@ -181,6 +181,10 @@ const files = {
   databaseCloudSync: "src/hooks/useDatabaseCloudSync.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
+  localFirstDatabaseNavigation:
+    "src/hooks/useLocalFirstDatabaseNavigation.ts",
+  localFirstDatabaseNavigationUtil:
+    "src/lib/database/localFirstDatabaseNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
@@ -686,6 +690,12 @@ function run() {
   );
   const localFirstPageNavigationUtil = readProjectFile(
     files.localFirstPageNavigationUtil
+  );
+  const localFirstDatabaseNavigation = readProjectFile(
+    files.localFirstDatabaseNavigation
+  );
+  const localFirstDatabaseNavigationUtil = readProjectFile(
+    files.localFirstDatabaseNavigationUtil
   );
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
   const usePage = readProjectFile(files.usePage);
@@ -21814,6 +21824,48 @@ function run() {
       localFirstPageNavigationUtil,
       'import("@/components/providers/PageShell")',
       "Shared page navigation must preload the page shell without reading page bodies.",
+    ],
+    [
+      files.localFirstDatabaseNavigation,
+      localFirstDatabaseNavigation,
+      "warmDatabaseShellModule();",
+      "Shared database navigation must warm the database shell before route navigation.",
+    ],
+    [
+      files.localFirstDatabaseNavigation,
+      localFirstDatabaseNavigation,
+      "router.prefetch(href)",
+      "Shared database navigation must prefetch database detail routes as a speed hint.",
+    ],
+    [
+      files.localFirstDatabaseNavigationUtil,
+      localFirstDatabaseNavigationUtil,
+      "@/components/providers/DatabasePageShell",
+      "Shared database navigation must preload the database page shell without reading database rows.",
+    ],
+    [
+      files.localFirstDatabaseNavigationUtil,
+      localFirstDatabaseNavigationUtil,
+      "LOCAL_FIRST_DATABASE_NAVIGATION_EVENT",
+      "Shared database navigation must expose an event bridge for non-hook editor commands.",
+    ],
+    [
+      files.localFirstDatabaseNavigationUtil,
+      localFirstDatabaseNavigationUtil,
+      "dispatchLocalFirstDatabaseNavigation",
+      "Shared database navigation must expose an event dispatcher for non-hook editor commands.",
+    ],
+    [
+      files.localFirstDatabaseNavigationUtil,
+      localFirstDatabaseNavigationUtil,
+      "openLocalFirstDatabaseRoute",
+      "Shared database navigation must expose a browser-safe fallback entry for slash-created databases.",
+    ],
+    [
+      files.localFirstDatabaseNavigationUtil,
+      localFirstDatabaseNavigationUtil,
+      "subscribeLocalFirstDatabaseNavigation",
+      "Shared database navigation must let mounted editors route slash-created database pages through Next navigation.",
     ],
     [
       files.sidebar,

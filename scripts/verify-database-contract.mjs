@@ -822,6 +822,18 @@ function run() {
     'from "@/lib/database/cloudDatabaseMutations"',
     "Inline database blocks must keep database mutation code out of the editor first paint bundle."
   );
+  assertIncludes(
+    files.slashCommandSuggestion,
+    slashCommandSuggestion,
+    "openLocalFirstDatabaseRoute(db.id)",
+    "Slash-created full-page databases must route through shared local-first database navigation."
+  );
+  assertNotIncludes(
+    files.slashCommandSuggestion,
+    slashCommandSuggestion,
+    "window.location.href = `/database",
+    "Slash-created full-page databases must not direct hard reload the browser."
+  );
   for (const snippet of [
     'const loadDatabaseMutationModule = () =>',
     'import("@/lib/database/cloudDatabaseMutations")',

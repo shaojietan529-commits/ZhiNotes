@@ -91,6 +91,21 @@ export function dispatchLocalFirstPageNavigation(
   return detail.handled;
 }
 
+export function openLocalFirstPageRoute(
+  target: LocalFirstPageNavigationTarget,
+  options: LocalFirstPageNavigationOptions = {}
+): void {
+  const handled = dispatchLocalFirstPageNavigation(target, options);
+  if (handled || typeof window === "undefined") return;
+  const pageId = typeof target === "string" ? target : target.id;
+  const href = `/page/${pageId}`;
+  if (options.replace) {
+    window.location.replace(href);
+  } else {
+    window.location.assign(href);
+  }
+}
+
 export function subscribeLocalFirstPageNavigation(
   handler: (
     target: LocalFirstPageNavigationTarget,

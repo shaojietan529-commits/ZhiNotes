@@ -23,10 +23,11 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { buildChildPageInitialHtml } from "@/lib/pages/childPageSeed";
 import { dispatchEditorLocalCommand } from "@/lib/editorLocalCommands";
 import {
-  dispatchLocalFirstPageNavigation,
+  openLocalFirstPageRoute,
   prepareLocalFirstPageNavigation,
   warmPageShellModule,
 } from "@/lib/pages/localFirstPageNavigation";
+import { openLocalFirstDatabaseRoute } from "@/lib/database/localFirstDatabaseNavigation";
 
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadDatabaseMutationModule = () =>
@@ -153,10 +154,9 @@ function getSlashCommands(): SlashCommandItem[] {
           await updateWikiLinks(currentPageId, getLinkedPageIds(editor));
         }
 
-        const handled = dispatchLocalFirstPageNavigation(pageToOpen, {
+        openLocalFirstPageRoute(pageToOpen, {
           source: "child-page-create",
         });
-        if (!handled) window.location.href = `/page/${page.id}`;
       },
     },
     // ── Lists ──
@@ -644,8 +644,7 @@ function getSlashCommands(): SlashCommandItem[] {
         try {
           const { createDatabase } = await loadDatabaseMutationModule();
           const db = await createDatabase({ title: "未命名数据库" });
-          // Navigate to the full database page
-          window.location.href = `/database/${db.id}`;
+          openLocalFirstDatabaseRoute(db.id);
         } catch (err) {
           console.error("[Zhinote] Failed to create database:", err);
         }
