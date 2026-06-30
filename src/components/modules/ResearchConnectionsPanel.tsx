@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
+import { usePageWikiLinks } from "@/hooks/usePageWikiLinks";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { parseLocalFirstDatabaseRoute } from "@/lib/database/localFirstDatabaseNavigation";
@@ -40,6 +41,7 @@ export default function ResearchConnectionsPanel({
   const pagesById = useWorkspaceStore((s) => s.pagesById);
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
+  const wikiLinks = usePageWikiLinks(pages);
 
   const researchDatabases = useMemo(
     () => databases.filter((database) => classifyResearchDatabase(database)),
@@ -70,8 +72,8 @@ export default function ResearchConnectionsPanel({
   }, [researchDatabases]);
 
   const graph = useMemo(
-    () => buildResearchGraph(pages, snapshots),
-    [pages, snapshots]
+    () => buildResearchGraph(pages, snapshots, wikiLinks),
+    [pages, snapshots, wikiLinks]
   );
   const graphReport = useMemo(
     () => buildResearchGraphReport(graph, snapshots),

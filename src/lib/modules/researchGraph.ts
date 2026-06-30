@@ -25,6 +25,13 @@ export interface ResearchDatabaseSnapshot {
   rows: Array<DatabaseRow & { page: Page }>;
 }
 
+export interface ResearchWikiLinkRecord {
+  id: string;
+  sourcePageId: string;
+  targetPageId: string;
+  createdAt: string;
+}
+
 export interface ResearchAsset {
   id: string;
   kind: ResearchAssetKind;
@@ -289,6 +296,9 @@ export interface ResearchGraphHealthSummary {
 }
 
 const RELATION_FIELD_LABELS: Array<[string, string]> = [
+  ["wiki link", "页面链接"],
+  ["page link", "页面链接"],
+  ["页面链接", "页面链接"],
   ["industry chain", "产业链位置"],
   ["产业链位置", "产业链位置"],
   ["产业链", "产业链位置"],
@@ -415,7 +425,8 @@ export function classifyResearchPage(
 
 export function buildResearchGraph(
   pages: Page[],
-  snapshots: ResearchDatabaseSnapshot[]
+  snapshots: ResearchDatabaseSnapshot[],
+  wikiLinks: ResearchWikiLinkRecord[] = []
 ): ResearchGraph {
   const pagesById = new Map(pages.map((page) => [page.id, page]));
   const assetsById = new Map<string, ResearchAsset>();
@@ -472,6 +483,37 @@ export function buildResearchGraph(
         }
       }
     }
+  }
+
+  for (const link of wikiLinks) {
+    if (link.sourcePageId === link.targetPageId) continue;
+
+    const sourcePage = pagesById.get(link.sourcePageId);
+    const targetPage = pagesById.get(link.targetPageId);
+    if (!sourcePage || !targetPage) continue;
+
+    const sourceKind =
+      assetsById.get(sourcePage.id)?.kind ?? classifyResearchPage(sourcePage);
+    const targetKind =
+      assetsById.get(targetPage.id)?.kind ?? classifyResearchPage(targetPage);
+    if (!sourceKind || !targetKind) continue;
+
+    const sourceAsset = createAsset(sourcePage, sourceKind);
+    const targetAsset = createAsset(targetPage, targetKind);
+    assetsById.set(sourceAsset.id, sourceAsset);
+    assetsById.set(targetAsset.id, targetAsset);
+
+    const linkId = `wiki-link:${link.id}:${link.sourcePageId}:${link.targetPageId}`;
+    if (seenLinks.has(linkId)) continue;
+    seenLinks.add(linkId);
+
+    relationLinks.push({
+      id: linkId,
+      source: sourceAsset,
+      target: targetAsset,
+      fieldName: "页面链接",
+      databaseTitle: "页面链接",
+    });
   }
 
   for (const page of pages) {

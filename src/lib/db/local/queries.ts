@@ -2801,6 +2801,13 @@ function applyCountRows(
 
 // ─── Wiki Links ──────────────────────────────────────────────
 
+export interface WikiLinkRecord {
+  id: string;
+  sourcePageId: string;
+  targetPageId: string;
+  createdAt: string;
+}
+
 export async function updateWikiLinks(
   sourcePageId: string,
   targetPageIds: string[]
@@ -2853,6 +2860,35 @@ export async function updateWikiLinks(
       );
     }
   }
+}
+
+export async function listWikiLinksBySourcePageIds(
+  sourcePageIds: string[]
+): Promise<WikiLinkRecord[]> {
+  if (sourcePageIds.length === 0) return [];
+
+  const db = await getDb();
+  const rows: WikiLinkRecord[] = [];
+  const batchSize = 80;
+
+  for (let index = 0; index < sourcePageIds.length; index += batchSize) {
+    const batch = sourcePageIds.slice(index, index + batchSize);
+    const placeholders = batch.map(() => "?").join(",");
+    rows.push(
+      ...(db.query(
+        `SELECT id,
+                source_page_id as sourcePageId,
+                target_page_id as targetPageId,
+                created_at as createdAt
+         FROM wiki_links
+         WHERE source_page_id IN (${placeholders})
+           AND deleted_at IS NULL`,
+        batch
+      ) as unknown as WikiLinkRecord[])
+    );
+  }
+
+  return rows;
 }
 
 export async function getBacklinks(

@@ -10,6 +10,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
+import { usePageWikiLinks } from "@/hooks/usePageWikiLinks";
 import { parseLocalFirstDatabaseRoute } from "@/lib/database/localFirstDatabaseNavigation";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
@@ -99,6 +100,7 @@ function ResearchGraphDashboard() {
     deferContent: true,
     autoHydrateContent: false,
   });
+  const wikiLinks = usePageWikiLinks(pages);
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [exportingGraphReport, setExportingGraphReport] = useState(false);
@@ -156,8 +158,8 @@ function ResearchGraphDashboard() {
   }, [researchDatabases]);
 
   const graph = useMemo(
-    () => buildResearchGraph(pages, snapshots),
-    [pages, snapshots]
+    () => buildResearchGraph(pages, snapshots, wikiLinks),
+    [pages, snapshots, wikiLinks]
   );
   const graphReport = useMemo(
     () => buildResearchGraphReport(graph, snapshots),

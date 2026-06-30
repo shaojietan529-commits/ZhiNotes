@@ -10,6 +10,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import { useDatabases } from "@/hooks/useDatabases";
 import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
+import { usePageWikiLinks } from "@/hooks/usePageWikiLinks";
 import { usePages } from "@/hooks/usePages";
 import { getFields, getRows } from "@/lib/db/local/queries";
 import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
@@ -79,6 +80,7 @@ function ProjectsDashboard() {
   const openPage = useLocalFirstPageNavigation();
   const pagesById = useWorkspaceStore((s) => s.pagesById);
   const { pages, upsertPages } = usePages();
+  const wikiLinks = usePageWikiLinks(pages);
   const { databases, refresh: refreshDatabases } = useDatabases();
   const [snapshots, setSnapshots] = useState<ResearchDatabaseSnapshot[]>([]);
   const [topic, setTopic] = useState("");
@@ -115,8 +117,8 @@ function ProjectsDashboard() {
   }, [researchDatabases]);
 
   const graph = useMemo(
-    () => buildResearchGraph(pages, snapshots),
-    [pages, snapshots]
+    () => buildResearchGraph(pages, snapshots, wikiLinks),
+    [pages, snapshots, wikiLinks]
   );
   const graphReport = useMemo(
     () => buildResearchGraphReport(graph, snapshots),

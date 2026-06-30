@@ -268,6 +268,10 @@ function run() {
     "产业链位置",
     "产业链研究",
     "createIndustryCompanyReferenceAsset",
+    "ResearchWikiLinkRecord",
+    "wikiLinks",
+    "wiki-link:",
+    "页面链接",
   ]) {
     assertIncludes(
       files.graph,
