@@ -13,6 +13,10 @@ const files = {
   webBetaFullVerifier: "scripts/verify-web-beta-full.mjs",
   cloudManifestDomainVerifier:
     "scripts/verify-cloud-manifest-domain-contract.mjs",
+  cloudManifestRequestValidator:
+    "src/lib/sync/cloudManifestCompareRequestValidator.ts",
+  cloudManifestRequestValidatorVerifier:
+    "scripts/verify-cloud-manifest-request-validator.mjs",
   cloudManifestApiGuardVerifier:
     "scripts/verify-cloud-manifest-api-guard.mjs",
   cloudManifestRouteVerifier:
@@ -407,6 +411,12 @@ function run() {
   const cloudManifestDomainVerifier = readProjectFile(
     files.cloudManifestDomainVerifier
   );
+  const cloudManifestRequestValidator = readProjectFile(
+    files.cloudManifestRequestValidator
+  );
+  const cloudManifestRequestValidatorVerifier = readProjectFile(
+    files.cloudManifestRequestValidatorVerifier
+  );
   const cloudManifestApiGuardVerifier = readProjectFile(
     files.cloudManifestApiGuardVerifier
   );
@@ -750,6 +760,11 @@ function run() {
     [files.syncManualReviewPacket, syncManualReviewPacket],
     [files.syncHandoffReadinessReceipt, syncHandoffReadinessReceipt],
     [files.replayHarnessVerifier, replayHarnessVerifier],
+    [files.cloudManifestRequestValidator, cloudManifestRequestValidator],
+    [
+      files.cloudManifestRequestValidatorVerifier,
+      cloudManifestRequestValidatorVerifier,
+    ],
     [files.cloudManifestApiGuardVerifier, cloudManifestApiGuardVerifier],
     [files.cloudManifestRouteVerifier, cloudManifestRouteVerifier],
     [files.environmentPreflight, environmentPreflight],
@@ -15180,6 +15195,12 @@ function run() {
   assertSourceIncludes(
     files.packageJson,
     packageJson,
+    '"verify:cloud-manifest-request": "node scripts/verify-cloud-manifest-request-validator.mjs"',
+    "package.json must expose the cloud manifest request validator runtime verification command."
+  );
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
     '"verify:cloud-manifest-api": "node scripts/verify-cloud-manifest-api-guard.mjs"',
     "package.json must expose the cloud manifest compare API guard runtime verification command."
   );
@@ -15332,6 +15353,10 @@ function run() {
       "Web Beta full verifier must run cloud manifest domain contract verification.",
     ],
     [
+      "npm run verify:cloud-manifest-request",
+      "Web Beta full verifier must run cloud manifest request validator verification.",
+    ],
+    [
       "npm run verify:cloud-manifest-api",
       "Web Beta full verifier must run cloud manifest API guard verification.",
     ],
@@ -15416,6 +15441,103 @@ function run() {
     assertSourceIncludes(
       files.cloudManifestDomainVerifier,
       cloudManifestDomainVerifier,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.cloudManifestRequestValidator,
+    cloudManifestRequestValidator,
+    'format: "zhinote-cloud-manifest-compare-request-validation"',
+    "Cloud manifest request validator must expose a stable validation format."
+  );
+  assertSourceIncludes(
+    files.cloudManifestRequestValidatorVerifier,
+    cloudManifestRequestValidatorVerifier,
+    'format: "zhinote-cloud-manifest-request-validator-verification-receipt"',
+    "Cloud manifest request validator verifier must emit a stable local receipt format."
+  );
+  for (const [snippet, message] of [
+    [
+      "validateCloudManifestCompareRequest",
+      "Cloud manifest request validator must export the request validator.",
+    ],
+    [
+      "buildCloudManifestCompareRequestValidatorReport",
+      "Cloud manifest request validator must export the local fixture report.",
+    ],
+    [
+      "REQUIRED_METADATA_FIELDS",
+      "Cloud manifest request validator must define required metadata fields.",
+    ],
+    [
+      "OPTIONAL_METADATA_FIELDS",
+      "Cloud manifest request validator must define optional metadata fields.",
+    ],
+    [
+      "findForbiddenFieldsRecursively",
+      "Cloud manifest request validator must catch nested forbidden fields.",
+    ],
+    [
+      "returns_raw_values: false",
+      "Cloud manifest request validator must not return raw values.",
+    ],
+    [
+      "safe_to_execute_cloud_compare_now: false",
+      "Cloud manifest request validator must not approve cloud compare execution.",
+    ],
+    [
+      "can_connect_cloud_now: false",
+      "Cloud manifest request validator must not connect cloud services.",
+    ],
+    [
+      "can_read_remote_manifest_now: false",
+      "Cloud manifest request validator must not read remote manifests.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Cloud manifest request validator must not write server data.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Cloud manifest request validator must not upload workspace data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud manifest request validator must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud manifest request validator must not read database values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud manifest request validator must not read file bytes.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Cloud manifest request validator verifier must not approve cloud sync.",
+    ],
+    [
+      "DO_NOT_RETURN_THIS_PRIVATE_MARKER",
+      "Cloud manifest request validator verifier must assert raw values are not returned.",
+    ],
+    [
+      "buildCloudManifestCompareForbiddenFields",
+      "Cloud manifest request validator verifier must compare against the manifest compare forbidden field schema.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      snippet === "cloud_sync_can_start_now: false" ||
+        snippet === "DO_NOT_RETURN_THIS_PRIVATE_MARKER" ||
+        snippet === "buildCloudManifestCompareForbiddenFields"
+        ? files.cloudManifestRequestValidatorVerifier
+        : files.cloudManifestRequestValidator,
+      snippet === "cloud_sync_can_start_now: false" ||
+        snippet === "DO_NOT_RETURN_THIS_PRIVATE_MARKER" ||
+        snippet === "buildCloudManifestCompareForbiddenFields"
+        ? cloudManifestRequestValidatorVerifier
+        : cloudManifestRequestValidator,
       snippet,
       message
     );

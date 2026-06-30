@@ -25,6 +25,7 @@
     "verify:web-beta:smoke": "node scripts/verify-web-beta-smoke-tests.mjs",
     "verify:web-beta:full": "node scripts/verify-web-beta-full.mjs",
     "verify:cloud-manifest": "node scripts/verify-cloud-manifest-domain-contract.mjs",
+    "verify:cloud-manifest-request": "node scripts/verify-cloud-manifest-request-validator.mjs",
     "verify:cloud-manifest-api": "node scripts/verify-cloud-manifest-api-guard.mjs",
     "verify:cloud-manifest-route": "node scripts/verify-cloud-manifest-route-disabled.mjs",
     "verify:route-smoke": "node scripts/verify-route-smoke.mjs",

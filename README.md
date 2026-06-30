@@ -1294,6 +1294,12 @@ Current local actions:
   `npm run verify:cloud-manifest` evaluates the contract builder locally and
   emits a receipt proving all required domains and forbidden payload fields are
   still covered.
+- Validate future cloud manifest compare requests locally. `npm run
+  verify:cloud-manifest-request` evaluates the metadata-only request validator
+  against synthetic fixtures, rejects page bodies, database values, comments,
+  file bytes, raw manifests, credentials, and write/delete commands, and
+  verifies the validator returns field names and issue codes only, not raw
+  values.
 - Verify the disabled cloud manifest compare API guard locally. `npm run
   verify:cloud-manifest-api` evaluates the disabled response builder, checks
   that compare/query/cloud/read/write/upload switches stay off, confirms
@@ -1665,12 +1671,12 @@ The first cloud phase is a private alpha, not full sync:
   disabled state, Cloudflare staging review, and Sync UI export wiring.
 - `npm run verify:web-beta:full` runs the local Web Beta verification bundle:
   account gates, module workspace gates, Web Beta contract checks, smoke checks,
-  cloud manifest domain checks, disabled cloud manifest API guard checks,
-  disabled cloud manifest route checks, local route smoke, replay harness
-  safety, lint, and production build. It prints a local receipt, does not
-  deploy, connect cloud services, upload workspace data, enable sync, enable AI,
-  or read page bodies, database values, file bytes, holdings, trading plans, or
-  secrets.
+  cloud manifest domain checks, metadata-only manifest request validator checks,
+  disabled cloud manifest API guard checks, disabled cloud manifest route
+  checks, local route smoke, replay harness safety, lint, and production build.
+  It prints a local receipt, does not deploy, connect cloud services, upload
+  workspace data, enable sync, enable AI, or read page bodies, database values,
+  file bytes, holdings, trading plans, or secrets.
 - `npm run verify:replay-harness` checks the disposable replay harness safety
   boundary: replay and apply endpoints stay disabled, fixture payload stays
   empty, no network/database/file-write execution appears in the harness or
@@ -1707,6 +1713,7 @@ npm run verify:web-beta
 npm run verify:web-beta:smoke
 npm run verify:web-beta:full
 npm run verify:cloud-manifest
+npm run verify:cloud-manifest-request
 npm run verify:cloud-manifest-api
 npm run verify:cloud-manifest-route
 npm run verify:web-alpha

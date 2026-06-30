@@ -10,6 +10,10 @@ const files = {
   packageJson: "package.json",
   routeSmokeVerifier: "scripts/verify-route-smoke.mjs",
   webBetaFullVerifier: "scripts/verify-web-beta-full.mjs",
+  cloudManifestRequestValidator:
+    "src/lib/sync/cloudManifestCompareRequestValidator.ts",
+  cloudManifestRequestValidatorVerifier:
+    "scripts/verify-cloud-manifest-request-validator.mjs",
   cloudManifestApiGuardVerifier:
     "scripts/verify-cloud-manifest-api-guard.mjs",
   cloudManifestRouteVerifier:
@@ -355,6 +359,12 @@ function run() {
   const packageJson = JSON.parse(readProjectFile(files.packageJson));
   const routeSmokeVerifier = readProjectFile(files.routeSmokeVerifier);
   const webBetaFullVerifier = readProjectFile(files.webBetaFullVerifier);
+  const cloudManifestRequestValidator = readProjectFile(
+    files.cloudManifestRequestValidator
+  );
+  const cloudManifestRequestValidatorVerifier = readProjectFile(
+    files.cloudManifestRequestValidatorVerifier
+  );
   const cloudManifestApiGuardVerifier = readProjectFile(
     files.cloudManifestApiGuardVerifier
   );
@@ -612,6 +622,7 @@ function run() {
     "verify:replay-harness",
     "verify:route-smoke",
     "verify:cloud-manifest",
+    "verify:cloud-manifest-request",
     "verify:cloud-manifest-api",
     "verify:cloud-manifest-route",
     "verify:web-beta:full",
@@ -701,6 +712,10 @@ function run() {
       "Web Beta full verifier must run cloud manifest domain verification.",
     ],
     [
+      "npm run verify:cloud-manifest-request",
+      "Web Beta full verifier must run cloud manifest request validator verification.",
+    ],
+    [
       "npm run verify:cloud-manifest-api",
       "Web Beta full verifier must run cloud manifest API guard verification.",
     ],
@@ -765,6 +780,59 @@ function run() {
       snippet,
       message
     );
+  }
+
+  assertIncludes(
+    files.cloudManifestRequestValidator,
+    cloudManifestRequestValidator,
+    'format: "zhinote-cloud-manifest-compare-request-validation"',
+    "Cloud manifest request validator must expose a stable validation format."
+  );
+  assertIncludes(
+    files.cloudManifestRequestValidatorVerifier,
+    cloudManifestRequestValidatorVerifier,
+    'format: "zhinote-cloud-manifest-request-validator-verification-receipt"',
+    "Cloud manifest request validator verifier must expose a stable receipt format."
+  );
+  for (const [snippet, message, sourceFile, sourceText] of [
+    [
+      "validateCloudManifestCompareRequest",
+      "Cloud manifest request validator must export the validator.",
+      files.cloudManifestRequestValidator,
+      cloudManifestRequestValidator,
+    ],
+    [
+      "findForbiddenFieldsRecursively",
+      "Cloud manifest request validator must catch nested forbidden fields.",
+      files.cloudManifestRequestValidator,
+      cloudManifestRequestValidator,
+    ],
+    [
+      "returns_raw_values: false",
+      "Cloud manifest request validator must not return raw values.",
+      files.cloudManifestRequestValidator,
+      cloudManifestRequestValidator,
+    ],
+    [
+      "safe_to_execute_cloud_compare_now: false",
+      "Cloud manifest request validator must not approve cloud compare.",
+      files.cloudManifestRequestValidator,
+      cloudManifestRequestValidator,
+    ],
+    [
+      "DO_NOT_RETURN_THIS_PRIVATE_MARKER",
+      "Cloud manifest request validator verifier must assert raw values are not returned.",
+      files.cloudManifestRequestValidatorVerifier,
+      cloudManifestRequestValidatorVerifier,
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Cloud manifest request validator verifier must not approve cloud sync.",
+      files.cloudManifestRequestValidatorVerifier,
+      cloudManifestRequestValidatorVerifier,
+    ],
+  ]) {
+    assertIncludes(sourceFile, sourceText, snippet, message);
   }
 
   assertIncludes(
