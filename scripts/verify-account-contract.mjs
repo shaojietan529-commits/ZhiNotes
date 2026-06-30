@@ -923,12 +923,12 @@ check(
     dailyNotesShell.includes("已显示 ${visibleNotes.length}/${dayTotalCount} 条") &&
     dailyNotesShell.includes("为保持日历流畅") &&
     dailyNotesShell.includes("cancelScheduledBatch = scheduleDailyIdleTask(") &&
-    dailyNotesShell.includes("DAILY_VISIBLE_CONTENT_WARMUP_LIMIT") &&
-    dailyNotesShell.includes("DAILY_VISIBLE_CONTENT_WARMUP_BATCH") &&
-    dailyNotesShell.includes("collectVisibleDailyContentWarmupCandidates") &&
-    dailyNotesShell.includes("warmDailyNoteContent(note)") &&
+    !dailyNotesShell.includes("DAILY_VISIBLE_CONTENT_WARMUP") &&
+    !dailyNotesShell.includes("collectVisibleDailyContentWarmupCandidates") &&
+    !dailyNotesShell.includes("warmDailyNoteContent") &&
+    !dailyNotesShell.includes("onMouseEnter={() => warmDailyNoteContent(note)}") &&
     !dailyNotesShell.includes("hiddenNotes.map"),
-  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；超大单日导入只能按当天补齐 metadata，自动 hydration 必须走空闲调度；可见条目正文预热必须小批量本地 idle 执行，不能把全部 metadata 塞进 DOM"
+  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；超大单日导入只能按当天补齐 metadata，自动 hydration 必须走空闲调度；正文必须在 peek/full page 打开后按需补齐，不能把全部 metadata 或正文塞进 DOM"
 );
 
 const meetingScheduleShell = read(
@@ -1867,8 +1867,8 @@ check(
     dailyNotesShell.includes('onPointerDown={() =>') &&
     dailyNotesShell.includes('primeDailyNoteOpen(note, "daily-open")') &&
     dailyNotesShell.includes('onFocus={() => primeDailyNoteOpen(note, "daily-open")}') &&
-    dailyNotesShell.includes("const warmDailyNoteContent = useCallback") &&
-    dailyNotesShell.includes("onMouseEnter={() => warmDailyNoteContent(note)}") &&
+    !dailyNotesShell.includes("const warmDailyNoteContent = useCallback") &&
+    !dailyNotesShell.includes("onMouseEnter={() => warmDailyNoteContent(note)}") &&
     dailyNotesShell.includes("setPeekInitialPage(toDailyNoteMetadataSeed(seededNote, note));") &&
     dailyNotesShell.includes("openingNoteId === note.id") &&
     dailyNotesShell.includes("正在打开纪要…") &&

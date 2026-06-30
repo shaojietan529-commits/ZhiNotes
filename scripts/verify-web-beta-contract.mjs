@@ -2608,6 +2608,26 @@ function run() {
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "DAILY_VISIBLE_CONTENT_WARMUP",
+      "Daily calendar must not automatically hydrate imported note bodies from the month grid.",
+    ],
+    [
+      "collectVisibleDailyContentWarmupCandidates",
+      "Daily calendar body hydration must be demand-driven by the peek/full page, not a grid scan.",
+    ],
+    [
+      "warmDailyNoteContent",
+      "Daily existing-note hover/focus must only prime metadata and route shells; body HTML loads after open.",
+    ],
+    [
+      "onMouseEnter={() => warmDailyNoteContent(note)}",
+      "Daily existing-note hover must not read local body HTML in high-volume imported months.",
+    ],
+  ]) {
+    assertSourceExcludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
   assertSourceExcludes(
     files.dailyNotesShell,
     dailyNotesShell,
@@ -4994,34 +5014,6 @@ function run() {
       "Daily calendar automatic date hydration must run through idle scheduling instead of fixed timer pressure.",
     ],
     [
-      "DAILY_VISIBLE_CONTENT_WARMUP_LIMIT",
-      "Daily calendar must cap local content warmup to a small visible subset.",
-    ],
-    [
-      "DAILY_VISIBLE_CONTENT_WARMUP_BATCH",
-      "Daily calendar content warmup must run in small idle batches.",
-    ],
-    [
-      "DAILY_VISIBLE_CONTENT_WARMUP_BATCH = 2",
-      "Daily calendar content warmup batches must stay small enough to avoid competing with first paint.",
-    ],
-    [
-      "DAILY_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS",
-      "Daily calendar must delay automatic body warmup until after the route has painted.",
-    ],
-    [
-      "DAILY_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS",
-      "Daily calendar must space follow-up body warmup batches instead of reading many imported bodies at once.",
-    ],
-    [
-      "collectVisibleDailyContentWarmupCandidates",
-      "Daily calendar must collect content warmup candidates from visible date cells, not the whole import corpus.",
-    ],
-    [
-      "warmDailyNoteContent(note)",
-      "Daily calendar must prewarm visible note bodies before a direct click when local cache is available.",
-    ],
-    [
       "const [dailyNoteCountByDate, setDailyNoteCountByDate]",
       "Daily calendar must keep date-level totals separately from the capped render list.",
     ],
@@ -5501,17 +5493,17 @@ function run() {
     "onFocus={warmDailyPeekOpen}",
     "Daily calendar + controls must warm the lazy peek modal on keyboard focus before opening."
   );
-  assertSourceIncludes(
+  assertSourceExcludes(
     files.dailyNotesShell,
     dailyNotesShell,
     "const warmDailyNoteContent = useCallback",
-    "Daily existing-note intent must warm local body content without cloud reads."
+    "Daily existing-note intent must keep body loading inside the peek/full page demand path."
   );
-  assertSourceIncludes(
+  assertSourceExcludes(
     files.dailyNotesShell,
     dailyNotesShell,
     "onMouseEnter={() => warmDailyNoteContent(note)}",
-    "Daily existing-note hover must warm local body content before the peek modal asks for it."
+    "Daily existing-note hover must not hydrate body HTML before the user opens the note."
   );
   assertSourceIncludes(
     files.dailyNotesShell,

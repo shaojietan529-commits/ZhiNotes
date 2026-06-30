@@ -985,8 +985,6 @@ for (const token of [
   "onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}",
   "onPointerDown={(event) => addNoteOnPointerDown(event, key)}",
   "onFocus={warmDailyPeekOpen}",
-  "const warmDailyNoteContent = useCallback",
-  "onMouseEnter={() => warmDailyNoteContent(note)}",
   "setPeekInitialPage(toDailyNoteSeed(seededNote, note));",
   'import("@/components/providers/PageShell")',
   "setPeekInitialPage(optimisticNote)",
@@ -1009,6 +1007,13 @@ for (const token of [
     `DailyNotesShell 新建纪要应直接弹出编辑页面，已有纪要仍可轻量预览，缺少 ${token}`
   );
 }
+check(
+  !shells.daily.includes("DAILY_VISIBLE_CONTENT_WARMUP") &&
+    !shells.daily.includes("collectVisibleDailyContentWarmupCandidates") &&
+    !shells.daily.includes("warmDailyNoteContent") &&
+    !shells.daily.includes("onMouseEnter={() => warmDailyNoteContent(note)}"),
+  "DailyNotesShell 日历路径只能预热页面壳和 metadata；正文必须在 peek/full page 打开后按需补齐，不能 hover 或首屏批量预热正文"
+);
 check(
   shells.daily.indexOf("rememberPendingPageDraft(optimisticNote)") <
     shells.daily.indexOf("upsertPages([optimisticNote])") &&

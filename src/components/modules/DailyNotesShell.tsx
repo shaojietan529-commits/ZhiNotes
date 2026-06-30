@@ -143,10 +143,6 @@ const DAILY_CALENDAR_HYDRATION_BATCH = 7;
 const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
 const DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH = 10;
 const DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS = 32;
-const DAILY_VISIBLE_CONTENT_WARMUP_LIMIT = 18;
-const DAILY_VISIBLE_CONTENT_WARMUP_BATCH = 2;
-const DAILY_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS = 2200;
-const DAILY_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS = 900;
 const DAILY_PEEK_EDITOR_WARMUP_DELAY_MS = 1400;
 const DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 1800;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
@@ -237,7 +233,6 @@ export default function DailyNotesShell() {
   const observedPageRevisionRef = useRef<string | null>(null);
   const creatingDateKeyRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
-  const dailyNoteContentWarmupIdsRef = useRef<Set<string>>(new Set());
   const { viewMonth, setViewMonth } =
     useCalendarViewMonthPreference("daily");
   const [hotCachePreferences, setHotCachePreferences] = useState(
@@ -361,41 +356,6 @@ export default function DailyNotesShell() {
     warmPagePeekModal();
     warmPageRoute();
   }, [warmPageRoute]);
-
-  const warmDailyNoteContent = useCallback(
-    (note: DailyNote) => {
-      if (!dbReady || note.content_text != null) return;
-      if (dailyNoteContentWarmupIdsRef.current.has(note.id)) return;
-      dailyNoteContentWarmupIdsRef.current.add(note.id);
-
-      const existing = useWorkspaceStore.getState().getPageById(note.id);
-      if (existing?.content_text != null) {
-        const warmedNote = toDailyNoteSeed(existing, note);
-        rememberPendingPageDraft(warmedNote);
-        rememberPageRouteHandoff(warmedNote, "daily-open");
-        upsertPages([warmedNote]);
-        return;
-      }
-
-      scheduleDailyIdleTask(() => {
-        void getPage(note.id)
-          .then((storedPage) => {
-            if (!storedPage) return;
-            const warmedNote = toDailyNoteSeed(storedPage, note);
-            rememberPendingPageDraft(warmedNote);
-            rememberPageRouteHandoff(warmedNote, "daily-open");
-            upsertPages([warmedNote]);
-            setPeekInitialPage((current) =>
-              current?.id === warmedNote.id ? warmedNote : current
-            );
-          })
-          .catch(() => {
-            dailyNoteContentWarmupIdsRef.current.delete(note.id);
-          });
-      }, 80);
-    },
-    [dbReady, upsertPages]
-  );
 
   useEffect(() => {
     const cancelPageShellPreload = scheduleDailyIdleTask(() => {
@@ -1309,43 +1269,6 @@ export default function DailyNotesShell() {
     };
   }, [dailyNoteCountByDate, grid, notesByDate]);
 
-  useEffect(() => {
-    if (!dbReady) return;
-    const candidates = collectVisibleDailyContentWarmupCandidates(
-      notesByDate,
-      grid,
-      todayKey,
-      DAILY_VISIBLE_CONTENT_WARMUP_LIMIT
-    );
-    if (candidates.length === 0) return;
-
-    let cancelled = false;
-    let cancelScheduledBatch: (() => void) | null = null;
-    const queue = [...candidates];
-
-    const runNextBatch = () => {
-      cancelScheduledBatch = null;
-      if (cancelled || queue.length === 0) return;
-      const batch = queue.splice(0, DAILY_VISIBLE_CONTENT_WARMUP_BATCH);
-      for (const note of batch) warmDailyNoteContent(note);
-      if (queue.length > 0) {
-        cancelScheduledBatch = scheduleDailyIdleTask(
-          runNextBatch,
-          DAILY_VISIBLE_CONTENT_WARMUP_BATCH_DELAY_MS
-        );
-      }
-    };
-
-    cancelScheduledBatch = scheduleDailyIdleTask(
-      runNextBatch,
-      DAILY_VISIBLE_CONTENT_WARMUP_INITIAL_DELAY_MS
-    );
-    return () => {
-      cancelled = true;
-      cancelScheduledBatch?.();
-    };
-  }, [dbReady, grid, notesByDate, todayKey, warmDailyNoteContent]);
-
   // Add a new note page on the given day, then open it for editing.
   const addNote = useCallback(
     async (dateKey: string) => {
@@ -1534,7 +1457,6 @@ export default function DailyNotesShell() {
       upsertPages([initialSeed]);
       rememberPendingPageDraft(initialSeed);
       rememberPageRouteHandoff(initialSeed, source);
-      warmDailyNoteContent(note);
       try {
         router.prefetch(`/page/${note.id}`);
       } catch {
@@ -1542,7 +1464,7 @@ export default function DailyNotesShell() {
         // the metadata needed for immediate first paint.
       }
     },
-    [router, upsertPages, warmDailyNoteContent, warmDailyPeekOpen]
+    [router, upsertPages, warmDailyPeekOpen]
   );
 
   const openDailyNoteFullPage = useCallback(
@@ -2049,7 +1971,6 @@ export default function DailyNotesShell() {
                           setDragOverDateKey(null);
                         }}
                         onPointerEnter={warmDailyPeekOpen}
-                        onMouseEnter={() => warmDailyNoteContent(note)}
                         onPointerDown={() =>
                           primeDailyNoteOpen(note, "daily-open")
                         }
@@ -2145,7 +2066,6 @@ export default function DailyNotesShell() {
                         setDragOverDateKey(null);
                       }}
                       onPointerEnter={warmDailyPeekOpen}
-                      onMouseEnter={() => warmDailyNoteContent(note)}
                       onPointerDown={() =>
                         primeDailyNoteOpen(note, "daily-open")
                       }
@@ -2611,35 +2531,6 @@ function collectVisibleDailyNotesForHotCache(
     visibleNotes.push(...dayNotes);
   }
   return visibleNotes;
-}
-
-function collectVisibleDailyContentWarmupCandidates(
-  notesByDate: Map<string, DailyNote[]>,
-  grid: MonthCell[],
-  todayKey: string,
-  limit: number
-): DailyNote[] {
-  const candidates: DailyNote[] = [];
-  const visitedDateKeys = new Set<string>();
-  const pushDate = (dateKey: string) => {
-    if (visitedDateKeys.has(dateKey) || candidates.length >= limit) return;
-    visitedDateKeys.add(dateKey);
-    const dayNotes = notesByDate.get(dateKey) ?? [];
-    for (const note of dayNotes.slice(0, DAILY_CALENDAR_VISIBLE_LIMIT)) {
-      if (note.content_text != null) continue;
-      candidates.push(note);
-      if (candidates.length >= limit) break;
-    }
-  };
-
-  const initialDateKeys = buildInitialDailyCalendarHydrationKeys(
-    grid,
-    todayKey
-  );
-  for (const dateKey of initialDateKeys) pushDate(dateKey);
-  for (const cell of grid) pushDate(toDateKey(cell.date));
-
-  return candidates;
 }
 
 function buildInitialDailyCalendarHydrationKeys(

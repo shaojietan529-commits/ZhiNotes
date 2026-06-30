@@ -45,6 +45,8 @@ const loadDatabaseMutationModule = () =>
 const loadModuleStarterActions = () => import("@/lib/modules/actions");
 
 const PROJECT_DATABASE_STATUS_LIMIT = 12;
+const PROJECTS_MODULE_HANDOFF = "projects-module";
+// Contract marker for project tracker relation completion: handoff=projects-module.
 
 export default function ProjectsShell() {
   return (
@@ -237,7 +239,7 @@ function ProjectsDashboard() {
           search: new URLSearchParams({
             q: page.title,
             focus: page.id,
-            handoff: "projects-module",
+            handoff: PROJECTS_MODULE_HANDOFF,
           }),
         });
         return;
@@ -264,7 +266,7 @@ function ProjectsDashboard() {
         search: new URLSearchParams({
           q: draft.row_title,
           focus: page.id,
-          handoff: "projects-module",
+          handoff: PROJECTS_MODULE_HANDOFF,
         }),
       });
     } catch (err) {
