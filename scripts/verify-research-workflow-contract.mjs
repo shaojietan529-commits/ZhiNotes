@@ -263,6 +263,11 @@ function run() {
     "buildResearchGraphPriorityQueue",
     "ResearchGraphPriorityLevel",
     "writes_workspace_data",
+    "getLinkedKnowledgeCompanyPageId",
+    "industry-company-reference",
+    "产业链位置",
+    "产业链研究",
+    "createIndustryCompanyReferenceAsset",
   ]) {
     assertIncludes(
       files.graph,

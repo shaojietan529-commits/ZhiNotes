@@ -1,4 +1,7 @@
 import { normalizeRelationValue } from "@/lib/database/relationValues";
+import {
+  getLinkedKnowledgeCompanyPageId,
+} from "@/lib/pages/industryChainCompanyLinks";
 import type {
   Database,
   DatabaseField,
@@ -286,6 +289,9 @@ export interface ResearchGraphHealthSummary {
 }
 
 const RELATION_FIELD_LABELS: Array<[string, string]> = [
+  ["industry chain", "产业链位置"],
+  ["产业链位置", "产业链位置"],
+  ["产业链", "产业链位置"],
   ["project page", "项目页"],
   ["company page", "公司页面"],
   ["report page", "报告页面"],
@@ -466,6 +472,31 @@ export function buildResearchGraph(
         }
       }
     }
+  }
+
+  for (const page of pages) {
+    const targetCompanyPageId = getLinkedKnowledgeCompanyPageId(page);
+    if (!targetCompanyPageId) continue;
+
+    const targetPage = pagesById.get(targetCompanyPageId);
+    if (!targetPage) continue;
+
+    const sourceAsset = createIndustryCompanyReferenceAsset(page, targetPage);
+    const targetAsset = createAsset(targetPage, "company");
+    assetsById.set(sourceAsset.id, sourceAsset);
+    assetsById.set(targetAsset.id, targetAsset);
+
+    const linkId = `industry-company-reference:${page.id}:${targetCompanyPageId}`;
+    if (seenLinks.has(linkId)) continue;
+    seenLinks.add(linkId);
+
+    relationLinks.push({
+      id: linkId,
+      source: sourceAsset,
+      target: targetAsset,
+      fieldName: "产业链位置",
+      databaseTitle: "产业链研究",
+    });
   }
 
   const connectionCounts = new Map<string, number>();
@@ -1163,6 +1194,21 @@ function createAsset(page: Page, kind: ResearchAssetKind): ResearchAsset {
     title: page.title || "未命名页面",
     icon: page.icon,
     updatedAt: page.updated_at,
+  };
+}
+
+function createIndustryCompanyReferenceAsset(
+  referencePage: Page,
+  companyPage: Page
+): ResearchAsset {
+  return {
+    id: referencePage.id,
+    kind: "company",
+    title: `${
+      companyPage.title || referencePage.title || "未命名公司"
+    }（产业链引用）`,
+    icon: referencePage.icon ?? companyPage.icon,
+    updatedAt: referencePage.updated_at,
   };
 }
 
