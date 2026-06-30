@@ -19,6 +19,14 @@ const PROPERTY_NAMES = {
   linkedAt: "链接时间",
 } as const;
 
+export interface IndustryCompanyLinkPath {
+  companyPageId: string;
+  linkPageId: string;
+  parentId: string | null;
+  parentPath: string;
+  linkTitle: string;
+}
+
 export function getLinkedKnowledgeCompanyPageId(page: Page): string | null {
   const properties = parsePageProperties(page.properties);
   const linkType = properties.find(
@@ -100,6 +108,56 @@ export function getIndustryNodeDisplayPage(
   const linkedPageId = getLinkedKnowledgeCompanyPageId(page);
   if (!linkedPageId) return page;
   return allPages.find((candidate) => candidate.id === linkedPageId) ?? page;
+}
+
+export function buildIndustryCompanyLinkPathIndex(
+  pages: Page[],
+  industryRootId: string
+): Map<string, IndustryCompanyLinkPath[]> {
+  const byId = new Map(pages.map((page) => [page.id, page]));
+  const linksByCompanyId = new Map<string, IndustryCompanyLinkPath[]>();
+
+  for (const page of pages) {
+    const companyPageId = getLinkedKnowledgeCompanyPageId(page);
+    if (!companyPageId) continue;
+    const parentPath = buildIndustryParentPath(page.parent_id, byId, industryRootId);
+    const bucket = linksByCompanyId.get(companyPageId) ?? [];
+    bucket.push({
+      companyPageId,
+      linkPageId: page.id,
+      parentId: page.parent_id ?? null,
+      parentPath,
+      linkTitle: displayPageTitle(page.title),
+    });
+    linksByCompanyId.set(companyPageId, bucket);
+  }
+
+  for (const links of linksByCompanyId.values()) {
+    links.sort((a, b) => a.parentPath.localeCompare(b.parentPath));
+  }
+
+  return linksByCompanyId;
+}
+
+function buildIndustryParentPath(
+  parentId: string | null,
+  pagesById: Map<string, Page>,
+  industryRootId: string
+): string {
+  if (!parentId || parentId === industryRootId) return "产业链首页";
+  const pathParts: string[] = [];
+  const seen = new Set<string>();
+  let currentId: string | null = parentId;
+
+  while (currentId && currentId !== industryRootId && !seen.has(currentId)) {
+    seen.add(currentId);
+    const page = pagesById.get(currentId);
+    if (!page) break;
+    pathParts.unshift(displayPageTitle(page.title));
+    currentId = page.parent_id ?? null;
+  }
+
+  return pathParts.length > 0 ? pathParts.join(" / ") : "未知层级";
 }
 
 function escapeHtml(value: string): string {

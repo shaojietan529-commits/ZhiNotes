@@ -18,10 +18,12 @@ import {
 import { getModuleRootId } from "@/lib/pages/moduleWorkspaces";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import {
+  buildIndustryCompanyLinkPathIndex,
   buildIndustryCompanyLinkContent,
   buildIndustryCompanyLinkProperties,
   getLinkedKnowledgeCompanyPageId,
   isKnowledgeCompanyLinkPage,
+  type IndustryCompanyLinkPath,
 } from "@/lib/pages/industryChainCompanyLinks";
 import { savePageFile, type PageFileKind } from "@/lib/files/localStore";
 import {
@@ -173,6 +175,13 @@ export default function KnowledgeBaseShell() {
         ? pagesById.get(industryLinkCardId) ?? null
         : null,
     [industryLinkCardId, pagesById]
+  );
+  const industryLinksByCompanyId = useMemo(
+    () =>
+      industryRootId
+        ? buildIndustryCompanyLinkPathIndex(pages, industryRootId)
+        : new Map<string, IndustryCompanyLinkPath[]>(),
+    [industryRootId, pages]
   );
   const peekPage = useMemo(
     () =>
@@ -478,11 +487,13 @@ export default function KnowledgeBaseShell() {
                   key={card.id}
                   card={card}
                   allPages={pages}
+                  industryLinks={industryLinksByCompanyId.get(card.id) ?? []}
                   dragged={draggedId === card.id}
                   dropSpot={dropSpot?.pageId === card.id ? dropSpot : null}
                   anyDragging={draggedId !== null}
                   onOpen={openKnowledgePeek}
                   onOpenFull={openKnowledgePage}
+                  onOpenIndustryParent={openKnowledgePage}
                   onPrimeOpen={warmPagePeekModal}
                   onRename={(id, title) => void renameCard(id, title)}
                   onImport={(id) => pickFilesFor(id)}
@@ -689,11 +700,13 @@ function IndustryParentPickerDialog({
 function KnowledgeCard({
   card,
   allPages,
+  industryLinks,
   dragged,
   dropSpot,
   anyDragging,
   onOpen,
   onOpenFull,
+  onOpenIndustryParent,
   onPrimeOpen,
   onRename,
   onImport,
@@ -705,11 +718,13 @@ function KnowledgeCard({
 }: {
   card: Page;
   allPages: Page[];
+  industryLinks: IndustryCompanyLinkPath[];
   dragged: boolean;
   dropSpot: DropSpot | null;
   anyDragging: boolean;
   onOpen: (id: string) => void;
   onOpenFull: (id: string) => void;
+  onOpenIndustryParent: (id: string) => void;
   onPrimeOpen: () => void;
   onRename: (id: string, title: string) => void;
   onImport: (id: string) => void;
@@ -855,6 +870,14 @@ function KnowledgeCard({
               {descendantCount}
             </span>
           )}
+          {industryLinks.length > 0 && (
+            <span
+              className="shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-950/50 dark:text-blue-300"
+              title={`已链入 ${industryLinks.length} 个产业链层级`}
+            >
+              链 {industryLinks.length}
+            </span>
+          )}
         </div>
 
         {/* Sub-page chips */}
@@ -894,6 +917,37 @@ function KnowledgeCard({
           )}
         </div>
 
+        {industryLinks.length > 0 && (
+          <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-medium text-zinc-400">
+                产业链位置
+              </span>
+              {industryLinks.length > 2 && (
+                <span className="text-[10px] text-zinc-400">
+                  +{industryLinks.length - 2}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {industryLinks.slice(0, 2).map((link) => (
+                <button
+                  key={link.linkPageId}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (link.parentId) onOpenIndustryParent(link.parentId);
+                  }}
+                  className="max-w-full truncate rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                  title={`打开产业链层级：${link.parentPath}`}
+                >
+                  {link.parentPath}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Card actions */}
         <div className="mt-2 flex items-center gap-1 border-t border-zinc-100 pt-2 opacity-0 transition-opacity group-hover:opacity-100 dark:border-zinc-800">
           <button
@@ -917,7 +971,7 @@ function KnowledgeCard({
             className="rounded px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             title="把这张公司页链接到产业链研究的某个层级"
           >
-            🔗 链入产业链
+            🔗 {industryLinks.length > 0 ? "继续链入" : "链入产业链"}
           </button>
         </div>
       </div>

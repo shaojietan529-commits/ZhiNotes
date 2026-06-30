@@ -112,6 +112,7 @@ const databaseCloudMutationsSource = read(
   "src/lib/database/cloudDatabaseMutations.ts"
 );
 const scopedPageMetadata = read("src/lib/pages/scopedPageMetadata.ts");
+const industryCompanyLinks = read("src/lib/pages/industryChainCompanyLinks.ts");
 const forbidden = ["XMLHttpRequest", "enables_ai", "getUserMedia"];
 for (const [name, source] of Object.entries(shells)) {
   for (const token of forbidden) {
@@ -942,6 +943,11 @@ check(
   shells.knowledge.includes("listScopedPageMetadata") &&
     shells.knowledge.includes("mergeScopedPages") &&
     shells.knowledge.includes("upsertWorkspacePages(incoming)") &&
+    shells.knowledge.includes("buildIndustryCompanyLinkPathIndex") &&
+    shells.knowledge.includes("industryLinksByCompanyId.get(card.id)") &&
+    shells.knowledge.includes("产业链位置") &&
+    shells.knowledge.includes("继续链入") &&
+    shells.knowledge.includes("onOpenIndustryParent={openKnowledgePage}") &&
     shells.knowledge.includes("mergeScopedPages([page])") &&
     shells.knowledge.includes("mergeScopedPages([updatedLinkPage ?? linkPage])") &&
     shells.knowledge.includes("onChanged={() => void loadScopedPages()}") &&
@@ -953,6 +959,16 @@ check(
     !shells.knowledge.includes("usePages(") &&
     !shells.knowledge.includes("await refresh()"),
   "KnowledgeBaseShell 必须按知识库/产业链 root 读取 scoped metadata，并在新建/链接/移动后本地合并，不能触发全局页面刷新"
+);
+check(
+  industryCompanyLinks.includes(
+    "export function buildIndustryCompanyLinkPathIndex"
+  ) &&
+    industryCompanyLinks.includes("Map<string, IndustryCompanyLinkPath[]>") &&
+    industryCompanyLinks.includes("parentPath") &&
+    industryCompanyLinks.includes("buildIndustryParentPath") &&
+    industryCompanyLinks.includes("while (currentId && currentId !== industryRootId"),
+  "industryChainCompanyLinks 必须提供公司页到产业链路径的索引，方便知识库直接显示已链入层级"
 );
 check(
   shells.knowledge.includes("@/components/page/LazyPagePeekModal") &&
