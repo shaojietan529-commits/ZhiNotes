@@ -2273,8 +2273,8 @@ export default function MeetingScheduleShell() {
       const page =
         entriesById.get(pageId)?.page ??
         (selectedMeeting?.page.id === pageId ? selectedMeeting.page : null) ??
-        useWorkspaceStore.getState().getPageById(pageId) ??
         readPendingPageDraft(pageId) ??
+        useWorkspaceStore.getState().getPageById(pageId) ??
         readPageRouteHandoff(pageId) ??
         null;
       if (page) {

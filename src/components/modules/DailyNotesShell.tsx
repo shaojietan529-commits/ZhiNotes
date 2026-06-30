@@ -39,8 +39,14 @@ import {
 } from "@/lib/pages/pageProperties";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
 import type { DailyCloudMetadataResult } from "@/lib/pages/accountPageSync";
-import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
-import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import {
+  readPendingPageDraft,
+  rememberPendingPageDraft,
+} from "@/lib/pages/pendingPageDrafts";
+import {
+  readPageRouteHandoff,
+  rememberPageRouteHandoff,
+} from "@/lib/pages/pageRouteHandoff";
 import {
   subscribePagesUpdated,
   type PageUpdatePayload,
@@ -1484,7 +1490,11 @@ export default function DailyNotesShell() {
         openDailyNoteFullPage(note, "daily-open");
         return;
       }
-      const storePage = useWorkspaceStore.getState().getPageById(pageId) ?? null;
+      const storePage =
+        readPendingPageDraft(pageId) ??
+        useWorkspaceStore.getState().getPageById(pageId) ??
+        readPageRouteHandoff(pageId) ??
+        null;
       if (storePage) {
         openDailyNoteFullPage(
           {

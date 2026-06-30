@@ -13082,6 +13082,12 @@ function run() {
   assertIncludes(
     files.localFirstPageNavigationUtil,
     localFirstPageNavigationUtil,
+    "readPendingPageDraft(target) ??\n        useWorkspaceStore.getState().getPageById(target) ??\n        readPageRouteHandoff(target)",
+    "Shared page-id navigation must prefer complete local drafts before metadata-only route handoff previews."
+  );
+  assertIncludes(
+    files.localFirstPageNavigationUtil,
+    localFirstPageNavigationUtil,
     "readPageRouteHandoff(target) ??",
     "Shared page-id navigation must recover short-lived route handoff metadata before id-only routing."
   );

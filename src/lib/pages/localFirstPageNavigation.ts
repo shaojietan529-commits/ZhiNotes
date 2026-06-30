@@ -93,8 +93,8 @@ export function resolveLocalFirstPageNavigationSeed(
   target: LocalFirstPageNavigationTarget
 ): Page | null {
   return typeof target === "string"
-    ? (useWorkspaceStore.getState().getPageById(target) ??
-        readPendingPageDraft(target) ??
+    ? (readPendingPageDraft(target) ??
+        useWorkspaceStore.getState().getPageById(target) ??
         readPageRouteHandoff(target) ??
         null)
     : target;

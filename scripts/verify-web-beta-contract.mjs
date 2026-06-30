@@ -22045,6 +22045,12 @@ function run() {
     [
       files.localFirstPageNavigationUtil,
       localFirstPageNavigationUtil,
+      "readPendingPageDraft(target) ??\n        useWorkspaceStore.getState().getPageById(target) ??\n        readPageRouteHandoff(target)",
+      "Shared page-id navigation must prefer complete local drafts before metadata-only route handoff previews.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
       "readPageRouteHandoff(target) ??",
       "Shared page-id navigation must recover short-lived metadata handoff before falling back to id-only routing.",
     ],
