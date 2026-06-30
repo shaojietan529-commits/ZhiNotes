@@ -21,8 +21,7 @@ import FavoritePages from "./FavoritePages";
 import { PLATFORM_MODULES } from "@/lib/modules/registry";
 import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
 import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
-import { usePageCloudSync } from "@/hooks/usePageCloudSync";
-import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
+import { useAccountCloudSyncCoordinator } from "@/hooks/useAccountCloudSyncCoordinator";
 import { useHotCacheRouteWarmup } from "@/hooks/useHotCacheRouteWarmup";
 import {
   getWorkspaceSetting,
@@ -315,8 +314,8 @@ export default function Sidebar() {
   } | null>(null);
   const primaryPointerDragRef = useRef<SidebarPrimaryPointerDrag | null>(null);
   const suppressPrimaryClickRef = useRef(false);
-  const pageSync = usePageCloudSync();
-  const databaseSync = useDatabaseCloudSync();
+  const accountSync = useAccountCloudSyncCoordinator();
+  const { pageSync, databaseSync } = accountSync;
   const sidebarModules = PLATFORM_MODULES.filter(
     (module) => module.route && module.route !== "/"
   );
@@ -358,6 +357,15 @@ export default function Sidebar() {
           : databaseSync.state === "signed-out"
             ? "数据库同步：未登录"
             : "数据库同步出错";
+  const accountSyncTitle = `${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}`;
+  const accountSyncIcon =
+    accountSync.state === "synced"
+      ? "☁️"
+      : accountSync.state === "syncing"
+        ? "⏳"
+        : accountSync.state === "queued"
+          ? "☁️"
+          : "⚠️";
 
   const refreshAccountLabel = useCallback(async () => {
     try {
@@ -916,48 +924,32 @@ export default function Sidebar() {
         <TrashPages />
       </nav>
       <div className="border-t border-zinc-200 px-2 py-1.5 dark:border-zinc-800">
-        <Link
-          href="/account"
-          prefetch
-          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-        >
-          <span className="shrink-0 text-base">👤</span>
-          <span className="min-w-0 flex-1 truncate">{accountLabel}</span>
-          {pageSync.state !== "disabled" && (
-            <span
-              className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[10px]"
-              title={pageSyncTitle}
+        <div className="flex items-center gap-1 rounded-md">
+          <Link
+            href="/account"
+            prefetch
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          >
+            <span className="shrink-0 text-base">👤</span>
+            <span className="min-w-0 flex-1 truncate">{accountLabel}</span>
+          </Link>
+          {accountSync.enabledDomainCount > 0 && (
+            <button
+              type="button"
+              data-testid="account-cloud-sync-coordinator"
+              onClick={() => void accountSync.syncNow({ forceLease: true })}
+              className="inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-0.5 rounded-md px-2 text-[10px] text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              title={accountSyncTitle}
             >
-              {pageSync.state === "synced"
-                ? "☁️"
-                : pageSync.state === "syncing"
-                  ? "⏳"
-                : "⚠️"}
-              {pageSyncPendingTotal > 0 && (
+              <span aria-hidden="true">{accountSyncIcon}</span>
+              {accountSync.pendingTotal > 0 && (
                 <span className="rounded-full bg-amber-500 px-1 text-[9px] font-semibold leading-4 text-white">
-                  {pageSyncPendingTotal}
+                  {accountSync.pendingTotal}
                 </span>
               )}
-            </span>
+            </button>
           )}
-          {databaseSync.state !== "disabled" && (
-            <span
-              className="ml-1 inline-flex shrink-0 items-center gap-0.5 text-[10px]"
-              title={databaseSyncTitle}
-            >
-              {databaseSync.state === "synced"
-                ? "🗄️"
-                : databaseSync.state === "syncing"
-                  ? "⏳"
-                  : "⚠️"}
-              {databaseSyncPendingTotal > 0 && (
-                <span className="rounded-full bg-amber-500 px-1 text-[9px] font-semibold leading-4 text-white">
-                  {databaseSyncPendingTotal}
-                </span>
-              )}
-            </span>
-          )}
-        </Link>
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-1 border-t border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <button

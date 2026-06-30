@@ -182,6 +182,7 @@ const files = {
   scopedPageMetadata: "src/lib/pages/scopedPageMetadata.ts",
   pageCloudSync: "src/hooks/usePageCloudSync.ts",
   databaseCloudSync: "src/hooks/useDatabaseCloudSync.ts",
+  accountCloudSyncCoordinator: "src/hooks/useAccountCloudSyncCoordinator.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
   localFirstDatabaseNavigation:
@@ -695,6 +696,9 @@ function run() {
   const scopedPageMetadata = readProjectFile(files.scopedPageMetadata);
   const pageCloudSync = readProjectFile(files.pageCloudSync);
   const databaseCloudSync = readProjectFile(files.databaseCloudSync);
+  const accountCloudSyncCoordinator = readProjectFile(
+    files.accountCloudSyncCoordinator
+  );
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
@@ -4306,6 +4310,36 @@ function run() {
     databaseCloudSync,
     "gateAccountSync",
     "Database cloud sync must centralize account gate handling for initial, foreground, and recovery syncs."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "usePageCloudSync",
+    "Account cloud sync coordinator must include page sync in the unified account-level status."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "useDatabaseCloudSync",
+    "Account cloud sync coordinator must include database sync in the unified account-level status."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "COORDINATOR_PENDING_DRAIN_DELAY_MS",
+    "Account cloud sync coordinator must coalesce pending queue drain triggers instead of adding immediate duplicate loops."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "Promise.allSettled",
+    "Account cloud sync coordinator must run page and database quick sync together without one failed domain blocking the other."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "manualReviewTotal",
+    "Account cloud sync coordinator must surface manual-review queues before claiming all local input is safely uploaded."
   );
   assertSourceIncludes(
     files.pageUpdateBus,

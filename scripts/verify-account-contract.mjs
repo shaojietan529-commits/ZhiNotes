@@ -80,6 +80,9 @@ const accountCloudSyncGate = read("src/lib/account/accountCloudSyncGate.ts");
 const hotCacheRouteWarmup = read("src/lib/sync/hotCacheRouteWarmup.ts");
 const hotCacheRouteWarmupHook = read("src/hooks/useHotCacheRouteWarmup.ts");
 const sidebarShell = read("src/components/sidebar/Sidebar.tsx");
+const accountCloudSyncCoordinator = read(
+  "src/hooks/useAccountCloudSyncCoordinator.ts"
+);
 check(shell.includes("unconfigured"), "AccountShell 缺少未配置状态");
 const effectBodies = shell.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[/g) ?? [];
 check(effectBodies.length > 0, "AccountShell 缺少会话检查 useEffect");
@@ -2175,6 +2178,17 @@ check(
 
 const sidebar = read("src/components/sidebar/Sidebar.tsx");
 check(
+  accountCloudSyncCoordinator.includes("usePageCloudSync") &&
+    accountCloudSyncCoordinator.includes("useDatabaseCloudSync") &&
+    accountCloudSyncCoordinator.includes("COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
+    accountCloudSyncCoordinator.includes("Promise.allSettled") &&
+    accountCloudSyncCoordinator.includes("pendingTotal") &&
+    accountCloudSyncCoordinator.includes("manualReviewTotal") &&
+    accountCloudSyncCoordinator.includes("enabledDomainCount") &&
+    accountCloudSyncCoordinator.includes("syncNow"),
+  "账号级云同步协调器应统一页面/数据库后台同步状态，并提供合并 quick sync 入口"
+);
+check(
   sidebar.includes("fetchAccountSession"),
   "Sidebar 应通过共享账号状态 helper 读取当前账号资料"
 );
@@ -2185,6 +2199,9 @@ check(
 check(
   sidebar.includes("pageSyncPendingTotal") &&
     sidebar.includes("databaseSyncPendingTotal") &&
+    sidebar.includes("useAccountCloudSyncCoordinator") &&
+    sidebar.includes('data-testid="account-cloud-sync-coordinator"') &&
+    sidebar.includes("accountSync.pendingTotal") &&
     sidebar.includes("普通同步只补传 pending queue") &&
     sidebar.includes("pageSync.pendingStatus.pending") &&
     sidebar.includes("databaseSync.pendingStatus.syncLogPending"),
