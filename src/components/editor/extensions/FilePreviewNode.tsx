@@ -5,6 +5,7 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import {
   formatFileSize,
   getStoredPageFile,
@@ -112,6 +113,7 @@ function FilePreviewComponent({
   updateAttributes,
 }: NodeViewProps) {
   const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const attrs = node.attrs as FilePreviewAttrs;
   const allowExternalResources = Boolean(attrs.allowExternalResources);
   const [file, setFile] = useState<StoredPageFile | null>(null);
@@ -595,7 +597,7 @@ function FilePreviewComponent({
         note: "表格行已在输入确认短语后导入到新的本地数据库。",
       });
 
-      router.push(`/database/${importResult.database_id}`);
+      openDatabase(importResult.database_id);
     } catch (err) {
       window.alert(
         err instanceof Error

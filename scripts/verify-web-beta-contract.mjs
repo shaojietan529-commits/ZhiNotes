@@ -21868,6 +21868,30 @@ function run() {
       "Shared database navigation must let mounted editors route slash-created database pages through Next navigation.",
     ],
     [
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      "useLocalFirstDatabaseNavigation",
+      "Inline database full-page opens must use shared local-first database navigation.",
+    ],
+    [
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      "openDatabase(databaseId)",
+      "Inline database full-page opens must warm and prefetch database routes.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      "useLocalFirstDatabaseNavigation",
+      "Spreadsheet database imports must use shared local-first database navigation.",
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      "openDatabase(importResult.database_id)",
+      "Spreadsheet database imports must warm and prefetch the created database route.",
+    ],
+    [
       files.sidebar,
       sidebar,
       'openPage(page, { source: "sidebar-create" })',
@@ -22787,6 +22811,17 @@ function run() {
         "Shared page navigation must stay a metadata-only route hint, not a cloud sync or content cache."
       );
     }
+  }
+  for (const [sourceLabel, source] of [
+    [files.inlineDatabaseNode, inlineDatabaseNode],
+    [files.filePreviewNode, filePreviewNode],
+  ]) {
+    assertSourceExcludes(
+      sourceLabel,
+      source,
+      "router.push(`/database",
+      "Editor-embedded database opens must use shared local-first database navigation instead of hard database routing."
+    );
   }
   assertSourceExcludes(
     files.companyResearchShell,

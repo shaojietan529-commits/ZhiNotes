@@ -1795,6 +1795,23 @@ function run() {
     "getStoredPageFile(fileId)",
     "Files module must load full file payload only for a specific local-file action."
   );
+  for (const snippet of [
+    "useLocalFirstDatabaseNavigation",
+    "const openDatabase = useLocalFirstDatabaseNavigation();",
+    "openDatabase(importResult.database_id)",
+  ]) {
+    assertIncludes(
+      files.previewNode,
+      previewNode,
+      snippet,
+      "Spreadsheet database imports must open the created database through shared local-first navigation."
+    );
+  }
+  if (previewNode.includes("router.push(`/database")) {
+    fail(
+      `${files.previewNode} must not direct hard route to database pages after spreadsheet imports.`
+    );
+  }
   assertIncludes(
     files.filesShell,
     filesShell,

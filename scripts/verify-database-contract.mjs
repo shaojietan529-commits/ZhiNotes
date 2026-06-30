@@ -822,6 +822,42 @@ function run() {
     'from "@/lib/database/cloudDatabaseMutations"',
     "Inline database blocks must keep database mutation code out of the editor first paint bundle."
   );
+  for (const snippet of [
+    "useLocalFirstDatabaseNavigation",
+    "const openDatabase = useLocalFirstDatabaseNavigation();",
+    "openDatabase(databaseId)",
+  ]) {
+    assertIncludes(
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      snippet,
+      "Inline database full-page opens must use shared local-first database navigation."
+    );
+  }
+  assertNotIncludes(
+    files.inlineDatabaseNode,
+    inlineDatabaseNode,
+    "router.push(`/database",
+    "Inline database full-page opens must not direct hard route to database pages."
+  );
+  for (const snippet of [
+    "useLocalFirstDatabaseNavigation",
+    "const openDatabase = useLocalFirstDatabaseNavigation();",
+    "openDatabase(importResult.database_id)",
+  ]) {
+    assertIncludes(
+      files.filePreviewNode,
+      filePreviewNode,
+      snippet,
+      "Spreadsheet-to-database imports must open the new database through shared local-first navigation."
+    );
+  }
+  assertNotIncludes(
+    files.filePreviewNode,
+    filePreviewNode,
+    "router.push(`/database",
+    "Spreadsheet-to-database imports must not direct hard route to database pages."
+  );
   assertIncludes(
     files.slashCommandSuggestion,
     slashCommandSuggestion,

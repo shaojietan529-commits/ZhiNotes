@@ -11164,6 +11164,19 @@ function run() {
         "openDatabase(res.first_database_id)",
       ],
     ],
+    [
+      files.inlineDatabaseNode,
+      inlineDatabaseNode,
+      ["useLocalFirstDatabaseNavigation", "openDatabase(databaseId)"],
+    ],
+    [
+      files.filePreviewNode,
+      filePreviewNode,
+      [
+        "useLocalFirstDatabaseNavigation",
+        "openDatabase(importResult.database_id)",
+      ],
+    ],
 	  ]) {
 	    for (const snippet of snippets) {
 	      assertIncludes(
@@ -11174,6 +11187,17 @@ function run() {
 	      );
 	    }
 	  }
+  for (const [sourceLabel, source] of [
+    [files.inlineDatabaseNode, inlineDatabaseNode],
+    [files.filePreviewNode, filePreviewNode],
+  ]) {
+    assertExcludes(
+      sourceLabel,
+      source,
+      "router.push(`/database",
+      "Editor-embedded database opens must use shared local-first database navigation instead of hard database routing."
+    );
+  }
 	  for (const [snippet, message] of [
 	    [
 	      'import("@/lib/database/cloudDatabaseMutations")',

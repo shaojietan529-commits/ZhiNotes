@@ -4,7 +4,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useLocalFirstDatabaseNavigation } from "@/hooks/useLocalFirstDatabaseNavigation";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import {
   getDatabase,
@@ -117,7 +117,7 @@ interface InlineDatabaseViewConfig {
 }
 
 function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
-  const router = useRouter();
+  const openDatabase = useLocalFirstDatabaseNavigation();
   const openPage = useLocalFirstPageNavigation();
   const databaseId: string = node.attrs.databaseId;
 
@@ -514,7 +514,7 @@ function InlineDatabaseComponent({ node }: { node: ProseMirrorNode }) {
             className="text-base font-semibold bg-transparent border-none outline-none text-zinc-900 dark:text-zinc-100 placeholder-zinc-300 flex-1"
           />
           <button
-            onClick={() => router.push(`/database/${databaseId}`)}
+            onClick={() => openDatabase(databaseId)}
             className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 transition-colors"
             title="作为完整页面打开"
           >
