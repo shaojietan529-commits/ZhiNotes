@@ -601,6 +601,7 @@ function run() {
     "verify:web-beta",
     "verify:replay-harness",
     "verify:route-smoke",
+    "verify:cloud-manifest",
     "verify:web-beta:full",
   ]) {
     if (typeof scripts[scriptName] !== "string") {
@@ -682,6 +683,10 @@ function run() {
     [
       "npm run verify:web-beta:smoke",
       "Web Beta full verifier must run Web Beta smoke verification.",
+    ],
+    [
+      "npm run verify:cloud-manifest",
+      "Web Beta full verifier must run cloud manifest domain verification.",
     ],
     [
       "npm run verify:route-smoke",

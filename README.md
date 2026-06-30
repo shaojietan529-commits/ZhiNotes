@@ -1291,6 +1291,9 @@ Current local actions:
   included in the disabled cloud manifest compare guard and does not connect
   cloud services, read page bodies, database row values, comment bodies, version
   snapshots, file names, file bytes, secrets, prompts, or upload workspace data.
+  `npm run verify:cloud-manifest` evaluates the contract builder locally and
+  emits a receipt proving all required domains and forbidden payload fields are
+  still covered.
 - Review and export a local cloud ACK/cache safety report. It combines the
   local-first input plan, latest upload drain receipt, durable ACK/replay
   gates, cache rebuild preflight, and cloud source-of-truth matrix into a
@@ -1689,6 +1692,7 @@ npm run verify:replay-harness
 npm run verify:web-beta
 npm run verify:web-beta:smoke
 npm run verify:web-beta:full
+npm run verify:cloud-manifest
 npm run verify:web-alpha
 npm run build
 ```

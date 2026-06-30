@@ -11,6 +11,8 @@ const files = {
   envExample: ".env.example",
   webAlphaReceiptVerifier: "scripts/verify-web-alpha-handoff-receipt.mjs",
   webBetaFullVerifier: "scripts/verify-web-beta-full.mjs",
+  cloudManifestDomainVerifier:
+    "scripts/verify-cloud-manifest-domain-contract.mjs",
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
   cloudSchemaMigrationPlan: "src/lib/sync/cloudSchemaMigrationPlan.ts",
@@ -398,6 +400,9 @@ function run() {
   const envExample = readProjectFile(files.envExample);
   const webAlphaReceiptVerifier = readProjectFile(files.webAlphaReceiptVerifier);
   const webBetaFullVerifier = readProjectFile(files.webBetaFullVerifier);
+  const cloudManifestDomainVerifier = readProjectFile(
+    files.cloudManifestDomainVerifier
+  );
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
   const cloudSchemaMigrationPlan = readProjectFile(
@@ -15154,6 +15159,12 @@ function run() {
     '"verify:web-beta:full": "node scripts/verify-web-beta-full.mjs"',
     "package.json must expose the Web Beta full local verification receipt command."
   );
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
+    '"verify:cloud-manifest": "node scripts/verify-cloud-manifest-domain-contract.mjs"',
+    "package.json must expose the cloud manifest domain contract runtime verification command."
+  );
   for (const [snippet, message] of [
     [
       "nextBin",
@@ -15293,6 +15304,10 @@ function run() {
       "Web Beta full verifier must run Web Beta smoke verification.",
     ],
     [
+      "npm run verify:cloud-manifest",
+      "Web Beta full verifier must run cloud manifest domain contract verification.",
+    ],
+    [
       "npm run verify:route-smoke",
       "Web Beta full verifier must run route smoke verification.",
     ],
@@ -15306,6 +15321,69 @@ function run() {
     assertSourceIncludes(
       files.webBetaFullVerifier,
       webBetaFullVerifier,
+      snippet,
+      message
+    );
+  }
+  assertSourceIncludes(
+    files.cloudManifestDomainVerifier,
+    cloudManifestDomainVerifier,
+    'format: "zhinote-cloud-manifest-domain-contract-verification-receipt"',
+    "Cloud manifest domain verifier must emit a stable local receipt format."
+  );
+  for (const [snippet, message] of [
+    [
+      "buildCloudManifestDomainContractReport",
+      "Cloud manifest domain verifier must evaluate the real contract builder.",
+    ],
+    [
+      "ts.transpileModule",
+      "Cloud manifest domain verifier must transpile the TypeScript contract in memory.",
+    ],
+    [
+      "expectedDomainIds",
+      "Cloud manifest domain verifier must assert expected domain coverage.",
+    ],
+    [
+      "requiredForbiddenFields",
+      "Cloud manifest domain verifier must assert forbidden private payload fields.",
+    ],
+    [
+      "cloud-manifest-compare-enable",
+      "Cloud manifest domain verifier must require compare owner gate.",
+    ],
+    [
+      "cache-rebuild-from-cloud",
+      "Cloud manifest domain verifier must require cache rebuild owner gate.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Cloud manifest domain verifier must not connect cloud services.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud manifest domain verifier must not upload workspace data.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud manifest domain verifier must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud manifest domain verifier must not read database values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud manifest domain verifier must not read file bytes.",
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Cloud manifest domain verifier must not approve cloud sync.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.cloudManifestDomainVerifier,
+      cloudManifestDomainVerifier,
       snippet,
       message
     );

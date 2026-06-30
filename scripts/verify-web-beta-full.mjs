@@ -35,6 +35,13 @@ const verificationCommands = [
       "Check preview smoke-plan coverage, hot-cache policy, and disabled cloud defaults.",
   },
   {
+    id: "verify-cloud-manifest",
+    command: "npm run verify:cloud-manifest",
+    args: ["run", "verify:cloud-manifest"],
+    purpose:
+      "Evaluate the metadata-only cloud manifest domain contract for every sync domain.",
+  },
+  {
     id: "verify-route-smoke",
     command: "npm run verify:route-smoke",
     args: ["run", "verify:route-smoke"],
@@ -176,6 +183,7 @@ function printReceipt(startedAt, results, status) {
       "Approve private beta audience and preview URL exposure.",
       "Confirm cloud writes remain disabled until payload preview and typed confirmation pass.",
       "Confirm no local pages, files, databases, backups, holdings, or sync queue rows are uploaded during this verification.",
+      "Confirm cloud manifest checks remain metadata-only before any cloud compare or cache rebuild.",
       "Require a separate disposable cloud replay before any production sync enablement.",
     ],
   };
