@@ -21,7 +21,10 @@ import FavoritePages from "./FavoritePages";
 import { PLATFORM_MODULES } from "@/lib/modules/registry";
 import { MODULE_WORKSPACE_LIST } from "@/lib/pages/moduleWorkspaces";
 import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
-import { useAccountCloudSyncCoordinator } from "@/hooks/useAccountCloudSyncCoordinator";
+import {
+  useAccountCloudSyncCoordinator,
+  type AccountCloudSyncCoordinatorState,
+} from "@/hooks/useAccountCloudSyncCoordinator";
 import { useHotCacheRouteWarmup } from "@/hooks/useHotCacheRouteWarmup";
 import {
   getWorkspaceSetting,
@@ -78,6 +81,64 @@ const DEFAULT_PRIMARY_ITEMS: SidebarPrimaryItem[] = [
     label: "组合管理",
   },
 ];
+
+function getAccountSyncShortLabel(state: AccountCloudSyncCoordinatorState) {
+  switch (state) {
+    case "syncing":
+      return "同步中";
+    case "queued":
+      return "待上传";
+    case "attention":
+      return "需处理";
+    case "signed-out":
+      return "未登录";
+    case "error":
+      return "出错";
+    case "disabled":
+      return "未开启";
+    case "synced":
+    default:
+      return "已同步";
+  }
+}
+
+function getAccountSyncIcon(state: AccountCloudSyncCoordinatorState) {
+  switch (state) {
+    case "syncing":
+      return "⏳";
+    case "queued":
+      return "⬆️";
+    case "attention":
+    case "error":
+      return "⚠️";
+    case "signed-out":
+      return "🔒";
+    case "disabled":
+      return "☁️";
+    case "synced":
+    default:
+      return "☁️";
+  }
+}
+
+function getAccountSyncToneClass(state: AccountCloudSyncCoordinatorState) {
+  switch (state) {
+    case "syncing":
+      return "border-blue-500/20 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300";
+    case "queued":
+      return "border-amber-500/25 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300";
+    case "attention":
+    case "error":
+      return "border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300";
+    case "signed-out":
+      return "border-zinc-300 bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800";
+    case "disabled":
+      return "border-zinc-200 text-zinc-400 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-500 dark:hover:bg-zinc-900";
+    case "synced":
+    default:
+      return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300";
+  }
+}
 
 function normalizePrimaryIcon(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
@@ -340,7 +401,9 @@ export default function Sidebar() {
           ? "页面同步中…"
           : pageSync.state === "signed-out"
             ? "页面同步：未登录"
-            : "页面同步出错";
+            : pageSync.state === "disabled"
+              ? "页面同步未开启"
+              : "页面同步出错";
   const databaseSyncTitle =
     databaseSync.pendingStatus.failed > 0
       ? `数据库同步：${databaseSync.pendingStatus.failed} 条待重试；打开同步中心查看最近失败原因`
@@ -356,16 +419,17 @@ export default function Sidebar() {
           ? "数据库同步中…"
           : databaseSync.state === "signed-out"
             ? "数据库同步：未登录"
-            : "数据库同步出错";
+            : databaseSync.state === "disabled"
+              ? "数据库同步未开启"
+              : "数据库同步出错";
   const accountSyncTitle = `${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}`;
-  const accountSyncIcon =
-    accountSync.state === "synced"
-      ? "☁️"
-      : accountSync.state === "syncing"
-        ? "⏳"
-        : accountSync.state === "queued"
-          ? "☁️"
-          : "⚠️";
+  const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
+  const accountSyncIcon = getAccountSyncIcon(accountSync.state);
+  const accountSyncToneClass = getAccountSyncToneClass(accountSync.state);
+  const accountSyncAriaLabel = `${accountSyncShortLabel}：${accountSyncTitle.replace(
+    /\n/g,
+    "；"
+  )}`;
 
   const refreshAccountLabel = useCallback(async () => {
     try {
@@ -937,11 +1001,21 @@ export default function Sidebar() {
             <button
               type="button"
               data-testid="account-cloud-sync-coordinator"
+              data-sync-state={accountSync.state}
+              data-pending-total={accountSync.pendingTotal}
+              data-failed-total={accountSync.failedTotal}
+              data-manual-review-total={accountSync.manualReviewTotal}
+              data-page-pending-total={accountSync.pagePendingTotal}
+              data-database-pending-total={accountSync.databasePendingTotal}
+              data-settings-pending-total={accountSync.settingsPendingTotal}
+              data-knowledge-pending-total={accountSync.knowledgePendingTotal}
+              aria-label={accountSyncAriaLabel}
               onClick={() => void accountSync.syncNow({ forceLease: true })}
-              className="inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-0.5 rounded-md px-2 text-[10px] text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              className={`inline-flex h-8 min-w-8 max-w-[7.5rem] shrink-0 items-center justify-center gap-1 rounded-md border px-2 text-[10px] font-medium transition-colors ${accountSyncToneClass}`}
               title={accountSyncTitle}
             >
               <span aria-hidden="true">{accountSyncIcon}</span>
+              <span className="min-w-0 truncate">{accountSyncShortLabel}</span>
               {accountSync.pendingTotal > 0 && (
                 <span className="rounded-full bg-amber-500 px-1 text-[9px] font-semibold leading-4 text-white">
                   {accountSync.pendingTotal}

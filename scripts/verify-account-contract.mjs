@@ -2283,11 +2283,22 @@ check(
     sidebar.includes("databaseSyncPendingTotal") &&
     sidebar.includes("useAccountCloudSyncCoordinator") &&
     sidebar.includes('data-testid="account-cloud-sync-coordinator"') &&
+    sidebar.includes("accountSyncShortLabel") &&
+    sidebar.includes("accountSyncAriaLabel") &&
+    sidebar.includes("getAccountSyncToneClass") &&
+    sidebar.includes("data-sync-state={accountSync.state}") &&
+    sidebar.includes("data-pending-total={accountSync.pendingTotal}") &&
+    sidebar.includes("data-failed-total={accountSync.failedTotal}") &&
+    sidebar.includes("data-manual-review-total={accountSync.manualReviewTotal}") &&
+    sidebar.includes("data-settings-pending-total={accountSync.settingsPendingTotal}") &&
+    sidebar.includes("data-knowledge-pending-total={accountSync.knowledgePendingTotal}") &&
+    sidebar.includes("页面同步未开启") &&
+    sidebar.includes("数据库同步未开启") &&
     sidebar.includes("accountSync.pendingTotal") &&
     sidebar.includes("普通同步只补传 pending queue") &&
     sidebar.includes("pageSync.pendingStatus.pending") &&
     sidebar.includes("databaseSync.pendingStatus.syncLogPending"),
-  "Sidebar 账号行应显示页面/数据库 pending 同步计数，让本地未上传输入在全局可见"
+  "Sidebar 账号行应显示账号级云同步状态、各域 pending/失败/人工处理计数，让本地未上传输入在全局可见"
 );
 
 if (errors.length > 0) {
