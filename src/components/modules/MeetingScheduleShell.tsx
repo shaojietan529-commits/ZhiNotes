@@ -50,6 +50,14 @@ import {
   writeMeetingHotCacheSnapshot,
 } from "@/lib/sync/meetingHotCacheSnapshot";
 import {
+  buildMeetingCalendarLoadStatusView,
+  createMeetingCalendarLoadStatus,
+  type MeetingCalendarLoadPhase,
+  type MeetingCalendarLoadStatusState,
+  type MeetingCalendarLoadStatusView,
+  type MeetingCalendarLoadTone,
+} from "@/lib/sync/meetingCalendarLoadStatus";
+import {
   buildCalendarFirstPaintRange,
   buildCalendarMonthGrid as buildMonthGrid,
   type CalendarMonthCell as MonthCell,
@@ -281,6 +289,15 @@ export default function MeetingScheduleShell() {
   const [meetingCountByDate, setMeetingCountByDate] = useState<
     Map<string, number>
   >(() => new Map());
+  const [calendarLoadStatus, setCalendarLoadStatus] =
+    useState<MeetingCalendarLoadStatusState>(() =>
+      createMeetingCalendarLoadStatus({
+        phase: "booting",
+        cloudLoading: true,
+        backgroundActive: true,
+        message: "正在启动 ZhiHui 日历，先准备热缓存、本地索引和云端目录。",
+      })
+    );
   const [creatingMeetingDateKey, setCreatingMeetingDateKey] = useState<
     string | null
   >(null);
@@ -362,6 +379,28 @@ export default function MeetingScheduleShell() {
     meetingsRef.current = meetings;
   }, [meetings]);
 
+  const publishCalendarStatus = useCallback(
+    (
+      phase: MeetingCalendarLoadPhase,
+      input: Partial<Omit<MeetingCalendarLoadStatusState, "phase">> = {}
+    ) => {
+      setCalendarLoadStatus(
+        createMeetingCalendarLoadStatus({
+          phase,
+          visibleMeetings: input.visibleMeetings ?? meetingsRef.current.length,
+          visibleDays:
+            input.visibleDays ?? countMeetingDates(meetingsRef.current),
+          cloudLoading: input.cloudLoading ?? false,
+          backgroundActive: input.backgroundActive ?? false,
+          staleCloud: input.staleCloud ?? false,
+          message: input.message,
+          updatedAt: input.updatedAt,
+        })
+      );
+    },
+    []
+  );
+
   useEffect(() => {
     const {
       startDate,
@@ -416,6 +455,17 @@ export default function MeetingScheduleShell() {
       setMeetings(nextMeetings);
       setMeetingCountByDate(selection.countsByDate);
     });
+    publishCalendarStatus(cachedCloudPages.length > 0 ? "cached-cloud" : "hot-cache", {
+      visibleMeetings: nextMeetings.length,
+      visibleDays: countMeetingDateCounts(selection.countsByDate),
+      cloudLoading: true,
+      backgroundActive: true,
+      staleCloud: false,
+      message:
+        cachedCloudPages.length > 0
+          ? "浏览器缓存的云端会议目录已先显示，本地索引和云端刷新继续后台补齐。"
+          : "浏览器热缓存已先显示，本地索引和云端目录继续后台校正。",
+    });
     if (cachedCloudPages.length > 0) {
       writeMeetingHotCacheSnapshot({
         startDate,
@@ -425,7 +475,7 @@ export default function MeetingScheduleShell() {
         source: "cloud-metadata",
       });
     }
-  }, [deletedTombstoneRef, viewMonth]);
+  }, [deletedTombstoneRef, publishCalendarStatus, viewMonth]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -748,8 +798,19 @@ export default function MeetingScheduleShell() {
       setRootId(nextRootId);
     };
 
-    const publishMeetings = (localPages: Page[], cloudPages: Page[] = []) => {
-      if (loadRequestRef.current !== requestId) return;
+    publishCalendarStatus("booting", {
+      visibleMeetings: meetingsRef.current.length,
+      visibleDays: countMeetingDates(meetingsRef.current),
+      cloudLoading: includeCloud,
+      backgroundActive: true,
+      message: "正在读取当前月份会议目录，优先显示热缓存和本地索引。",
+    });
+
+    const publishMeetings = (
+      localPages: Page[],
+      cloudPages: Page[] = []
+    ): MeetingCalendarRenderSelection | null => {
+      if (loadRequestRef.current !== requestId) return null;
       const localPageIds = new Set(localPages.map((page) => page.id));
       const shouldRetainVisibleMeetings =
         preserveVisibleMeetings || !includeCloud;
@@ -781,6 +842,20 @@ export default function MeetingScheduleShell() {
         if (loadRequestRef.current !== requestId) return;
         setMeetings(nextMeetings);
         setMeetingCountByDate(selection.countsByDate);
+      });
+      return selection;
+    };
+
+    const publishLoadStatus = (
+      phase: MeetingCalendarLoadPhase,
+      selection: MeetingCalendarRenderSelection | null,
+      input: Partial<Omit<MeetingCalendarLoadStatusState, "phase">> = {}
+    ) => {
+      if (!selection || loadRequestRef.current !== requestId) return;
+      publishCalendarStatus(phase, {
+        visibleMeetings: selection.pages.length,
+        visibleDays: countMeetingDateCounts(selection.countsByDate),
+        ...input,
       });
     };
 
@@ -815,7 +890,12 @@ export default function MeetingScheduleShell() {
 
     if (cachedHotPages.length > 0) {
       publishRootId(cachedHotRootId);
-      publishMeetings([], cachedHotPages);
+      publishLoadStatus("hot-cache", publishMeetings([], cachedHotPages), {
+        cloudLoading: includeCloud,
+        backgroundActive: true,
+        message:
+          "浏览器热缓存已先显示，后台继续读取本地索引和云端会议目录。",
+      });
     }
 
     if (includeCloud && !initialCloudPullAttemptedRef.current) {
@@ -828,7 +908,13 @@ export default function MeetingScheduleShell() {
       : null;
     if (cachedCloud?.ok && cachedCloud.rootId) {
       publishRootId(cachedCloud.rootId);
-      publishMeetings([], cachedCloud.pages);
+      publishLoadStatus("cached-cloud", publishMeetings([], cachedCloud.pages), {
+        cloudLoading: includeCloud,
+        backgroundActive: true,
+        staleCloud: false,
+        message:
+          "浏览器缓存的云端会议目录已先显示，本地索引和云端刷新继续后台补齐。",
+      });
       void persistMeetingCloudMetadata(cachedCloud, upsertPages);
     }
 
@@ -855,9 +941,18 @@ export default function MeetingScheduleShell() {
         recentLimit: recentMetadataLimit,
       });
       localMeetingCount = localPagesForMerge.length;
-      publishMeetings(
-        localPagesForMerge,
-        cachedCloud?.ok ? cachedCloud.pages : []
+      publishLoadStatus(
+        "local-index",
+        publishMeetings(
+          localPagesForMerge,
+          cachedCloud?.ok ? cachedCloud.pages : []
+        ),
+        {
+          cloudLoading: includeCloud,
+          backgroundActive: Boolean(cloudPromise),
+          message:
+            "本地会议日期索引已显示，云端 metadata 会在后台继续校正。",
+        }
       );
       writeMeetingHotCacheSnapshot({
         startDate,
@@ -890,6 +985,15 @@ export default function MeetingScheduleShell() {
     if (nextRootId) publishRootId(nextRootId);
 
     if (!cloudPromise) {
+      publishCalendarStatus("local-only", {
+        visibleMeetings: meetingsRef.current.length,
+        visibleDays: countMeetingDates(meetingsRef.current),
+        cloudLoading: false,
+        backgroundActive: false,
+        message: localLoadFailed
+          ? "本地会议目录本轮刷新失败，保留当前可见会议。"
+          : "当前是本地刷新，未触发云端会议目录校正。",
+      });
       recordMeetingPerformance(
         localLoadFailed ? "local-refresh-error" : "local-refresh",
         {
@@ -898,10 +1002,21 @@ export default function MeetingScheduleShell() {
       );
       return;
     }
+    publishCalendarStatus("cloud-checking", {
+      visibleMeetings: meetingsRef.current.length,
+      visibleDays: countMeetingDates(meetingsRef.current),
+      cloudLoading: true,
+      backgroundActive: true,
+      message: "本地会议目录已可用，正在读取云端 metadata 做校正。",
+    });
     const cloud = await cloudPromise;
     if (cloud.ok && cloud.rootId) {
       publishRootId(cloud.rootId);
-      publishMeetings(localPagesForMerge, cloud.pages);
+      publishLoadStatus("cloud-ready", publishMeetings(localPagesForMerge, cloud.pages), {
+        cloudLoading: false,
+        backgroundActive: false,
+        message: "会议日历已和云端 metadata 对齐，详情正文仍按打开时加载。",
+      });
       writeCachedMeetingCloudMetadata(startDate, endDate, cloud);
       writeMeetingHotCacheSnapshot({
         startDate,
@@ -926,6 +1041,22 @@ export default function MeetingScheduleShell() {
       });
       return;
     }
+    const cloudUnavailableLocally =
+      cloud.status === "disabled" ||
+      cloud.status === "unauthenticated" ||
+      cloud.status === "unconfigured";
+    publishCalendarStatus(
+      cloudUnavailableLocally ? "local-only" : "cloud-error",
+      {
+        visibleMeetings: meetingsRef.current.length,
+        visibleDays: countMeetingDates(meetingsRef.current),
+        cloudLoading: false,
+        backgroundActive: false,
+        message: cloudUnavailableLocally
+          ? "云端会议目录暂未启用或未登录，本地会议日历继续可用。"
+          : "云端会议目录本轮校正失败，本地会议日历继续可用。",
+      }
+    );
     recordMeetingPerformance(
       cloud.status ? `cloud-${cloud.status}` : "cloud-unavailable",
       {
@@ -937,6 +1068,7 @@ export default function MeetingScheduleShell() {
   }, [
     deletionTombstonesLoaded,
     deletedTombstoneRef,
+    publishCalendarStatus,
     scheduleMetadataCacheWarmup,
     recentMetadataLimit,
     upsertPages,
@@ -1098,6 +1230,10 @@ export default function MeetingScheduleShell() {
   const entries = useMemo<MeetingEntry[]>(
     () => meetings.map(toMeetingEntry),
     [meetings]
+  );
+  const calendarLoadStatusView = useMemo(
+    () => buildMeetingCalendarLoadStatusView(calendarLoadStatus),
+    [calendarLoadStatus]
   );
 
   const entriesById = useMemo(() => {
@@ -1549,6 +1685,20 @@ export default function MeetingScheduleShell() {
       rememberPageRouteHandoff(optimisticPage, "meeting-create");
       writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);
       revealMeetingOnCalendar(optimisticPage);
+      {
+        const optimisticVisibleMeetings = mergeMeetingPages(
+          [optimisticPage],
+          meetingsRef.current,
+          deletedTombstoneRef.current
+        );
+        publishCalendarStatus("optimistic-draft", {
+          visibleMeetings: optimisticVisibleMeetings.length,
+          visibleDays: countMeetingDates(optimisticVisibleMeetings),
+          cloudLoading: false,
+          backgroundActive: true,
+          message: "会议页面已先加入日历，后台继续保存并排队同步。",
+        });
+      }
       void seedMeetingPageForImmediateOpen(optimisticPage);
 
       scheduleMeetingIdleTask(() => {
@@ -1649,6 +1799,8 @@ export default function MeetingScheduleShell() {
       rootId,
       upsertMeetingInView,
       upsertPages,
+      deletedTombstoneRef,
+      publishCalendarStatus,
       writeOptimisticMeetingHotCache,
       revealMeetingOnCalendar,
     ]
@@ -2233,6 +2385,7 @@ export default function MeetingScheduleShell() {
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                 会议管理中心。导入会议信息，查看当天日程，日历总览。
               </p>
+              <MeetingCalendarLoadStatusStrip view={calendarLoadStatusView} />
             </div>
             <button
               type="button"
@@ -3463,6 +3616,23 @@ function sumMeetingDateCounts(countsByDate: Map<string, number>): number {
   return total;
 }
 
+function countMeetingDateCounts(countsByDate: Map<string, number>): number {
+  let total = 0;
+  for (const count of countsByDate.values()) {
+    if (count > 0) total += 1;
+  }
+  return total;
+}
+
+function countMeetingDates(pages: Page[]): number {
+  const dateKeys = new Set<string>();
+  for (const page of pages) {
+    const dateKey = toMeetingEntry(page).dateKey;
+    if (dateKey) dateKeys.add(dateKey);
+  }
+  return dateKeys.size;
+}
+
 async function seedMeetingPageForImmediateOpen(page: Page): Promise<void> {
   try {
     const { pageToRemoteRecord } = await loadPageAccountSyncModule();
@@ -3981,6 +4151,87 @@ async function enqueueMeetingRecordingRequest(
       message: error instanceof Error ? error.message : "无法连接云端队列接口。",
     };
   }
+}
+
+function MeetingCalendarLoadStatusStrip({
+  view,
+}: {
+  view: MeetingCalendarLoadStatusView;
+}) {
+  return (
+    <div
+      data-testid="meeting-calendar-load-status"
+      data-load-phase={view.phase}
+      aria-label={view.ariaLabel}
+      title={view.privacyBoundary}
+      className={`mt-3 max-w-3xl border-y px-0 py-2 text-xs ${meetingCalendarLoadToneClass(
+        view.tone
+      )}`}
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-zinc-700 dark:text-zinc-200">
+              {view.label}
+            </span>
+            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+          </div>
+          <p className="mt-1 truncate text-zinc-500 dark:text-zinc-400">
+            {view.detail}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {view.chips.map((chip) => (
+            <span
+              key={`${chip.label}:${chip.value}`}
+              className="rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
+            >
+              {chip.label} {chip.value}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {view.steps.map((step) => (
+          <span
+            key={step.id}
+            data-load-step={step.id}
+            data-load-step-state={step.state}
+            className={`inline-flex items-center gap-1 ${meetingCalendarLoadStepClass(
+              step.state
+            )}`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            {step.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function meetingCalendarLoadToneClass(
+  tone: MeetingCalendarLoadTone
+): string {
+  if (tone === "success") {
+    return "border-emerald-200 text-emerald-700 dark:border-emerald-900/70 dark:text-emerald-300";
+  }
+  if (tone === "warning") {
+    return "border-amber-200 text-amber-700 dark:border-amber-900/70 dark:text-amber-300";
+  }
+  if (tone === "working") {
+    return "border-blue-200 text-blue-700 dark:border-blue-900/70 dark:text-blue-300";
+  }
+  return "border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400";
+}
+
+function meetingCalendarLoadStepClass(
+  state: MeetingCalendarLoadStatusView["steps"][number]["state"]
+): string {
+  if (state === "done") return "text-emerald-600 dark:text-emerald-300";
+  if (state === "active") return "text-blue-600 dark:text-blue-300";
+  if (state === "warning") return "text-amber-600 dark:text-amber-300";
+  return "text-zinc-400 dark:text-zinc-600";
 }
 
 function MeetingStatusBar({

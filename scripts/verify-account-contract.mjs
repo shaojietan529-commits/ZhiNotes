@@ -701,6 +701,9 @@ check(
 
 const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
 const dailyCalendarLoadStatus = read("src/lib/sync/dailyCalendarLoadStatus.ts");
+const meetingCalendarLoadStatus = read(
+  "src/lib/sync/meetingCalendarLoadStatus.ts"
+);
 check(
   dailyNotesShell.includes("const storedDailyRootId = getModuleRootIdSync(\"daily\")") &&
     dailyNotesShell.includes("const cachedCloud = includeCloud") &&
@@ -920,11 +923,46 @@ check(
   "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；超大单日导入只能按当天补齐 metadata，自动 hydration 必须走空闲调度；可见条目正文预热必须小批量本地 idle 执行，不能把全部 metadata 塞进 DOM"
 );
 
-const meetingScheduleShell = read("src/components/modules/MeetingScheduleShell.tsx");
+const meetingScheduleShell = read(
+  "src/components/modules/MeetingScheduleShell.tsx"
+);
 const meetingScheduleOpensCreatedPageRoute =
   meetingScheduleShell.includes("const pageRoute = `/page/${result.page.id}`") ||
   meetingScheduleShell.includes("const pageRoute = `/page/${page.id}`") ||
   meetingScheduleShell.includes("const pageRoute = `/page/${seededPage.id}`");
+check(
+  meetingScheduleShell.includes("buildMeetingCalendarLoadStatusView") &&
+    meetingScheduleShell.includes("createMeetingCalendarLoadStatus") &&
+    meetingScheduleShell.includes("MeetingCalendarLoadStatusStrip") &&
+    meetingScheduleShell.includes('data-testid="meeting-calendar-load-status"') &&
+    meetingScheduleShell.includes('publishCalendarStatus("cloud-checking"') &&
+    meetingScheduleShell.includes('publishLoadStatus("cloud-ready"') &&
+    meetingScheduleShell.includes('publishCalendarStatus("optimistic-draft"') &&
+    meetingCalendarLoadStatus.includes("MeetingCalendarLoadPhase") &&
+    meetingCalendarLoadStatus.includes("visibleMeetings") &&
+    meetingCalendarLoadStatus.includes("visibleDays") &&
+    meetingCalendarLoadStatus.includes("热缓存") &&
+    meetingCalendarLoadStatus.includes("本地索引") &&
+    meetingCalendarLoadStatus.includes("云端校正") &&
+    meetingCalendarLoadStatus.includes("Meeting calendar load status is metadata-only") &&
+    meetingCalendarLoadStatus.includes("does not read meeting body text") &&
+    meetingCalendarLoadStatus.includes("join URLs") &&
+    meetingCalendarLoadStatus.includes("does not send network requests") &&
+    meetingCalendarLoadStatus.includes("does not write server data") &&
+    !meetingCalendarLoadStatus.includes("content_text") &&
+    !meetingCalendarLoadStatus.includes("content_yjs") &&
+    !meetingCalendarLoadStatus.includes("joinUrl") &&
+    !meetingCalendarLoadStatus.includes("meetingId") &&
+    !meetingCalendarLoadStatus.includes("entry.passcode") &&
+    !meetingCalendarLoadStatus.includes("field_values") &&
+    !meetingCalendarLoadStatus.includes("comment.body") &&
+    !meetingCalendarLoadStatus.includes("file.dataUrl") &&
+    !meetingCalendarLoadStatus.includes("fetch(") &&
+    !meetingCalendarLoadStatus.includes("localStorage") &&
+    !meetingCalendarLoadStatus.includes("recordSyncChange") &&
+    !meetingCalendarLoadStatus.includes("INSERT INTO sync_log"),
+  "会议日历加载状态条必须只使用阶段、计数和来源 metadata，不能读取正文、会议链接、访问浏览器缓存、请求网络或写同步队列"
+);
 check(
   !meetingScheduleShell.includes('from "@/hooks/usePages"') &&
     !meetingScheduleShell.includes("usePages(") &&

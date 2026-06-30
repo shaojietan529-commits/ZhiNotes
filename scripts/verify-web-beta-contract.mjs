@@ -146,6 +146,7 @@ const files = {
   calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   dailyCalendarLoadStatus: "src/lib/sync/dailyCalendarLoadStatus.ts",
+  meetingCalendarLoadStatus: "src/lib/sync/meetingCalendarLoadStatus.ts",
   meetingHotCacheSnapshot: "src/lib/sync/meetingHotCacheSnapshot.ts",
   hotCacheSelectionSettings: "src/lib/sync/hotCacheSelectionSettings.ts",
   hotCacheSettingsCloud: "src/lib/sync/hotCacheSettingsCloud.ts",
@@ -627,6 +628,9 @@ function run() {
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
   const dailyCalendarLoadStatus = readProjectFile(
     files.dailyCalendarLoadStatus
+  );
+  const meetingCalendarLoadStatus = readProjectFile(
+    files.meetingCalendarLoadStatus
   );
   const meetingHotCacheSnapshot = readProjectFile(
     files.meetingHotCacheSnapshot
@@ -2286,6 +2290,121 @@ function run() {
     assertSourceExcludes(
       files.dailyCalendarLoadStatus,
       dailyCalendarLoadStatus,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildMeetingCalendarLoadStatusView",
+      "Meeting calendar status must be built through a reusable view model.",
+    ],
+    [
+      "createMeetingCalendarLoadStatus",
+      "Meeting calendar status must use a normalized state factory.",
+    ],
+    [
+      "MeetingCalendarLoadStatusStrip",
+      "Meeting calendar must render the load status strip.",
+    ],
+    [
+      'data-testid="meeting-calendar-load-status"',
+      "Meeting calendar status strip must be discoverable in UI smoke checks.",
+    ],
+    [
+      'publishCalendarStatus("cloud-checking"',
+      "Meeting calendar must make cloud metadata correction visible.",
+    ],
+    [
+      'publishLoadStatus("cloud-ready"',
+      "Meeting calendar must make successful cloud metadata correction visible.",
+    ],
+    [
+      'publishCalendarStatus("optimistic-draft"',
+      "Meeting calendar must make local-first meeting creation visible.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "MeetingCalendarLoadPhase",
+      "Meeting calendar load status must expose explicit phase ids for UI diagnostics.",
+    ],
+    [
+      "buildMeetingCalendarLoadStatusView",
+      "Meeting calendar load status must be built through a reusable view model.",
+    ],
+    [
+      "visibleMeetings",
+      "Meeting calendar status must show visible meeting counts without reading meeting bodies.",
+    ],
+    [
+      "visibleDays",
+      "Meeting calendar status must show active day counts without reading meeting bodies.",
+    ],
+    [
+      "热缓存",
+      "Meeting calendar status must make hot-cache first paint visible to the user.",
+    ],
+    [
+      "本地索引",
+      "Meeting calendar status must distinguish local index readiness.",
+    ],
+    [
+      "云端校正",
+      "Meeting calendar status must distinguish cloud metadata correction.",
+    ],
+    [
+      "Meeting calendar load status is metadata-only",
+      "Meeting calendar status must document its privacy boundary.",
+    ],
+    [
+      "does not read meeting body text",
+      "Meeting calendar status privacy boundary must explicitly exclude meeting bodies.",
+    ],
+    [
+      "join URLs",
+      "Meeting calendar status privacy boundary must explicitly exclude join URLs.",
+    ],
+    [
+      "does not send network requests",
+      "Meeting calendar status privacy boundary must explicitly exclude network requests.",
+    ],
+    [
+      "does not write server data",
+      "Meeting calendar status privacy boundary must explicitly exclude server writes.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.meetingCalendarLoadStatus,
+      meetingCalendarLoadStatus,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    ["content_text", "Meeting calendar status must not read page content text."],
+    ["content_yjs", "Meeting calendar status must not read page Yjs content."],
+    ["joinUrl", "Meeting calendar status must not read join URLs."],
+    ["meetingId", "Meeting calendar status must not read meeting ids."],
+    ["entry.passcode", "Meeting calendar status must not read passcodes."],
+    ["field_values", "Meeting calendar status must not read database row values."],
+    ["comment.body", "Meeting calendar status must not read comment bodies."],
+    ["file.dataUrl", "Meeting calendar status must not read file bytes."],
+    ["fetch(", "Meeting calendar status must not call network APIs."],
+    ["localStorage", "Meeting calendar status must not touch browser storage."],
+    ["recordSyncChange", "Meeting calendar status must not enter the upload queue."],
+    ["INSERT INTO sync_log", "Meeting calendar status must not write sync rows."],
+  ]) {
+    assertSourceExcludes(
+      files.meetingCalendarLoadStatus,
+      meetingCalendarLoadStatus,
       snippet,
       message
     );

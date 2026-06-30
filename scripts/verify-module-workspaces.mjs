@@ -79,6 +79,9 @@ const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
 const pageShell = read("src/components/providers/PageShell.tsx");
 const pageCloudSaveStatus = read("src/lib/pages/pageCloudSaveStatus.ts");
 const dailyCalendarLoadStatus = read("src/lib/sync/dailyCalendarLoadStatus.ts");
+const meetingCalendarLoadStatus = read(
+  "src/lib/sync/meetingCalendarLoadStatus.ts"
+);
 const editorSource = read("src/components/editor/Editor.tsx");
 const blockCommentsSource = read("src/components/shared/BlockComments.tsx");
 const commentSidePanelSource = read(
@@ -227,6 +230,43 @@ check(
     !dailyCalendarLoadStatus.includes("fetch(") &&
     !dailyCalendarLoadStatus.includes("localStorage"),
   "每日纪要加载状态条必须只使用阶段和计数 metadata，不能读取正文、请求网络或写缓存"
+);
+for (const token of [
+  "buildMeetingCalendarLoadStatusView",
+  "createMeetingCalendarLoadStatus",
+  "MeetingCalendarLoadStatusStrip",
+  'data-testid="meeting-calendar-load-status"',
+  "data-load-phase={view.phase}",
+  "data-load-step={step.id}",
+  'publishCalendarStatus("cloud-checking"',
+  'publishLoadStatus("cloud-ready"',
+  'publishCalendarStatus("optimistic-draft"',
+]) {
+  check(
+    shells.schedule.includes(token),
+    `MeetingScheduleShell 缺少会议日历性能护栏 ${token}`
+  );
+}
+check(
+  meetingCalendarLoadStatus.includes("MeetingCalendarLoadPhase") &&
+    meetingCalendarLoadStatus.includes("buildMeetingCalendarLoadStatusView") &&
+    meetingCalendarLoadStatus.includes("visibleMeetings") &&
+    meetingCalendarLoadStatus.includes("visibleDays") &&
+    meetingCalendarLoadStatus.includes("热缓存") &&
+    meetingCalendarLoadStatus.includes("本地索引") &&
+    meetingCalendarLoadStatus.includes("云端校正") &&
+    meetingCalendarLoadStatus.includes("Meeting calendar load status is metadata-only") &&
+    meetingCalendarLoadStatus.includes("does not read meeting body text") &&
+    meetingCalendarLoadStatus.includes("join URLs") &&
+    meetingCalendarLoadStatus.includes("does not send network requests") &&
+    meetingCalendarLoadStatus.includes("does not write server data") &&
+    !meetingCalendarLoadStatus.includes("content_text") &&
+    !meetingCalendarLoadStatus.includes("joinUrl") &&
+    !meetingCalendarLoadStatus.includes("meetingId") &&
+    !meetingCalendarLoadStatus.includes("entry.passcode") &&
+    !meetingCalendarLoadStatus.includes("fetch(") &&
+    !meetingCalendarLoadStatus.includes("localStorage"),
+  "会议日历加载状态条必须只使用阶段和计数 metadata，不能读取正文、会议链接、请求网络或写缓存"
 );
 check(
   shells.daily.includes('await findLocalModuleRootId("daily")') &&
