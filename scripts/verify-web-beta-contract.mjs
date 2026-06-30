@@ -5595,8 +5595,8 @@ function run() {
       "Lazy peek modal fallback must record local-shell readiness for fluency diagnosis.",
     ],
     [
-      "新纪要已在本机创建，完整编辑器正在载入。",
-      "Lazy peek modal fallback must reassure users that a new daily draft exists locally while the editor loads.",
+      "新页面已在本机创建，完整编辑器正在载入。",
+      "Lazy peek modal fallback must reassure users that a new local draft exists without naming the wrong module.",
     ],
     [
       "打开完整页面继续编辑 ↗",

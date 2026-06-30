@@ -180,7 +180,7 @@ function LocalFirstPeekLoadingShell({
             </div>
             <div className="mb-8 rounded border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/40">
               {isOptimisticDraft
-                ? "新纪要已在本机创建，完整编辑器正在载入。"
+                ? "新页面已在本机创建，完整编辑器正在载入。"
                 : "完整编辑器正在载入，页面标题和属性会先保持可见。"}
             </div>
             {isOptimisticDraft ? (
