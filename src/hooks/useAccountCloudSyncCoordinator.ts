@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo } from "react";
 import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
+import { useKnowledgeCloudSyncStatus } from "@/hooks/useKnowledgeCloudSyncStatus";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
 import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus";
 
@@ -36,19 +37,27 @@ export function useAccountCloudSyncCoordinator() {
   const pageSync = usePageCloudSync();
   const databaseSync = useDatabaseCloudSync();
   const settingsSync = useSettingsCloudSyncStatus();
+  const knowledgeSync = useKnowledgeCloudSyncStatus();
 
   const pageSyncNow = pageSync.syncNow;
   const databaseSyncNow = databaseSync.syncNow;
   const refreshSettingsSyncStatus = settingsSync.refresh;
+  const refreshKnowledgeSyncStatus = knowledgeSync.refresh;
   const syncNow = useCallback(
     async (options: AccountCloudSyncCoordinatorOptions = {}) => {
       await Promise.allSettled([
         pageSyncNow({ quick: true, forceLease: options.forceLease }),
         databaseSyncNow({ quick: true, forceLease: options.forceLease }),
         refreshSettingsSyncStatus(),
+        refreshKnowledgeSyncStatus(),
       ]);
     },
-    [databaseSyncNow, pageSyncNow, refreshSettingsSyncStatus]
+    [
+      databaseSyncNow,
+      pageSyncNow,
+      refreshKnowledgeSyncStatus,
+      refreshSettingsSyncStatus,
+    ]
   );
 
   const pagePendingTotal =
@@ -58,22 +67,29 @@ export function useAccountCloudSyncCoordinator() {
     databaseSync.pendingStatus.queued +
     databaseSync.pendingStatus.syncLogPending;
   const settingsPendingTotal = settingsSync.status.totalPending;
+  const knowledgePendingTotal = knowledgeSync.status.totalPending;
   const pendingTotal =
-    pagePendingTotal + databasePendingTotal + settingsPendingTotal;
+    pagePendingTotal +
+    databasePendingTotal +
+    settingsPendingTotal +
+    knowledgePendingTotal;
   const failedTotal =
     pageSync.pendingStatus.failed +
     databaseSync.pendingStatus.failed +
-    settingsSync.status.failed;
+    settingsSync.status.failed +
+    knowledgeSync.status.failed;
   const manualReviewTotal =
     pageSync.pendingStatus.manualReviewCount +
     databaseSync.pendingStatus.manualReviewCount +
-    settingsSync.status.manualReviewCount;
+    settingsSync.status.manualReviewCount +
+    knowledgeSync.status.manualReviewCount;
   const enabledDomainCount =
     (pageSync.pendingStatus.enabled || pageSync.state !== "disabled" ? 1 : 0) +
     (databaseSync.pendingStatus.enabled || databaseSync.state !== "disabled"
       ? 1
       : 0) +
-    (settingsPendingTotal > 0 ? 1 : 0);
+    (settingsPendingTotal > 0 ? 1 : 0) +
+    (knowledgePendingTotal > 0 ? 1 : 0);
   const lastSyncAt =
     [pageSync.lastSyncAt, databaseSync.lastSyncAt]
       .filter((value): value is string => Boolean(value))
@@ -106,6 +122,9 @@ export function useAccountCloudSyncCoordinator() {
       settingsPendingTotal > 0
         ? `设置 ${settingsPendingTotal}（同步中心处理）`
         : null,
+      knowledgePendingTotal > 0
+        ? `知识库附属 ${knowledgePendingTotal}（评论/版本/链接待云端回放）`
+        : null,
       lastSyncAt ? `最近同步 ${formatLastSyncTime(lastSyncAt)}` : null,
     ].filter(Boolean);
     if (state === "syncing") return `账号云同步中${details.length ? `：${details.join("，")}` : ""}`;
@@ -114,7 +133,11 @@ export function useAccountCloudSyncCoordinator() {
         settingsPendingTotal > 0
           ? "；设置类变更已进入本地队列，需到同步中心执行云端上传"
           : "";
-      return `后台正在补传本地输入${details.length ? `：${details.join("，")}` : ""}${settingsNote}`;
+      const knowledgeNote =
+        knowledgePendingTotal > 0
+          ? "；评论、版本和双链变更已进入本地队列，需云端回放链路处理"
+          : "";
+      return `后台正在补传本地输入${details.length ? `：${details.join("，")}` : ""}${settingsNote}${knowledgeNote}`;
     }
     if (state === "attention") return `账号云同步需要处理${details.length ? `：${details.join("，")}` : ""}`;
     if (state === "signed-out") return "账号云同步需要登录后继续";
@@ -123,6 +146,7 @@ export function useAccountCloudSyncCoordinator() {
   }, [
     databasePendingTotal,
     failedTotal,
+    knowledgePendingTotal,
     lastSyncAt,
     manualReviewTotal,
     pagePendingTotal,
@@ -155,11 +179,13 @@ export function useAccountCloudSyncCoordinator() {
     pagePendingTotal,
     databasePendingTotal,
     settingsPendingTotal,
+    knowledgePendingTotal,
     pendingTotal,
     failedTotal,
     manualReviewTotal,
     enabledDomainCount,
     lastSyncAt,
+    knowledgeSync,
     settingsSync,
     syncNow,
   };

@@ -5,6 +5,10 @@ import {
   emitSettingsSyncStatusEvent,
   isSettingsSyncTableName,
 } from "@/lib/sync/settingsSyncStatus";
+import {
+  emitKnowledgeSyncStatusEvent,
+  isKnowledgeSyncTableName,
+} from "@/lib/sync/knowledgeSyncStatus";
 import type { BlockComment, Page, PageComment, PageVersion } from "@/lib/utils/types";
 
 export interface SyncLogSummary {
@@ -506,6 +510,9 @@ function recordSyncChange(
   );
   if (isSettingsSyncTableName(tableName)) {
     emitSettingsSyncStatusEvent();
+  }
+  if (isKnowledgeSyncTableName(tableName)) {
+    emitKnowledgeSyncStatusEvent();
   }
 }
 
@@ -5028,6 +5035,65 @@ export async function getPendingAccountModuleSettingSyncLogEntries(): Promise<
      FROM sync_log
      WHERE synced = 0
        AND table_name IN ('account_settings', 'module_settings')
+     ORDER BY timestamp DESC, id DESC`
+  ) as unknown as Array<{
+    id: number;
+    tableName: string;
+    rowId: string;
+    operation: string;
+    changedCols: string | null;
+    timestamp: string;
+    synced: number;
+    status: string;
+    attemptCount: number | null;
+    lastAttemptAt: string | null;
+    nextRetryAt: string | null;
+    lastError: string | null;
+    payloadHash: string | null;
+    source: string | null;
+  }>;
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    tableName: row.tableName,
+    rowId: row.rowId,
+    operation: row.operation,
+    changedCols: parseChangedCols(row.changedCols),
+    timestamp: row.timestamp,
+    synced: Number(row.synced),
+    status: row.status || "pending",
+    attemptCount: Number(row.attemptCount ?? 0),
+    lastAttemptAt: row.lastAttemptAt ?? null,
+    nextRetryAt: row.nextRetryAt ?? null,
+    lastError: row.lastError ?? null,
+    payloadHash: row.payloadHash ?? null,
+    source: row.source ?? "local",
+  }));
+}
+
+export async function getPendingKnowledgeSyncLogEntries(): Promise<
+  SyncLogEntry[]
+> {
+  const db = await getDb();
+  const rows = db.query(
+    `SELECT
+       id,
+       table_name as tableName,
+       row_id as rowId,
+       operation,
+       changed_cols as changedCols,
+       timestamp,
+       synced,
+       status,
+       attempt_count as attemptCount,
+       last_attempt_at as lastAttemptAt,
+       next_retry_at as nextRetryAt,
+       last_error as lastError,
+       payload_hash as payloadHash,
+       source
+     FROM sync_log
+     WHERE synced = 0
+       AND table_name IN ('wiki_links', 'page_comments', 'block_comments', 'page_versions')
      ORDER BY timestamp DESC, id DESC`
   ) as unknown as Array<{
     id: number;

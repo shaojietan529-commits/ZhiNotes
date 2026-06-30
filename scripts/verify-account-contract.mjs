@@ -87,6 +87,10 @@ const settingsCloudSyncStatusHook = read(
   "src/hooks/useSettingsCloudSyncStatus.ts"
 );
 const settingsSyncStatus = read("src/lib/sync/settingsSyncStatus.ts");
+const knowledgeCloudSyncStatusHook = read(
+  "src/hooks/useKnowledgeCloudSyncStatus.ts"
+);
+const knowledgeSyncStatus = read("src/lib/sync/knowledgeSyncStatus.ts");
 check(shell.includes("unconfigured"), "AccountShell 缺少未配置状态");
 const effectBodies = shell.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[/g) ?? [];
 check(effectBodies.length > 0, "AccountShell 缺少会话检查 useEffect");
@@ -2185,14 +2189,16 @@ check(
   accountCloudSyncCoordinator.includes("usePageCloudSync") &&
     accountCloudSyncCoordinator.includes("useDatabaseCloudSync") &&
     accountCloudSyncCoordinator.includes("useSettingsCloudSyncStatus") &&
+    accountCloudSyncCoordinator.includes("useKnowledgeCloudSyncStatus") &&
     accountCloudSyncCoordinator.includes("COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
     accountCloudSyncCoordinator.includes("Promise.allSettled") &&
     accountCloudSyncCoordinator.includes("pendingTotal") &&
     accountCloudSyncCoordinator.includes("settingsPendingTotal") &&
+    accountCloudSyncCoordinator.includes("knowledgePendingTotal") &&
     accountCloudSyncCoordinator.includes("manualReviewTotal") &&
     accountCloudSyncCoordinator.includes("enabledDomainCount") &&
     accountCloudSyncCoordinator.includes("syncNow"),
-  "账号级云同步协调器应统一页面/数据库后台同步状态，并提供合并 quick sync 入口"
+  "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，并提供合并 quick sync 入口"
 );
 check(
   settingsCloudSyncStatusHook.includes(
@@ -2222,10 +2228,39 @@ check(
   "设置类同步状态必须只暴露 sync_log metadata 计数，不能读取设置值、上传数据或修改 sync_log"
 );
 check(
+  knowledgeCloudSyncStatusHook.includes("getPendingKnowledgeSyncLogEntries") &&
+    knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
+    knowledgeCloudSyncStatusHook.includes("summarizeKnowledgeCloudSyncStatus") &&
+    knowledgeCloudSyncStatusHook.includes(
+      "KNOWLEDGE_STATUS_REFRESH_INTERVAL_MS"
+    ),
+  "知识库附属同步状态 hook 应只读评论/版本/双链 sync_log 元数据，并用事件/轮询刷新全局 pending 状态"
+);
+check(
+  knowledgeSyncStatus.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
+    knowledgeSyncStatus.includes("reads_sync_log_metadata: true") &&
+    knowledgeSyncStatus.includes("reads_wiki_link_targets: false") &&
+    knowledgeSyncStatus.includes("reads_comment_bodies: false") &&
+    knowledgeSyncStatus.includes("reads_version_snapshots: false") &&
+    knowledgeSyncStatus.includes("uploads_workspace_data: false") &&
+    knowledgeSyncStatus.includes("mutates_sync_log: false") &&
+    knowledgeSyncStatus.includes("manualReviewSampleRowIds"),
+  "知识库附属同步状态必须只暴露 sync_log metadata 计数，不能读取评论正文、版本快照、双链目标、上传数据或修改 sync_log"
+);
+check(
   localQueries.includes("emitSettingsSyncStatusEvent") &&
     localQueries.includes("isSettingsSyncTableName(tableName)") &&
     localQueries.includes("if (marked > 0) emitSettingsSyncStatusEvent()"),
   "settings 写入和 ack/失败状态变化后应发出不含内容的刷新事件，让侧边栏同步计数及时更新"
+);
+check(
+  localQueries.includes("emitKnowledgeSyncStatusEvent") &&
+    localQueries.includes("isKnowledgeSyncTableName(tableName)") &&
+    localQueries.includes("getPendingKnowledgeSyncLogEntries") &&
+    localQueries.includes(
+      "table_name IN ('wiki_links', 'page_comments', 'block_comments', 'page_versions')"
+    ),
+  "评论、版本历史和双链写入后应发出不含内容的刷新事件，让账号同步总控能看到知识库附属 pending 队列"
 );
 check(
   sidebar.includes("fetchAccountSession"),

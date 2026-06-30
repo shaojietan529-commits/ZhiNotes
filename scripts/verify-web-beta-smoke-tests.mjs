@@ -110,6 +110,8 @@ const files = {
   accountCloudSyncCoordinator: "src/hooks/useAccountCloudSyncCoordinator.ts",
   settingsCloudSyncStatusHook: "src/hooks/useSettingsCloudSyncStatus.ts",
   settingsSyncStatus: "src/lib/sync/settingsSyncStatus.ts",
+  knowledgeCloudSyncStatusHook: "src/hooks/useKnowledgeCloudSyncStatus.ts",
+  knowledgeSyncStatus: "src/lib/sync/knowledgeSyncStatus.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
   localFirstDatabaseNavigation:
@@ -533,6 +535,10 @@ function run() {
     files.settingsCloudSyncStatusHook
   );
   const settingsSyncStatus = readProjectFile(files.settingsSyncStatus);
+  const knowledgeCloudSyncStatusHook = readProjectFile(
+    files.knowledgeCloudSyncStatusHook
+  );
+  const knowledgeSyncStatus = readProjectFile(files.knowledgeSyncStatus);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
@@ -7455,6 +7461,12 @@ function run() {
   assertIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
+    "useKnowledgeCloudSyncStatus",
+    "Account cloud sync coordinator must include comments, versions, and wiki-link sync_log status before claiming the account is fully synced."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
     "COORDINATOR_PENDING_DRAIN_DELAY_MS",
     "Account cloud sync coordinator must coalesce pending queue drain triggers instead of adding immediate duplicate loops."
   );
@@ -7475,6 +7487,12 @@ function run() {
     accountCloudSyncCoordinator,
     "settingsPendingTotal",
     "Account cloud sync coordinator must add workspace/account/module settings pending rows to the global pending total."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "knowledgePendingTotal",
+    "Account cloud sync coordinator must add comments, versions, and wiki-link pending rows to the global pending total."
   );
   assertIncludes(
     files.settingsCloudSyncStatusHook,
@@ -7513,10 +7531,52 @@ function run() {
     "Settings sync status must not upload workspace data from the sidebar cloud indicator."
   );
   assertIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "getPendingKnowledgeSyncLogEntries",
+    "Knowledge sync status hook must read comments, versions, and wiki-link pending sync_log rows."
+  );
+  assertIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "KNOWLEDGE_SYNC_STATUS_EVENT",
+    "Knowledge sync status hook must refresh promptly after comment/version/link queue metadata changes."
+  );
+  assertIncludes(
+    files.knowledgeSyncStatus,
+    knowledgeSyncStatus,
+    "reads_sync_log_metadata: true",
+    "Knowledge sync status must be metadata-only and read sync_log counts instead of comment bodies or version snapshots."
+  );
+  assertIncludes(
+    files.knowledgeSyncStatus,
+    knowledgeSyncStatus,
+    "reads_comment_bodies: false",
+    "Knowledge sync status must not read page comment bodies for the sidebar cloud indicator."
+  );
+  assertIncludes(
+    files.knowledgeSyncStatus,
+    knowledgeSyncStatus,
+    "reads_version_snapshots: false",
+    "Knowledge sync status must not read page version snapshots for the sidebar cloud indicator."
+  );
+  assertIncludes(
+    files.knowledgeSyncStatus,
+    knowledgeSyncStatus,
+    "uploads_workspace_data: false",
+    "Knowledge sync status must not upload workspace data from the sidebar cloud indicator."
+  );
+  assertIncludes(
     files.localQueries,
     localQueries,
     "emitSettingsSyncStatusEvent",
     "Local setting queue mutations must emit a content-free status event for the account sync coordinator."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "emitKnowledgeSyncStatusEvent",
+    "Local comment/version/wiki-link queue mutations must emit a content-free status event for the account sync coordinator."
   );
   assertIncludes(
     files.pageUpdateBus,
