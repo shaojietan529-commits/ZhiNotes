@@ -1760,6 +1760,9 @@ check(
     pagePeekModal.includes("const initialPeekPage = getInitialPeekPage(pageId, initialPage)") &&
     pagePeekModal.includes("useState(() => initialPeekPage?.title ?? \"\")") &&
     pagePeekModal.includes("applyPeekMetadataSnapshot") &&
+    pagePeekModal.includes("const localFirstSeedPage = currentFallbackPage ?? currentInitialPage") &&
+    pagePeekModal.includes("const isOptimisticDraft = localFirstSeedPage?.content_text === \"\"") &&
+    pagePeekModal.includes("initialPage={initialPage}") &&
     pagePeekModal.includes("isOptimisticDraft") &&
     pagePeekModal.includes("getPeekOpenPerformanceStatus(") &&
     pagePeekModal.includes('"local-draft-ready"') &&

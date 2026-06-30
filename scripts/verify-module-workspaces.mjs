@@ -1052,7 +1052,12 @@ check(
     lazyPagePeekModal.includes("已先显示本地页面信息") &&
     pagePeekModal.includes("onReady?: (pageId: string) => void") &&
     pagePeekModal.includes("onReady?.(pageId)") &&
+    pagePeekModal.includes("const localFirstSeedPage = currentFallbackPage ?? currentInitialPage") &&
+    pagePeekModal.includes("const isOptimisticDraft = localFirstSeedPage?.content_text === \"\"") &&
+    pagePeekModal.includes("initialPage={initialPage}") &&
     pagePeekModal.includes("PeekMetadataRecoveryShell") &&
+    pagePeekModal.includes("新页面已在本机创建，完整编辑器正在载入。") &&
+    pagePeekModal.includes("已先显示本地页面信息") &&
     pagePeekModal.includes("打开完整页面继续编辑 ↗") &&
     pagePeekModal.includes("避免大批量导入后的页面打开被长正文拖慢") &&
     shells.daily.includes("const handlePeekReady = useCallback") &&

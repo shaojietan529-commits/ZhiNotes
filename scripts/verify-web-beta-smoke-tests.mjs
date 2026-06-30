@@ -5408,7 +5408,33 @@ function run() {
     "applyPeekMetadataSnapshot",
     "PagePeekModal must keep fallback metadata, title, and properties in sync."
   );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "const localFirstSeedPage = currentFallbackPage ?? currentInitialPage",
+    "PagePeekModal must treat fallback or route handoff seed pages as local-first editable drafts."
+  );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "const isOptimisticDraft = localFirstSeedPage?.content_text === \"\"",
+    "PagePeekModal optimistic draft detection must not depend only on initialPage."
+  );
+  assertIncludes(
+    files.pagePeekModal,
+    pagePeekModal,
+    "initialPage={initialPage}",
+    "PagePeekModal recovery shell must receive the local-first seed page before the editor bundle loads."
+  );
   for (const [snippet, message] of [
+    [
+      "已先显示本地页面信息",
+      "PagePeekModal recovery shell must show available local page metadata instead of a blank loading state.",
+    ],
+    [
+      "新页面已在本机创建，完整编辑器正在载入。",
+      "PagePeekModal recovery shell must make new local drafts feel created even while the editor loads.",
+    ],
     [
       "PeekMetadataRecoveryShell",
       "PagePeekModal must show an actionable recovery shell when metadata is still loading.",
