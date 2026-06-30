@@ -1143,8 +1143,9 @@ check(
     ) &&
     shells.schedule.includes("const mergedMeetings = mergeMeetingPages(") &&
     shells.schedule.includes("const nextMeetings = selection.pages") &&
-    shells.schedule.includes("startTransition(() =>") &&
-    shells.schedule.includes("setMeetings(nextMeetings)") &&
+    shells.schedule.includes("publishMeetingCalendarRenderSelection(") &&
+    shells.schedule.includes("startTransition(() => {\n    if (!shouldPublish()) return;") &&
+    shells.schedule.includes("setMeetings(pages)") &&
     shells.schedule.includes("setExpandedMeetingDateKeys((current) =>") &&
     shells.schedule.includes("setVisibleMeetingLimitByDate((limits) =>") &&
     shells.schedule.includes("revealMeetingOnCalendar(optimisticPage)") &&
@@ -1334,6 +1335,12 @@ check(
 );
 check(
   shells.schedule.includes("localPagesForMerge = await listMeetingPageMetadataForCalendar({") &&
+    shells.schedule.includes("const meetingCalendarRenderFingerprintRef = useRef(\"\")") &&
+    shells.schedule.includes("publishMeetingCalendarRenderSelection(") &&
+    shells.schedule.includes("function publishMeetingCalendarRenderSelection(") &&
+    shells.schedule.includes("meetingPagesRenderFingerprint(pages)") &&
+    shells.schedule.includes("meetingDateCountsFingerprint(countsByDate)") &&
+    shells.schedule.includes("fingerprintRef.current === nextFingerprint") &&
     shells.schedule.includes("MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
     shells.schedule.includes("MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
     shells.schedule.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n      });") &&

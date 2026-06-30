@@ -371,6 +371,7 @@ export default function MeetingScheduleShell() {
   const loadRequestRef = useRef(0);
   const meetingsRef = useRef<Page[]>([]);
   const hotCacheBootstrapKeyRef = useRef("");
+  const meetingCalendarRenderFingerprintRef = useRef("");
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const meetingPageContentWarmupIdsRef = useRef<Set<string>>(new Set());
@@ -459,10 +460,13 @@ export default function MeetingScheduleShell() {
     if (rootHint) {
       setRootId(rootHint);
     }
-    startTransition(() => {
-      setMeetings(nextMeetings);
-      setMeetingCountByDate(selection.countsByDate);
-    });
+    publishMeetingCalendarRenderSelection(
+      nextMeetings,
+      selection.countsByDate,
+      meetingCalendarRenderFingerprintRef,
+      setMeetings,
+      setMeetingCountByDate
+    );
     publishCalendarStatus(cachedCloudPages.length > 0 ? "cached-cloud" : "hot-cache", {
       visibleMeetings: nextMeetings.length,
       visibleDays: countMeetingDateCounts(selection.countsByDate),
@@ -846,11 +850,14 @@ export default function MeetingScheduleShell() {
         firstVisibleMs = getLocalPerformanceNow() - performanceStart;
         firstVisibleCount = selection.pages.length;
       }
-      startTransition(() => {
-        if (loadRequestRef.current !== requestId) return;
-        setMeetings(nextMeetings);
-        setMeetingCountByDate(selection.countsByDate);
-      });
+      publishMeetingCalendarRenderSelection(
+        nextMeetings,
+        selection.countsByDate,
+        meetingCalendarRenderFingerprintRef,
+        setMeetings,
+        setMeetingCountByDate,
+        () => loadRequestRef.current === requestId
+      );
       return selection;
     };
 
@@ -3503,6 +3510,44 @@ function meetingPageMetadataFingerprint(page: Page): string {
     page.updated_at,
     page.deleted_at ?? "",
   ].join(":");
+}
+
+function publishMeetingCalendarRenderSelection(
+  pages: Page[],
+  countsByDate: Map<string, number>,
+  fingerprintRef: { current: string },
+  setMeetings: (pages: Page[]) => void,
+  setMeetingCountByDate: (counts: Map<string, number>) => void,
+  shouldPublish: () => boolean = () => true
+): boolean {
+  if (!shouldPublish()) return false;
+  const nextFingerprint = [
+    meetingPagesRenderFingerprint(pages),
+    meetingDateCountsFingerprint(countsByDate),
+  ].join("#");
+  if (fingerprintRef.current === nextFingerprint) return false;
+
+  startTransition(() => {
+    if (!shouldPublish()) return;
+    if (fingerprintRef.current === nextFingerprint) return;
+    fingerprintRef.current = nextFingerprint;
+    setMeetings(pages);
+    setMeetingCountByDate(countsByDate);
+  });
+  return true;
+}
+
+function meetingPagesRenderFingerprint(pages: Page[]): string {
+  return pages.map(meetingPageMetadataFingerprint).join("|");
+}
+
+function meetingDateCountsFingerprint(
+  countsByDate: Map<string, number>
+): string {
+  return Array.from(countsByDate.entries())
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .map(([dateKey, count]) => `${dateKey}:${count}`)
+    .join("|");
 }
 
 function mergeMeetingPages(

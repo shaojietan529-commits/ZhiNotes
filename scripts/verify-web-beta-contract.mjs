@@ -2930,6 +2930,34 @@ function run() {
       "Meeting calendar must keep total counts separately from the rendered entry list.",
     ],
     [
+      "const meetingCalendarRenderFingerprintRef = useRef(\"\")",
+      "Meeting calendar must remember the last rendered metadata fingerprint to skip duplicate repaint work.",
+    ],
+    [
+      "publishMeetingCalendarRenderSelection(",
+      "Meeting calendar must publish render selections through a de-duplicating helper.",
+    ],
+    [
+      "function publishMeetingCalendarRenderSelection(",
+      "Meeting calendar render de-duplication must stay explicit and reviewable.",
+    ],
+    [
+      "meetingPagesRenderFingerprint(pages)",
+      "Meeting calendar render fingerprint must include selected page metadata.",
+    ],
+    [
+      "meetingDateCountsFingerprint(countsByDate)",
+      "Meeting calendar render fingerprint must include true per-day counts.",
+    ],
+    [
+      "fingerprintRef.current === nextFingerprint",
+      "Meeting calendar must skip state updates when merged metadata has not changed.",
+    ],
+    [
+      "setMeetingCountByDate(countsByDate)",
+      "Meeting calendar must publish true per-day counts alongside the capped render list.",
+    ],
+    [
       "const [loadingMoreMeetingDateKey, setLoadingMoreMeetingDateKey]",
       "Meeting calendar must show an in-progress state while a high-volume day is being refilled.",
     ],
@@ -2956,10 +2984,6 @@ function run() {
     [
       "if (dateKey < startDate || dateKey > endDate)",
       "Meeting calendar must not push every out-of-range meeting into first-paint state.",
-    ],
-    [
-      "setMeetingCountByDate(selection.countsByDate)",
-      "Meeting calendar must publish true per-day counts alongside the capped render list.",
     ],
     [
       "dayTotalCount > MEETING_CALENDAR_VISIBLE_LIMIT",
@@ -19775,8 +19799,14 @@ function run() {
     [
       files.meetingScheduleShell,
       meetingScheduleShell,
-      "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setMeetings(nextMeetings);",
-      "Meeting calendar bulk metadata publishes must stay low-priority and render-bounded so create/import clicks remain responsive.",
+      "startTransition(() => {\n    if (!shouldPublish()) return;\n    if (fingerprintRef.current === nextFingerprint) return;",
+      "Meeting calendar bulk metadata publishes must stay low-priority and skip duplicate repaint work.",
+    ],
+    [
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      "() => loadRequestRef.current === requestId",
+      "Meeting calendar load-stage publishes must still be guarded by the active request generation.",
     ],
     [
       files.meetingScheduleShell,

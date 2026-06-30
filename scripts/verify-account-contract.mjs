@@ -1132,12 +1132,18 @@ check(
     meetingScheduleShell.includes("const occupiedDateKeys = buildOccupiedMeetingCalendarHydrationKeys") &&
     meetingScheduleShell.includes("const revealNextOccupiedBatch = () =>") &&
     meetingScheduleShell.includes("const [meetingCountByDate, setMeetingCountByDate]") &&
+    meetingScheduleShell.includes("const meetingCalendarRenderFingerprintRef = useRef(\"\")") &&
+    meetingScheduleShell.includes("publishMeetingCalendarRenderSelection(") &&
+    meetingScheduleShell.includes("function publishMeetingCalendarRenderSelection(") &&
+    meetingScheduleShell.includes("meetingPagesRenderFingerprint(pages)") &&
+    meetingScheduleShell.includes("meetingDateCountsFingerprint(countsByDate)") &&
+    meetingScheduleShell.includes("fingerprintRef.current === nextFingerprint") &&
+    meetingScheduleShell.includes("setMeetingCountByDate(countsByDate)") &&
     meetingScheduleShell.includes("const [loadingMoreMeetingDateKey, setLoadingMoreMeetingDateKey]") &&
     meetingScheduleShell.includes("function selectMeetingPagesForCalendarRender(") &&
     meetingScheduleShell.includes("addUpcomingMeetingEntryCandidate(") &&
     meetingScheduleShell.includes("addRecentMeetingEntryCandidate(") &&
     meetingScheduleShell.includes("if (dateKey < startDate || dateKey > endDate)") &&
-    meetingScheduleShell.includes("setMeetingCountByDate(selection.countsByDate)") &&
     meetingScheduleShell.includes("expandedMeetingDateKeys") &&
     meetingScheduleShell.includes("visibleMeetingLimitByDate") &&
     meetingScheduleShell.includes("toggleMeetingDateExpansion") &&
