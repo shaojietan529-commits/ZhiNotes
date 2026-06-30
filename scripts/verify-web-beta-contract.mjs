@@ -17,6 +17,10 @@ const files = {
     "src/lib/sync/cloudManifestCompareRequestValidator.ts",
   cloudManifestRequestValidatorVerifier:
     "scripts/verify-cloud-manifest-request-validator.mjs",
+  cloudManifestResponseValidator:
+    "src/lib/sync/cloudManifestCompareResponseValidator.ts",
+  cloudManifestResponseValidatorVerifier:
+    "scripts/verify-cloud-manifest-response-validator.mjs",
   cloudManifestApiGuardVerifier:
     "scripts/verify-cloud-manifest-api-guard.mjs",
   cloudManifestRouteVerifier:
@@ -417,6 +421,12 @@ function run() {
   const cloudManifestRequestValidatorVerifier = readProjectFile(
     files.cloudManifestRequestValidatorVerifier
   );
+  const cloudManifestResponseValidator = readProjectFile(
+    files.cloudManifestResponseValidator
+  );
+  const cloudManifestResponseValidatorVerifier = readProjectFile(
+    files.cloudManifestResponseValidatorVerifier
+  );
   const cloudManifestApiGuardVerifier = readProjectFile(
     files.cloudManifestApiGuardVerifier
   );
@@ -764,6 +774,11 @@ function run() {
     [
       files.cloudManifestRequestValidatorVerifier,
       cloudManifestRequestValidatorVerifier,
+    ],
+    [files.cloudManifestResponseValidator, cloudManifestResponseValidator],
+    [
+      files.cloudManifestResponseValidatorVerifier,
+      cloudManifestResponseValidatorVerifier,
     ],
     [files.cloudManifestApiGuardVerifier, cloudManifestApiGuardVerifier],
     [files.cloudManifestRouteVerifier, cloudManifestRouteVerifier],
@@ -15201,6 +15216,12 @@ function run() {
   assertSourceIncludes(
     files.packageJson,
     packageJson,
+    '"verify:cloud-manifest-response": "node scripts/verify-cloud-manifest-response-validator.mjs"',
+    "package.json must expose the cloud manifest response validator runtime verification command."
+  );
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
     '"verify:cloud-manifest-api": "node scripts/verify-cloud-manifest-api-guard.mjs"',
     "package.json must expose the cloud manifest compare API guard runtime verification command."
   );
@@ -15355,6 +15376,10 @@ function run() {
     [
       "npm run verify:cloud-manifest-request",
       "Web Beta full verifier must run cloud manifest request validator verification.",
+    ],
+    [
+      "npm run verify:cloud-manifest-response",
+      "Web Beta full verifier must run cloud manifest response validator verification.",
     ],
     [
       "npm run verify:cloud-manifest-api",
@@ -15541,6 +15566,136 @@ function run() {
       snippet,
       message
     );
+  }
+  assertSourceIncludes(
+    files.cloudManifestResponseValidator,
+    cloudManifestResponseValidator,
+    'format: "zhinote-cloud-manifest-compare-response-validation"',
+    "Cloud manifest response validator must expose a stable validation format."
+  );
+  assertSourceIncludes(
+    files.cloudManifestResponseValidatorVerifier,
+    cloudManifestResponseValidatorVerifier,
+    'format: "zhinote-cloud-manifest-response-validator-verification-receipt"',
+    "Cloud manifest response validator verifier must emit a stable local receipt format."
+  );
+  for (const [snippet, message, sourceFile, sourceText] of [
+    [
+      "validateCloudManifestCompareResponse",
+      "Cloud manifest response validator must export the response validator.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "buildCloudManifestCompareResponseValidatorReport",
+      "Cloud manifest response validator must export the local fixture report.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "REQUIRED_METADATA_FIELDS",
+      "Cloud manifest response validator must define required metadata fields.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "OPTIONAL_METADATA_FIELDS",
+      "Cloud manifest response validator must define optional metadata fields.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "findForbiddenFieldsRecursively",
+      "Cloud manifest response validator must catch nested forbidden fields.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "permits_manifest_counts_only: true",
+      "Cloud manifest response validator must allow manifest counts only.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "permits_ids_only_after_owner_review: false",
+      "Cloud manifest response validator must not return ids before owner review.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "returns_raw_values: false",
+      "Cloud manifest response validator must not return raw values.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "safe_to_apply_cloud_compare_now: false",
+      "Cloud manifest response validator must not approve cloud compare application.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "can_rebuild_cache_now: false",
+      "Cloud manifest response validator must not approve cache rebuild.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "can_return_workspace_content_now: false",
+      "Cloud manifest response validator must not return workspace content.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "can_return_missing_ids_now: false",
+      "Cloud manifest response validator must not return missing ids.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud manifest response validator must not read page bodies.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud manifest response validator must not read database values.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud manifest response validator must not read file bytes.",
+      files.cloudManifestResponseValidator,
+      cloudManifestResponseValidator,
+    ],
+    [
+      "cloud_sync_can_start_now: false",
+      "Cloud manifest response validator verifier must not approve cloud sync.",
+      files.cloudManifestResponseValidatorVerifier,
+      cloudManifestResponseValidatorVerifier,
+    ],
+    [
+      "cache_rebuild_can_start_now: false",
+      "Cloud manifest response validator verifier must not approve cache rebuild.",
+      files.cloudManifestResponseValidatorVerifier,
+      cloudManifestResponseValidatorVerifier,
+    ],
+    [
+      "DO_NOT_RETURN_THIS_PRIVATE_RESPONSE_MARKER",
+      "Cloud manifest response validator verifier must assert raw values are not returned.",
+      files.cloudManifestResponseValidatorVerifier,
+      cloudManifestResponseValidatorVerifier,
+    ],
+    [
+      "buildCloudManifestCompareForbiddenResponseFields",
+      "Cloud manifest response validator verifier must compare against the response forbidden field schema.",
+      files.cloudManifestResponseValidatorVerifier,
+      cloudManifestResponseValidatorVerifier,
+    ],
+  ]) {
+    assertSourceIncludes(sourceFile, sourceText, snippet, message);
   }
   assertSourceIncludes(
     files.cloudManifestApiGuardVerifier,
