@@ -44,11 +44,42 @@ export function prepareLocalFirstPageNavigation(
   page: Page,
   source: PageRouteHandoffSource = "page-open"
 ): void {
-  useWorkspaceStore.getState().upsertPages([page]);
+  const store = useWorkspaceStore.getState();
+  if (shouldUpsertLocalFirstNavigationSeed(page, source)) {
+    store.upsertPages([page]);
+  }
   if (shouldRememberNavigationPendingDraft(page, source)) {
     rememberPendingPageDraft(page);
   }
   rememberPageRouteHandoff(page, source);
+}
+
+function shouldUpsertLocalFirstNavigationSeed(
+  page: Page,
+  source: PageRouteHandoffSource
+): boolean {
+  if (source.endsWith("-create")) return true;
+  const existing = useWorkspaceStore.getState().getPageById(page.id);
+  return !existing || !hasSameLocalFirstPageMetadata(existing, page);
+}
+
+function hasSameLocalFirstPageMetadata(existing: Page, incoming: Page): boolean {
+  return (
+    existing.id === incoming.id &&
+    existing.owner_id === incoming.owner_id &&
+    existing.parent_id === incoming.parent_id &&
+    existing.database_id === incoming.database_id &&
+    existing.title === incoming.title &&
+    existing.icon === incoming.icon &&
+    existing.cover_url === incoming.cover_url &&
+    existing.properties === incoming.properties &&
+    existing.position === incoming.position &&
+    existing.depth === incoming.depth &&
+    existing.created_at === incoming.created_at &&
+    existing.updated_at === incoming.updated_at &&
+    existing.deleted_at === incoming.deleted_at &&
+    existing.sync_version === incoming.sync_version
+  );
 }
 
 function shouldRememberNavigationPendingDraft(

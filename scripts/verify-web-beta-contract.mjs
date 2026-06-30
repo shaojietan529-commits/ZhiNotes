@@ -22040,6 +22040,24 @@ function run() {
     [
       files.localFirstPageNavigationUtil,
       localFirstPageNavigationUtil,
+      "shouldUpsertLocalFirstNavigationSeed(page, source)",
+      "Shared page navigation must skip redundant workspace store writes when an unchanged page seed is already local.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
+      "hasSameLocalFirstPageMetadata",
+      "Shared page navigation must compare lightweight metadata before upserting page seeds.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
+      'if (source.endsWith("-create")) return true;',
+      "Shared page navigation must still upsert newly created drafts immediately.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
       "shouldRememberNavigationPendingDraft(page, source)",
       "Shared page navigation must only keep pending drafts for created or empty pages.",
     ],
