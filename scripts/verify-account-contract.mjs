@@ -2021,6 +2021,16 @@ check(
   "AccountShell 重建本机页面缓存前必须先检查页面 pending、failed 和 manual review；未上传或失败输入清零前不能进入确认弹窗"
 );
 check(
+  accountShell.includes("pageCacheRebuildGateNotice") &&
+    accountShell.includes("getPageCacheRebuildBlockerFromStatus(pagePendingStatus)") &&
+    accountShell.includes("account-page-cache-rebuild-gate") &&
+    accountShell.includes('data-cache-rebuild-ready={blocker ? "false" : "true"}') &&
+    accountShell.includes("Boolean(pageCacheRebuildGateNotice)") &&
+    accountShell.includes("页面缓存重建门禁") &&
+    accountShell.includes("页面 pending、failed、manual review 均为 0"),
+  "AccountShell 页面缓存重建门禁必须在点击前可见，并在 pending/failed/manual review 未清零时禁用重建按钮"
+);
+check(
   accountShell.includes("数据库云同步") &&
     accountShell.includes("setDatabaseSyncEnabled") &&
     accountShell.includes("上传待同步变更") &&
@@ -2048,6 +2058,18 @@ check(
       "await getDatabaseCacheRebuildPendingBlocker()"
     ) < databaseCacheRebuildBody.indexOf("window.confirm"),
   "AccountShell 重建本机数据库缓存前必须先检查 database pending queue、本地 sync_log、failed 和 manual review；未上传或失败数据库变更清零前不能进入确认弹窗"
+);
+check(
+  accountShell.includes("databaseCacheRebuildGateNotice") &&
+    accountShell.includes(
+      "getDatabaseCacheRebuildBlockerFromStatus(databasePendingStatus)"
+    ) &&
+    accountShell.includes("account-database-cache-rebuild-gate") &&
+    accountShell.includes('data-cache-rebuild-ready={blocker ? "false" : "true"}') &&
+    accountShell.includes("Boolean(databaseCacheRebuildGateNotice)") &&
+    accountShell.includes("数据库缓存重建门禁") &&
+    accountShell.includes("数据库 pending、failed、manual review 均为 0"),
+  "AccountShell 数据库缓存重建门禁必须在点击前可见，并在 pending/failed/manual review 未清零时禁用重建按钮"
 );
 check(
   syncDashboardShell.includes("本机缓存重建入口") &&

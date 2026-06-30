@@ -83,7 +83,12 @@ type Phase =
   | "error";
 
 function getPageCacheRebuildPendingBlocker(): string | null {
-  const status = getPendingCloudPageSyncStatus();
+  return getPageCacheRebuildBlockerFromStatus(getPendingCloudPageSyncStatus());
+}
+
+function getPageCacheRebuildBlockerFromStatus(
+  status: PendingCloudPageSyncStatus
+): string | null {
   const pending = status.pending + status.queued;
   if (
     pending === 0 &&
@@ -96,7 +101,14 @@ function getPageCacheRebuildPendingBlocker(): string | null {
 }
 
 async function getDatabaseCacheRebuildPendingBlocker(): Promise<string | null> {
-  const status = await getPendingCloudDatabaseSyncStatus();
+  return getDatabaseCacheRebuildBlockerFromStatus(
+    await getPendingCloudDatabaseSyncStatus()
+  );
+}
+
+function getDatabaseCacheRebuildBlockerFromStatus(
+  status: PendingCloudDatabaseSyncStatus
+): string | null {
   const pending = status.pending + status.queued + status.syncLogPending;
   if (
     pending === 0 &&
@@ -214,6 +226,20 @@ export default function AccountShell() {
     syncSummary,
     workspaceIdentity,
   ]);
+
+  const pageCacheRebuildGateNotice = useMemo(() => {
+    if (!pagePendingStatus) {
+      return "正在检查页面 pending、failed、manual review 状态，检查完成前不允许重建本机页面缓存。";
+    }
+    return getPageCacheRebuildBlockerFromStatus(pagePendingStatus);
+  }, [pagePendingStatus]);
+
+  const databaseCacheRebuildGateNotice = useMemo(() => {
+    if (!databasePendingStatus) {
+      return "正在检查数据库 pending、failed、manual review 状态，检查完成前不允许重建本机数据库缓存。";
+    }
+    return getDatabaseCacheRebuildBlockerFromStatus(databasePendingStatus);
+  }, [databasePendingStatus]);
 
   const refreshHotCachePreferences = useCallback(async () => {
     const setting = await getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY);
@@ -1091,7 +1117,8 @@ export default function AccountShell() {
                       pageSyncBusy ||
                       dailyRepairBusy ||
                       dailyPullBusy ||
-                      pageCacheRebuildBusy
+                      pageCacheRebuildBusy ||
+                      Boolean(pageCacheRebuildGateNotice)
                     }
                     className="rounded-lg border border-violet-300 px-3 py-1.5 text-sm text-violet-700 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-700/70 dark:text-violet-300 dark:hover:bg-violet-900/20"
                   >
@@ -1105,6 +1132,13 @@ export default function AccountShell() {
                   )}
                 </div>
               )}
+
+              <AccountCacheRebuildGateNotice
+                testId="account-page-cache-rebuild-gate"
+                label="页面缓存重建门禁"
+                blocker={pageCacheRebuildGateNotice}
+                readyText="页面 pending、failed、manual review 均为 0，可以进入二次确认。"
+              />
 
               {pageSyncNotice && (
                 <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
@@ -1183,7 +1217,8 @@ export default function AccountShell() {
                     disabled={
                       databaseSyncBusy ||
                       databasePushBusy ||
-                      databaseCacheRebuildBusy
+                      databaseCacheRebuildBusy ||
+                      Boolean(databaseCacheRebuildGateNotice)
                     }
                     className="rounded-lg border border-violet-300 px-3 py-1.5 text-sm text-violet-700 hover:bg-violet-50 disabled:opacity-40 dark:border-violet-700/70 dark:text-violet-300 dark:hover:bg-violet-900/20"
                   >
@@ -1197,6 +1232,13 @@ export default function AccountShell() {
                   )}
                 </div>
               )}
+
+              <AccountCacheRebuildGateNotice
+                testId="account-database-cache-rebuild-gate"
+                label="数据库缓存重建门禁"
+                blocker={databaseCacheRebuildGateNotice}
+                readyText="数据库 pending、failed、manual review 均为 0，可以进入二次确认。"
+              />
 
               {databaseSyncNotice && (
                 <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
@@ -1283,6 +1325,38 @@ export default function AccountShell() {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function AccountCacheRebuildGateNotice({
+  testId,
+  label,
+  blocker,
+  readyText,
+}: {
+  testId: string;
+  label: string;
+  blocker: string | null;
+  readyText: string;
+}) {
+  return (
+    <div
+      data-testid={testId}
+      data-cache-rebuild-ready={blocker ? "false" : "true"}
+      className={`mt-4 rounded-lg border p-3 text-xs ${
+        blocker
+          ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700/70 dark:bg-amber-950/20 dark:text-amber-200"
+          : "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700/70 dark:bg-emerald-950/20 dark:text-emerald-200"
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium">{label}</span>
+        <span className="rounded-full border border-current px-2 py-0.5 text-[11px]">
+          {blocker ? "未通过" : "已通过"}
+        </span>
+      </div>
+      <p className="mt-2 leading-5">{blocker ?? readyText}</p>
     </div>
   );
 }

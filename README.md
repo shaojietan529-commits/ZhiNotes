@@ -1294,7 +1294,9 @@ Current local actions:
   enable AI; cache rebuild remains an account-page, owner-confirmed action.
   The account page rebuild actions now block not only pending rows, but also
   failed rows and manual-review rows, before showing the destructive local-cache
-  confirmation.
+  confirmation. The same blockers are visible on the account page before click,
+  and the rebuild buttons stay disabled until pending, failed, and manual-review
+  counts are clean.
 - Inspect page/database pending queues with ACK-style retry visibility:
   last upload attempt time, failed receipt count, latest failure reason, and a
   small failed id/key sample. This is still metadata-only: it does not read page
