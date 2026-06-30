@@ -22,6 +22,10 @@ const files = {
     "src/lib/sync/cloudManifestCompareHandshakeGate.ts",
   cloudManifestHandshakeGateVerifier:
     "scripts/verify-cloud-manifest-handshake-gate.mjs",
+  cloudManifestOwnerReviewPacket:
+    "src/lib/sync/cloudManifestCompareOwnerReviewPacket.ts",
+  cloudManifestOwnerReviewPacketVerifier:
+    "scripts/verify-cloud-manifest-owner-review-packet.mjs",
   cloudManifestApiGuardVerifier:
     "scripts/verify-cloud-manifest-api-guard.mjs",
   cloudManifestRouteVerifier:
@@ -385,6 +389,12 @@ function run() {
   const cloudManifestHandshakeGateVerifier = readProjectFile(
     files.cloudManifestHandshakeGateVerifier
   );
+  const cloudManifestOwnerReviewPacket = readProjectFile(
+    files.cloudManifestOwnerReviewPacket
+  );
+  const cloudManifestOwnerReviewPacketVerifier = readProjectFile(
+    files.cloudManifestOwnerReviewPacketVerifier
+  );
   const cloudManifestApiGuardVerifier = readProjectFile(
     files.cloudManifestApiGuardVerifier
   );
@@ -645,6 +655,7 @@ function run() {
     "verify:cloud-manifest-request",
     "verify:cloud-manifest-response",
     "verify:cloud-manifest-handshake",
+    "verify:cloud-manifest-owner-review",
     "verify:cloud-manifest-api",
     "verify:cloud-manifest-route",
     "verify:web-beta:full",
@@ -744,6 +755,10 @@ function run() {
     [
       "npm run verify:cloud-manifest-handshake",
       "Web Beta full verifier must run cloud manifest handshake gate verification.",
+    ],
+    [
+      "npm run verify:cloud-manifest-owner-review",
+      "Web Beta full verifier must run cloud manifest owner review verification.",
     ],
     [
       "npm run verify:cloud-manifest-api",
@@ -984,6 +999,95 @@ function run() {
       "Cloud manifest handshake gate must block missing ids before owner review.",
       files.cloudManifestHandshakeGate,
       cloudManifestHandshakeGate,
+    ],
+  ]) {
+    assertIncludes(sourceFile, sourceText, snippet, message);
+  }
+
+  assertIncludes(
+    files.cloudManifestOwnerReviewPacket,
+    cloudManifestOwnerReviewPacket,
+    'format: "zhinote-cloud-manifest-compare-owner-review-packet"',
+    "Cloud manifest owner review packet must expose a stable packet format."
+  );
+  assertIncludes(
+    files.cloudManifestOwnerReviewPacketVerifier,
+    cloudManifestOwnerReviewPacketVerifier,
+    'format: "zhinote-cloud-manifest-owner-review-verification-receipt"',
+    "Cloud manifest owner review verifier must expose a stable receipt format."
+  );
+  for (const [snippet, message, sourceFile, sourceText] of [
+    [
+      "buildCloudManifestCompareOwnerReviewPacket",
+      "Cloud manifest owner review packet must export a builder.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      'packet_status: "local-owner-review-only"',
+      "Cloud manifest owner review packet must stay local-only.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      'required_confirmation_phrase: "APPROVE CLOUD MANIFEST ID-ONLY COMPARE"',
+      "Cloud manifest owner review packet must expose the required phrase.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      "can_run_cloud_manifest_compare_now: false",
+      "Cloud manifest owner review packet must not run cloud compare.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      "can_return_missing_ids_now: false",
+      "Cloud manifest owner review packet must not return missing ids.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      "can_rebuild_cache_now: false",
+      "Cloud manifest owner review packet must not rebuild cache.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      "can_enable_cloud_sync_now: false",
+      "Cloud manifest owner review packet must not enable cloud sync.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      "return_missing_ids",
+      "Cloud manifest owner review packet must forbid missing ids before approval.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      "rebuild_cache_from_cloud_manifest",
+      "Cloud manifest owner review packet must forbid cache rebuild before approval.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      "remote_row_ids",
+      "Cloud manifest owner review packet must exclude remote row ids.",
+      files.cloudManifestOwnerReviewPacket,
+      cloudManifestOwnerReviewPacket,
+    ],
+    [
+      "requiredDecisionIds",
+      "Cloud manifest owner review verifier must assert required decisions.",
+      files.cloudManifestOwnerReviewPacketVerifier,
+      cloudManifestOwnerReviewPacketVerifier,
+    ],
+    [
+      "returns_missing_ids: false",
+      "Cloud manifest owner review verifier must not return missing ids.",
+      files.cloudManifestOwnerReviewPacketVerifier,
+      cloudManifestOwnerReviewPacketVerifier,
     ],
   ]) {
     assertIncludes(sourceFile, sourceText, snippet, message);
@@ -12784,6 +12888,54 @@ function run() {
     syncShell,
     "gate.summary.blocked_checks",
     "Sync UI must surface blocked cloud manifest handshake checks."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "buildCloudManifestCompareOwnerReviewPacket",
+    "Sync UI must build the cloud manifest owner review packet."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "cloudManifestCompareOwnerReviewPacket",
+    "Sync UI must keep the cloud manifest owner review packet."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handleExportCloudManifestCompareOwnerReviewPacket",
+    "Sync UI must export the cloud manifest owner review packet."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "cloud-manifest-compare-owner-review-packet",
+    "Sync UI must render the cloud manifest owner review test id."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "云端 manifest 对账 Owner Review",
+    "Sync UI must render the cloud manifest owner review panel."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出 Manifest Owner Review",
+    "Sync UI must expose the cloud manifest owner review export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "CloudManifestOwnerReviewDecisionRow",
+    "Sync UI must render cloud manifest owner review decisions."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "packet.required_confirmation_phrase",
+    "Sync UI must surface cloud manifest owner review confirmation phrase."
   );
   assertIncludes(
     files.syncShell,

@@ -228,6 +228,13 @@ import {
   type CloudManifestCompareHandshakeGateStatus,
 } from "@/lib/sync/cloudManifestCompareHandshakeGate";
 import {
+  buildCloudManifestCompareOwnerReviewPacket,
+  type CloudManifestCompareOwnerReviewChecklistItem,
+  type CloudManifestCompareOwnerReviewDecision,
+  type CloudManifestCompareOwnerReviewPacket,
+  type CloudManifestCompareOwnerReviewStatus,
+} from "@/lib/sync/cloudManifestCompareOwnerReviewPacket";
+import {
   buildWebBetaSmokeTestPlan,
   type WebBetaSmokeTestPlan,
   type WebBetaSmokeTestStatus,
@@ -727,6 +734,7 @@ type WebBetaContractAction =
   | "high-risk-registry"
   | "cloud-manifest-api-guard"
   | "cloud-manifest-handshake-gate"
+  | "cloud-manifest-owner-review"
   | "migration-sql"
   | "cloud-migration-api-guard"
   | "next-actions"
@@ -2500,6 +2508,10 @@ function SyncDashboard() {
   );
   const cloudManifestCompareHandshakeGate = useMemo(
     () => buildCloudManifestCompareHandshakeGateReport(),
+    []
+  );
+  const cloudManifestCompareOwnerReviewPacket = useMemo(
+    () => buildCloudManifestCompareOwnerReviewPacket(),
     []
   );
   const cloudMigrationApplyApiGuard = useMemo(
@@ -5590,6 +5602,27 @@ function SyncDashboard() {
         err
       );
       window.alert("云端 manifest 对账握手门禁导出失败，请查看控制台。");
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
+  const handleExportCloudManifestCompareOwnerReviewPacket = () => {
+    setBusyContractAction("cloud-manifest-owner-review");
+    try {
+      downloadJsonFile(
+        `zhinote-cloud-manifest-compare-owner-review-${fileSafeTimestamp()}.json`,
+        {
+          ...cloudManifestCompareOwnerReviewPacket,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export cloud manifest compare owner review packet:",
+        err
+      );
+      window.alert("云端 manifest 对账 owner review 导出失败，请查看控制台。");
     } finally {
       setBusyContractAction(null);
     }
@@ -9091,6 +9124,12 @@ function SyncDashboard() {
             gate={cloudManifestCompareHandshakeGate}
             busy={busyContractAction === "cloud-manifest-handshake-gate"}
             onExport={handleExportCloudManifestCompareHandshakeGate}
+          />
+
+          <CloudManifestCompareOwnerReviewPacketPanel
+            packet={cloudManifestCompareOwnerReviewPacket}
+            busy={busyContractAction === "cloud-manifest-owner-review"}
+            onExport={handleExportCloudManifestCompareOwnerReviewPacket}
           />
 
           <ApiGuardPanel
@@ -19809,6 +19848,196 @@ function CloudManifestHandshakeStatusPill({
     status === "ready-for-owner-review"
       ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
       : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function CloudManifestCompareOwnerReviewPacketPanel({
+  packet,
+  busy,
+  onExport,
+}: {
+  packet: CloudManifestCompareOwnerReviewPacket;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="cloud-manifest-compare-owner-review-packet"
+      data-testid="cloud-manifest-compare-owner-review-packet"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Owner Review Packet
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              云端 manifest 对账 Owner Review
+            </h2>
+            <CloudManifestOwnerReviewStatusPill status="blocked" />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是 cloud manifest id-only diff 的人工复核包。导出它不会连接云端、
+            不会返回 missing ids、不会重建缓存、不会开启同步；真正执行前必须输入确认短语。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出 Manifest Owner Review"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <CacheRebuildFact
+          label="结论"
+          value={packet.compare_verdict}
+          detail="云端对账未放行"
+        />
+        <CacheRebuildFact
+          label="确认短语"
+          value={packet.required_confirmation_phrase}
+          detail="高风险动作前必需"
+        />
+        <CacheRebuildFact
+          label="决策"
+          value={`${packet.summary.yes}/${packet.summary.decisions}`}
+          detail={`${packet.summary.no} 项保持拒绝`}
+        />
+        <CacheRebuildFact
+          label="检查项"
+          value={String(packet.summary.checklist_items)}
+          detail={`${packet.summary.blocked} 项阻断`}
+        />
+        <CacheRebuildFact
+          label="禁止动作"
+          value={String(packet.summary.forbidden_actions)}
+          detail="批准前不可执行"
+        />
+        <CacheRebuildFact
+          label="排除载荷"
+          value={String(packet.summary.excluded_payload_classes)}
+          detail="不导出隐私内容"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <ContractPanel title="Owner 决策">
+          <div className="space-y-2">
+            {packet.decisions.map((decision) => (
+              <CloudManifestOwnerReviewDecisionRow
+                key={decision.id}
+                decision={decision}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="启用前检查">
+          <div className="space-y-2">
+            {packet.checklist.map((item) => (
+              <CloudManifestOwnerReviewChecklistRow
+                key={item.id}
+                item={item}
+              />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        导出边界：只包含 handshake gate 的本地元数据和复核清单；不包含页面正文、数据库行值、
+        评论、版本快照、文件名、文件字节、secret、remote row ids 或 missing ids。
+      </p>
+    </section>
+  );
+}
+
+function CloudManifestOwnerReviewDecisionRow({
+  decision,
+}: {
+  decision: CloudManifestCompareOwnerReviewDecision;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {decision.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {decision.id}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-md bg-white px-2 py-1 text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+            {decision.answer.toUpperCase()}
+          </span>
+          <CloudManifestOwnerReviewStatusPill status={decision.status} />
+        </div>
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {decision.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {decision.required_before_compare}
+      </p>
+    </article>
+  );
+}
+
+function CloudManifestOwnerReviewChecklistRow({
+  item,
+}: {
+  item: CloudManifestCompareOwnerReviewChecklistItem;
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {item.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {item.source} / {item.id}
+          </div>
+        </div>
+        <CloudManifestOwnerReviewStatusPill status={item.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {item.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {item.required_before_compare}
+      </p>
+    </article>
+  );
+}
+
+function CloudManifestOwnerReviewStatusPill({
+  status,
+}: {
+  status: CloudManifestCompareOwnerReviewStatus;
+}) {
+  const labels: Record<CloudManifestCompareOwnerReviewStatus, string> = {
+    "local-ready": "local ready",
+    "owner-decision": "待确认",
+    blocked: "阻断",
+  };
+  const className =
+    status === "local-ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "owner-decision"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
 
   return (
     <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>

@@ -63,6 +63,13 @@ const verificationCommands = [
       "Evaluate the local cloud manifest compare handshake gate that joins request, response, and API guards.",
   },
   {
+    id: "verify-cloud-manifest-owner-review",
+    command: "npm run verify:cloud-manifest-owner-review",
+    args: ["run", "verify:cloud-manifest-owner-review"],
+    purpose:
+      "Evaluate the owner review packet required before cloud manifest id-only diffs or cache rebuild.",
+  },
+  {
     id: "verify-cloud-manifest-api",
     command: "npm run verify:cloud-manifest-api",
     args: ["run", "verify:cloud-manifest-api"],
@@ -222,6 +229,7 @@ function printReceipt(startedAt, results, status) {
       "Confirm cloud manifest compare request validation rejects private payload fields without returning raw values.",
       "Confirm cloud manifest compare response validation rejects private payload fields without returning raw values or missing ids.",
       "Confirm cloud manifest compare handshake remains blocked until request, response, API, owner-review, and cache-rebuild gates are approved.",
+      "Confirm cloud manifest owner review remains local-only before any id-only diff or cache rebuild.",
       "Confirm cloud manifest compare API remains disabled and returns guard metadata only.",
       "Confirm the real cloud manifest compare route returns disabled guard JSON and does not echo query values.",
       "Require a separate disposable cloud replay before any production sync enablement.",
