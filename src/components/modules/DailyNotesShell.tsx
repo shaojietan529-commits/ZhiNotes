@@ -168,6 +168,16 @@ type CachedDailyCloudMetadataResult = DailyCloudMetadataResult & {
   stale: boolean;
 };
 
+type DailyCloudMetadataCacheEntry = DailyCloudMetadataResult & {
+  cachedAt?: string;
+  stale?: boolean;
+};
+
+type DailyCloudMetadataCacheSignature = {
+  signature: string;
+  cachedAt: number;
+};
+
 export default function DailyNotesShell() {
   const router = useRouter();
   const openPage = useLocalFirstPageNavigation();
@@ -2827,13 +2837,84 @@ function writeCachedDailyCloudMetadata(
 ): void {
   if (typeof window === "undefined" || cloud.status !== "ok") return;
   try {
+    const key = dailyCloudCacheKey(startDate, endDate);
+    if (!shouldWriteCachedDailyCloudMetadata(key, cloud)) return;
     window.localStorage.setItem(
-      dailyCloudCacheKey(startDate, endDate),
+      key,
       JSON.stringify({ ...cloud, cachedAt: new Date().toISOString() })
     );
   } catch {
     // Local cache is best-effort; the cloud result is still displayed.
   }
+}
+
+function shouldWriteCachedDailyCloudMetadata(
+  key: string,
+  cloud: DailyCloudMetadataResult
+): boolean {
+  const cached = readCachedDailyCloudMetadataSignature(key);
+  if (!cached) return true;
+  if (cached.signature !== buildDailyCloudMetadataCacheSignature(cloud)) {
+    return true;
+  }
+  return Date.now() - cached.cachedAt > DAILY_CLOUD_CACHE_FRESH_MS;
+}
+
+function readCachedDailyCloudMetadataSignature(
+  key: string
+): DailyCloudMetadataCacheSignature | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DailyCloudMetadataCacheEntry>;
+    const cachedAt = parsed.cachedAt ? Date.parse(parsed.cachedAt) : 0;
+    if (
+      !cachedAt ||
+      parsed.status !== "ok" ||
+      !Array.isArray(parsed.pages) ||
+      typeof parsed.total !== "number"
+    ) {
+      return null;
+    }
+    return {
+      signature: buildDailyCloudMetadataCacheSignature(
+        parsed as DailyCloudMetadataCacheEntry
+      ),
+      cachedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildDailyCloudMetadataCacheSignature(
+  cloud: DailyCloudMetadataCacheEntry
+): string {
+  return JSON.stringify(stableDailyCloudMetadataCacheValue(cloud));
+}
+
+function stableDailyCloudMetadataCacheValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => stableDailyCloudMetadataCacheValue(item));
+  }
+  if (!value || typeof value !== "object") return value;
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(value).sort()) {
+    if (
+      key === "cachedAt" ||
+      key === "cached" ||
+      key === "stale" ||
+      key === "message"
+    ) {
+      continue;
+    }
+    const nextValue = (value as Record<string, unknown>)[key];
+    if (typeof nextValue !== "undefined") {
+      result[key] = stableDailyCloudMetadataCacheValue(nextValue);
+    }
+  }
+  return result;
 }
 
 async function persistDailyCloudMetadata(

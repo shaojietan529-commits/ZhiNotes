@@ -2490,6 +2490,18 @@ function run() {
       "Daily notes must keep a bounded stale cloud-metadata cache fallback for large workspaces.",
     ],
     [
+      "shouldWriteCachedDailyCloudMetadata",
+      "Daily notes must skip unchanged fresh cloud-metadata cache writes to reduce calendar refresh storage churn.",
+    ],
+    [
+      "buildDailyCloudMetadataCacheSignature",
+      "Daily notes must compare stable cloud-metadata cache signatures before rewriting browser storage.",
+    ],
+    [
+      "Date.now() - cached.cachedAt > DAILY_CLOUD_CACHE_FRESH_MS",
+      "Daily notes must still renew unchanged cloud-metadata cache entries after the fresh window.",
+    ],
+    [
       "type CachedDailyCloudMetadataResult",
       "Daily notes must type cached cloud metadata separately so stale entries are explicit.",
     ],
@@ -2828,6 +2840,22 @@ function run() {
     [
       "writeMeetingHotCacheSnapshot",
       "Meeting schedule must refresh the local hot cache snapshot after metadata loads.",
+    ],
+    [
+      "MEETING_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",
+      "Meeting schedule must define a bounded fresh window for cloud-metadata cache rewrites.",
+    ],
+    [
+      "shouldWriteCachedMeetingCloudMetadata",
+      "Meeting schedule must skip unchanged fresh cloud-metadata cache writes to reduce calendar refresh storage churn.",
+    ],
+    [
+      "buildMeetingCloudMetadataCacheSignature",
+      "Meeting schedule must compare stable cloud-metadata cache signatures before rewriting browser storage.",
+    ],
+    [
+      "Date.now() - cached.cachedAt > MEETING_CLOUD_CACHE_FRESH_MS",
+      "Meeting schedule must still renew unchanged cloud-metadata cache entries after the fresh window.",
     ],
     [
       "HOT_CACHE_PREFERENCES_SETTING_KEY",

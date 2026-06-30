@@ -148,6 +148,7 @@ const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
 const MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS = 2000;
 const MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 3400;
+const MEETING_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
@@ -267,6 +268,15 @@ interface MeetingCloudMetadataSnapshot {
   cached?: boolean;
   watermark?: string;
 }
+
+type MeetingCloudMetadataCacheEntry = MeetingCloudMetadataSnapshot & {
+  cachedAt?: string;
+};
+
+type MeetingCloudMetadataCacheSignature = {
+  signature: string;
+  cachedAt: number;
+};
 
 interface MeetingCloudMetadataOptions {
   startDate?: string;
@@ -3313,7 +3323,9 @@ function readCachedMeetingCloudMetadata(
       cachedAt?: string;
     };
     const cachedAt = parsed.cachedAt ? Date.parse(parsed.cachedAt) : 0;
-    if (!cachedAt || Date.now() - cachedAt > 24 * 60 * 60 * 1000) return null;
+    if (!cachedAt || Date.now() - cachedAt > MEETING_CLOUD_CACHE_FRESH_MS) {
+      return null;
+    }
     if (!parsed.ok || !Array.isArray(parsed.pages)) return null;
     return {
       ok: true,
@@ -3342,13 +3354,77 @@ function writeCachedMeetingCloudMetadata(
 ): void {
   if (typeof window === "undefined" || !cloud.ok) return;
   try {
+    const key = meetingCloudCacheKey(startDate, endDate);
+    if (!shouldWriteCachedMeetingCloudMetadata(key, cloud)) return;
     window.localStorage.setItem(
-      meetingCloudCacheKey(startDate, endDate),
+      key,
       JSON.stringify({ ...cloud, cachedAt: new Date().toISOString() })
     );
   } catch {
     // Local cache is best-effort; the cloud result is already displayed.
   }
+}
+
+function shouldWriteCachedMeetingCloudMetadata(
+  key: string,
+  cloud: MeetingCloudMetadataSnapshot
+): boolean {
+  const cached = readCachedMeetingCloudMetadataSignature(key);
+  if (!cached) return true;
+  if (cached.signature !== buildMeetingCloudMetadataCacheSignature(cloud)) {
+    return true;
+  }
+  return Date.now() - cached.cachedAt > MEETING_CLOUD_CACHE_FRESH_MS;
+}
+
+function readCachedMeetingCloudMetadataSignature(
+  key: string
+): MeetingCloudMetadataCacheSignature | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<MeetingCloudMetadataCacheEntry>;
+    const cachedAt = parsed.cachedAt ? Date.parse(parsed.cachedAt) : 0;
+    if (!cachedAt || !parsed.ok || !Array.isArray(parsed.pages)) return null;
+    return {
+      signature: buildMeetingCloudMetadataCacheSignature(
+        parsed as MeetingCloudMetadataCacheEntry
+      ),
+      cachedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildMeetingCloudMetadataCacheSignature(
+  cloud: MeetingCloudMetadataCacheEntry
+): string {
+  return JSON.stringify(stableMeetingCloudMetadataCacheValue(cloud));
+}
+
+function stableMeetingCloudMetadataCacheValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => stableMeetingCloudMetadataCacheValue(item));
+  }
+  if (!value || typeof value !== "object") return value;
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(value).sort()) {
+    if (
+      key === "cachedAt" ||
+      key === "cached" ||
+      key === "stale" ||
+      key === "message"
+    ) {
+      continue;
+    }
+    const nextValue = (value as Record<string, unknown>)[key];
+    if (typeof nextValue !== "undefined") {
+      result[key] = stableMeetingCloudMetadataCacheValue(nextValue);
+    }
+  }
+  return result;
 }
 
 async function persistMeetingCloudMetadata(

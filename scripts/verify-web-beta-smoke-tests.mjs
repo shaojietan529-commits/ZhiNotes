@@ -4976,6 +4976,18 @@ function run() {
       "Daily notes must keep a bounded stale cloud-metadata cache fallback for large workspaces.",
     ],
     [
+      "shouldWriteCachedDailyCloudMetadata",
+      "Daily notes must skip unchanged fresh cloud-metadata cache writes to reduce calendar refresh storage churn.",
+    ],
+    [
+      "buildDailyCloudMetadataCacheSignature",
+      "Daily notes must compare stable cloud-metadata cache signatures before rewriting browser storage.",
+    ],
+    [
+      "Date.now() - cached.cachedAt > DAILY_CLOUD_CACHE_FRESH_MS",
+      "Daily notes must still renew unchanged cloud-metadata cache entries after the fresh window.",
+    ],
+    [
       "type CachedDailyCloudMetadataResult",
       "Daily notes must type cached cloud metadata separately so stale entries are explicit.",
     ],
@@ -5801,6 +5813,30 @@ function run() {
     meetingScheduleShell,
     "writeMeetingHotCacheSnapshot",
     "Meeting schedule must refresh the local hot cache snapshot after metadata loads."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "MEETING_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",
+    "Meeting schedule must define a bounded fresh window for cloud-metadata cache rewrites."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "shouldWriteCachedMeetingCloudMetadata",
+    "Meeting schedule must skip unchanged fresh cloud-metadata cache writes to reduce calendar refresh storage churn."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "buildMeetingCloudMetadataCacheSignature",
+    "Meeting schedule must compare stable cloud-metadata cache signatures before rewriting browser storage."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "Date.now() - cached.cachedAt > MEETING_CLOUD_CACHE_FRESH_MS",
+    "Meeting schedule must still renew unchanged cloud-metadata cache entries after the fresh window."
   );
   assertIncludes(
     files.meetingScheduleShell,
