@@ -15,6 +15,7 @@ const COORDINATOR_PENDING_DRAIN_DELAY_MS = 900;
 
 export type AccountCloudSyncCoordinatorState =
   | "disabled"
+  | "checking"
   | "syncing"
   | "synced"
   | "queued"
@@ -95,6 +96,9 @@ export function useAccountCloudSyncCoordinator() {
       .filter((value): value is string => Boolean(value))
       .sort()
       .at(-1) ?? null;
+  const initializingEnabledDomain =
+    (pageSync.pendingStatus.enabled && pageSync.state === "disabled") ||
+    (databaseSync.pendingStatus.enabled && databaseSync.state === "disabled");
 
   const state: AccountCloudSyncCoordinatorState =
     enabledDomainCount === 0
@@ -109,7 +113,9 @@ export function useAccountCloudSyncCoordinator() {
               ? "syncing"
               : pendingTotal > 0
                 ? "queued"
-                : "synced";
+                : initializingEnabledDomain
+                  ? "checking"
+                  : "synced";
 
   const title = useMemo(() => {
     if (state === "disabled") return "账号云同步未开启";
@@ -127,6 +133,9 @@ export function useAccountCloudSyncCoordinator() {
         : null,
       lastSyncAt ? `最近同步 ${formatLastSyncTime(lastSyncAt)}` : null,
     ].filter(Boolean);
+    if (state === "checking") {
+      return `账号云同步正在检查${details.length ? `：${details.join("，")}` : ""}`;
+    }
     if (state === "syncing") return `账号云同步中${details.length ? `：${details.join("，")}` : ""}`;
     if (state === "queued") {
       const settingsNote =

@@ -2205,8 +2205,11 @@ check(
     accountCloudSyncCoordinator.includes("knowledgePendingTotal") &&
     accountCloudSyncCoordinator.includes("manualReviewTotal") &&
     accountCloudSyncCoordinator.includes("enabledDomainCount") &&
+    accountCloudSyncCoordinator.includes('"checking"') &&
+    accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
+    accountCloudSyncCoordinator.includes("账号云同步正在检查") &&
     accountCloudSyncCoordinator.includes("syncNow"),
-  "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，并提供合并 quick sync 入口"
+  "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
 );
 check(
   settingsCloudSyncStatusHook.includes(
@@ -2286,12 +2289,17 @@ check(
     sidebar.includes("accountSyncShortLabel") &&
     sidebar.includes("accountSyncAriaLabel") &&
     sidebar.includes("getAccountSyncToneClass") &&
+    sidebar.includes("检查中") &&
     sidebar.includes("data-sync-state={accountSync.state}") &&
     sidebar.includes("data-pending-total={accountSync.pendingTotal}") &&
     sidebar.includes("data-failed-total={accountSync.failedTotal}") &&
     sidebar.includes("data-manual-review-total={accountSync.manualReviewTotal}") &&
     sidebar.includes("data-settings-pending-total={accountSync.settingsPendingTotal}") &&
     sidebar.includes("data-knowledge-pending-total={accountSync.knowledgePendingTotal}") &&
+    sidebar.includes('pageSync.pendingStatus.enabled') &&
+    sidebar.includes('databaseSync.pendingStatus.enabled') &&
+    sidebar.includes("页面同步：已开启，等待后台检查") &&
+    sidebar.includes("数据库同步：已开启，等待后台检查") &&
     sidebar.includes("页面同步未开启") &&
     sidebar.includes("数据库同步未开启") &&
     sidebar.includes("accountSync.pendingTotal") &&

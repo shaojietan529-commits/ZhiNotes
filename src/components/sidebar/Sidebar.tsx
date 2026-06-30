@@ -84,6 +84,8 @@ const DEFAULT_PRIMARY_ITEMS: SidebarPrimaryItem[] = [
 
 function getAccountSyncShortLabel(state: AccountCloudSyncCoordinatorState) {
   switch (state) {
+    case "checking":
+      return "检查中";
     case "syncing":
       return "同步中";
     case "queued":
@@ -104,6 +106,7 @@ function getAccountSyncShortLabel(state: AccountCloudSyncCoordinatorState) {
 
 function getAccountSyncIcon(state: AccountCloudSyncCoordinatorState) {
   switch (state) {
+    case "checking":
     case "syncing":
       return "⏳";
     case "queued":
@@ -123,6 +126,7 @@ function getAccountSyncIcon(state: AccountCloudSyncCoordinatorState) {
 
 function getAccountSyncToneClass(state: AccountCloudSyncCoordinatorState) {
   switch (state) {
+    case "checking":
     case "syncing":
       return "border-blue-500/20 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300";
     case "queued":
@@ -401,7 +405,9 @@ export default function Sidebar() {
           ? "页面同步中…"
           : pageSync.state === "signed-out"
             ? "页面同步：未登录"
-            : pageSync.state === "disabled"
+            : pageSync.state === "disabled" && pageSync.pendingStatus.enabled
+              ? "页面同步：已开启，等待后台检查"
+              : pageSync.state === "disabled"
               ? "页面同步未开启"
               : "页面同步出错";
   const databaseSyncTitle =
@@ -419,7 +425,10 @@ export default function Sidebar() {
           ? "数据库同步中…"
           : databaseSync.state === "signed-out"
             ? "数据库同步：未登录"
-            : databaseSync.state === "disabled"
+            : databaseSync.state === "disabled" &&
+                databaseSync.pendingStatus.enabled
+              ? "数据库同步：已开启，等待后台检查"
+              : databaseSync.state === "disabled"
               ? "数据库同步未开启"
               : "数据库同步出错";
   const accountSyncTitle = `${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}`;

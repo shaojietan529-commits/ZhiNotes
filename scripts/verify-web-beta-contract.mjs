@@ -4388,6 +4388,18 @@ function run() {
     "Account cloud sync coordinator must add comments, versions, and wiki-link pending rows to the global pending total."
   );
   assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "initializingEnabledDomain",
+    "Account cloud sync coordinator must distinguish enabled-but-initializing domains from fully synced domains."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "账号云同步正在检查",
+    "Account cloud sync coordinator must describe initialization checks instead of claiming sync is complete."
+  );
+  assertSourceIncludes(
     files.settingsCloudSyncStatusHook,
     settingsCloudSyncStatusHook,
     "getPendingWorkspaceSettingSyncLogEntries",
@@ -21789,6 +21801,12 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "检查中",
+      "Sidebar cloud-sync control must show enabled-but-initializing cloud sync as checking, not synced.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "accountSyncAriaLabel",
       "Sidebar cloud-sync control must expose an accessible status summary.",
     ],
@@ -21831,8 +21849,20 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "页面同步：已开启，等待后台检查",
+      "Sidebar cloud-sync tooltip must distinguish enabled-but-initializing page sync from disabled page sync.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "数据库同步未开启",
       "Sidebar cloud-sync tooltip must distinguish disabled database sync from sync errors.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "数据库同步：已开启，等待后台检查",
+      "Sidebar cloud-sync tooltip must distinguish enabled-but-initializing database sync from disabled database sync.",
     ],
     [
       files.usePages,
