@@ -1,7 +1,11 @@
 "use client";
 
-import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import {
+  readPendingPageDraft,
+  rememberPendingPageDraft,
+} from "@/lib/pages/pendingPageDrafts";
+import {
+  readPageRouteHandoff,
   rememberPageRouteHandoff,
   type PageRouteHandoffSource,
 } from "@/lib/pages/pageRouteHandoff";
@@ -58,7 +62,10 @@ export function resolveLocalFirstPageNavigationSeed(
   target: LocalFirstPageNavigationTarget
 ): Page | null {
   return typeof target === "string"
-    ? useWorkspaceStore.getState().getPageById(target) ?? null
+    ? (useWorkspaceStore.getState().getPageById(target) ??
+        readPendingPageDraft(target) ??
+        readPageRouteHandoff(target) ??
+        null)
     : target;
 }
 

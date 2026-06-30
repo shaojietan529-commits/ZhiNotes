@@ -21730,6 +21730,18 @@ function run() {
     [
       files.localFirstPageNavigationUtil,
       localFirstPageNavigationUtil,
+      "readPendingPageDraft(target) ??",
+      "Shared page-id navigation must recover short-lived local drafts before falling back to id-only routing.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
+      "readPageRouteHandoff(target) ??",
+      "Shared page-id navigation must recover short-lived metadata handoff before falling back to id-only routing.",
+    ],
+    [
+      files.localFirstPageNavigationUtil,
+      localFirstPageNavigationUtil,
       "const page = resolveLocalFirstPageNavigationSeed(target);",
       "Event-dispatched page navigation must resolve a metadata seed before broadcasting.",
     ],

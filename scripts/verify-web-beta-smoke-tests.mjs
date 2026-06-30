@@ -12569,6 +12569,18 @@ function run() {
   assertIncludes(
     files.localFirstPageNavigationUtil,
     localFirstPageNavigationUtil,
+    "readPendingPageDraft(target) ??",
+    "Shared page-id navigation must recover short-lived local drafts before id-only routing."
+  );
+  assertIncludes(
+    files.localFirstPageNavigationUtil,
+    localFirstPageNavigationUtil,
+    "readPageRouteHandoff(target) ??",
+    "Shared page-id navigation must recover short-lived route handoff metadata before id-only routing."
+  );
+  assertIncludes(
+    files.localFirstPageNavigationUtil,
+    localFirstPageNavigationUtil,
     "const page = resolveLocalFirstPageNavigationSeed(target);",
     "Event-dispatched page navigation must resolve a metadata seed before broadcasting."
   );

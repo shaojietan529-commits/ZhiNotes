@@ -91,6 +91,9 @@ const blockCommentEventsSource = read(
   "src/components/shared/blockCommentEvents.ts"
 );
 const pendingPageDrafts = read("src/lib/pages/pendingPageDrafts.ts");
+const localFirstPageNavigationUtil = read(
+  "src/lib/pages/localFirstPageNavigation.ts"
+);
 const sidebarSource = read("src/components/sidebar/Sidebar.tsx");
 const lazyQuickSearchSource = read("src/components/sidebar/LazyQuickSearch.tsx");
 const quickSearchSource = read("src/components/sidebar/QuickSearch.tsx");
@@ -418,6 +421,18 @@ check(
     pendingPageDrafts.includes("enters_sync_log: false") &&
     !pendingPageDrafts.includes("window.localStorage"),
   "usePage 必须优先读取新建页面的内存/同标签页短时恢复草稿；草稿不得写入 localStorage、云端或同步日志"
+);
+check(
+  localFirstPageNavigationUtil.includes("resolveLocalFirstPageNavigationSeed") &&
+    localFirstPageNavigationUtil.includes("readPendingPageDraft(target) ??") &&
+    localFirstPageNavigationUtil.includes("readPageRouteHandoff(target) ??") &&
+    localFirstPageNavigationUtil.indexOf(
+      "useWorkspaceStore.getState().getPageById(target)"
+    ) <
+      localFirstPageNavigationUtil.indexOf("readPendingPageDraft(target) ??") &&
+    localFirstPageNavigationUtil.indexOf("readPendingPageDraft(target) ??") <
+      localFirstPageNavigationUtil.indexOf("readPageRouteHandoff(target) ??"),
+  "localFirstPageNavigation 必须让 openPage(pageId) 先查内存、本地草稿和路由交接，再退回纯 id 跳转"
 );
 check(
     pageShell.includes("const loadEditorModule = () => import(\"@/components/editor/Editor\")") &&
