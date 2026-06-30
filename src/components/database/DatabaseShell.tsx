@@ -4437,9 +4437,6 @@ function collectDatabaseRelationPageIds(
   const pageIds = new Set(extraPageIds.filter(Boolean));
 
   for (const row of rows) {
-    if (row.page_id) pageIds.add(row.page_id);
-    if (row.page?.id) pageIds.add(row.page.id);
-
     const values = parseFieldValues(row.field_values);
     for (const fieldId of relationFieldIds) {
       for (const relationPageId of normalizeRelationValue(values[fieldId])) {

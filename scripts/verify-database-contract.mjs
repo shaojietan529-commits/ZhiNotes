@@ -544,6 +544,18 @@ function run() {
       "DatabaseShell must open databases from the cloud record set first, keep local SQLite as an editable/cache fallback, and avoid reapplying stale cloud snapshots after local edits."
     );
   }
+  const collectDatabaseRelationPageIdsBody = databaseShell.slice(
+    databaseShell.indexOf("function collectDatabaseRelationPageIds"),
+    databaseShell.indexOf("async function loadDatabaseRelationPages")
+  );
+  for (const snippet of ["row.page_id", "row.page?.id"]) {
+    assertNotIncludes(
+      "collectDatabaseRelationPageIds",
+      collectDatabaseRelationPageIdsBody,
+      snippet,
+      "Database relation metadata hydration must collect only true relation targets; row pages are already included in the row snapshot."
+    );
+  }
   for (const snippet of [
     "limit?: number;",
     "offset?: number;",

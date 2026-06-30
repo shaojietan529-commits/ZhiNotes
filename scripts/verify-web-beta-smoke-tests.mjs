@@ -10470,6 +10470,27 @@ function run() {
   ]) {
     assertIncludes(files.databaseShell, databaseShell, snippet, message);
   }
+  const collectDatabaseRelationPageIdsBody = databaseShell.slice(
+    databaseShell.indexOf("function collectDatabaseRelationPageIds"),
+    databaseShell.indexOf("async function loadDatabaseRelationPages")
+  );
+  for (const [snippet, message] of [
+    [
+      "row.page_id",
+      "Database relation metadata hydration must not requeue row pages; row snapshots already carry their page metadata.",
+    ],
+    [
+      "row.page?.id",
+      "Database relation metadata hydration must not requeue row pages; row snapshots already carry their page metadata.",
+    ],
+  ]) {
+    assertExcludes(
+      "collectDatabaseRelationPageIds",
+      collectDatabaseRelationPageIdsBody,
+      snippet,
+      message
+    );
+  }
   for (const [snippet, message] of [
     [
       'from "@/hooks/usePages"',
