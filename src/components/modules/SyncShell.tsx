@@ -195,6 +195,11 @@ import {
   type WebLaunchWorkbenchPacket,
 } from "@/lib/sync/webLaunchWorkbench";
 import {
+  buildWebBetaTimelineEstimate,
+  type WebBetaTimelineEstimate,
+  type WebBetaTimelineStageStatus,
+} from "@/lib/sync/webBetaTimelineEstimate";
+import {
   buildWebBetaAutonomyQueue,
   type WebBetaAutonomyQueue,
   type WebBetaAutonomyQueueStatus,
@@ -752,6 +757,7 @@ type WebBetaContractAction =
   | "deployment-target"
   | "smoke-test-plan"
   | "web-launch-workbench"
+  | "web-beta-timeline-estimate"
   | "autonomy-queue"
   | "web-alpha-handoff"
   | "web-alpha-launch-decision"
@@ -2823,6 +2829,23 @@ function SyncDashboard() {
     [
       webBetaNextActionPlan,
       webBetaOwnerReviewPacket,
+      webLaunchWorkbenchPacket,
+    ]
+  );
+  const webBetaTimelineEstimate = useMemo(
+    () =>
+      buildWebBetaTimelineEstimate({
+        workbench: webLaunchWorkbenchPacket,
+        cloudSourceOfTruthPlan,
+        cloudNativeFluidityReport,
+        handoffReadiness: syncHandoffReadinessReceipt,
+        autonomyQueue: webBetaAutonomyQueue,
+      }),
+    [
+      cloudNativeFluidityReport,
+      cloudSourceOfTruthPlan,
+      syncHandoffReadinessReceipt,
+      webBetaAutonomyQueue,
       webLaunchWorkbenchPacket,
     ]
   );
@@ -5554,6 +5577,29 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportWebBetaTimelineEstimate = () => {
+    setBusyContractAction("web-beta-timeline-estimate");
+    try {
+      downloadJsonFile(
+        `zhinote-web-beta-timeline-estimate-${fileSafeTimestamp()}.json`,
+        {
+          ...webBetaTimelineEstimate,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export web beta timeline estimate:",
+        err
+      );
+      window.alert(
+        "Web Beta timeline estimate export failed. Please check the console."
+      );
+    } finally {
+      setBusyContractAction(null);
+    }
+  };
+
   const handleExportAutonomyQueue = () => {
     setBusyContractAction("autonomy-queue");
     try {
@@ -6454,6 +6500,13 @@ function SyncDashboard() {
             上传数据、启用同步或启用 AI。
           </p>
         </section>
+
+        <WebBetaTimelineEstimatePanel
+          estimate={webBetaTimelineEstimate}
+          busy={busyContractAction === "web-beta-timeline-estimate"}
+          onExport={handleExportWebBetaTimelineEstimate}
+          onOpenSection={handleWebLaunchSectionOpen}
+        />
 
         <section
           id="web-beta-stage-gate"
@@ -12338,6 +12391,217 @@ function WebLaunchSequenceCard({
         打开步骤
       </button>
     </article>
+  );
+}
+
+function WebBetaTimelineEstimatePanel({
+  estimate,
+  busy,
+  onExport,
+  onOpenSection,
+}: {
+  estimate: WebBetaTimelineEstimate;
+  busy: boolean;
+  onExport: () => void;
+  onOpenSection: (sectionId: string) => void;
+}) {
+  return (
+    <section
+      id="web-beta-timeline-estimate"
+      data-testid="web-beta-timeline-estimate"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Timeline Estimate
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Web Beta 进度和时间估算
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这是本地规划估算：把流畅度、云端主库、Private Beta
+            稳定性、投研模块和 Notion 细节分成阶段。它只读 metadata
+            和门禁计数，不读取正文、文件、密钥或投研内容，也不会连接云端。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出时间线估算"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+        <BetaSummaryCard
+          label="Private Beta"
+          value="2-4 周"
+          detail="本地估算"
+          tone="partial"
+        />
+        <BetaSummaryCard
+          label="平台 v1"
+          value="8-12 周"
+          detail="完整投研平台"
+          tone="partial"
+        />
+        <BetaSummaryCard
+          label="可上线"
+          value={estimate.can_claim_web_beta_ready_now ? "是" : "否"}
+          detail="不能误报"
+          tone="blocked"
+        />
+        <BetaSummaryCard
+          label="云同步"
+          value={estimate.can_enable_cloud_sync_now ? "可启动" : "不可启动"}
+          detail="仍需门禁"
+          tone="blocked"
+        />
+        <BetaSummaryCard
+          label="阻塞阶段"
+          value={estimate.summary.blocked}
+          detail="阶段数量"
+          tone={estimate.summary.blocked > 0 ? "blocked" : "ready"}
+        />
+        <BetaSummaryCard
+          label="本地可做"
+          value={estimate.summary.local_can_continue}
+          detail="阶段数量"
+          tone="partial"
+        />
+        <BetaSummaryCard
+          label="云环境"
+          value={estimate.summary.cloud_setup_needed}
+          detail="需要配置"
+          tone={
+            estimate.summary.cloud_setup_needed > 0
+              ? "manual-confirmation"
+              : "ready"
+          }
+        />
+        <BetaSummaryCard
+          label="handoff"
+          value={estimate.summary.handoff_ready ? "就绪" : "未就绪"}
+          detail="跨设备"
+          tone={estimate.summary.handoff_ready ? "ready" : "blocked"}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-5">
+        {estimate.stages.map((stage) => (
+          <WebBetaTimelineStageCard
+            key={stage.id}
+            stage={stage}
+            onOpenSection={onOpenSection}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
+        <ContractPanel title="下一步">
+          <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            {estimate.next_action}
+          </p>
+        </ContractPanel>
+        <ContractPanel title="验证命令">
+          <div className="flex flex-wrap gap-2">
+            {estimate.required_verification_commands
+              .slice(0, 8)
+              .map((command) => (
+                <span
+                  key={command}
+                  className="rounded-md bg-zinc-50 px-2 py-1 font-mono text-[10px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+                >
+                  {command}
+                </span>
+              ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        {estimate.privacy_boundary}
+      </p>
+    </section>
+  );
+}
+
+function WebBetaTimelineStageCard({
+  stage,
+  onOpenSection,
+}: {
+  stage: WebBetaTimelineEstimate["stages"][number];
+  onOpenSection: (sectionId: string) => void;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {stage.title}
+          </div>
+          <div className="mt-1 text-[11px] text-zinc-400">
+            {stage.target_range}
+          </div>
+        </div>
+        <WebBetaTimelineStatusPill status={stage.status} />
+      </div>
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {stage.current_evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {stage.next_action}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {stage.critical_path ? "关键路径" : "后续增强"}
+        </span>
+        <span className="rounded-md bg-zinc-50 px-2 py-1 text-[10px] text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+          {stage.can_continue_locally ? "可本地继续" : "等待前置条件"}
+        </span>
+        {stage.needs_cloud_setup ? (
+          <span className="rounded-md bg-amber-50 px-2 py-1 text-[10px] text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            需要云配置
+          </span>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={() => onOpenSection(stage.target_section_id)}
+        className="mt-3 rounded-md border border-zinc-200 px-2 py-1 text-[10px] font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+      >
+        打开相关面板
+      </button>
+    </article>
+  );
+}
+
+function WebBetaTimelineStatusPill({
+  status,
+}: {
+  status: WebBetaTimelineStageStatus;
+}) {
+  const labels: Record<WebBetaTimelineStageStatus, string> = {
+    "in-progress": "推进中",
+    blocked: "阻塞",
+    "owner-decision": "待决策",
+    future: "后续",
+  };
+  const className =
+    status === "in-progress"
+      ? "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+      : status === "owner-decision"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : status === "blocked"
+          ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+          : "bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400";
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 

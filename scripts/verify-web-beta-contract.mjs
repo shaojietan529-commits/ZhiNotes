@@ -106,6 +106,7 @@ const files = {
   webBetaStageGate: "src/lib/sync/webBetaStageGate.ts",
   webBetaNextActions: "src/lib/sync/webBetaNextActions.ts",
   webLaunchWorkbench: "src/lib/sync/webLaunchWorkbench.ts",
+  webBetaTimelineEstimate: "src/lib/sync/webBetaTimelineEstimate.ts",
   webBetaAutonomyQueue: "src/lib/sync/webBetaAutonomyQueue.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
@@ -569,6 +570,9 @@ function run() {
   const webBetaStageGate = readProjectFile(files.webBetaStageGate);
   const webBetaNextActions = readProjectFile(files.webBetaNextActions);
   const webLaunchWorkbench = readProjectFile(files.webLaunchWorkbench);
+  const webBetaTimelineEstimate = readProjectFile(
+    files.webBetaTimelineEstimate
+  );
   const webBetaAutonomyQueue = readProjectFile(files.webBetaAutonomyQueue);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const cloudNativeFluidityReport = readProjectFile(
@@ -870,6 +874,7 @@ function run() {
     [files.webBetaStageGate, webBetaStageGate],
     [files.webBetaNextActions, webBetaNextActions],
     [files.webLaunchWorkbench, webLaunchWorkbench],
+    [files.webBetaTimelineEstimate, webBetaTimelineEstimate],
     [files.webBetaAutonomyQueue, webBetaAutonomyQueue],
     [files.cloudMasterReconcile, cloudMasterReconcile],
     [files.localFirstCloudInputPlan, localFirstCloudInputPlan],
@@ -15437,6 +15442,179 @@ function run() {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
   assertSourceIncludes(
+    files.webBetaTimelineEstimate,
+    webBetaTimelineEstimate,
+    'format: "zhinote-web-beta-timeline-estimate"',
+    "Web Beta timeline estimate must expose a stable export format."
+  );
+  assertSourceIncludes(
+    files.webBetaTimelineEstimate,
+    webBetaTimelineEstimate,
+    "buildWebBetaTimelineEstimate",
+    "Web Beta timeline estimate must expose a reusable builder."
+  );
+  for (const [snippet, message] of [
+    [
+      'estimate_status: "local-planning-estimate-only"',
+      "Web Beta timeline estimate must remain local-planning-only.",
+    ],
+    [
+      'private_beta_range: "2-4 weeks"',
+      "Web Beta timeline estimate must preserve the private beta range.",
+    ],
+    [
+      'full_platform_v1_range: "8-12 weeks"',
+      "Web Beta timeline estimate must preserve the full platform v1 range.",
+    ],
+    [
+      "can_claim_web_beta_ready_now: false",
+      "Web Beta timeline estimate must not claim beta readiness.",
+    ],
+    [
+      "can_claim_full_platform_ready_now: false",
+      "Web Beta timeline estimate must not claim full platform readiness.",
+    ],
+    [
+      "can_enable_cloud_sync_now: false",
+      "Web Beta timeline estimate must not enable cloud sync.",
+    ],
+    [
+      "reads_workbench_metadata: true",
+      "Web Beta timeline estimate must read workbench metadata only.",
+    ],
+    [
+      "reads_cloud_source_of_truth_metadata: true",
+      "Web Beta timeline estimate must read cloud source-of-truth metadata.",
+    ],
+    [
+      "reads_fluidity_metadata: true",
+      "Web Beta timeline estimate must read fluidity metadata.",
+    ],
+    [
+      "reads_handoff_readiness_metadata: true",
+      "Web Beta timeline estimate must read handoff readiness metadata.",
+    ],
+    [
+      "reads_autonomy_queue_metadata: true",
+      "Web Beta timeline estimate must read autonomy queue metadata.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Web Beta timeline estimate must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Web Beta timeline estimate must not read database row values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Web Beta timeline estimate must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Web Beta timeline estimate must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Web Beta timeline estimate must not read secrets.",
+    ],
+    [
+      "reads_holdings_or_trading_plans: false",
+      "Web Beta timeline estimate must not read holdings or trading plans.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Web Beta timeline estimate must not connect cloud services.",
+    ],
+    [
+      "deploys_app: false",
+      "Web Beta timeline estimate must not deploy the app.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Web Beta timeline estimate must not upload workspace data.",
+    ],
+    [
+      "enables_sync: false",
+      "Web Beta timeline estimate must not enable sync.",
+    ],
+    [
+      "local-fluency",
+      "Web Beta timeline estimate must include local fluency.",
+    ],
+    [
+      "cloud-source-of-truth",
+      "Web Beta timeline estimate must include cloud source of truth.",
+    ],
+    [
+      "private-beta-hardening",
+      "Web Beta timeline estimate must include private beta hardening.",
+    ],
+    [
+      "investment-workflows-v1",
+      "Web Beta timeline estimate must include investment workflows v1.",
+    ],
+    [
+      "notion-parity-polish",
+      "Web Beta timeline estimate must include Notion parity polish.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.webBetaTimelineEstimate,
+      webBetaTimelineEstimate,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildWebBetaTimelineEstimate",
+      "Sync UI must build the Web Beta timeline estimate.",
+    ],
+    [
+      "handleExportWebBetaTimelineEstimate",
+      "Sync UI must export the Web Beta timeline estimate.",
+    ],
+    [
+      "Web Beta 进度和时间估算",
+      "Sync UI must render the Web Beta timeline estimate panel.",
+    ],
+    [
+      "导出时间线估算",
+      "Sync UI must expose the Web Beta timeline export.",
+    ],
+    [
+      'id="web-beta-timeline-estimate"',
+      "Sync UI must expose a stable Web Beta timeline section id.",
+    ],
+    [
+      'data-testid="web-beta-timeline-estimate"',
+      "Sync UI must expose a stable Web Beta timeline test id.",
+    ],
+    [
+      "WebBetaTimelineEstimatePanel",
+      "Sync UI must include a Web Beta timeline panel component.",
+    ],
+    [
+      "WebBetaTimelineStageCard",
+      "Sync UI must render timeline stage cards.",
+    ],
+    [
+      "WebBetaTimelineStatusPill",
+      "Sync UI must label timeline stage status.",
+    ],
+    [
+      "2-4 周",
+      "Sync UI must show the private beta estimate in Chinese.",
+    ],
+    [
+      "8-12 周",
+      "Sync UI must show the full platform estimate in Chinese.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  assertSourceIncludes(
     files.webBetaAutonomyQueue,
     webBetaAutonomyQueue,
     'format: "zhinote-web-beta-autonomy-queue"',
@@ -23505,6 +23683,7 @@ function run() {
     permission_server_readiness_checks: 29,
     web_beta_stage_gate_checks: 35,
     web_launch_workbench_checks: 73,
+    web_beta_timeline_estimate_checks: 42,
     web_beta_autonomy_queue_checks: 37,
     web_alpha_launch_decision_checks: 39,
     web_beta_owner_review_packet_checks: 40,
