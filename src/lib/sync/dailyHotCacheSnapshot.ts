@@ -203,6 +203,7 @@ export function writeDailyHotCacheSnapshot(input: {
 
   try {
     const key = dailyHotCacheSnapshotKey(input.startDate, input.endDate);
+    if (!shouldWriteDailyHotCacheSnapshot(key, snapshot)) return snapshot;
     window.localStorage.setItem(key, JSON.stringify(snapshot));
     writeDailyHotCacheSnapshotIndex(window.localStorage, snapshot, key);
     return snapshot;
@@ -232,6 +233,55 @@ export function dailyHotCacheSnapshotPageToPage(
     deleted_at: page.deleted_at,
     sync_version: 0,
   };
+}
+
+function shouldWriteDailyHotCacheSnapshot(
+  key: string,
+  snapshot: DailyHotCacheSnapshot
+): boolean {
+  const current = readDailyHotCacheSnapshotForWrite(key);
+  if (!current) return true;
+  if (isExpiredDailyHotCacheSnapshot(current)) return true;
+  return (
+    buildDailyHotCacheSnapshotSignature(current) !==
+    buildDailyHotCacheSnapshotSignature(snapshot)
+  );
+}
+
+function readDailyHotCacheSnapshotForWrite(
+  key: string
+): DailyHotCacheSnapshot | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DailyHotCacheSnapshot>;
+    if (!isDailyHotCacheSnapshotShape(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function buildDailyHotCacheSnapshotSignature(
+  snapshot: DailyHotCacheSnapshot
+): string {
+  return JSON.stringify(stableDailyHotCacheSnapshotValue(snapshot));
+}
+
+function stableDailyHotCacheSnapshotValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => stableDailyHotCacheSnapshotValue(item));
+  }
+  if (!value || typeof value !== "object") return value;
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(value).sort()) {
+    if (key === "cached_at") continue;
+    const nextValue = (value as Record<string, unknown>)[key];
+    if (typeof nextValue !== "undefined") {
+      result[key] = stableDailyHotCacheSnapshotValue(nextValue);
+    }
+  }
+  return result;
 }
 
 function dailyHotCacheSnapshotKey(startDate: string, endDate: string): string {

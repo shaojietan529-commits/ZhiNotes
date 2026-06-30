@@ -4730,6 +4730,24 @@ function run() {
   assertIncludes(
     files.meetingHotCacheSnapshot,
     meetingHotCacheSnapshot,
+    "shouldWriteMeetingHotCacheSnapshot",
+    "Meeting hot cache writes must skip unchanged fresh snapshots to reduce localStorage churn."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "buildMeetingHotCacheSnapshotSignature",
+    "Meeting hot cache writes must compare stable snapshot signatures before rewriting browser storage."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "if (!shouldWriteMeetingHotCacheSnapshot(key, snapshot)) return snapshot;",
+    "Meeting hot cache writes must bypass both snapshot and index rewrites when the cached metadata is unchanged."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
     "page.meeting_date_key >= input.startDate",
     "Meeting hot cache snapshot writes must keep only the requested calendar range."
   );
@@ -4912,6 +4930,24 @@ function run() {
     dailyHotCacheSnapshot,
     "writeDailyHotCacheSnapshotIndex(window.localStorage, snapshot, key)",
     "Daily hot cache writes must refresh the metadata index."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "shouldWriteDailyHotCacheSnapshot",
+    "Daily hot cache writes must skip unchanged fresh snapshots to reduce localStorage churn."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "buildDailyHotCacheSnapshotSignature",
+    "Daily hot cache writes must compare stable snapshot signatures before rewriting browser storage."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "if (!shouldWriteDailyHotCacheSnapshot(key, snapshot)) return snapshot;",
+    "Daily hot cache writes must bypass both snapshot and index rewrites when the cached metadata is unchanged."
   );
   if (dailyHotCacheSnapshot.includes("storage.key(")) {
     failures.push(

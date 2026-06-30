@@ -2167,6 +2167,18 @@ function run() {
       "Daily hot cache writes must refresh the metadata index.",
     ],
     [
+      "shouldWriteDailyHotCacheSnapshot",
+      "Daily hot cache writes must skip unchanged fresh snapshots to reduce localStorage churn.",
+    ],
+    [
+      "buildDailyHotCacheSnapshotSignature",
+      "Daily hot cache writes must compare stable snapshot signatures before rewriting browser storage.",
+    ],
+    [
+      "if (!shouldWriteDailyHotCacheSnapshot(key, snapshot)) return snapshot;",
+      "Daily hot cache writes must bypass both snapshot and index rewrites when the cached metadata is unchanged.",
+    ],
+    [
       "isDailyHotCacheSnapshotPageInRange(page, input.startDate, input.endDate)",
       "Daily hot cache snapshot writes must keep only the requested calendar range.",
     ],
@@ -2716,6 +2728,18 @@ function run() {
     [
       "writeMeetingHotCacheSnapshotIndex(window.localStorage, snapshot, key)",
       "Meeting hot cache writes must refresh the metadata index.",
+    ],
+    [
+      "shouldWriteMeetingHotCacheSnapshot",
+      "Meeting hot cache writes must skip unchanged fresh snapshots to reduce localStorage churn.",
+    ],
+    [
+      "buildMeetingHotCacheSnapshotSignature",
+      "Meeting hot cache writes must compare stable snapshot signatures before rewriting browser storage.",
+    ],
+    [
+      "if (!shouldWriteMeetingHotCacheSnapshot(key, snapshot)) return snapshot;",
+      "Meeting hot cache writes must bypass both snapshot and index rewrites when the cached metadata is unchanged.",
     ],
     [
       "stores_join_url: false",

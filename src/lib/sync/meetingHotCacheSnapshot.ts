@@ -221,6 +221,7 @@ export function writeMeetingHotCacheSnapshot(input: {
 
   try {
     const key = meetingHotCacheSnapshotKey(input.startDate, input.endDate);
+    if (!shouldWriteMeetingHotCacheSnapshot(key, snapshot)) return snapshot;
     window.localStorage.setItem(key, JSON.stringify(snapshot));
     writeMeetingHotCacheSnapshotIndex(window.localStorage, snapshot, key);
     return snapshot;
@@ -250,6 +251,55 @@ export function meetingHotCacheSnapshotPageToPage(
     deleted_at: page.deleted_at,
     sync_version: 0,
   };
+}
+
+function shouldWriteMeetingHotCacheSnapshot(
+  key: string,
+  snapshot: MeetingHotCacheSnapshot
+): boolean {
+  const current = readMeetingHotCacheSnapshotForWrite(key);
+  if (!current) return true;
+  if (isExpiredMeetingHotCacheSnapshot(current)) return true;
+  return (
+    buildMeetingHotCacheSnapshotSignature(current) !==
+    buildMeetingHotCacheSnapshotSignature(snapshot)
+  );
+}
+
+function readMeetingHotCacheSnapshotForWrite(
+  key: string
+): MeetingHotCacheSnapshot | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<MeetingHotCacheSnapshot>;
+    if (!isMeetingHotCacheSnapshotShape(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function buildMeetingHotCacheSnapshotSignature(
+  snapshot: MeetingHotCacheSnapshot
+): string {
+  return JSON.stringify(stableMeetingHotCacheSnapshotValue(snapshot));
+}
+
+function stableMeetingHotCacheSnapshotValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => stableMeetingHotCacheSnapshotValue(item));
+  }
+  if (!value || typeof value !== "object") return value;
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(value).sort()) {
+    if (key === "cached_at") continue;
+    const nextValue = (value as Record<string, unknown>)[key];
+    if (typeof nextValue !== "undefined") {
+      result[key] = stableMeetingHotCacheSnapshotValue(nextValue);
+    }
+  }
+  return result;
 }
 
 function meetingHotCacheSnapshotKey(startDate: string, endDate: string): string {
