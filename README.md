@@ -1273,6 +1273,17 @@ Current local actions:
   samples, and cache rebuild blockers are clean enough to enter owner review,
   while keeping real cloud source-of-truth enablement disabled until explicit
   owner confirmation.
+- Review and export a local cloud source-of-truth plan. The plan maps pages,
+  databases, files, daily/meeting calendars, comments, versions, settings,
+  sync ACKs, permissions, audit, and AI output into a cloud-master plus
+  user-selected-local-copy matrix. It treats the cloud as the future source of
+  truth and the browser as a hot local copy, while keeping cutover, local cache
+  clearing, uploads, AI, and server writes disabled until durable ACK,
+  permission, audit, file storage, and owner-confirmation gates are proven. It
+  reads only metadata counts, sync queue status, workspace-link metadata, and
+  hot-cache policy metadata; it does not read page bodies, database row values,
+  comment bodies, file names, file bytes, secrets, tokens, remote data, or AI
+  payloads.
 - Inspect page/database pending queues with ACK-style retry visibility:
   last upload attempt time, failed receipt count, latest failure reason, and a
   small failed id/key sample. This is still metadata-only: it does not read page

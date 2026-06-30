@@ -311,6 +311,12 @@ import {
   type LocalFirstCloudInputVerdict,
 } from "@/lib/sync/localFirstCloudInputPlan";
 import {
+  buildCloudSourceOfTruthPlan,
+  type CloudSourceOfTruthDomain,
+  type CloudSourceOfTruthDomainStatus,
+  type CloudSourceOfTruthPlan,
+} from "@/lib/sync/cloudSourceOfTruthPlan";
+import {
   buildCloudUploadReliabilityReport,
   type CloudUploadReliabilityGateStatus,
   type CloudUploadReliabilityReport,
@@ -557,6 +563,7 @@ type SyncQueueAction =
   | "restore-apply-api-guard"
   | "restore-confirmation"
   | "local-first-cloud-input-plan"
+  | "cloud-source-of-truth-plan"
   | "replay-test-plan";
 type PendingDomainId =
   | "pages"
@@ -1930,6 +1937,40 @@ function SyncDashboard() {
       syncDrainReceipt,
       syncPushApiGuard,
       syncSummary,
+    ]
+  );
+  const cloudSourceOfTruthPlan = useMemo(
+    () =>
+      buildCloudSourceOfTruthPlan({
+        pages,
+        deletedPages,
+        databases,
+        files: storedFiles,
+        pageVersions: pageModuleTotals.versions,
+        pageComments: pageModuleTotals.pageComments,
+        blockComments: pageModuleTotals.blockComments,
+        wikiLinks: pageModuleTotals.wikiLinks,
+        workspaceSettings: workspaceSettings.length,
+        accountSettings: accountSettings.length,
+        moduleSettings: moduleSettings.length,
+        syncSummary,
+        workspaceIdentity,
+        hotCachePolicyPlan,
+        localFirstCloudInputPlan,
+      }),
+    [
+      accountSettings.length,
+      databases,
+      deletedPages,
+      hotCachePolicyPlan,
+      localFirstCloudInputPlan,
+      moduleSettings.length,
+      pageModuleTotals,
+      pages,
+      storedFiles,
+      syncSummary,
+      workspaceIdentity,
+      workspaceSettings.length,
     ]
   );
   const syncPullApiGuard = useMemo(
@@ -5533,6 +5574,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportCloudSourceOfTruthPlan = () => {
+    setBusyQueueAction("cloud-source-of-truth-plan");
+    try {
+      downloadJsonFile(
+        `zhinote-cloud-source-of-truth-plan-${fileSafeTimestamp()}.json`,
+        {
+          ...cloudSourceOfTruthPlan,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export cloud source-of-truth plan:",
+        err
+      );
+      window.alert("云端主库策略导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportWebBetaReadiness = () => {
     setBusyContractAction("readiness");
     try {
@@ -5860,6 +5922,12 @@ function SyncDashboard() {
           busy={busyQueueAction === "local-first-cloud-input-plan"}
           onExport={handleExportLocalFirstCloudInputPlan}
           onOpenAccount={() => router.push("/account")}
+        />
+
+        <CloudSourceOfTruthPlanPanel
+          plan={cloudSourceOfTruthPlan}
+          busy={busyQueueAction === "cloud-source-of-truth-plan"}
+          onExport={handleExportCloudSourceOfTruthPlan}
         />
 
         <CloudUploadReliabilityPanel
@@ -11289,6 +11357,200 @@ function HotDataPolicyRow({
       </p>
     </article>
   );
+}
+
+function CloudSourceOfTruthPlanPanel({
+  plan,
+  busy,
+  onExport,
+}: {
+  plan: CloudSourceOfTruthPlan;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="cloud-source-of-truth-plan"
+      data-testid="cloud-source-of-truth-plan"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Cloud Source Map
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            全域云端主库与本地副本
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这张矩阵把页面、数据库、文件、会议、评论、版本、设置和同步账本拆成
+            云端主库与本地副本两层。目标是所有真实数据最终以云端为准，常用内容按
+            你的选择留在本机做高速副本；当前报告只读 metadata count、同步状态和热缓存策略。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出云端主库策略"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <BetaSummaryCard
+          label="数据域"
+          value={plan.summary.domains}
+          detail="全域矩阵"
+          tone="partial"
+        />
+        <BetaSummaryCard
+          label="云端就绪"
+          value={plan.summary.cloud_master_ready}
+          detail="metadata 级"
+          tone={plan.summary.cloud_master_ready > 0 ? "ready" : "partial"}
+        />
+        <BetaSummaryCard
+          label="本地缓冲"
+          value={plan.summary.local_buffer_ready}
+          detail="可继续输入"
+          tone="ready"
+        />
+        <BetaSummaryCard
+          label="需云运行时"
+          value={plan.summary.needs_cloud_runtime}
+          detail="待实现"
+          tone="manual-confirmation"
+        />
+        <BetaSummaryCard
+          label="可选本地副本"
+          value={plan.summary.user_selectable_local_copy_domains}
+          detail="由你选择"
+          tone="partial"
+        />
+        <BetaSummaryCard
+          label="清缓存"
+          value={plan.summary.can_clear_local_cache_now ? "可" : "不可"}
+          detail="ACK 前禁止"
+          tone="blocked"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        {plan.domains.map((domain) => (
+          <CloudSourceOfTruthDomainCard key={domain.id} domain={domain} />
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+        {plan.next_action}
+      </div>
+    </section>
+  );
+}
+
+function CloudSourceOfTruthDomainCard({
+  domain,
+}: {
+  domain: CloudSourceOfTruthDomain;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 p-3 text-xs dark:border-zinc-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {domain.title}
+          </h3>
+          <p className="mt-1 font-mono text-[10px] text-zinc-400">
+            {domain.id}
+          </p>
+        </div>
+        <CloudSourceOfTruthStatusPill status={domain.status} />
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <IdentityMetric
+          label="本地证据"
+          value={`${domain.local_evidence_count}`}
+          detail="metadata count"
+        />
+        <IdentityMetric
+          label="本地副本"
+          value={domain.user_selectable_local_copy ? "可选择" : "系统策略"}
+          detail="hot copy"
+        />
+      </div>
+
+      <dl className="mt-3 space-y-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            云端主库
+          </dt>
+          <dd>{domain.cloud_master}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-zinc-700 dark:text-zinc-200">
+            本地副本规则
+          </dt>
+          <dd>{domain.local_copy_policy}</dd>
+        </div>
+      </dl>
+
+      {domain.blocked_by.length > 0 && (
+        <div className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          阻塞：{domain.blocked_by.join("；")}
+        </div>
+      )}
+
+      <p className="mt-3 leading-5 text-zinc-500 dark:text-zinc-400">
+        {domain.next_action}
+      </p>
+    </article>
+  );
+}
+
+function CloudSourceOfTruthStatusPill({
+  status,
+}: {
+  status: CloudSourceOfTruthDomainStatus;
+}) {
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${cloudSourceOfTruthStatusClass(
+        status
+      )}`}
+    >
+      {formatCloudSourceOfTruthStatus(status)}
+    </span>
+  );
+}
+
+function formatCloudSourceOfTruthStatus(
+  status: CloudSourceOfTruthDomainStatus
+) {
+  const labels: Record<CloudSourceOfTruthDomainStatus, string> = {
+    "cloud-master-ready": "云端就绪",
+    "local-buffer-ready": "本地缓冲",
+    "needs-cloud-runtime": "需云运行时",
+    blocked: "阻塞",
+  };
+  return labels[status];
+}
+
+function cloudSourceOfTruthStatusClass(
+  status: CloudSourceOfTruthDomainStatus
+) {
+  const classes: Record<CloudSourceOfTruthDomainStatus, string> = {
+    "cloud-master-ready":
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    "local-buffer-ready":
+      "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    "needs-cloud-runtime":
+      "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    blocked: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+  };
+  return classes[status];
 }
 
 function LaunchDecisionMetric({

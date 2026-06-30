@@ -26,6 +26,7 @@ const files = {
   filePresignApiStub: "src/lib/sync/filePresignApiStub.ts",
   filePresignRoute: "src/app/api/files/presign/route.ts",
   hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
+  cloudSourceOfTruthPlan: "src/lib/sync/cloudSourceOfTruthPlan.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   smokeTestVerifier: "scripts/verify-web-beta-smoke-tests.mjs",
   routeSmokeVerifier: "scripts/verify-route-smoke.mjs",
@@ -413,6 +414,9 @@ function run() {
   const filePresignApiStub = readProjectFile(files.filePresignApiStub);
   const filePresignRoute = readProjectFile(files.filePresignRoute);
   const hotDataPlan = readProjectFile(files.hotDataPlan);
+  const cloudSourceOfTruthPlan = readProjectFile(
+    files.cloudSourceOfTruthPlan
+  );
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const smokeTestVerifier = readProjectFile(files.smokeTestVerifier);
   const routeSmokeVerifier = readProjectFile(files.routeSmokeVerifier);
@@ -17852,6 +17856,91 @@ function run() {
     "usePageFavorites",
     "Sync UI must include local favorites in the hot data plan."
   );
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-cloud-source-of-truth-plan"',
+      "Cloud source-of-truth plan must expose a stable format.",
+    ],
+    [
+      'architecture_target: "cloud-master-user-selected-local-copy"',
+      "Cloud source-of-truth plan must align with cloud master plus user-selected local copies.",
+    ],
+    [
+      "plan_status: \"metadata-only-cloud-master-map\"",
+      "Cloud source-of-truth plan must stay metadata-only.",
+    ],
+    [
+      "can_switch_to_cloud_master_now: false",
+      "Cloud source-of-truth plan must not claim cloud master cutover is ready.",
+    ],
+    [
+      "can_clear_local_cache_now: false",
+      "Cloud source-of-truth plan must not allow clearing local cache before durable ACKs.",
+    ],
+    [
+      "user_selectable_local_copy",
+      "Cloud source-of-truth plan must model user-selectable local copies.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud source-of-truth plan must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud source-of-truth plan must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud source-of-truth plan must not read file bytes.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Cloud source-of-truth plan must not send network requests.",
+    ],
+    [
+      "mutates_local_cache: false",
+      "Cloud source-of-truth plan must not mutate local cache.",
+    ],
+    [
+      "buildCloudSourceOfTruthPlan",
+      "Cloud source-of-truth plan builder must be exported.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.cloudSourceOfTruthPlan,
+      cloudSourceOfTruthPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCloudSourceOfTruthPlan",
+      "Sync UI must build the cloud source-of-truth plan.",
+    ],
+    [
+      "CloudSourceOfTruthPlanPanel",
+      "Sync UI must render the cloud source-of-truth panel.",
+    ],
+    [
+      "cloud-source-of-truth-plan",
+      "Sync UI must provide a stable cloud source-of-truth panel anchor.",
+    ],
+    [
+      "全域云端主库与本地副本",
+      "Sync UI must expose the cloud source-of-truth section.",
+    ],
+    [
+      "导出云端主库策略",
+      "Sync UI must expose the cloud source-of-truth export.",
+    ],
+    [
+      "所有真实数据最终以云端为准",
+      "Sync UI must state the cloud-master architecture target.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
 
   const expectedPageRoutes = routeCalls.filter(
     (route) => route.surface === "workspace" || route.surface === "module"

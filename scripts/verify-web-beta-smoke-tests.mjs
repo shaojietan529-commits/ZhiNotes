@@ -10,6 +10,7 @@ const files = {
   packageJson: "package.json",
   routeSmokeVerifier: "scripts/verify-route-smoke.mjs",
   hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
+  cloudSourceOfTruthPlan: "src/lib/sync/cloudSourceOfTruthPlan.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   cloudMasterReconcile: "src/lib/sync/cloudMasterReconcile.ts",
   cloudNativeFluidityReport: "src/lib/sync/cloudNativeFluidityReport.ts",
@@ -345,6 +346,9 @@ function run() {
   const packageJson = JSON.parse(readProjectFile(files.packageJson));
   const routeSmokeVerifier = readProjectFile(files.routeSmokeVerifier);
   const hotDataPlan = readProjectFile(files.hotDataPlan);
+  const cloudSourceOfTruthPlan = readProjectFile(
+    files.cloudSourceOfTruthPlan
+  );
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const cloudMasterReconcile = readProjectFile(files.cloudMasterReconcile);
   const cloudNativeFluidityReport = readProjectFile(
@@ -1978,6 +1982,63 @@ function run() {
     [
       "等待 durable ack",
       "Sync UI must distinguish local save from durable cloud acknowledgement.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-cloud-source-of-truth-plan"',
+      "Cloud source-of-truth plan must expose a stable format.",
+    ],
+    [
+      'architecture_target: "cloud-master-user-selected-local-copy"',
+      "Cloud source-of-truth plan must align with cloud master plus user-selected local copies.",
+    ],
+    [
+      "can_clear_local_cache_now: false",
+      "Cloud source-of-truth plan must not allow clearing local cache before durable ACKs.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud source-of-truth plan must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Cloud source-of-truth plan must not read database row values.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Cloud source-of-truth plan must not send network requests.",
+    ],
+    [
+      "user_selectable_local_copy",
+      "Cloud source-of-truth plan must model user-selectable local copies.",
+    ],
+  ]) {
+    assertIncludes(
+      files.cloudSourceOfTruthPlan,
+      cloudSourceOfTruthPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCloudSourceOfTruthPlan",
+      "Sync UI must build the cloud source-of-truth plan.",
+    ],
+    [
+      "cloud-source-of-truth-plan",
+      "Sync UI must render the cloud source-of-truth panel.",
+    ],
+    [
+      "全域云端主库与本地副本",
+      "Sync UI must expose the cloud source-of-truth section.",
+    ],
+    [
+      "导出云端主库策略",
+      "Sync UI must expose the cloud source-of-truth export.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);
