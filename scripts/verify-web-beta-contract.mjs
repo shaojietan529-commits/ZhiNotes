@@ -4068,8 +4068,24 @@ function run() {
       "Page shell must slow idle page-sync polling so background status checks do not drag page opens.",
     ],
     [
+      'PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync."',
+      "Page shell sync badge must restrict storage refreshes to page-sync keys.",
+    ],
+    [
       "scheduleStatusRefresh",
       "Page shell sync status refresh must be scheduled adaptively instead of using a fixed interval.",
+    ],
+    [
+      "function isPageSyncStorageEvent(",
+      "Page shell sync badge must centralize storage-event filtering.",
+    ],
+    [
+      "event.key.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)",
+      "Page shell sync badge must ignore unrelated localStorage churn from hot caches or diagnostics.",
+    ],
+    [
+      'window.addEventListener("storage", handleStorageRefresh)',
+      "Page shell storage listener must use the filtered sync-status handler.",
     ],
     [
       "document.addEventListener(\"visibilitychange\", handleVisibleRefresh)",

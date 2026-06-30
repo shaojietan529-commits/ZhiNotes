@@ -1743,8 +1743,9 @@ check(
   "PageShell 正文保存后应合并最新正文并延迟重建 wiki 链接和自动版本快照，避免编辑输入路径被关系索引和版本比较拖慢"
 );
 check(
-  pageShell.includes("PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000") &&
+    pageShell.includes("PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000") &&
     pageShell.includes("PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000") &&
+    pageShell.includes('PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync."') &&
     pageShell.includes(
       'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
     ) &&
@@ -1753,6 +1754,9 @@ check(
       "const { getPendingCloudPageSyncStatus, isCloudPagePendingSync } ="
     ) &&
     pageShell.includes("scheduleStatusRefresh") &&
+    pageShell.includes("function isPageSyncStorageEvent(") &&
+    pageShell.includes("event.key.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)") &&
+    pageShell.includes('window.addEventListener("storage", handleStorageRefresh)') &&
     pageShell.includes(
       'document.addEventListener("visibilitychange", handleVisibleRefresh)'
     ) &&

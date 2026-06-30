@@ -90,6 +90,7 @@ const loadPageSnapshotUpdatesModule = () =>
   import("@/lib/pages/pageSnapshotUpdates");
 const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
 const PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status";
+const PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync.";
 const PAGE_EDITOR_IDLE_TIMEOUT_MS = 120;
 const PAGE_METADATA_ONLY_EDITOR_DELAY_MS = 420;
 const PAGE_METADATA_ONLY_EDITOR_IDLE_TIMEOUT_MS = 900;
@@ -411,16 +412,21 @@ function PageContent({ pageId }: { pageId: string }) {
         handleStatusRefresh();
       }
     };
+    const handleStorageRefresh = (event: StorageEvent) => {
+      if (isPageSyncStorageEvent(event)) {
+        handleStatusRefresh(event);
+      }
+    };
     cancelInitialRefresh =
       schedulePageSyncStatusInitialRefresh(handleStatusRefresh);
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleStatusRefresh);
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleStatusRefresh);
-    window.addEventListener("storage", handleStatusRefresh);
+    window.addEventListener("storage", handleStorageRefresh);
     document.addEventListener("visibilitychange", handleVisibleRefresh);
     return () => {
       window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleStatusRefresh);
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleStatusRefresh);
-      window.removeEventListener("storage", handleStatusRefresh);
+      window.removeEventListener("storage", handleStorageRefresh);
       document.removeEventListener("visibilitychange", handleVisibleRefresh);
       cancelled = true;
       cancelInitialRefresh();
@@ -1829,6 +1835,13 @@ function schedulePageSyncStatusInitialRefresh(callback: () => void): () => void 
     if (idleId !== null) maybeWindow.cancelIdleCallback?.(idleId);
     if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
   };
+}
+
+function isPageSyncStorageEvent(event: StorageEvent): boolean {
+  return (
+    event.key === null ||
+    event.key.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)
+  );
 }
 
 function scheduleEditorMount(

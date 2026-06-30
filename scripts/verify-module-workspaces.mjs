@@ -571,6 +571,7 @@ check(
     accountPageSync.includes("export function isCloudPagePendingSync") &&
     accountPageSync.includes("emitPageSyncStatusChanged();") &&
     pageShell.includes("PAGE_SYNC_STATUS_EVENT") &&
+    pageShell.includes('PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync."') &&
     pageShell.includes(
       'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
     ) &&
@@ -581,6 +582,9 @@ check(
     !pageShell.includes("import {\n  getPendingCloudPageSyncStatus") &&
     pageShell.includes("getPendingCloudPageSyncStatus") &&
     pageShell.includes("isCloudPagePendingSync(pageId)") &&
+    pageShell.includes("function isPageSyncStorageEvent(") &&
+    pageShell.includes("event.key.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)") &&
+    pageShell.includes('window.addEventListener("storage", handleStorageRefresh)') &&
     pageShell.includes("currentPagePendingSync") &&
     pageShell.includes("PageSyncStatusBadge") &&
     pageShell.includes("buildPageCloudSaveStatus") &&
