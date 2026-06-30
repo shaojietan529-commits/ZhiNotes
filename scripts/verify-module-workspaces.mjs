@@ -1355,6 +1355,8 @@ check(
     shells.schedule.includes('prepareMeetingPageOpen(page, "meeting-create")') &&
     shells.schedule.includes("setPeekInitialPage(page)") &&
     shells.schedule.includes("setPeekPageId(page.id)") &&
+    shells.schedule.includes('status: "meeting-create-local-shell-requested"') &&
+    shells.schedule.includes("local_handoff_seeded: 1") &&
     shells.schedule.includes("const seededPage = getMeetingPageOpenSeed(page)") &&
     shells.schedule.includes("rememberPendingPageDraft(seededPage)") &&
     shells.schedule.includes("rememberPageRouteHandoff(seededPage, source)") &&

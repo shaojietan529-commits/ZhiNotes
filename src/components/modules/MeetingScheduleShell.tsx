@@ -1494,6 +1494,8 @@ export default function MeetingScheduleShell() {
       draft: MeetingFormState,
       options: CreateMeetingOptions = {}
     ): CreateMeetingResult => {
+      const createStartedAt = getLocalPerformanceNow();
+      const createStartedAtIso = new Date().toISOString();
       const optimisticRootId = rootId ?? getModuleRootIdSync("meeting-schedule");
       const topic = draft.topic.trim() || "未命名会议";
       const organizer = draft.organizer.trim();
@@ -1683,6 +1685,29 @@ export default function MeetingScheduleShell() {
       setOpeningMeetingId(optimisticPage.id);
       rememberPendingPageDraft(optimisticPage);
       rememberPageRouteHandoff(optimisticPage, "meeting-create");
+      warmMeetingPeekOpen();
+      setSelectedMeeting(null);
+      setRunNowMessage("");
+      setPeekInitialPage(optimisticPage);
+      setPeekPageId(optimisticPage.id);
+      const localShellRequestedMs =
+        getLocalPerformanceNow() - createStartedAt;
+      recordLocalPerformanceSnapshot({
+        kind: "page-peek",
+        label: "会议新建本地草稿",
+        route: "/page/[pageId]#peek",
+        status: "meeting-create-local-shell-requested",
+        startedAt: createStartedAtIso,
+        durationMs: localShellRequestedMs,
+        localFirstMs: localShellRequestedMs,
+        backgroundMs: 0,
+        counts: {
+          optimistic_draft: 1,
+          property_count: props.length,
+          local_handoff_seeded: 1,
+          queued_recording_requested: options.enqueueRecording ? 1 : 0,
+        },
+      });
       writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);
       revealMeetingOnCalendar(optimisticPage);
       {
@@ -1801,6 +1826,7 @@ export default function MeetingScheduleShell() {
       upsertPages,
       deletedTombstoneRef,
       publishCalendarStatus,
+      warmMeetingPeekOpen,
       writeOptimisticMeetingHotCache,
       revealMeetingOnCalendar,
     ]

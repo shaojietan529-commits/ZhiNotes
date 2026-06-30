@@ -8601,6 +8601,14 @@ function run() {
       "Meeting creation must mark the optimistic page as opening immediately.",
     ],
     [
+      "status: \"meeting-create-local-shell-requested\"",
+      "Meeting creation must record a local shell request metric so click-to-peek latency can be diagnosed.",
+    ],
+    [
+      "local_handoff_seeded: 1",
+      "Meeting creation performance snapshots must prove the optimistic page was handed off before background persistence.",
+    ],
+    [
       "data-testid={`meeting-opening-page-${key}`}",
       "Meeting calendar must show an immediate opening chip after + is clicked.",
     ],

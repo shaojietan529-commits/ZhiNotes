@@ -1122,6 +1122,8 @@ check(
     meetingScheduleShell.includes('if (seededPage.content_text === "") return seededPage;') &&
     meetingScheduleShell.includes("setPeekInitialPage(page)") &&
     meetingScheduleShell.includes("setPeekPageId(page.id)") &&
+    meetingScheduleShell.includes('status: "meeting-create-local-shell-requested"') &&
+    meetingScheduleShell.includes("local_handoff_seeded: 1") &&
     meetingScheduleShell.includes("<PagePeekModal") &&
     meetingScheduleShell.includes("initialPage={peekInitialPage}") &&
     !meetingScheduleShell.includes('openPage(page, { source: "meeting-create" })') &&
