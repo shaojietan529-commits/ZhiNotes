@@ -302,6 +302,10 @@ import {
   type KnowledgeReplaySurfaceStatus,
 } from "@/lib/sync/knowledgeReplayBatchPlan";
 import {
+  buildKnowledgeReplayBatchValidatorReport,
+  type KnowledgeReplayBatchValidatorReport,
+} from "@/lib/sync/knowledgeReplayBatchValidator";
+import {
   buildCloudMasterReconcileReport,
   type CloudMasterDomain,
   type CloudMasterDomainStatus,
@@ -2122,6 +2126,10 @@ function SyncDashboard() {
       syncPayloadPreview,
       workspaceIdentity,
     ]
+  );
+  const knowledgeReplayBatchValidatorReport = useMemo(
+    () => buildKnowledgeReplayBatchValidatorReport(),
+    []
   );
   const syncConfirmationReceipt = useMemo(
     () =>
@@ -7304,6 +7312,7 @@ function SyncDashboard() {
         />
         <KnowledgeReplayBatchPlanPanel
           plan={knowledgeReplayBatchPlan}
+          validatorReport={knowledgeReplayBatchValidatorReport}
           busy={busyQueueAction === "knowledge-replay-batch-plan"}
           onExport={handleExportKnowledgeReplayBatchPlan}
         />
@@ -15310,10 +15319,12 @@ function CommentVersionCloudReplayPanel({
 
 function KnowledgeReplayBatchPlanPanel({
   plan,
+  validatorReport,
   busy,
   onExport,
 }: {
   plan: KnowledgeReplayBatchPlan;
+  validatorReport: KnowledgeReplayBatchValidatorReport;
   busy: boolean;
   onExport: () => void;
 }) {
@@ -15380,6 +15391,18 @@ function KnowledgeReplayBatchPlanPanel({
           detail="等待远端回执"
           tone="high"
         />
+        <PayloadSummaryCard
+          label="Validator"
+          value={`${validatorReport.summary.accepted}/${validatorReport.summary.fixtures}`}
+          detail="fixture accepted"
+          tone="low"
+        />
+        <PayloadSummaryCard
+          label="拒绝覆盖"
+          value={validatorReport.summary.forbidden_fields_covered}
+          detail="非法字段"
+          tone="high"
+        />
       </div>
 
       <div className="mt-4 grid gap-3 xl:grid-cols-3">
@@ -15417,6 +15440,53 @@ function KnowledgeReplayBatchPlanPanel({
               >
                 {field}
               </span>
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <div className="mt-4">
+        <ContractPanel title="本地 validator fixtures">
+          <div className="grid gap-2 xl:grid-cols-2">
+            {validatorReport.fixtures.map((fixture) => (
+              <article
+                key={fixture.id}
+                className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+                    {fixture.id}
+                  </div>
+                  <span
+                    className={`rounded px-2 py-1 text-[10px] ${
+                      fixture.actual_status === "accepted"
+                        ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                    }`}
+                  >
+                    {fixture.actual_status}
+                  </span>
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-400">
+                  expected: {fixture.expected_status} / issues:{" "}
+                  {fixture.issue_count}
+                </div>
+                <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+                  {fixture.reason}
+                </p>
+                {fixture.forbidden_field_names.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+                    {fixture.forbidden_field_names.map((field) => (
+                      <span
+                        key={field}
+                        className="rounded bg-red-50 px-1.5 py-0.5 font-mono text-[10px] text-red-700 dark:bg-red-950 dark:text-red-300"
+                      >
+                        {field}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </article>
             ))}
           </div>
         </ContractPanel>

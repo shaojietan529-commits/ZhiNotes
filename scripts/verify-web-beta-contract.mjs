@@ -137,6 +137,8 @@ const files = {
     "src/lib/sync/commentVersionReplayAckGate.ts",
   knowledgeReplayBatchPlan:
     "src/lib/sync/knowledgeReplayBatchPlan.ts",
+  knowledgeReplayBatchValidator:
+    "src/lib/sync/knowledgeReplayBatchValidator.ts",
   localMetadataManifest: "src/lib/sync/localMetadataManifest.ts",
   coreManifestCompareReceipt: "src/lib/sync/coreManifestCompareReceipt.ts",
   cacheRebuildPreflightReceipt:
@@ -629,6 +631,9 @@ function run() {
   );
   const knowledgeReplayBatchPlan = readProjectFile(
     files.knowledgeReplayBatchPlan
+  );
+  const knowledgeReplayBatchValidator = readProjectFile(
+    files.knowledgeReplayBatchValidator
   );
   const localMetadataManifest = readProjectFile(files.localMetadataManifest);
   const coreManifestCompareReceipt = readProjectFile(
@@ -6614,6 +6619,148 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-knowledge-replay-batch-validator-report"',
+      "Knowledge replay validator must expose a stable report format.",
+    ],
+    [
+      'format: "zhinote-knowledge-replay-batch-validation"',
+      "Knowledge replay validator must expose a stable validation result format.",
+    ],
+    [
+      "validateKnowledgeReplayBatchRequest",
+      "Knowledge replay validator must expose a reusable request validator.",
+    ],
+    [
+      "buildKnowledgeReplayBatchValidatorReport",
+      "Knowledge replay validator must expose a reusable report builder.",
+    ],
+    [
+      "metadata-only-local-validator",
+      "Knowledge replay validator must remain metadata-only.",
+    ],
+    [
+      "safe_to_execute_replay_now: false",
+      "Knowledge replay validator must not execute replay.",
+    ],
+    [
+      "can_connect_cloud_now: false",
+      "Knowledge replay validator must not connect cloud.",
+    ],
+    [
+      "can_upload_workspace_data_now: false",
+      "Knowledge replay validator must not upload workspace data.",
+    ],
+    [
+      "can_write_server_data_now: false",
+      "Knowledge replay validator must not write server data.",
+    ],
+    [
+      "can_acknowledge_rows_now: false",
+      "Knowledge replay validator must keep ACK closed.",
+    ],
+    [
+      "validates_shape_only: true",
+      "Knowledge replay validator must validate shape only.",
+    ],
+    [
+      "returns_raw_values: false",
+      "Knowledge replay validator must not return raw values.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Knowledge replay validator must not read comment bodies.",
+    ],
+    [
+      "reads_block_comment_bodies: false",
+      "Knowledge replay validator must not read block comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Knowledge replay validator must not read version snapshots.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Knowledge replay validator must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Knowledge replay validator must not read database row values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Knowledge replay validator must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Knowledge replay validator must not read file bytes.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Knowledge replay validator must not send network requests.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Knowledge replay validator must not mutate sync_log.",
+    ],
+    [
+      '"row-id-only-batch-accepted"',
+      "Knowledge replay validator must include an accepted row-id-only fixture.",
+    ],
+    [
+      '"comment-and-version-content-rejected"',
+      "Knowledge replay validator must reject comment/version content.",
+    ],
+    [
+      '"page-database-file-payloads-rejected"',
+      "Knowledge replay validator must reject page/database/file payloads.",
+    ],
+    [
+      '"ack-and-credential-fields-rejected"',
+      "Knowledge replay validator must reject ACK and credential fields.",
+    ],
+    [
+      '"invalid-row-shape-rejected"',
+      "Knowledge replay validator must reject invalid row shapes.",
+    ],
+    [
+      "forbidden_fields_covered",
+      "Knowledge replay validator must summarize forbidden field coverage.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.knowledgeReplayBatchValidator,
+      knowledgeReplayBatchValidator,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "reads_comment_bodies: true",
+      "Knowledge replay validator must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: true",
+      "Knowledge replay validator must not read version snapshots.",
+    ],
+    [
+      "can_acknowledge_rows_now: true",
+      "Knowledge replay validator must not open ACK.",
+    ],
+    [
+      "can_upload_workspace_data_now: true",
+      "Knowledge replay validator must not upload workspace data.",
+    ],
+  ]) {
+    assertSourceExcludes(
+      files.knowledgeReplayBatchValidator,
+      knowledgeReplayBatchValidator,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildKnowledgeReplayBatchPlan",
       "Sync UI must build the knowledge replay batch plan.",
     ],
@@ -6626,8 +6773,16 @@ function run() {
       "Sync UI must export the knowledge replay batch plan.",
     ],
     [
+      "buildKnowledgeReplayBatchValidatorReport",
+      "Sync UI must build the knowledge replay validator report.",
+    ],
+    [
       "知识回放批次计划",
       "Sync UI must render the knowledge replay batch panel.",
+    ],
+    [
+      "本地 validator fixtures",
+      "Sync UI must render knowledge replay validator fixtures.",
     ],
     [
       "导出知识回放批次计划",

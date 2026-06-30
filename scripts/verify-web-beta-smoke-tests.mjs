@@ -214,6 +214,8 @@ const files = {
     "src/lib/sync/commentVersionReplayAckGate.ts",
   knowledgeReplayBatchPlan:
     "src/lib/sync/knowledgeReplayBatchPlan.ts",
+  knowledgeReplayBatchValidator:
+    "src/lib/sync/knowledgeReplayBatchValidator.ts",
   commentVersionReplayApiStub:
     "src/lib/sync/commentVersionReplayApiStub.ts",
   commentVersionReplayRoute:
@@ -663,6 +665,9 @@ function run() {
   );
   const knowledgeReplayBatchPlan = readProjectFile(
     files.knowledgeReplayBatchPlan
+  );
+  const knowledgeReplayBatchValidator = readProjectFile(
+    files.knowledgeReplayBatchValidator
   );
   const commentVersionReplayApiStub = readProjectFile(
     files.commentVersionReplayApiStub
@@ -1870,6 +1875,67 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-knowledge-replay-batch-validator-report"',
+      "Knowledge replay validator smoke coverage must include the stable report format.",
+    ],
+    [
+      "validateKnowledgeReplayBatchRequest",
+      "Knowledge replay validator smoke coverage must expose a reusable request validator.",
+    ],
+    [
+      "metadata-only-local-validator",
+      "Knowledge replay validator smoke coverage must stay metadata-only.",
+    ],
+    [
+      "safe_to_execute_replay_now: false",
+      "Knowledge replay validator smoke coverage must not execute replay.",
+    ],
+    [
+      "can_acknowledge_rows_now: false",
+      "Knowledge replay validator smoke coverage must keep ACK closed.",
+    ],
+    [
+      "reads_comment_bodies: false",
+      "Knowledge replay validator smoke coverage must not read comment bodies.",
+    ],
+    [
+      "reads_version_snapshots: false",
+      "Knowledge replay validator smoke coverage must not read version snapshots.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Knowledge replay validator smoke coverage must not read file bytes.",
+    ],
+    [
+      '"row-id-only-batch-accepted"',
+      "Knowledge replay validator smoke coverage must include an accepted row-id-only fixture.",
+    ],
+    [
+      '"comment-and-version-content-rejected"',
+      "Knowledge replay validator smoke coverage must reject comment/version content.",
+    ],
+    [
+      '"page-database-file-payloads-rejected"',
+      "Knowledge replay validator smoke coverage must reject page/database/file payloads.",
+    ],
+    [
+      '"ack-and-credential-fields-rejected"',
+      "Knowledge replay validator smoke coverage must reject ACK and credential fields.",
+    ],
+    [
+      "forbidden_fields_covered",
+      "Knowledge replay validator smoke coverage must summarize forbidden field coverage.",
+    ],
+  ]) {
+    assertIncludes(
+      files.knowledgeReplayBatchValidator,
+      knowledgeReplayBatchValidator,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildKnowledgeReplayBatchPlan",
       "Sync smoke coverage must build the knowledge replay batch plan.",
     ],
@@ -1880,6 +1946,14 @@ function run() {
     [
       "知识回放批次计划",
       "Sync smoke coverage must render the knowledge replay batch panel.",
+    ],
+    [
+      "buildKnowledgeReplayBatchValidatorReport",
+      "Sync smoke coverage must build the knowledge replay validator report.",
+    ],
+    [
+      "本地 validator fixtures",
+      "Sync smoke coverage must render knowledge replay validator fixtures.",
     ],
     [
       "导出知识回放批次计划",
