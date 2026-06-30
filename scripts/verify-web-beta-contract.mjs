@@ -1575,6 +1575,22 @@ function run() {
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
+  const knowledgeReplayBatchPlanPanelBody = syncShell.slice(
+    syncShell.indexOf("function KnowledgeReplayBatchPlanPanel"),
+    syncShell.indexOf("function CommentVersionReplayReceiptPanel")
+  );
+  assertSourceIncludes(
+    "KnowledgeReplayBatchPlanPanel",
+    knowledgeReplayBatchPlanPanelBody,
+    'id="knowledge-replay-batch-plan"',
+    "Knowledge replay panel deep-link anchor must live on the knowledge replay panel itself."
+  );
+  assertSourceIncludes(
+    "KnowledgeReplayBatchPlanPanel",
+    knowledgeReplayBatchPlanPanelBody,
+    'data-testid="knowledge-replay-batch-plan"',
+    "Knowledge replay panel test hook must live on the knowledge replay panel itself."
+  );
 
   for (const [snippet, message] of [
     [
@@ -6815,6 +6831,14 @@ function run() {
     [
       "知识回放批次计划",
       "Sync UI must render the knowledge replay batch panel.",
+    ],
+    [
+      'id="knowledge-replay-batch-plan"',
+      "Sync UI must expose a stable deep-link anchor for knowledge replay.",
+    ],
+    [
+      'data-testid="knowledge-replay-batch-plan"',
+      "Sync UI must expose a stable test hook for knowledge replay.",
     ],
     [
       "本地 validator fixtures",
@@ -21813,14 +21837,38 @@ function run() {
     [
       files.sidebar,
       sidebar,
-      'openModuleRoute("/modules/sync")',
+      "openModuleRoute(accountSyncCenterTarget)",
       "Sidebar cloud-sync control must open the Sync module for settings, knowledge replay, failed, or manual-review queues.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "/modules/sync#sync-upload-safety-panel",
+      "Sidebar cloud-sync control must deep-link failed and manual-review queues to upload safety.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "/modules/sync#knowledge-replay-batch-plan",
+      "Sidebar cloud-sync control must deep-link knowledge-domain pending rows to knowledge replay.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "/modules/sync#account-module-settings-pending-plan",
+      "Sidebar cloud-sync control must deep-link settings pending rows to settings sync.",
     ],
     [
       files.sidebar,
       sidebar,
       'data-sync-action=',
       "Sidebar cloud-sync control must expose whether it will quick-sync or open the Sync module.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'data-sync-target={accountSyncCenterTarget}',
+      "Sidebar cloud-sync control must expose the precise Sync module deep-link target.",
     ],
     [
       files.sidebar,

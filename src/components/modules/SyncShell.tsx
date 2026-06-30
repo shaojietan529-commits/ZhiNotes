@@ -15209,7 +15209,11 @@ function CommentVersionCloudReplayPanel({
   contract: CommentVersionCloudReplayContract;
 }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="comment-version-cloud-replay-contract"
+      data-testid="comment-version-cloud-replay-contract"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -15331,7 +15335,11 @@ function KnowledgeReplayBatchPlanPanel({
   const visibleRows = plan.batch_rows.slice(0, 8);
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      id="knowledge-replay-batch-plan"
+      data-testid="knowledge-replay-batch-plan"
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">

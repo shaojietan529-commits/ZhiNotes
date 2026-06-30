@@ -2291,11 +2291,16 @@ check(
     sidebar.includes("getAccountSyncToneClass") &&
     sidebar.includes("检查中") &&
     sidebar.includes("accountSyncNeedsSyncCenter") &&
+    sidebar.includes("getAccountSyncCenterTarget") &&
     sidebar.includes('data-sync-action=') &&
+    sidebar.includes('data-sync-target={accountSyncCenterTarget}') &&
     sidebar.includes('"open-sync-center"') &&
     sidebar.includes('"quick-sync"') &&
-    sidebar.includes('openModuleRoute("/modules/sync")') &&
-    sidebar.includes('warmModuleRoute("/modules/sync")') &&
+    sidebar.includes("/modules/sync#sync-upload-safety-panel") &&
+    sidebar.includes("/modules/sync#knowledge-replay-batch-plan") &&
+    sidebar.includes("/modules/sync#account-module-settings-pending-plan") &&
+    sidebar.includes("openModuleRoute(accountSyncCenterTarget)") &&
+    sidebar.includes("warmModuleRoute(accountSyncCenterTarget)") &&
     sidebar.includes("data-sync-state={accountSync.state}") &&
     sidebar.includes("data-pending-total={accountSync.pendingTotal}") &&
     sidebar.includes("data-failed-total={accountSync.failedTotal}") &&

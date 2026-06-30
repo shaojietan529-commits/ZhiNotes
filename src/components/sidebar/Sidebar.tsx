@@ -144,6 +144,24 @@ function getAccountSyncToneClass(state: AccountCloudSyncCoordinatorState) {
   }
 }
 
+function getAccountSyncCenterTarget(accountSync: {
+  failedTotal: number;
+  manualReviewTotal: number;
+  settingsPendingTotal: number;
+  knowledgePendingTotal: number;
+}) {
+  if (accountSync.failedTotal > 0 || accountSync.manualReviewTotal > 0) {
+    return "/modules/sync#sync-upload-safety-panel";
+  }
+  if (accountSync.knowledgePendingTotal > 0) {
+    return "/modules/sync#knowledge-replay-batch-plan";
+  }
+  if (accountSync.settingsPendingTotal > 0) {
+    return "/modules/sync#account-module-settings-pending-plan";
+  }
+  return "/modules/sync#sync-upload-safety-panel";
+}
+
 function normalizePrimaryIcon(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
   return value.trim().slice(0, 8) || fallback;
@@ -440,6 +458,7 @@ export default function Sidebar() {
     accountSync.manualReviewTotal > 0 ||
     accountSync.settingsPendingTotal > 0 ||
     accountSync.knowledgePendingTotal > 0;
+  const accountSyncCenterTarget = getAccountSyncCenterTarget(accountSync);
   const accountSyncActionLabel = accountSyncNeedsSyncCenter
     ? "打开同步中心"
     : "快速同步";
@@ -450,11 +469,16 @@ export default function Sidebar() {
   const accountSyncButtonTitle = `${accountSyncTitle}\n点击：${accountSyncActionLabel}`;
   const handleAccountSyncButtonClick = useCallback(() => {
     if (accountSyncNeedsSyncCenter) {
-      openModuleRoute("/modules/sync");
+      openModuleRoute(accountSyncCenterTarget);
       return;
     }
     void accountSync.syncNow({ forceLease: true });
-  }, [accountSync, accountSyncNeedsSyncCenter, openModuleRoute]);
+  }, [
+    accountSync,
+    accountSyncCenterTarget,
+    accountSyncNeedsSyncCenter,
+    openModuleRoute,
+  ]);
 
   const refreshAccountLabel = useCallback(async () => {
     try {
@@ -1037,12 +1061,17 @@ export default function Sidebar() {
               data-sync-action={
                 accountSyncNeedsSyncCenter ? "open-sync-center" : "quick-sync"
               }
+              data-sync-target={accountSyncCenterTarget}
               aria-label={accountSyncAriaLabel}
               onPointerEnter={() => {
-                if (accountSyncNeedsSyncCenter) warmModuleRoute("/modules/sync");
+                if (accountSyncNeedsSyncCenter) {
+                  warmModuleRoute(accountSyncCenterTarget);
+                }
               }}
               onFocus={() => {
-                if (accountSyncNeedsSyncCenter) warmModuleRoute("/modules/sync");
+                if (accountSyncNeedsSyncCenter) {
+                  warmModuleRoute(accountSyncCenterTarget);
+                }
               }}
               onClick={handleAccountSyncButtonClick}
               className={`inline-flex h-8 min-w-8 max-w-[7.5rem] shrink-0 items-center justify-center gap-1 rounded-md border px-2 text-[10px] font-medium transition-colors ${accountSyncToneClass}`}
