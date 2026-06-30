@@ -547,6 +547,8 @@ type ExportAction = "backup" | "zip" | "markdown";
 
 const PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync.";
 const DATABASE_SYNC_STORAGE_KEY_PREFIX = "zhinote.databasesync.";
+const SYNC_DASHBOARD_PENDING_REFRESH_MS = 5000;
+const SYNC_DASHBOARD_IDLE_REFRESH_MS = 30 * 1000;
 
 const loadWorkspaceBackupModule = () => import("@/lib/export/workspaceBackup");
 type SyncQueueAction =
@@ -1641,10 +1643,24 @@ function SyncDashboard() {
   }, []);
 
   useEffect(() => {
+    let timer: number | undefined;
+    const schedulePagePendingRefresh = (
+      status: PendingCloudPageSyncStatus
+    ) => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(
+        refreshPagePendingStatus,
+        isActivePagePendingStatus(status)
+          ? SYNC_DASHBOARD_PENDING_REFRESH_MS
+          : SYNC_DASHBOARD_IDLE_REFRESH_MS
+      );
+    };
     const refreshPagePendingStatus = (event?: Event) => {
       const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
         ?.detail;
-      setPagePendingStatus(next ?? getPendingCloudPageSyncStatus());
+      const status = next ?? getPendingCloudPageSyncStatus();
+      setPagePendingStatus(status);
+      schedulePagePendingRefresh(status);
     };
     const handlePageStorageRefresh = (event: StorageEvent) => {
       if (isPageSyncStorageEvent(event)) {
@@ -1656,7 +1672,6 @@ function SyncDashboard() {
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, refreshPagePendingStatus);
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, refreshPagePendingStatus);
     window.addEventListener("storage", handlePageStorageRefresh);
-    const timer = window.setInterval(refreshPagePendingStatus, 5000);
     return () => {
       window.removeEventListener(
         PAGE_SYNC_STATUS_EVENT,
@@ -1667,22 +1682,37 @@ function SyncDashboard() {
         refreshPagePendingStatus
       );
       window.removeEventListener("storage", handlePageStorageRefresh);
-      window.clearInterval(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, []);
 
   useEffect(() => {
     let mounted = true;
+    let timer: number | undefined;
+    const scheduleDatabasePendingRefresh = (
+      status: PendingCloudDatabaseSyncStatus
+    ) => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(
+        refreshDatabasePendingStatus,
+        isActiveDatabasePendingStatus(status)
+          ? SYNC_DASHBOARD_PENDING_REFRESH_MS
+          : SYNC_DASHBOARD_IDLE_REFRESH_MS
+      );
+    };
     const refreshDatabasePendingStatus = (event?: Event) => {
       const next = (
         event as CustomEvent<PendingCloudDatabaseSyncStatus> | undefined
       )?.detail;
       if (next) {
         setDatabasePendingStatus(next);
+        scheduleDatabasePendingRefresh(next);
         return;
       }
       void getPendingCloudDatabaseSyncStatus().then((status) => {
-        if (mounted) setDatabasePendingStatus(status);
+        if (!mounted) return;
+        setDatabasePendingStatus(status);
+        scheduleDatabasePendingRefresh(status);
       });
     };
     const handleDatabaseStorageRefresh = (event: StorageEvent) => {
@@ -1701,7 +1731,6 @@ function SyncDashboard() {
       refreshDatabasePendingStatus
     );
     window.addEventListener("storage", handleDatabaseStorageRefresh);
-    const timer = window.setInterval(refreshDatabasePendingStatus, 5000);
     return () => {
       mounted = false;
       window.removeEventListener(
@@ -1713,7 +1742,7 @@ function SyncDashboard() {
         refreshDatabasePendingStatus
       );
       window.removeEventListener("storage", handleDatabaseStorageRefresh);
-      window.clearInterval(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, []);
 
@@ -24066,6 +24095,29 @@ function isPageSyncStorageEvent(event: StorageEvent): boolean {
 function isDatabaseSyncStorageEvent(event: StorageEvent): boolean {
   return Boolean(
     event.key && event.key.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)
+  );
+}
+
+function isActivePagePendingStatus(status: PendingCloudPageSyncStatus): boolean {
+  return (
+    status.pending +
+      status.queued +
+      status.failed +
+      status.manualReviewCount >
+    0
+  );
+}
+
+function isActiveDatabasePendingStatus(
+  status: PendingCloudDatabaseSyncStatus
+): boolean {
+  return (
+    status.pending +
+      status.queued +
+      status.syncLogPending +
+      status.failed +
+      status.manualReviewCount >
+    0
   );
 }
 

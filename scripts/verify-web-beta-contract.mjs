@@ -8093,6 +8093,14 @@ function run() {
       "Sync UI must refresh page pending queue details while the sync center stays open.",
     ],
     [
+      "SYNC_DASHBOARD_PENDING_REFRESH_MS = 5000",
+      "Sync UI pending panels must keep fast feedback while uploads are active.",
+    ],
+    [
+      "SYNC_DASHBOARD_IDLE_REFRESH_MS = 30 * 1000",
+      "Sync UI pending panels must slow polling while upload queues are idle.",
+    ],
+    [
       'PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync."',
       "Sync UI page pending panel must restrict storage refreshes to page sync keys.",
     ],
@@ -8107,6 +8115,14 @@ function run() {
     [
       'window.addEventListener("storage", handlePageStorageRefresh)',
       "Sync UI page pending storage listener must use the filtered handler.",
+    ],
+    [
+      "schedulePagePendingRefresh",
+      "Sync UI page pending panel must schedule adaptive refreshes.",
+    ],
+    [
+      "isActivePagePendingStatus(status)",
+      "Sync UI page pending panel must use active queue state to choose refresh speed.",
     ],
     [
       "数据库 pending 上传队列",
@@ -8171,6 +8187,14 @@ function run() {
     [
       'window.addEventListener("storage", handleDatabaseStorageRefresh)',
       "Sync UI database pending storage listener must use the filtered handler.",
+    ],
+    [
+      "scheduleDatabasePendingRefresh",
+      "Sync UI database pending panel must schedule adaptive refreshes.",
+    ],
+    [
+      "isActiveDatabasePendingStatus(status)",
+      "Sync UI database pending panel must use active queue state to choose refresh speed.",
     ],
     [
       "不展示或导出数据库行值",
@@ -8295,6 +8319,14 @@ function run() {
     [
       'window.addEventListener("storage", refreshDatabasePendingStatus)',
       "Sync UI database pending panel must not refresh on every localStorage change.",
+    ],
+    [
+      "window.setInterval(refreshPagePendingStatus, 5000)",
+      "Sync UI page pending panel must not keep fixed five-second polling while idle.",
+    ],
+    [
+      "window.setInterval(refreshDatabasePendingStatus, 5000)",
+      "Sync UI database pending panel must not keep fixed five-second polling while idle.",
     ],
   ]) {
     assertSourceExcludes(files.syncShell, syncShell, snippet, message);
