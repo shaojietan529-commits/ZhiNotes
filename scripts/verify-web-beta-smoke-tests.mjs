@@ -1267,6 +1267,14 @@ function run() {
       "Daily note creation must open the optimistic page in the same-page peek modal immediately.",
     ],
     [
+      "daily-create-local-shell-requested",
+      "Daily note creation must record a metadata-only local performance snapshot when the local draft shell is requested.",
+    ],
+    [
+      "local_handoff_seeded: 1",
+      "Daily note creation performance snapshots must prove the local route handoff was seeded without exposing page ids.",
+    ],
+    [
       "revealDailyNoteOnCalendar(optimisticNote);",
       "Daily note creation must immediately reveal and highlight the target calendar day after + is clicked.",
     ],
@@ -8369,8 +8377,11 @@ function run() {
     );
   }
   for (const snippet of [
+    "warmDailyPeekOpen();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
     "setPeekInitialPage(optimisticNote);",
     "setPeekPageId(optimisticNote.id);",
+    "const localShellRequestedMs =\n        getLocalPerformanceNow() - createStartedAt;",
+    "status: \"daily-create-local-shell-requested\"",
     "每日纪要已弹出",
   ]) {
     assertIncludes(

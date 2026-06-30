@@ -5031,6 +5031,10 @@ function run() {
       "Daily + creation must hand off the optimistic page before peek or full-page opening.",
     ],
     [
+      "warmDailyPeekOpen();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+      "Daily + creation must warm the lazy peek/editor path before setting the opening draft state.",
+    ],
+    [
       "rememberPageRouteHandoff(initialSeed, source)",
       "Daily note opening must hand off metadata-only seed before opening a page.",
     ],
@@ -5053,6 +5057,18 @@ function run() {
     [
       "setPeekPageId(optimisticNote.id);",
       "Daily + creation must open the same-page peek editor immediately after local seeding.",
+    ],
+    [
+      "const localShellRequestedMs =\n        getLocalPerformanceNow() - createStartedAt;",
+      "Daily + creation must measure local shell request latency once before recording it.",
+    ],
+    [
+      "status: \"daily-create-local-shell-requested\"",
+      "Daily + creation must record a metadata-only local performance status for click-to-shell diagnostics.",
+    ],
+    [
+      "local_handoff_seeded: 1",
+      "Daily + creation performance snapshots must prove route handoff was seeded without storing page ids or titles.",
     ],
     [
       "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",

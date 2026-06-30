@@ -1279,6 +1279,8 @@ export default function DailyNotesShell() {
   const addNote = useCallback(
     async (dateKey: string) => {
       if (creatingDateKeyRef.current) return;
+      const createStartedAt = getLocalPerformanceNow();
+      const createStartedAtIso = new Date().toISOString();
       loadRequestRef.current += 1;
       creatingDateKeyRef.current = dateKey;
       setCreatingDateKey(dateKey);
@@ -1317,6 +1319,7 @@ export default function DailyNotesShell() {
         dailyDateKey: dateKey,
         cloudOnly: true,
       };
+      warmDailyPeekOpen();
       setOpeningDraft({ pageId: optimisticNote.id, dateKey });
       rememberPendingPageDraft(optimisticNote);
       rememberPageRouteHandoff(optimisticNote, "daily-create");
@@ -1328,6 +1331,23 @@ export default function DailyNotesShell() {
       setPeekInitialPage(optimisticNote);
       setOpeningNoteId(optimisticNote.id);
       setPeekPageId(optimisticNote.id);
+      const localShellRequestedMs =
+        getLocalPerformanceNow() - createStartedAt;
+      recordLocalPerformanceSnapshot({
+        kind: "page-peek",
+        label: "每日纪要新建本地草稿",
+        route: "/page/[pageId]#peek",
+        status: "daily-create-local-shell-requested",
+        startedAt: createStartedAtIso,
+        durationMs: localShellRequestedMs,
+        localFirstMs: localShellRequestedMs,
+        backgroundMs: 0,
+        counts: {
+          optimistic_draft: 1,
+          property_count: props.length,
+          local_handoff_seeded: 1,
+        },
+      });
       revealDailyNoteOnCalendar(optimisticNote);
       scheduleDailyIdleTask(() => {
         writeOptimisticDailyHotCache({
@@ -1345,7 +1365,6 @@ export default function DailyNotesShell() {
       }, 250);
 
       const pageRoute = `/page/${optimisticNote.id}`;
-      warmDailyPeekOpen();
       try {
         router.prefetch(pageRoute);
       } catch {

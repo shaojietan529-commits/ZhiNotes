@@ -856,10 +856,16 @@ check(
     ) &&
     dailyNotesShell.indexOf("writeOptimisticDailyHotCache") <
       dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
+    dailyNotesShell.includes(
+      "warmDailyPeekOpen();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });"
+    ) &&
     dailyNotesShell.indexOf("setPeekInitialPage(optimisticNote);") <
       dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id);") &&
     dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id);") <
       dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
+    dailyNotesShell.includes("const localShellRequestedMs =\n        getLocalPerformanceNow() - createStartedAt;") &&
+    dailyNotesShell.includes('status: "daily-create-local-shell-requested"') &&
+    dailyNotesShell.includes("local_handoff_seeded: 1") &&
     dailyNotesShell.includes("useLocalFirstPageNavigation") &&
     dailyNotesShell.includes("const pageRoute = `/page/${optimisticNote.id}`") &&
     dailyNotesShell.includes("router.prefetch(pageRoute)") &&
