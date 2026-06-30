@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -70,6 +70,8 @@ const DATABASE_STARTER_MODULE_IDS = [
   "meetings",
   "portfolio",
 ];
+const DATABASE_MODULE_DETAIL_BATCH_SIZE = 6;
+const DATABASE_MODULE_DETAIL_IDLE_TIMEOUT = 220;
 
 export default function DatabasesShell() {
   return (
@@ -114,48 +116,122 @@ function DatabasesDashboard() {
   const [exportingTemplateRowReceipts, setExportingTemplateRowReceipts] =
     useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const dashboardLoadRequestRef = useRef(0);
+  const cancelSnapshotDetailHydrationRef = useRef<(() => void) | null>(null);
 
-  const loadSnapshots = useCallback(async () => {
+  const loadDatabaseListSnapshots = useCallback(async () => {
     let databases: Awaited<ReturnType<typeof getAllDatabases>> = [];
     try {
       databases = await getAllDatabases();
     } catch {
       return [];
     }
-    return Promise.all(
-      databases.map(async (database) => {
-        const [fields, views, rowCount] = await Promise.all([
-          getFields(database.id).catch(() => []),
-          getViews(database.id).catch(() => []),
-          getDatabaseRowCount(database.id).catch(() => 0),
-        ]);
 
-        return {
-          database,
-          fields,
-          views,
-          rowCount,
-        };
-      })
-    );
+    return databases.map(toUnhydratedDatabaseModuleSnapshot);
   }, []);
 
+  const loadDatabaseDetailSnapshot = useCallback(
+    async (
+      database: DatabaseModuleSnapshot["database"]
+    ): Promise<DatabaseModuleSnapshot> => {
+      const [fields, views, rowCount] = await Promise.all([
+        getFields(database.id).catch(() => []),
+        getViews(database.id).catch(() => []),
+        getDatabaseRowCount(database.id).catch(() => 0),
+      ]);
+
+      return {
+        database,
+        fields,
+        views,
+        rowCount,
+      };
+    },
+    []
+  );
+
+  const hydrateDatabaseModuleSnapshotDetails = useCallback(
+    (baseSnapshots: DatabaseModuleSnapshot[], requestId: number) => {
+      let batchStart = 0;
+      let canceled = false;
+      let cancelScheduledBatch: (() => void) | null = null;
+      const databases = baseSnapshots.map((snapshot) => snapshot.database);
+
+      const scheduleNextBatch = () => {
+        if (
+          canceled ||
+          dashboardLoadRequestRef.current !== requestId ||
+          batchStart >= databases.length
+        ) {
+          return;
+        }
+
+        const batch = databases.slice(
+          batchStart,
+          batchStart + DATABASE_MODULE_DETAIL_BATCH_SIZE
+        );
+        cancelScheduledBatch = scheduleDatabaseModuleIdleTask(() => {
+          void (async () => {
+            const hydratedSnapshots = await Promise.all(
+              batch.map((database) => loadDatabaseDetailSnapshot(database))
+            );
+            if (canceled || dashboardLoadRequestRef.current !== requestId) {
+              return;
+            }
+
+            setSnapshots((currentSnapshots) =>
+              mergeDatabaseModuleSnapshots(
+                currentSnapshots,
+                hydratedSnapshots
+              )
+            );
+            batchStart += DATABASE_MODULE_DETAIL_BATCH_SIZE;
+            scheduleNextBatch();
+          })();
+        }, DATABASE_MODULE_DETAIL_IDLE_TIMEOUT);
+      };
+
+      scheduleNextBatch();
+
+      return () => {
+        canceled = true;
+        cancelScheduledBatch?.();
+      };
+    },
+    [loadDatabaseDetailSnapshot]
+  );
+
   const loadDashboard = useCallback(async () => {
+    const requestId = dashboardLoadRequestRef.current + 1;
+    dashboardLoadRequestRef.current = requestId;
+    cancelSnapshotDetailHydrationRef.current?.();
+    cancelSnapshotDetailHydrationRef.current = null;
+
     try {
       setLoadError(null);
-      const localSnapshots = await loadSnapshots();
+      const localSnapshots = await loadDatabaseListSnapshots();
+      if (dashboardLoadRequestRef.current !== requestId) return;
       setSnapshots(localSnapshots);
+      cancelSnapshotDetailHydrationRef.current =
+        hydrateDatabaseModuleSnapshotDetails(localSnapshots, requestId);
       const cloud = await syncCloudDatabaseMetadataDelta({
         restoreLocalCursor: localSnapshots.length > 0,
       });
+      if (dashboardLoadRequestRef.current !== requestId) return;
       if (cloud.status === "ok") {
-        const refreshed = await loadSnapshots();
+        const refreshed = await loadDatabaseListSnapshots();
+        if (dashboardLoadRequestRef.current !== requestId) return;
         if (
           (refreshed.length > 0 && !cloud.cacheWriteFailed) ||
           cloud.records.length === 0
         ) {
           setSnapshots(refreshed);
+          cancelSnapshotDetailHydrationRef.current?.();
+          cancelSnapshotDetailHydrationRef.current =
+            hydrateDatabaseModuleSnapshotDetails(refreshed, requestId);
         } else {
+          cancelSnapshotDetailHydrationRef.current?.();
+          cancelSnapshotDetailHydrationRef.current = null;
           setSnapshots(
             cloudDatabaseMetadataToDatabases(cloud.records).map((database) => ({
               database,
@@ -172,13 +248,25 @@ function DatabasesDashboard() {
         setLoadError("云端数据库索引暂时不可用，只能显示本机缓存。");
       }
     } catch {
+      if (dashboardLoadRequestRef.current !== requestId) return;
       setLoadError("无法加载数据库总览。");
     }
-  }, [loadSnapshots]);
+  }, [
+    hydrateDatabaseModuleSnapshotDetails,
+    loadDatabaseListSnapshots,
+  ]);
 
   useEffect(() => {
     void loadDashboard();
   }, [loadDashboard]);
+
+  useEffect(() => {
+    return () => {
+      dashboardLoadRequestRef.current += 1;
+      cancelSnapshotDetailHydrationRef.current?.();
+      cancelSnapshotDetailHydrationRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     let timer: number | null = null;
@@ -2270,6 +2358,61 @@ function getTemplateRowGroupLabel(
   };
 
   return labels[groupId];
+}
+
+function toUnhydratedDatabaseModuleSnapshot(
+  database: DatabaseModuleSnapshot["database"]
+): DatabaseModuleSnapshot {
+  return {
+    database,
+    fields: [],
+    views: [],
+    rowCount: 0,
+  };
+}
+
+function mergeDatabaseModuleSnapshots(
+  currentSnapshots: DatabaseModuleSnapshot[],
+  hydratedSnapshots: DatabaseModuleSnapshot[]
+): DatabaseModuleSnapshot[] {
+  const hydratedById = new Map(
+    hydratedSnapshots.map((snapshot) => [snapshot.database.id, snapshot])
+  );
+  const usedIds = new Set<string>();
+  const merged = currentSnapshots.map((snapshot) => {
+    const hydratedSnapshot = hydratedById.get(snapshot.database.id);
+    if (!hydratedSnapshot) return snapshot;
+    usedIds.add(snapshot.database.id);
+    return hydratedSnapshot;
+  });
+
+  for (const snapshot of hydratedSnapshots) {
+    if (!usedIds.has(snapshot.database.id)) {
+      merged.push(snapshot);
+    }
+  }
+
+  return merged;
+}
+
+function scheduleDatabaseModuleIdleTask(
+  callback: () => void,
+  timeout = 500
+): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const maybeWindow = window as Window & {
+    requestIdleCallback?: (
+      cb: () => void,
+      options?: { timeout?: number }
+    ) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (maybeWindow.requestIdleCallback && maybeWindow.cancelIdleCallback) {
+    const idleId = maybeWindow.requestIdleCallback(callback, { timeout });
+    return () => maybeWindow.cancelIdleCallback?.(idleId);
+  }
+  const timer = window.setTimeout(callback, Math.min(timeout, 160));
+  return () => window.clearTimeout(timer);
 }
 
 function formatDate(value: string) {

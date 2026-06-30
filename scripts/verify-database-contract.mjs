@@ -732,7 +732,13 @@ function run() {
 	    "syncCloudDatabaseMetadataDelta",
 	    "cloudDatabaseMetadataToDatabases",
 	    "subscribeDatabasesUpdated",
-	    "const localSnapshots = await loadSnapshots()",
+	    "const localSnapshots = await loadDatabaseListSnapshots()",
+	    "hydrateDatabaseModuleSnapshotDetails",
+	    "DATABASE_MODULE_DETAIL_BATCH_SIZE",
+	    "DATABASE_MODULE_DETAIL_IDLE_TIMEOUT",
+	    "scheduleDatabaseModuleIdleTask",
+	    "dashboardLoadRequestRef",
+	    "mergeDatabaseModuleSnapshots",
 	    "cloud.records.length",
 	    "!cloud.cacheWriteFailed",
 	    "本机缓存暂时不可写",
@@ -747,6 +753,12 @@ function run() {
 	      "Database module dashboard must prewarm cloud database metadata and reload on database update broadcasts."
 	    );
 	  }
+	  assertNotIncludes(
+	    files.databaseModuleShell,
+	    databaseModuleShell,
+	    "const localSnapshots = await loadSnapshots()",
+	    "Database module dashboard must first paint from the database list and hydrate fields, views, and row counts in idle batches."
+	  );
 	  for (const snippet of [
 	    'from "@/lib/database/cloudDatabaseMutations"',
 	    'from "@/lib/modules/actions"',
