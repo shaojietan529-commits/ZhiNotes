@@ -5227,7 +5227,7 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "startTransition(() => {\n        if (loadRequestRef.current !== requestId) return;\n        setNotes(renderableNotes);",
+    "startTransition(() => {\n    if (!shouldPublish()) return;\n    if (fingerprintRef.current === nextFingerprint) return;",
     "Daily calendar bulk metadata publishes must stay low-priority and render-bounded so clicks and typing remain responsive."
   );
   assertIncludes(
@@ -5239,13 +5239,19 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "dailyNotesRenderFingerprint(renderableNotes)",
+    "function publishDailyCalendarRenderSelection(",
+    "Daily calendar publishes must use one shared fingerprinted state publisher for hot-cache, local, and cloud metadata stages."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "dailyNotesRenderFingerprint(notes)",
     "Daily calendar publishes must fingerprint the bounded rendered subset before calling setNotes."
   );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "notesRenderFingerprintRef.current === nextFingerprint",
+    "fingerprintRef.current === nextFingerprint",
     "Daily calendar must skip identical rendered note lists during staged local/cloud hydration."
   );
   assertIncludes(
@@ -5314,11 +5320,11 @@ function run() {
       "Daily calendar must keep date-level totals separately from the capped render list.",
     ],
     [
-      "setDailyNoteCountByDate(selection.countsByDate)",
+      "setDailyNoteCountByDate(countsByDate)",
       "Daily calendar publishes must update date totals with each staged metadata result.",
     ],
     [
-      "dailyNoteCountsFingerprint(selection.countsByDate)",
+      "dailyNoteCountsFingerprint(countsByDate)",
       "Daily calendar fingerprints must include date totals so count-only updates repaint correctly.",
     ],
     [

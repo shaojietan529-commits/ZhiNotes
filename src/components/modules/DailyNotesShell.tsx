@@ -296,10 +296,13 @@ export default function DailyNotesShell() {
       Math.max(DAILY_RECENT_VISIBLE_LIMIT, DAILY_RENDER_RECENT_BUFFER_LIMIT)
     );
     const renderableNotes = selection.notes;
-    startTransition(() => {
-      setNotes(renderableNotes);
-      setDailyNoteCountByDate(selection.countsByDate);
-    });
+    publishDailyCalendarRenderSelection(
+      renderableNotes,
+      selection.countsByDate,
+      notesRenderFingerprintRef,
+      setNotes,
+      setDailyNoteCountByDate
+    );
     if (cachedCloudMerged > 0) {
       writeDailyHotCacheSnapshot({
         startDate,
@@ -537,21 +540,19 @@ export default function DailyNotesShell() {
       if (loadRequestRef.current !== requestId) return;
       const selection = selectRenderableNotes(nextNotes);
       const renderableNotes = selection.notes;
-      const nextFingerprint = [
-        dailyNotesRenderFingerprint(renderableNotes),
-        dailyNoteCountsFingerprint(selection.countsByDate),
-      ].join("#");
-      if (notesRenderFingerprintRef.current === nextFingerprint) return;
-      notesRenderFingerprintRef.current = nextFingerprint;
+      const didPublish = publishDailyCalendarRenderSelection(
+        renderableNotes,
+        selection.countsByDate,
+        notesRenderFingerprintRef,
+        setNotes,
+        setDailyNoteCountByDate,
+        () => loadRequestRef.current === requestId
+      );
+      if (!didPublish) return;
       if (firstVisibleMs === null && renderableNotes.length > 0) {
         firstVisibleMs = getLocalPerformanceNow() - performanceStart;
         firstVisibleCount = renderableNotes.length;
       }
-      startTransition(() => {
-        if (loadRequestRef.current !== requestId) return;
-        setNotes(renderableNotes);
-        setDailyNoteCountByDate(selection.countsByDate);
-      });
       if (status) {
         setCalendarLoadStatus(
           createDailyCalendarLoadStatus({
@@ -1494,9 +1495,11 @@ export default function DailyNotesShell() {
       if (event.button !== 0) return;
       if (creatingDateKeyRef.current) return;
       event.preventDefault();
+      warmDailyPeekOpen();
+      hydrateDailyDateKey(dateKey);
       void addNote(dateKey);
     },
-    [addNote]
+    [addNote, hydrateDailyDateKey, warmDailyPeekOpen]
   );
 
   const addNoteOnPointerDown = useCallback(
@@ -2523,6 +2526,31 @@ function dailyNotesRenderFingerprint(notes: DailyNote[]): string {
       ].join(":")
     )
     .join("|");
+}
+
+function publishDailyCalendarRenderSelection(
+  notes: DailyNote[],
+  countsByDate: Map<string, number>,
+  fingerprintRef: { current: string },
+  setNotes: (notes: DailyNote[]) => void,
+  setDailyNoteCountByDate: (counts: Map<string, number>) => void,
+  shouldPublish: () => boolean = () => true
+): boolean {
+  if (!shouldPublish()) return false;
+  const nextFingerprint = [
+    dailyNotesRenderFingerprint(notes),
+    dailyNoteCountsFingerprint(countsByDate),
+  ].join("#");
+  if (fingerprintRef.current === nextFingerprint) return false;
+
+  startTransition(() => {
+    if (!shouldPublish()) return;
+    if (fingerprintRef.current === nextFingerprint) return;
+    fingerprintRef.current = nextFingerprint;
+    setNotes(notes);
+    setDailyNoteCountByDate(countsByDate);
+  });
+  return true;
 }
 
 function dailyNoteCountsFingerprint(countsByDate: Map<string, number>): string {

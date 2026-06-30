@@ -750,11 +750,13 @@ check(
     ) &&
     dailyNotesShell.includes("DAILY_RENDER_RECENT_BUFFER_LIMIT") &&
     dailyNotesShell.includes("notesRenderFingerprintRef") &&
-    dailyNotesShell.includes("dailyNotesRenderFingerprint(renderableNotes)") &&
-    dailyNotesShell.includes("dailyNoteCountsFingerprint(selection.countsByDate)") &&
-    dailyNotesShell.includes("notesRenderFingerprintRef.current === nextFingerprint") &&
-    dailyNotesShell.includes("setNotes(renderableNotes)") &&
-    dailyNotesShell.includes("setDailyNoteCountByDate(selection.countsByDate)") &&
+    dailyNotesShell.includes("publishDailyCalendarRenderSelection(") &&
+    dailyNotesShell.includes("function publishDailyCalendarRenderSelection(") &&
+    dailyNotesShell.includes("dailyNotesRenderFingerprint(notes)") &&
+    dailyNotesShell.includes("dailyNoteCountsFingerprint(countsByDate)") &&
+    dailyNotesShell.includes("fingerprintRef.current === nextFingerprint") &&
+    dailyNotesShell.includes("setNotes(notes)") &&
+    dailyNotesShell.includes("setDailyNoteCountByDate(countsByDate)") &&
     dailyNotesShell.includes("type DailyCalendarLoadOptions") &&
     dailyNotesShell.includes("const cloudLoadingRef = useRef(false)") &&
     dailyNotesShell.includes("cloudLoadingRef.current = cloudLoading") &&
