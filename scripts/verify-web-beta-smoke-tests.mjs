@@ -1311,8 +1311,8 @@ function run() {
   assertIncludes(
     files.pageDetailRoute,
     pageDetailRoute,
-    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
-    "Page route dynamic fallback must prefer metadata-only handoff over heavier pending drafts."
+    "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
+    "Page route dynamic fallback must prefer complete local drafts before metadata-only handoff previews."
   );
   for (const snippet of [
     "routePreviewPage",
@@ -1330,8 +1330,8 @@ function run() {
   assertIncludes(
     files.pageShell,
     pageShell,
-    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
-    "PageShell loading fallback must prefer metadata-only handoff over heavier pending drafts."
+    "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
+    "PageShell loading fallback must prefer complete local drafts before metadata-only handoff previews."
   );
   for (const [snippet, message] of [
     [
@@ -5469,8 +5469,8 @@ function run() {
   assertIncludes(
     files.pagePeekModal,
     pagePeekModal,
-    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
-    "PagePeekModal must prefer metadata-only handoff over heavier pending drafts."
+    "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
+    "PagePeekModal must prefer complete local drafts before metadata-only handoff previews."
   );
   assertIncludes(
     files.pagePeekModal,
@@ -6333,13 +6333,13 @@ function run() {
     files.usePage,
     usePage,
     "readPageRouteHandoff",
-    "Page opening must read route handoff before slower local DB or cloud checks."
+    "Page opening must read route handoff before slower local DB or cloud checks when no complete local draft is available."
   );
   assertIncludes(
     files.usePage,
     usePage,
-    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
-    "Page opening must prefer metadata-only route handoff over heavier pending body drafts for first paint."
+    "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
+    "Page opening must prefer complete local drafts before metadata-only route handoff previews for first paint."
   );
   for (const [snippet, message] of [
     [

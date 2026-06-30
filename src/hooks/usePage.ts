@@ -405,9 +405,9 @@ export function usePage(
 
 function readLocalFirstPageSeed(pageId: string): Page | null {
   return (
-    readPageRouteHandoff(pageId) ??
     readPendingPageDraft(pageId) ??
     useWorkspaceStore.getState().getPageById(pageId) ??
+    readPageRouteHandoff(pageId) ??
     null
   );
 }

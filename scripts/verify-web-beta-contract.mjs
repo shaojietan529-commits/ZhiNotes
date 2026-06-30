@@ -1015,8 +1015,8 @@ function run() {
   assertSourceIncludes(
     files.pageDetailRoute,
     pageDetailRoute,
-    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
-    "The page detail route loading skeleton must prefer metadata-only handoff over heavier pending drafts."
+    "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
+    "The page detail route loading skeleton must prefer complete local drafts before metadata-only handoff previews."
   );
   for (const [snippet, message] of [
     [
@@ -1041,8 +1041,8 @@ function run() {
   assertSourceIncludes(
     files.pageShell,
     pageShell,
-    "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
-    "PageShell local-first preview must prefer metadata-only handoff over heavier pending drafts."
+    "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
+    "PageShell local-first preview must prefer complete local drafts before metadata-only handoff previews."
   );
   assertSourceExcludes(
     files.pageShell,
@@ -3275,11 +3275,11 @@ function run() {
     ],
     [
       "readPageRouteHandoff",
-      "usePage must read a route handoff before slower local DB or cloud checks.",
+      "usePage must read a route handoff before slower local DB or cloud checks when no complete local draft is available.",
     ],
     [
-      "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
-      "usePage must prefer metadata-only route handoff over heavier pending body drafts for first paint.",
+      "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
+      "usePage must prefer complete local drafts before metadata-only route handoff previews for first paint.",
     ],
     [
       "readLocalFirstPageSeed",
@@ -5153,8 +5153,8 @@ function run() {
       "PagePeekModal must reuse local-first route handoff metadata before waiting on IndexedDB metadata.",
     ],
     [
-      "readPageRouteHandoff(pageId) ??\n    readPendingPageDraft(pageId)",
-      "PagePeekModal must prefer metadata-only route handoff over heavier pending body drafts.",
+      "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
+      "PagePeekModal must prefer complete local drafts before metadata-only route handoff previews.",
     ],
     [
       "useState(() => initialPeekPage?.title ?? \"\")",
