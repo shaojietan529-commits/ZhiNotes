@@ -7900,6 +7900,8 @@ function run() {
     'openPage(pageId, { source: "meeting-open" })',
     "const entriesById = useMemo(() =>",
     "entriesById.get(pageId)?.page",
+    "readPendingPageDraft(pageId) ??",
+    "readPageRouteHandoff(pageId) ??",
     "MEETING_UPCOMING_VISIBLE_LIMIT",
     "MEETING_NOTES_VISIBLE_LIMIT",
     "return getUpcomingMeetingEntries(",

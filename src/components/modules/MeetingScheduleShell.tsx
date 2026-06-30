@@ -25,8 +25,14 @@ import {
   restorePage,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
-import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
-import { rememberPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import {
+  readPendingPageDraft,
+  rememberPendingPageDraft,
+} from "@/lib/pages/pendingPageDrafts";
+import {
+  readPageRouteHandoff,
+  rememberPageRouteHandoff,
+} from "@/lib/pages/pageRouteHandoff";
 import {
   subscribePagesUpdated,
   type PageUpdatePayload,
@@ -2315,6 +2321,8 @@ export default function MeetingScheduleShell() {
         entriesById.get(pageId)?.page ??
         (selectedMeeting?.page.id === pageId ? selectedMeeting.page : null) ??
         useWorkspaceStore.getState().getPageById(pageId) ??
+        readPendingPageDraft(pageId) ??
+        readPageRouteHandoff(pageId) ??
         null;
       if (page) {
         openMeetingFullPage(page, "meeting-open");

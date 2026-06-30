@@ -5405,6 +5405,14 @@ function run() {
       "Meeting fallback page-id opens must still use local-first navigation when a metadata seed is available.",
     ],
     [
+      "readPendingPageDraft(pageId) ??",
+      "Meeting fallback page-id opens must recover a fresh local draft before falling back to id-only navigation.",
+    ],
+    [
+      "readPageRouteHandoff(pageId) ??",
+      "Meeting fallback page-id opens must recover the metadata route handoff before falling back to id-only navigation.",
+    ],
+    [
       "const entriesById = useMemo(() =>",
       "Meeting calendar must build a lightweight visible-month meeting id index for large imported workspaces.",
     ],
