@@ -1421,24 +1421,61 @@ export default function DailyNotesShell() {
         dailyDateKey: dateKey,
         cloudOnly: true,
       };
-      warmDailyCreateOpenPath();
-      setOpeningDraft({ pageId: optimisticNote.id, dateKey });
-      rememberPendingPageDraft(optimisticNote);
-      rememberPageRouteHandoff(optimisticNote, "daily-create");
-      setNotes((current) => [
-        optimisticNote,
-        ...current.filter((item) => item.id !== optimisticNote.id),
-      ]);
-      upsertPages([optimisticNote]);
-      if (dailyCreateOpenMode === "peek") {
-        setPeekInitialPage(optimisticNote);
-        setOpeningNoteId(optimisticNote.id);
-        setPeekPageId(optimisticNote.id);
-      } else {
+      const handleCreateFailure = (error: unknown) => {
+        const message =
+          error instanceof Error ? error.message : "本机草稿创建失败";
+        setOpeningDraft((current) =>
+          current?.dateKey === dateKey ? null : current
+        );
+        setNotes((current) =>
+          current.filter((item) => item.id !== optimisticNote.id)
+        );
         setPeekInitialPage(null);
         setOpeningNoteId(null);
         setPeekPageId(null);
-        openPage(optimisticNote, { source: "daily-create" });
+        setCloudNotice(
+          `${dateKey} 的每日纪要未能创建：${message}。已有纪要和本地缓存没有被删除，可以稍后重试。`
+        );
+        const failureRange = buildMonthGrid(viewMonth);
+        setCalendarLoadStatus(
+          createDailyCalendarLoadStatus({
+            phase: "cloud-error",
+            visibleNotes: notesRef.current.length,
+            visibleDays: countDailyVisibleDays(
+              notesRef.current,
+              toDateKey(failureRange[0].date),
+              toDateKey(failureRange[failureRange.length - 1].date)
+            ),
+            backgroundActive: false,
+            cloudLoading: false,
+            message: "新建每日纪要时本地草稿准备失败，日历仍保留现有内容。",
+          })
+        );
+        releaseCreatingDate();
+      };
+      try {
+        warmDailyCreateOpenPath();
+        setOpeningDraft({ pageId: optimisticNote.id, dateKey });
+        rememberPendingPageDraft(optimisticNote);
+        rememberPageRouteHandoff(optimisticNote, "daily-create");
+        setNotes((current) => [
+          optimisticNote,
+          ...current.filter((item) => item.id !== optimisticNote.id),
+        ]);
+        upsertPages([optimisticNote]);
+        if (dailyCreateOpenMode === "peek") {
+          setPeekInitialPage(optimisticNote);
+          setOpeningNoteId(optimisticNote.id);
+          setPeekPageId(optimisticNote.id);
+        } else {
+          setPeekInitialPage(null);
+          setOpeningNoteId(null);
+          setPeekPageId(null);
+          openPage(optimisticNote, { source: "daily-create" });
+        }
+      } catch (error) {
+        handleCreateFailure(error);
+        return;
       }
       const localShellRequestedMs =
         getLocalPerformanceNow() - createStartedAt;

@@ -5243,7 +5243,7 @@ function run() {
       "Daily + creation must hand off the optimistic page before peek or full-page opening.",
     ],
     [
-      "warmDailyCreateOpenPath();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+      "warmDailyCreateOpenPath();\n        setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
       "Daily + creation must warm the selected open path before setting the opening draft state.",
     ],
     [
@@ -5281,6 +5281,26 @@ function run() {
     [
       'openPage(optimisticNote, { source: "daily-create" });',
       "Daily + creation must keep explicit full-page routing after local draft and handoff seeding.",
+    ],
+    [
+      "const handleCreateFailure = (error: unknown) =>",
+      "Daily + creation must have a local-draft failure recovery path.",
+    ],
+    [
+      "current.filter((item) => item.id !== optimisticNote.id)",
+      "Daily + local create failures must remove the failed optimistic draft without touching existing notes.",
+    ],
+    [
+      "已有纪要和本地缓存没有被删除，可以稍后重试。",
+      "Daily + local create failures must tell the user existing notes and caches were not deleted.",
+    ],
+    [
+      "新建每日纪要时本地草稿准备失败，日历仍保留现有内容。",
+      "Daily + local create failures must keep the existing calendar visible instead of blanking it.",
+    ],
+    [
+      "handleCreateFailure(error);\n        return;",
+      "Daily + local create failures must release busy state and stop the success path.",
     ],
     [
       "setPeekInitialPage(optimisticNote);",

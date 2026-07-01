@@ -937,7 +937,7 @@ check(
     dailyNotesShell.indexOf("writeOptimisticDailyHotCache") <
       dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     dailyNotesShell.includes(
-      "warmDailyCreateOpenPath();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });"
+      "warmDailyCreateOpenPath();\n        setOpeningDraft({ pageId: optimisticNote.id, dateKey });"
     ) &&
     dailyNotesShell.indexOf("setPeekInitialPage(optimisticNote);") <
       dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id);") &&
@@ -955,6 +955,11 @@ check(
     dailyNotesShell.includes("setPeekInitialPage(optimisticNote);") &&
     dailyNotesShell.includes("setPeekPageId(optimisticNote.id);") &&
     dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
+    dailyNotesShell.includes("const handleCreateFailure = (error: unknown) =>") &&
+    dailyNotesShell.includes("current.filter((item) => item.id !== optimisticNote.id)") &&
+    dailyNotesShell.includes("已有纪要和本地缓存没有被删除，可以稍后重试。") &&
+    dailyNotesShell.includes("新建每日纪要时本地草稿准备失败，日历仍保留现有内容。") &&
+    dailyNotesShell.includes("handleCreateFailure(error);\n        return;") &&
     dailyNotesShell.includes("DEFAULT_DAILY_CREATE_OPEN_MODE") &&
     dailyNotesShell.includes('data-testid="daily-create-open-mode"') &&
     dailyNotesShell.includes("open_mode_full_page: dailyCreateOpenMode === \"full-page\" ? 1 : 0") &&

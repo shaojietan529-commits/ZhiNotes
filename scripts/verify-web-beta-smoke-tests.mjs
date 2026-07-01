@@ -8665,10 +8665,15 @@ function run() {
     );
   }
   for (const snippet of [
-    "warmDailyCreateOpenPath();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+    "warmDailyCreateOpenPath();\n        setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
     "DEFAULT_DAILY_CREATE_OPEN_MODE",
     'data-testid="daily-create-open-mode"',
     'openPage(optimisticNote, { source: "daily-create" });',
+    "const handleCreateFailure = (error: unknown) =>",
+    "current.filter((item) => item.id !== optimisticNote.id)",
+    "已有纪要和本地缓存没有被删除，可以稍后重试。",
+    "新建每日纪要时本地草稿准备失败，日历仍保留现有内容。",
+    "handleCreateFailure(error);\n        return;",
     "setPeekInitialPage(optimisticNote);",
     "setPeekPageId(optimisticNote.id);",
     "const localShellRequestedMs =\n        getLocalPerformanceNow() - createStartedAt;",
