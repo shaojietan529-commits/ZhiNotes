@@ -1195,6 +1195,12 @@ function run() {
   assertIncludes(
     files.routeSmokeVerifier,
     routeSmokeVerifier,
+    'path: "/portfolio"',
+    "Route smoke verifier must cover the portfolio board route."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
     'path: "/page/zhinote-route-prefetch"',
     "Route smoke verifier must cover the page shell route used for warm navigation."
   );

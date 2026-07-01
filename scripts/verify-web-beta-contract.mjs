@@ -17279,6 +17279,10 @@ function run() {
       "Route smoke verifier must cover the meeting calendar route.",
     ],
     [
+      'path: "/portfolio"',
+      "Route smoke verifier must cover the portfolio board route.",
+    ],
+    [
       'path: "/page/zhinote-route-prefetch"',
       "Route smoke verifier must cover the page shell warmup route.",
     ],

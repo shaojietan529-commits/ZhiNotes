@@ -22,6 +22,12 @@ const ROUTES = [
     expectedText: "ZhiHui",
   },
   {
+    path: "/portfolio",
+    label: "portfolio board",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
     path: "/page/zhinote-route-prefetch",
     label: "page route shell",
     expectedStatus: 200,
