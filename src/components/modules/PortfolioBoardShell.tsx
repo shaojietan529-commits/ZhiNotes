@@ -52,6 +52,17 @@ import { fetchAccountSession } from "@/lib/account/clientSession";
 type BoardTab = "positions" | "analysis" | "rebalance";
 type SyncStatus = "off" | "syncing" | "synced" | "error";
 type SyncMode = "account" | "passcode" | null;
+type NoticeTone = "info" | "warning";
+
+function readSyncErrorMessage(result: unknown): string | null {
+  if (!result || typeof result !== "object" || !("message" in result)) {
+    return null;
+  }
+  const message = result.message;
+  return typeof message === "string" && message.trim()
+    ? message
+    : null;
+}
 
 const PORTFOLIO_AUTO_PULL_MS = 15 * 1000;
 const PORTFOLIO_STORAGE_PREFIX = "zhinote.portfolio.";
@@ -64,6 +75,7 @@ export default function PortfolioBoardShell() {
   const [tab, setTab] = useState<BoardTab>("positions");
   const [importError, setImportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [noticeTone, setNoticeTone] = useState<NoticeTone>("info");
   const [aiTagging, setAiTagging] = useState(false);
   const [emailChecking, setEmailChecking] = useState(false);
   const [syncPasscode, setSyncPasscode] = useState<string | null>(null);
@@ -89,6 +101,7 @@ export default function PortfolioBoardShell() {
   const pushTimerRef = useRef<number | null>(null);
   const syncModeRef = useRef<SyncMode>(null);
   const viewingOwnerRef = useRef<string | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
   // Own local data, stashed while viewing a shared portfolio.
   const viewStashRef = useRef<{
     snapshot: PortfolioSnapshot | null;
@@ -149,6 +162,30 @@ export default function PortfolioBoardShell() {
       maxNetPct: maxNet,
     });
 
+  const showNotice = useCallback(
+    (message: string, tone: NoticeTone = "info") => {
+      if (noticeTimerRef.current !== null) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
+      setNoticeTone(tone);
+      setNotice(message);
+      noticeTimerRef.current = window.setTimeout(() => {
+        noticeTimerRef.current = null;
+        setNotice(null);
+      }, 4000);
+    },
+    []
+  );
+
+  useEffect(
+    () => () => {
+      if (noticeTimerRef.current !== null) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
+    },
+    []
+  );
+
   const runInitialSync = useCallback(
     async (code: string | null, manual: boolean) => {
       setSyncStatus("syncing");
@@ -181,6 +218,12 @@ export default function PortfolioBoardShell() {
       }
       if (result.status === "error") {
         setSyncStatus("error");
+        const message = readSyncErrorMessage(result);
+        showNotice(
+          message ??
+            "组合云同步暂时失败；本机组合数据已保留，可继续使用，稍后会自动重试。",
+          "warning"
+        );
         return;
       }
 
@@ -258,10 +301,19 @@ export default function PortfolioBoardShell() {
           saveTagMap(serverTags);
         }
       }
-      setSyncStatus(pushed.status === "ok" ? "synced" : "error");
+      if (pushed.status === "ok") {
+        setSyncStatus("synced");
+      } else {
+        setSyncStatus("error");
+        const message = readSyncErrorMessage(pushed);
+        showNotice(
+          message ?? "组合云同步上传暂时失败；本机组合数据已保留，稍后会继续补传。",
+          "warning"
+        );
+      }
       syncReadyRef.current = true;
     },
-    []
+    [showNotice]
   );
 
   const applyRemotePortfolio = useCallback(
@@ -331,6 +383,12 @@ export default function PortfolioBoardShell() {
         setSyncStatus("off");
       } else if (result.status === "error") {
         setSyncStatus("error");
+        const message = readSyncErrorMessage(result);
+        showNotice(
+          message ??
+            "组合云同步暂时无法拉取最新数据；当前显示的是本机缓存，稍后会自动重试。",
+          "warning"
+        );
       }
       return;
     }
@@ -348,8 +406,12 @@ export default function PortfolioBoardShell() {
       setSyncStatus("off");
     } else if (result.status === "error") {
       setSyncStatus("error");
+      showNotice(
+        "组合云同步暂时无法拉取最新数据；当前显示的是本机缓存，稍后会自动重试。",
+        "warning"
+      );
     }
-  }, [applyRemotePortfolio, syncPasscode]);
+  }, [applyRemotePortfolio, showNotice, syncPasscode]);
 
   useEffect(() => {
     const pullIfVisible = () => {
@@ -425,10 +487,28 @@ export default function PortfolioBoardShell() {
             saveTagMap(serverTags);
           }
         }
-        setSyncStatus(result.status === "ok" ? "synced" : "error");
+        if (result.status === "ok") {
+          setSyncStatus("synced");
+        } else {
+          setSyncStatus("error");
+          const message = readSyncErrorMessage(result);
+          showNotice(
+            message ?? "组合云同步上传暂时失败；本机修改已保存，稍后会自动重试。",
+            "warning"
+          );
+        }
       });
     }, 1500);
-  }, [snapshot, tagMap, allocation, maxNetPct, syncPasscode, syncMode, viewingOwner]);
+  }, [
+    snapshot,
+    tagMap,
+    allocation,
+    maxNetPct,
+    syncPasscode,
+    syncMode,
+    viewingOwner,
+    showNotice,
+  ]);
 
   const handleEnableSync = useCallback(async () => {
     const code = window.prompt(
@@ -488,11 +568,6 @@ export default function PortfolioBoardShell() {
     if (!Number.isFinite(value) || value <= 0 || value > 100) return;
     setMaxNetPct(value);
     saveMaxNetPct(value);
-  }, []);
-
-  const showNotice = useCallback((message: string) => {
-    setNotice(message);
-    window.setTimeout(() => setNotice(null), 4000);
   }, []);
 
   // Switch between my own portfolio and a friend's shared one (read-only).
@@ -961,7 +1036,13 @@ export default function PortfolioBoardShell() {
             </div>
           )}
           {notice && (
-            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <div
+              className={`mb-4 rounded-lg border px-4 py-2.5 text-sm ${
+                noticeTone === "warning"
+                  ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+              }`}
+            >
               {notice}
             </div>
           )}

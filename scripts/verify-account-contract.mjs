@@ -276,6 +276,13 @@ check(
   (board.match(/if \(viewingOwnerRef\.current\) return;/g) ?? []).length >= 6,
   "查看共享持仓时导入/打标/修改操作应全部禁用"
 );
+check(
+  board.includes('type NoticeTone = "info" | "warning"') &&
+    board.includes("组合云同步暂时失败；本机组合数据已保留，可继续使用，稍后会自动重试。") &&
+    board.includes("组合云同步上传暂时失败；本机修改已保存，稍后会自动重试。") &&
+    board.includes('noticeTone === "warning"'),
+  "组合页后台同步失败必须用 warning notice 明确说明本机数据已保留且稍后会重试"
+);
 
 // 7. Page cloud sync: session-gated route, opt-in client toggle, no logging
 const pageSyncRoute = read("src/app/api/pages/account-sync/route.ts");
