@@ -1726,6 +1726,7 @@ function PageContent({ pageId }: { pageId: string }) {
               contentLength={pageBodyHtmlLength}
               html={page.content_text}
               locked={locked}
+              pageId={pageId}
               onOpenEditor={handleOpenLargeBodyEditor}
               onPrimeEditor={handlePrimeLargeBodyEditor}
             />
@@ -1939,20 +1940,33 @@ function LargePageBodyPreview({
   contentLength,
   html,
   locked,
+  pageId,
   onOpenEditor,
   onPrimeEditor,
 }: {
   contentLength: number;
   html: string;
   locked: boolean;
+  pageId: string;
   onOpenEditor: () => void;
   onPrimeEditor: () => void;
 }) {
   const [preview, setPreview] = useState<LargePageBodyPreviewState>(null);
+  const [openingEditor, setOpeningEditor] = useState(false);
+  const previewStartedAtRef = useRef(getLocalPerformanceNow());
+  const previewStartedAtIsoRef = useRef(new Date().toISOString());
+  const previewReportedKeyRef = useRef<string | null>(null);
   const activePreview = preview?.html === html ? preview.model : null;
-  const buttonLabel = locked ? "打开完整正文" : "打开完整编辑器";
+  const buttonLabel = openingEditor
+    ? "正在准备编辑器..."
+    : locked
+      ? "打开完整正文"
+      : "打开完整编辑器";
 
   useEffect(() => {
+    previewStartedAtRef.current = getLocalPerformanceNow();
+    previewStartedAtIsoRef.current = new Date().toISOString();
+    previewReportedKeyRef.current = null;
     let cancelled = false;
     const cancel = scheduleLargePagePreviewBuild(() => {
       if (cancelled) return;
@@ -1965,6 +1979,36 @@ function LargePageBodyPreview({
       cancel();
     };
   }, [html]);
+
+  useEffect(() => {
+    if (!activePreview) return;
+    const reportKey = `${pageId}:${html.length}:${activePreview.blocks.length}:${activePreview.headings.length}`;
+    if (previewReportedKeyRef.current === reportKey) return;
+    previewReportedKeyRef.current = reportKey;
+    const durationMs = getLocalPerformanceNow() - previewStartedAtRef.current;
+    recordLocalPerformanceSnapshot({
+      kind: "page-open",
+      label: "长正文轻量预览",
+      route: "/page/[pageId]",
+      status: "large-body-preview-ready",
+      startedAt: previewStartedAtIsoRef.current,
+      durationMs,
+      localFirstMs: durationMs,
+      backgroundMs: 0,
+      counts: {
+        body_html_chars: html.length,
+        preview_blocks: activePreview.blocks.length,
+        preview_headings: activePreview.headings.length,
+        preview_truncated: activePreview.truncated ? 1 : 0,
+      },
+    });
+  }, [activePreview, html.length, pageId]);
+
+  const handleOpenEditor = useCallback(() => {
+    setOpeningEditor(true);
+    onPrimeEditor();
+    onOpenEditor();
+  }, [onOpenEditor, onPrimeEditor]);
 
   return (
     <div
@@ -1982,8 +2026,9 @@ function LargePageBodyPreview({
         </div>
         <button
           type="button"
+          aria-busy={openingEditor}
           onFocus={onPrimeEditor}
-          onClick={onOpenEditor}
+          onClick={handleOpenEditor}
           onPointerEnter={onPrimeEditor}
           className="h-8 shrink-0 rounded-md border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
