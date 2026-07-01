@@ -216,21 +216,30 @@ function storeAuthenticatedAccount(
   now: number
 ): void {
   if (typeof window === "undefined") return;
+  const payload = JSON.stringify({
+    storedAt: now,
+    account: {
+      id: account.id,
+      email_hint: account.email_hint,
+      display_name: account.display_name,
+      createdAt: account.createdAt,
+    },
+  });
   try {
     window.sessionStorage.setItem(
       ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
-      JSON.stringify({
-        storedAt: now,
-        account: {
-          id: account.id,
-          email_hint: account.email_hint,
-          display_name: account.display_name,
-          createdAt: account.createdAt,
-        },
-      })
+      payload
     );
   } catch {
     // A stale UI fallback is optional; the httpOnly cookie remains authoritative.
+  }
+  try {
+    window.localStorage.setItem(
+      ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+      payload
+    );
+  } catch {
+    // Cross-tab fallback is best effort and stores no tokens or cookies.
   }
 }
 
@@ -238,10 +247,18 @@ function readStoredAuthenticatedAccount(
   now: number
 ): ClientAccountInfo | null {
   if (typeof window === "undefined") return null;
+  return (
+    readStoredAuthenticatedAccountFromStorage(window.sessionStorage, now) ??
+    readStoredAuthenticatedAccountFromStorage(window.localStorage, now)
+  );
+}
+
+function readStoredAuthenticatedAccountFromStorage(
+  storage: Storage,
+  now: number
+): ClientAccountInfo | null {
   try {
-    const raw = window.sessionStorage.getItem(
-      ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY
-    );
+    const raw = storage.getItem(ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as {
       storedAt?: unknown;
@@ -251,7 +268,7 @@ function readStoredAuthenticatedAccount(
       typeof parsed.storedAt !== "number" ||
       now - parsed.storedAt > ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS
     ) {
-      clearStoredAuthenticatedAccount();
+      storage.removeItem(ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY);
       return null;
     }
     const account = parsed.account;
@@ -262,7 +279,7 @@ function readStoredAuthenticatedAccount(
       typeof account.display_name !== "string" ||
       typeof account.createdAt !== "string"
     ) {
-      clearStoredAuthenticatedAccount();
+      storage.removeItem(ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY);
       return null;
     }
     return {
@@ -280,6 +297,13 @@ function clearStoredAuthenticatedAccount(): void {
   if (typeof window === "undefined") return;
   try {
     window.sessionStorage.removeItem(
+      ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY
+    );
+  } catch {
+    // Ignore storage failures; explicit server logout still clears the cookie.
+  }
+  try {
+    window.localStorage.removeItem(
       ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY
     );
   } catch {

@@ -7706,6 +7706,18 @@ function run() {
       "storeAuthenticatedAccount(account, Date.now())",
       "Account session helper must rewrite the last-authenticated fallback without waiting for the next /api/account/me roundtrip.",
     ],
+    [
+      "readStoredAuthenticatedAccountFromStorage",
+      "Account session helper must read the stale authenticated fallback from bounded browser storage helpers.",
+    ],
+    [
+      "window.localStorage.setItem",
+      "Account session helper must preserve the masked last-authenticated fallback across tabs without storing tokens.",
+    ],
+    [
+      "window.localStorage.removeItem",
+      "Account session helper must clear the cross-tab stale authenticated fallback on explicit signed-out state.",
+    ],
   ]) {
     assertIncludes(files.accountClientSession, accountClientSession, snippet, message);
   }

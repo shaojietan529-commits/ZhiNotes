@@ -179,9 +179,12 @@ check(
     accountClientSession.includes("getLastAuthenticatedAccount") &&
     accountClientSession.includes("rememberLastAuthenticatedAccount") &&
     accountClientSession.includes("withStoredAuthenticatedFallback") &&
+    accountClientSession.includes("readStoredAuthenticatedAccountFromStorage") &&
+    accountClientSession.includes("window.localStorage.setItem") &&
+    accountClientSession.includes("window.localStorage.removeItem") &&
     accountClientSession.includes("staleReason") &&
     accountClientSession.includes("clearStoredAuthenticatedAccount"),
-  "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和最近登录账号降级保护"
+  "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和跨标签页最近登录账号降级保护"
 );
 check(
   shell.includes("rememberLastAuthenticatedAccount(nextAccount)") &&
