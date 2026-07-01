@@ -3761,6 +3761,18 @@ function run() {
       "Large page previews must expose a stable lightweight outline surface.",
     ],
     [
+      'status: "large-body-preview-ready"',
+      "Large page previews must record when the lightweight readable surface is ready.",
+    ],
+    [
+      "preview_blocks: activePreview.blocks.length",
+      "Large page preview performance snapshots must store counts instead of page text.",
+    ],
+    [
+      "aria-busy={openingEditor}",
+      "Large page preview editor requests must give immediate feedback after the user clicks.",
+    ],
+    [
       "extractLargePagePreviewHeadings",
       "Large page previews must extract a bounded heading outline without mounting the full editor.",
     ],

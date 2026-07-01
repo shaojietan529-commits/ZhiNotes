@@ -536,6 +536,9 @@ check(
     !pageShell.includes('import BlockComments from "@/components/shared/BlockComments"') &&
     !pageShell.includes('from "@/hooks/usePages"') &&
     !pageShell.includes("usePages({") &&
+    pageShell.includes('status: "large-body-preview-ready"') &&
+    pageShell.includes("preview_blocks: activePreview.blocks.length") &&
+    pageShell.includes("aria-busy={openingEditor}") &&
     pageShell.includes("const upsertPages = useWorkspaceStore((s) => s.upsertPages)"),
   "PageShell 必须动态加载并在页面首屏后空闲预热编辑器，完整页面先显示标题和属性，不能让编辑器大包阻塞首屏"
 );

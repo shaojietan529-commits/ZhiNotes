@@ -1775,6 +1775,9 @@ check(
     pageShell.includes("largeBody={hasLargeBodyForEditor}") &&
     pageShell.includes("正文较长（约 ${formatApproxBodySize(contentLength)}）") &&
     pageShell.includes("isLargePageBodyForEditor(content") &&
+    pageShell.includes('status: "large-body-preview-ready"') &&
+    pageShell.includes("preview_blocks: activePreview.blocks.length") &&
+    pageShell.includes("aria-busy={openingEditor}") &&
     pageShell.includes("标题和属性已先显示，正在从本地缓存补齐正文和编辑器") &&
     pageShell.includes('data-testid="page-body-hydration-status"') &&
     pageShell.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&
