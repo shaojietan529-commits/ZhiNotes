@@ -2187,6 +2187,17 @@ check(
   "重建本机页面缓存前必须解释云端数据和本地私有数据边界"
 );
 check(
+  accountShell.includes('data-testid="account-cloud-coverage-map"') &&
+    accountShell.includes("全域云端覆盖") &&
+    accountShell.includes("云端主库 + 本地热缓存") &&
+    accountShell.includes("页面 / 每日纪要 / 会议安排") &&
+    accountShell.includes("数据库") &&
+    accountShell.includes("账号 / 模块设置") &&
+    accountShell.includes("文件 / 评论 / 版本 / AI 输出") &&
+    accountShell.includes("/modules/sync#cloud-source-of-truth-plan"),
+  "AccountShell 应在账号页展示全域云端覆盖地图，说明哪些数据已进云端主库、哪些仍需本地或二次确认"
+);
+check(
   accountShell.includes("getPendingCloudDatabaseSyncStatus") &&
     accountShell.includes("getDatabaseCacheRebuildPendingBlocker") &&
     accountShell.includes("database pending queue、本地 sync_log、失败记录和人工处理记录") &&
