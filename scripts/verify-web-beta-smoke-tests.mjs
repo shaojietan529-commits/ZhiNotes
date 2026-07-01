@@ -1265,7 +1265,7 @@ function run() {
     ],
     [
       "DEFAULT_DAILY_CREATE_OPEN_MODE",
-      "Daily note creation must default to full-page opening while keeping peek as an explicit user mode.",
+      "Daily note creation must keep a shared default open-mode constant.",
     ],
     [
       'data-testid="daily-create-open-mode"',
@@ -1273,7 +1273,7 @@ function run() {
     ],
     [
       'openPage(optimisticNote, { source: "daily-create" });',
-      "Daily note creation must route to the full page by default after the local draft and handoff are seeded.",
+      "Daily note creation must keep explicit full-page routing after the local draft and handoff are seeded.",
     ],
     [
       "setPeekInitialPage(optimisticNote);",
@@ -1310,6 +1310,12 @@ function run() {
   ]) {
     assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }
+  assertIncludes(
+    files.dailyCreateOpenModeWorkspaceSettings,
+    dailyCreateOpenModeWorkspaceSettings,
+    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "peek";',
+    "Daily note creation must default to peek opening so + gives immediate in-page feedback."
+  );
   for (const [snippet, message] of [
     [
       "router.push(pageRoute);",
@@ -8673,7 +8679,7 @@ function run() {
       files.dailyNotesShell,
       dailyNotesShell,
       snippet,
-      "Daily + creation must seed local state first, default to full-page opening, and keep peek mode available."
+      "Daily + creation must seed local state first, default to peek opening, and keep explicit full-page mode available."
     );
   }
   assertIncludes(

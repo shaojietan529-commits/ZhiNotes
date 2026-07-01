@@ -67,7 +67,7 @@ export type DailyCreateOpenModeWorkspaceSettingsValidationResult =
     };
 
 export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =
-  "full-page";
+  "peek";
 
 const FORBIDDEN_PAYLOAD_FIELDS = [
   "title",

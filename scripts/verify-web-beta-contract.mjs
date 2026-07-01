@@ -5212,7 +5212,7 @@ function run() {
     ],
     [
       "const warmDailyCreateOpenPath = useCallback",
-      "Daily + creation must warm the full-page route by default and only warm peek when that mode is selected.",
+      "Daily + creation must warm the selected open path so default peek and explicit full-page both feel immediate.",
     ],
     [
       "warmDailyPeekOpen();",
@@ -5272,7 +5272,7 @@ function run() {
     ],
     [
       "DEFAULT_DAILY_CREATE_OPEN_MODE",
-      "Daily + creation must default to full-page opening while keeping peek as an explicit mode.",
+      "Daily + creation must keep a shared default open-mode constant.",
     ],
     [
       'data-testid="daily-create-open-mode"',
@@ -5280,7 +5280,7 @@ function run() {
     ],
     [
       'openPage(optimisticNote, { source: "daily-create" });',
-      "Daily + creation must route to the full page by default after local draft and handoff seeding.",
+      "Daily + creation must keep explicit full-page routing after local draft and handoff seeding.",
     ],
     [
       "setPeekInitialPage(optimisticNote);",
@@ -5316,7 +5316,7 @@ function run() {
     ],
     [
       "每日纪要已弹出",
-      "Daily + creation must keep the peek-mode notice while default full-page mode uses the route notice.",
+      "Daily + creation must keep the default peek-mode notice while explicit full-page mode uses the route notice.",
     ],
     [
       "openPage(note, { source })",
@@ -5557,6 +5557,12 @@ function run() {
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }
+  assertSourceIncludes(
+    files.dailyCreateOpenModeWorkspaceSettings,
+    dailyCreateOpenModeWorkspaceSettings,
+    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "peek";',
+    "Daily + creation must default to peek opening so the + action gives immediate in-page feedback."
+  );
   for (const [snippet, message] of [
     [
       "onReady?: (pageId: string) => void",
