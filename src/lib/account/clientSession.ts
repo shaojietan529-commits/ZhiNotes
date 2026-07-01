@@ -39,6 +39,12 @@ export function getLastAuthenticatedAccount(): ClientAccountInfo | null {
   return readStoredAuthenticatedAccount(Date.now());
 }
 
+export function rememberLastAuthenticatedAccount(
+  account: ClientAccountInfo
+): void {
+  storeAuthenticatedAccount(account, Date.now());
+}
+
 export async function fetchAccountSession(
   options: { force?: boolean } = {}
 ): Promise<AccountSessionResult> {

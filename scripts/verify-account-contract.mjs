@@ -102,8 +102,9 @@ for (const body of effectBodies) {
 }
 check(
   shell.includes("fetchAccountSession({ force: true })") &&
-    shell.includes("clearAccountSessionCache"),
-  "AccountShell 应通过共享账号状态 helper 检查会话，并在登录/改名/退出后清缓存"
+    shell.includes("clearAccountSessionCache") &&
+    shell.includes("rememberLastAuthenticatedAccount"),
+  "AccountShell 应通过共享账号状态 helper 检查会话，并在登录/改名/退出后刷新缓存；成功登录或改名后要重写最近登录账号兜底"
 );
 check(
   shell.includes("buildCloudUploadReliabilityReport") &&
@@ -176,10 +177,17 @@ check(
     accountClientSession.includes("clearAccountSessionCache") &&
     accountClientSession.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
     accountClientSession.includes("getLastAuthenticatedAccount") &&
+    accountClientSession.includes("rememberLastAuthenticatedAccount") &&
     accountClientSession.includes("withStoredAuthenticatedFallback") &&
     accountClientSession.includes("staleReason") &&
     accountClientSession.includes("clearStoredAuthenticatedAccount"),
   "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和最近登录账号降级保护"
+);
+check(
+  shell.includes("rememberLastAuthenticatedAccount(nextAccount)") &&
+    shell.indexOf("rememberLastAuthenticatedAccount(nextAccount)") <
+      shell.indexOf("notifyAccountProfileUpdated()"),
+  "AccountShell 设置登录账号时必须先重写最近登录账号兜底，再通知侧栏刷新"
 );
 check(
   shell.includes("session.authenticated && session.account") &&

@@ -4356,8 +4356,32 @@ function run() {
       "window.sessionStorage.setItem",
       "Account session unconfigured caching must stay tab-scoped instead of localStorage-persistent.",
     ],
+    [
+      "rememberLastAuthenticatedAccount",
+      "Account session helper must let successful login/profile saves refresh the stale authenticated fallback immediately.",
+    ],
+    [
+      "storeAuthenticatedAccount(account, Date.now())",
+      "Account session helper must rewrite the last-authenticated fallback without waiting for the next /api/account/me roundtrip.",
+    ],
   ]) {
     assertSourceIncludes(files.accountClientSession, accountClientSession, snippet, message);
+  }
+  assertSourceIncludes(
+    files.accountShell,
+    accountShell,
+    "rememberLastAuthenticatedAccount(nextAccount)",
+    "Account shell must refresh the stale account fallback whenever it accepts a signed-in account."
+  );
+  if (
+    !(
+      accountShell.indexOf("rememberLastAuthenticatedAccount(nextAccount)") <
+      accountShell.indexOf("notifyAccountProfileUpdated()")
+    )
+  ) {
+    fail(
+      "Account shell must update the last-authenticated fallback before notifying sidebar/profile listeners."
+    );
   }
   assertSourceIncludes(
     files.pageCloudSync,

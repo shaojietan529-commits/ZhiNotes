@@ -31,6 +31,7 @@ import {
 import {
   clearAccountSessionCache,
   fetchAccountSession,
+  rememberLastAuthenticatedAccount,
 } from "@/lib/account/clientSession";
 import {
   DATABASE_SYNC_STATUS_EVENT,
@@ -297,6 +298,7 @@ export default function AccountShell() {
   }, [phase, refreshHotCachePreferences]);
 
   const setSignedInAccount = useCallback((nextAccount: ClientAccountInfo) => {
+    rememberLastAuthenticatedAccount(nextAccount);
     setAccount(nextAccount);
     setDisplayNameInput(nextAccount.display_name);
     notifyAccountProfileUpdated();
