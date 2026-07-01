@@ -8532,6 +8532,18 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    'data-testid="daily-opening-draft-banner"',
+    "Daily create must show a top-level opening banner when route navigation or peek loading is still preparing."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "没有跳转？打开页面",
+    "Daily full-page create mode must give the user a fallback open-page action."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "highlightedDailyDateKey === key",
     "Daily calendar must visibly highlight the target day after create, move, or reveal actions."
   );
@@ -8683,6 +8695,10 @@ function run() {
     [
       "data-testid={`meeting-opening-page-${key}`}",
       "Meeting calendar must show an immediate opening chip after + is clicked.",
+    ],
+    [
+      'data-testid="meeting-opening-draft-banner"',
+      "Meeting creation and import must show a top-level opening banner while the peek modal is preparing.",
     ],
     [
       "openingMeetingId === entry.page.id",

@@ -921,6 +921,8 @@ check(
     dailyNotesShell.includes("onFocus={warmDailyCreateOpenPath}") &&
     !dailyNotesShell.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     dailyNotesShell.includes("data-testid={`daily-opening-note-${key}`}") &&
+    dailyNotesShell.includes('data-testid="daily-opening-draft-banner"') &&
+    dailyNotesShell.includes("没有跳转？打开页面") &&
     dailyNotesShell.includes("title: dateKey") &&
     dailyNotesShell.includes("<PagePeekModal") &&
     dailyNotesShell.includes("initialPage={peekInitialPage}") &&
@@ -1135,6 +1137,7 @@ check(
     meetingScheduleShell.includes("setOpeningMeetingId(optimisticPage.id);") &&
     meetingScheduleShell.includes("void seedMeetingPageForImmediateOpen(optimisticPage);") &&
     meetingScheduleShell.includes("data-testid={`meeting-opening-page-${key}`}") &&
+    meetingScheduleShell.includes('data-testid="meeting-opening-draft-banner"') &&
     meetingScheduleShell.includes("openingMeetingId === entry.page.id") &&
     meetingScheduleShell.includes("onReady={handlePeekReady}") &&
     !meetingScheduleShell.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&

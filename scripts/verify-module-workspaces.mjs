@@ -1023,6 +1023,8 @@ for (const token of [
   "setOpeningDraft({ pageId: optimisticNote.id, dateKey })",
   "title: dateKey",
   "data-testid={`daily-opening-note-${key}`}",
+  'data-testid="daily-opening-draft-banner"',
+  "没有跳转？打开页面",
   "hydrateDailyDateKey(key);\n                    warmPageRoute();",
   "const warmDailyPeekOpen = useCallback",
   "const warmDailyCreateOpenPath = useCallback",
@@ -1353,6 +1355,7 @@ check(
     shells.schedule.includes("setOpeningMeetingId(optimisticPage.id);") &&
     shells.schedule.includes("void seedMeetingPageForImmediateOpen(optimisticPage);") &&
     shells.schedule.includes("data-testid={`meeting-opening-page-${key}`}") &&
+    shells.schedule.includes('data-testid="meeting-opening-draft-banner"') &&
     shells.schedule.includes("openingMeetingId === entry.page.id") &&
     shells.schedule.includes("onReady={handlePeekReady}") &&
     !shells.schedule.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&

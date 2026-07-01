@@ -5108,6 +5108,14 @@ function run() {
       "Daily + creation must warm the selected open path before setting the opening draft state.",
     ],
     [
+      'data-testid="daily-opening-draft-banner"',
+      "Daily + creation must show a top-level opening banner so slow route transitions do not look like a dead click.",
+    ],
+    [
+      "没有跳转？打开页面",
+      "Daily full-page create mode must offer a visible fallback button if route navigation is slow.",
+    ],
+    [
       "rememberPageRouteHandoff(initialSeed, source)",
       "Daily note opening must hand off metadata-only seed before opening a page.",
     ],
@@ -6031,6 +6039,10 @@ function run() {
     [
       "data-testid={`meeting-opening-page-${key}`}",
       "Meeting calendar must show an immediate opening chip after + is clicked.",
+    ],
+    [
+      'data-testid="meeting-opening-draft-banner"',
+      "Meeting creation and import must show a top-level opening banner while the peek modal is preparing.",
     ],
     [
       "openingMeetingId === entry.page.id",
