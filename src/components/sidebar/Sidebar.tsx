@@ -95,7 +95,7 @@ function getAccountSyncShortLabel(state: AccountCloudSyncCoordinatorState) {
     case "signed-out":
       return "未登录";
     case "error":
-      return "出错";
+      return "重试中";
     case "disabled":
       return "未开启";
     case "synced":
@@ -435,7 +435,7 @@ export default function Sidebar() {
               ? "页面同步：已开启，等待后台检查"
               : pageSync.state === "disabled"
               ? "页面同步未开启"
-              : "页面同步出错";
+              : "页面同步：账号或网络暂不可确认，已保留本地输入，稍后重试";
   const databaseSyncTitle =
     databaseSync.pendingStatus.failed > 0
       ? `数据库同步：${databaseSync.pendingStatus.failed} 条待重试；打开同步中心查看最近失败原因`
@@ -456,7 +456,7 @@ export default function Sidebar() {
               ? "数据库同步：已开启，等待后台检查"
               : databaseSync.state === "disabled"
               ? "数据库同步未开启"
-              : "数据库同步出错";
+              : "数据库同步：账号或网络暂不可确认，已保留本地输入，稍后重试";
   const accountSyncTitle = `${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}`;
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
   const accountSyncIcon = getAccountSyncIcon(accountSync.state);

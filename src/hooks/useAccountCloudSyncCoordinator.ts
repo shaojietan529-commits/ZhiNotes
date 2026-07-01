@@ -150,7 +150,11 @@ export function useAccountCloudSyncCoordinator() {
     }
     if (state === "attention") return `账号云同步需要处理${details.length ? `：${details.join("，")}` : ""}`;
     if (state === "signed-out") return "账号云同步需要登录后继续";
-    if (state === "error") return `账号云同步出错${details.length ? `：${details.join("，")}` : ""}`;
+    if (state === "error") {
+      return `账号云同步暂不可确认，稍后重试；本地输入已保留${
+        details.length ? `：${details.join("，")}` : ""
+      }`;
+    }
     return `账号云同步已完成${details.length ? `：${details.join("，")}` : ""}`;
   }, [
     databasePendingTotal,

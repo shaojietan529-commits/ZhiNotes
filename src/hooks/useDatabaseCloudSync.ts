@@ -119,6 +119,7 @@ export function useDatabaseCloudSync() {
     { forceLease?: boolean; quick?: boolean } | null
   >(null);
   const authRetryAfterRef = useRef(0);
+  const authRetryStateRef = useRef<DatabaseCloudSyncState>("signed-out");
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
 
   const refreshPendingStatus = useCallback(async () => {
@@ -129,10 +130,13 @@ export function useDatabaseCloudSync() {
     const accountGate = await checkAccountCloudSyncGate({ force });
     if (accountGate.status === "ready") {
       authRetryAfterRef.current = 0;
+      authRetryStateRef.current = "signed-out";
       return true;
     }
     authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
-    setState(accountGate.status === "error" ? "error" : "signed-out");
+    authRetryStateRef.current =
+      accountGate.status === "error" ? "error" : "signed-out";
+    setState(authRetryStateRef.current);
     void refreshPendingStatus();
     return false;
   }, [refreshPendingStatus]);
@@ -154,7 +158,7 @@ export function useDatabaseCloudSync() {
         return;
       }
       if (!options.forceLease && Date.now() < authRetryAfterRef.current) {
-        setState("signed-out");
+        setState(authRetryStateRef.current);
         void refreshPendingStatus();
         return;
       }
@@ -177,6 +181,7 @@ export function useDatabaseCloudSync() {
         const result = await reconcileDatabaseSync({ quick: options.quick });
         if (result.status === "ok") {
           authRetryAfterRef.current = 0;
+          authRetryStateRef.current = "signed-out";
           setState("synced");
           setLastSyncAt(getLastDatabaseSyncAt());
           if (result.pulled > 0) {
@@ -193,12 +198,15 @@ export function useDatabaseCloudSync() {
           result.status === "unconfigured"
         ) {
           authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+          authRetryStateRef.current = "signed-out";
           setState("signed-out");
         } else if (result.status === "disabled") {
           authRetryAfterRef.current = 0;
+          authRetryStateRef.current = "signed-out";
           setState("disabled");
         } else {
           authRetryAfterRef.current = 0;
+          authRetryStateRef.current = "error";
           setState("error");
         }
       } finally {
@@ -232,6 +240,8 @@ export function useDatabaseCloudSync() {
       fullRefresh: true,
     });
     if (result.status === "ok") {
+      authRetryAfterRef.current = 0;
+      authRetryStateRef.current = "signed-out";
       setState("synced");
       setLastSyncAt(getLastDatabaseSyncAt());
       if (result.pulled > 0) {
@@ -243,10 +253,13 @@ export function useDatabaseCloudSync() {
       result.status === "unconfigured"
     ) {
       authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+      authRetryStateRef.current = "signed-out";
       setState("signed-out");
     } else if (result.status === "disabled") {
+      authRetryStateRef.current = "signed-out";
       setState("disabled");
     } else {
+      authRetryStateRef.current = "error";
       setState("error");
     }
     void refreshPendingStatus();

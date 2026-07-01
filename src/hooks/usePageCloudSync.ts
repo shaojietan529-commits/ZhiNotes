@@ -120,6 +120,7 @@ export function usePageCloudSync() {
     { quick?: boolean; forceLease?: boolean } | null
   >(null);
   const authRetryAfterRef = useRef(0);
+  const authRetryStateRef = useRef<PageCloudSyncState>("signed-out");
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
 
   const refreshPendingStatus = useCallback(() => {
@@ -130,10 +131,13 @@ export function usePageCloudSync() {
     const accountGate = await checkAccountCloudSyncGate({ force });
     if (accountGate.status === "ready") {
       authRetryAfterRef.current = 0;
+      authRetryStateRef.current = "signed-out";
       return true;
     }
     authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
-    setState(accountGate.status === "error" ? "error" : "signed-out");
+    authRetryStateRef.current =
+      accountGate.status === "error" ? "error" : "signed-out";
+    setState(authRetryStateRef.current);
     refreshPendingStatus();
     return false;
   }, [refreshPendingStatus]);
@@ -154,7 +158,7 @@ export function usePageCloudSync() {
       return;
     }
     if (!options.forceLease && Date.now() < authRetryAfterRef.current) {
-      setState("signed-out");
+      setState(authRetryStateRef.current);
       refreshPendingStatus();
       return;
     }
@@ -177,6 +181,7 @@ export function usePageCloudSync() {
       const result = await reconcilePageSync({ quick: options.quick });
       if (result.status === "ok") {
         authRetryAfterRef.current = 0;
+        authRetryStateRef.current = "signed-out";
         setState("synced");
         setLastSyncAt(getLastPageSyncAt());
       } else if (
@@ -184,12 +189,15 @@ export function usePageCloudSync() {
         result.status === "unconfigured"
       ) {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+        authRetryStateRef.current = "signed-out";
         setState("signed-out");
       } else if (result.status === "disabled") {
         authRetryAfterRef.current = 0;
+        authRetryStateRef.current = "signed-out";
         setState("disabled");
       } else {
         authRetryAfterRef.current = 0;
+        authRetryStateRef.current = "error";
         setState("error");
       }
     } finally {
@@ -222,6 +230,8 @@ export function usePageCloudSync() {
       fullRefresh: true,
     });
     if (result.status === "ok") {
+      authRetryAfterRef.current = 0;
+      authRetryStateRef.current = "signed-out";
       setState("synced");
       setLastSyncAt(getLastPageSyncAt());
       void runSync({ quick: true, forceLease: true });
@@ -230,10 +240,13 @@ export function usePageCloudSync() {
       result.status === "unconfigured"
     ) {
       authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+      authRetryStateRef.current = "signed-out";
       setState("signed-out");
     } else if (result.status === "disabled") {
+      authRetryStateRef.current = "signed-out";
       setState("disabled");
     } else {
+      authRetryStateRef.current = "error";
       setState("error");
     }
     refreshPendingStatus();
