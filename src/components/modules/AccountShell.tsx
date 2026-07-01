@@ -82,6 +82,50 @@ type Phase =
   | "signed-in"
   | "error";
 
+type AccountCloudCoverageStatus = "cloud-ready" | "partial" | "local-only";
+
+const accountCloudCoverageRows: {
+  id: string;
+  title: string;
+  status: AccountCloudCoverageStatus;
+  scope: string;
+  boundary: string;
+  next: string;
+}[] = [
+  {
+    id: "pages",
+    title: "页面 / 每日纪要 / 会议安排",
+    status: "cloud-ready",
+    scope: "标题、正文、层级、属性、封面已接入账号云同步。",
+    boundary: "本机只是可重建热缓存；pending、failed、manual review 未清零前不能重建。",
+    next: "继续压低首屏等待时间，并把每日纪要/会议入口保持 metadata-first。",
+  },
+  {
+    id: "databases",
+    title: "数据库",
+    status: "cloud-ready",
+    scope: "数据库结构、字段、视图和行值已接入账号云同步。",
+    boundary: "只上传明确进入 pending queue / sync_log 的变更，不用整份本机缓存覆盖云端。",
+    next: "继续做按需加载和冲突复核，让大表打开时更接近本地速度。",
+  },
+  {
+    id: "settings",
+    title: "账号 / 模块设置",
+    status: "partial",
+    scope: "用户名、账号偏好、模块配置等白名单设置可进入待上传计划。",
+    boundary: "非白名单本地配置不会被自动上传；恢复前先检查本地 pending。",
+    next: "把常用设置补齐到统一 settings 队列，减少多设备配置漂移。",
+  },
+  {
+    id: "files-comments-versions-ai",
+    title: "文件 / 评论 / 版本 / AI 输出",
+    status: "local-only",
+    scope: "文件原始字节、评论正文、版本快照和 AI 输出仍按本地或显式确认边界处理。",
+    boundary: "导入成页面正文的内容可随页面同步，但原始文件和敏感输出不会自动外发。",
+    next: "下一步需要云表、权限、容量策略和二次确认后，才能纳入全域云端主库。",
+  },
+];
+
 function getPageCacheRebuildPendingBlocker(): string | null {
   return getPageCacheRebuildBlockerFromStatus(getPendingCloudPageSyncStatus());
 }
@@ -1042,6 +1086,19 @@ export default function AccountShell() {
           )}
 
           {phase === "signed-in" && (
+            <AccountCloudCoverageCard
+              pageSyncOn={pageSyncOn}
+              databaseSyncOn={databaseSyncOn}
+              pagePendingStatus={pagePendingStatus}
+              databasePendingStatus={databasePendingStatus}
+              syncSummary={syncSummary}
+              onOpenSyncCenter={() =>
+                router.push("/modules/sync#cloud-source-of-truth-plan")
+              }
+            />
+          )}
+
+          {phase === "signed-in" && (
             <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -1326,6 +1383,167 @@ export default function AccountShell() {
         </div>
       </main>
     </div>
+  );
+}
+
+function AccountCloudCoverageCard({
+  pageSyncOn,
+  databaseSyncOn,
+  pagePendingStatus,
+  databasePendingStatus,
+  syncSummary,
+  onOpenSyncCenter,
+}: {
+  pageSyncOn: boolean;
+  databaseSyncOn: boolean;
+  pagePendingStatus: PendingCloudPageSyncStatus | null;
+  databasePendingStatus: PendingCloudDatabaseSyncStatus | null;
+  syncSummary: SyncLogSummary | null;
+  onOpenSyncCenter: () => void;
+}) {
+  const pagePending = pagePendingStatus
+    ? pagePendingStatus.pending + pagePendingStatus.queued
+    : null;
+  const databasePending = databasePendingStatus
+    ? databasePendingStatus.pending +
+      databasePendingStatus.queued +
+      databasePendingStatus.syncLogPending
+    : null;
+  const globalPending = syncSummary?.pending ?? null;
+
+  return (
+    <div
+      data-testid="account-cloud-coverage-map"
+      className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            全域云端覆盖
+          </p>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-400">
+            目标状态是云端主库 + 本地热缓存：真实数据以云端为准，常用内容按你的选择留在本机提速。
+            这张表只展示同步边界和队列状态，不读取正文、表格值或文件字节，也不会上传。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenSyncCenter}
+          className="w-fit rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          打开同步中心
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <AccountCloudCoverageMetric
+          label="页面队列"
+          value={
+            pagePending === null
+              ? "检查中"
+              : pageSyncOn
+                ? `${pagePending} 条`
+                : "已关闭"
+          }
+          detail="pending + 内存排队"
+        />
+        <AccountCloudCoverageMetric
+          label="数据库队列"
+          value={
+            databasePending === null
+              ? "检查中"
+              : databaseSyncOn
+                ? `${databasePending} 条`
+                : "已关闭"
+          }
+          detail="cloud key + sync_log"
+        />
+        <AccountCloudCoverageMetric
+          label="全域 sync_log"
+          value={globalPending === null ? "检查中" : `${globalPending} 条`}
+          detail="其他待上传设置/关系"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        {accountCloudCoverageRows.map((row) => (
+          <article
+            key={row.id}
+            className="rounded-lg border border-zinc-100 p-3 text-xs dark:border-zinc-800"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
+                  {row.title}
+                </h3>
+                <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                  {row.scope}
+                </p>
+              </div>
+              <AccountCloudCoveragePill status={row.status} />
+            </div>
+            <p className="mt-2 leading-5 text-zinc-400">{row.boundary}</p>
+            <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+              下一步：{row.next}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <p className="mt-4 text-[11px] leading-5 text-zinc-400">
+        读法：绿色代表已经以云端为主库；黄色代表只接入白名单或 metadata；灰色代表仍需你明确确认后才会上云。
+        如果这里还有 pending，先处理队列，再判断是否需要重建本机缓存。
+      </p>
+    </div>
+  );
+}
+
+function AccountCloudCoverageMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-lg border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <p className="text-[11px] text-zinc-400">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </p>
+      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+        {detail}
+      </p>
+    </div>
+  );
+}
+
+function AccountCloudCoveragePill({
+  status,
+}: {
+  status: AccountCloudCoverageStatus;
+}) {
+  const label: Record<AccountCloudCoverageStatus, string> = {
+    "cloud-ready": "云端主库",
+    partial: "部分接入",
+    "local-only": "仍在本地",
+  };
+  const classes: Record<AccountCloudCoverageStatus, string> = {
+    "cloud-ready":
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    partial:
+      "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    "local-only": "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+  };
+
+  return (
+    <span
+      className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-medium ${classes[status]}`}
+    >
+      {label[status]}
+    </span>
   );
 }
 
