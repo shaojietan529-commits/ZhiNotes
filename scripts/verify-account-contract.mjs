@@ -2340,14 +2340,19 @@ check(
     sidebar.includes("getAccountSyncToneClass") &&
     sidebar.includes("检查中") &&
     sidebar.includes("accountSyncNeedsSyncCenter") &&
+    sidebar.includes("accountSync.pagePendingTotal > 0") &&
+    sidebar.includes("accountSync.databasePendingTotal > 0") &&
     sidebar.includes("getAccountSyncCenterTarget") &&
     sidebar.includes('data-sync-action=') &&
     sidebar.includes('data-sync-target={accountSyncCenterTarget}') &&
     sidebar.includes('"open-sync-center"') &&
     sidebar.includes('"quick-sync"') &&
     sidebar.includes("/modules/sync#sync-upload-safety-panel") &&
+    sidebar.includes("/modules/sync#page-pending-upload-queue") &&
+    sidebar.includes("/modules/sync#database-pending-upload-queue") &&
     sidebar.includes("/modules/sync#knowledge-replay-batch-plan") &&
     sidebar.includes("/modules/sync#account-module-settings-pending-plan") &&
+    sidebar.includes('accountSyncActionLabel = accountSyncNeedsSyncCenter\n    ? "查看队列"') &&
     sidebar.includes("openModuleRoute(accountSyncCenterTarget)") &&
     sidebar.includes("warmModuleRoute(accountSyncCenterTarget)") &&
     sidebar.includes("data-sync-state={accountSync.state}") &&
@@ -2365,7 +2370,11 @@ check(
     sidebar.includes("accountSync.pendingTotal") &&
     sidebar.includes("普通同步只补传 pending queue") &&
     sidebar.includes("pageSync.pendingStatus.pending") &&
-    sidebar.includes("databaseSync.pendingStatus.syncLogPending"),
+    sidebar.includes("databaseSync.pendingStatus.syncLogPending") &&
+    syncDashboardShell.includes('id="page-pending-upload-queue"') &&
+    syncDashboardShell.includes('data-testid="page-pending-upload-queue"') &&
+    syncDashboardShell.includes('id="database-pending-upload-queue"') &&
+    syncDashboardShell.includes('data-testid="database-pending-upload-queue"'),
   "Sidebar 账号行应显示账号级云同步状态、各域 pending/失败/人工处理计数，让本地未上传输入在全局可见"
 );
 

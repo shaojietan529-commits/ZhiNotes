@@ -8133,6 +8133,36 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    'id="database-pending-upload-queue"',
+    "Sync module must provide a stable anchor for the database pending upload queue."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "accountSync.pagePendingTotal > 0",
+    "Sidebar cloud-sync control must treat page pending uploads as queue-review states."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "accountSync.databasePendingTotal > 0",
+    "Sidebar cloud-sync control must treat database pending uploads as queue-review states."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "/modules/sync#database-pending-upload-queue",
+    "Sidebar cloud-sync control must deep-link database pending rows to the database upload queue."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    'accountSyncActionLabel = accountSyncNeedsSyncCenter\n    ? "查看队列"',
+    "Sidebar cloud-sync control must label queue-review states as queue review instead of generic quick sync."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "sync-upload-safety-panel",
     "Sync UI must provide a stable upload safety panel for local-first queue review."
   );
