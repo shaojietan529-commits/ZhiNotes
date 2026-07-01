@@ -298,6 +298,11 @@ export interface CloudPageDomainManifestSummaryResult {
 
 interface ReconcileOptions {
   quick?: boolean;
+  includeManualReview?: boolean;
+}
+
+interface FlushPendingCloudPushOptions {
+  includeManualReview?: boolean;
 }
 
 const CLOUD_DOMAIN_SUMMARY_START_DATE = "2000-01-01";
@@ -1300,7 +1305,9 @@ export function queueCloudPageDelete(
   queueCloudPagePush(tombstone);
 }
 
-async function flushPendingCloudPushes(): Promise<{
+async function flushPendingCloudPushes(
+  options: FlushPendingCloudPushOptions = {}
+): Promise<{
   status: PageSyncStatus;
   pushed: number;
   pending: number;
@@ -1310,15 +1317,26 @@ async function flushPendingCloudPushes(): Promise<{
   if (ids.length === 0) {
     return { status: "ok", pushed: 0, pending: 0 };
   }
+  const pendingMeta = getPendingCloudPushMeta();
+  const retryableIds = options.includeManualReview
+    ? ids
+    : ids.filter(
+        (id) =>
+          (pendingMeta[id]?.failureCount ?? 0) <
+          PENDING_CLOUD_PAGE_MANUAL_REVIEW_FAILURE_COUNT
+      );
+  if (retryableIds.length === 0) {
+    return { status: "ok", pushed: 0, pending: ids.length };
+  }
 
   let pages: Page[];
   try {
-    pages = await getPagesForSyncByIds(ids);
+    pages = await getPagesForSyncByIds(retryableIds);
   } catch (error) {
     return {
       status: "ok",
       pushed: 0,
-      pending: ids.length,
+      pending: getPendingCloudPushIds().length,
       message: error instanceof Error ? error.message : "本地缓存读取失败",
     };
   }
@@ -1327,7 +1345,7 @@ async function flushPendingCloudPushes(): Promise<{
   const records: RemotePageRecord[] = [];
   const missing: string[] = [];
   const evicted: string[] = [];
-  for (const id of ids) {
+  for (const id of retryableIds) {
     const page = localById.get(id);
     if (page) {
       if (isLocalCacheEvictionTombstone(page)) {
@@ -2280,7 +2298,9 @@ export async function reconcilePageSync(
   }
   reconcileRunning = true;
   try {
-    const pendingPush = await flushPendingCloudPushes();
+    const pendingPush = await flushPendingCloudPushes({
+      includeManualReview: options.includeManualReview,
+    });
     if (
       pendingPush.status === "unauthenticated" ||
       pendingPush.status === "unconfigured" ||

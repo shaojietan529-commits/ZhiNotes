@@ -25,6 +25,7 @@ export type AccountCloudSyncCoordinatorState =
 
 export interface AccountCloudSyncCoordinatorOptions {
   forceLease?: boolean;
+  includeManualReview?: boolean;
 }
 
 function formatLastSyncTime(value: string | null) {
@@ -47,8 +48,16 @@ export function useAccountCloudSyncCoordinator() {
   const syncNow = useCallback(
     async (options: AccountCloudSyncCoordinatorOptions = {}) => {
       await Promise.allSettled([
-        pageSyncNow({ quick: true, forceLease: options.forceLease }),
-        databaseSyncNow({ quick: true, forceLease: options.forceLease }),
+        pageSyncNow({
+          quick: true,
+          forceLease: options.forceLease,
+          includeManualReview: options.includeManualReview,
+        }),
+        databaseSyncNow({
+          quick: true,
+          forceLease: options.forceLease,
+          includeManualReview: options.includeManualReview,
+        }),
         refreshSettingsSyncStatus(),
         refreshKnowledgeSyncStatus(),
       ]);
@@ -84,6 +93,34 @@ export function useAccountCloudSyncCoordinator() {
     databaseSync.pendingStatus.manualReviewCount +
     settingsSync.status.manualReviewCount +
     knowledgeSync.status.manualReviewCount;
+  const retryableFailedTotal = Math.max(failedTotal - manualReviewTotal, 0);
+  const pageAutoRetryablePendingTotal =
+    Math.max(
+      pageSync.pendingStatus.pending -
+        pageSync.pendingStatus.manualReviewCount,
+      0
+    ) + pageSync.pendingStatus.queued;
+  const databaseAutoRetryablePendingTotal =
+    Math.max(
+      databaseSync.pendingStatus.pending -
+        databaseSync.pendingStatus.manualReviewCount,
+      0
+    ) +
+    databaseSync.pendingStatus.queued +
+    databaseSync.pendingStatus.syncLogPending;
+  const settingsAutoRetryablePendingTotal = Math.max(
+    settingsPendingTotal - settingsSync.status.manualReviewCount,
+    0
+  );
+  const knowledgeAutoRetryablePendingTotal = Math.max(
+    knowledgePendingTotal - knowledgeSync.status.manualReviewCount,
+    0
+  );
+  const autoRetryableSyncWorkTotal =
+    pageAutoRetryablePendingTotal +
+    databaseAutoRetryablePendingTotal +
+    settingsAutoRetryablePendingTotal +
+    knowledgeAutoRetryablePendingTotal;
   const pageVisibleSyncWork =
     pagePendingTotal > 0 ||
     pageSync.pendingStatus.failed > 0 ||
@@ -143,7 +180,7 @@ export function useAccountCloudSyncCoordinator() {
     if (state === "disabled") return "账号云同步未开启";
     const details = [
       pendingTotal > 0 ? `${pendingTotal} 项待上传` : null,
-      failedTotal > 0 ? `${failedTotal} 项待重试` : null,
+      retryableFailedTotal > 0 ? `${retryableFailedTotal} 项待重试` : null,
       manualReviewTotal > 0 ? `${manualReviewTotal} 项需要人工确认` : null,
       pagePendingTotal > 0 ? `页面 ${pagePendingTotal}` : null,
       databasePendingTotal > 0 ? `数据库 ${databasePendingTotal}` : null,
@@ -180,12 +217,12 @@ export function useAccountCloudSyncCoordinator() {
     return `账号云同步已完成${details.length ? `：${details.join("，")}` : ""}`;
   }, [
     databasePendingTotal,
-    failedTotal,
     knowledgePendingTotal,
     lastSyncAt,
     manualReviewTotal,
     pagePendingTotal,
     pendingTotal,
+    retryableFailedTotal,
     settingsPendingTotal,
     state,
   ]);
@@ -194,7 +231,7 @@ export function useAccountCloudSyncCoordinator() {
     if (typeof window === "undefined") return;
     if (
       enabledDomainCount === 0 ||
-      pendingTotal <= 0 ||
+      autoRetryableSyncWorkTotal <= 0 ||
       state === "syncing" ||
       state === "signed-out"
     ) {
@@ -204,7 +241,7 @@ export function useAccountCloudSyncCoordinator() {
       void syncNow();
     }, COORDINATOR_PENDING_DRAIN_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [enabledDomainCount, pendingTotal, state, syncNow]);
+  }, [autoRetryableSyncWorkTotal, enabledDomainCount, state, syncNow]);
 
   return {
     state,
@@ -218,6 +255,8 @@ export function useAccountCloudSyncCoordinator() {
     pendingTotal,
     failedTotal,
     manualReviewTotal,
+    retryableFailedTotal,
+    autoRetryableSyncWorkTotal,
     enabledDomainCount,
     lastSyncAt,
     knowledgeSync,

@@ -117,7 +117,7 @@ export function usePageCloudSync() {
   );
   const runningRef = useRef(false);
   const rerunAfterCurrentSyncRef = useRef<
-    { quick?: boolean; forceLease?: boolean } | null
+    { quick?: boolean; forceLease?: boolean; includeManualReview?: boolean } | null
   >(null);
   const authRetryAfterRef = useRef(0);
   const authRetryStateRef = useRef<PageCloudSyncState>("signed-out");
@@ -142,7 +142,7 @@ export function usePageCloudSync() {
     return false;
   }, [refreshPendingStatus]);
 
-  const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean } = {}) => {
+  const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean; includeManualReview?: boolean } = {}) => {
     if (!isPageSyncEnabled()) {
       setState("disabled");
       refreshPendingStatus();
@@ -153,6 +153,9 @@ export function usePageCloudSync() {
       rerunAfterCurrentSyncRef.current = {
         quick: options.quick ?? pendingRerun?.quick ?? true,
         forceLease: Boolean(options.forceLease || pendingRerun?.forceLease),
+        includeManualReview: Boolean(
+          options.includeManualReview || pendingRerun?.includeManualReview
+        ),
       };
       refreshPendingStatus();
       return;
@@ -178,7 +181,10 @@ export function usePageCloudSync() {
     setState("syncing");
     refreshPendingStatus();
     try {
-      const result = await reconcilePageSync({ quick: options.quick });
+      const result = await reconcilePageSync({
+        quick: options.quick,
+        includeManualReview: options.includeManualReview,
+      });
       if (result.status === "ok") {
         authRetryAfterRef.current = 0;
         authRetryStateRef.current = "signed-out";
@@ -210,6 +216,7 @@ export function usePageCloudSync() {
           void runSync({
             quick: pendingRerun.quick ?? true,
             forceLease: pendingRerun.forceLease,
+            includeManualReview: pendingRerun.includeManualReview,
           });
         }, 0);
       }

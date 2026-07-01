@@ -116,7 +116,7 @@ export function useDatabaseCloudSync() {
     useState<PendingCloudDatabaseSyncStatus>(EMPTY_DATABASE_PENDING_STATUS);
   const runningRef = useRef(false);
   const rerunAfterCurrentSyncRef = useRef<
-    { forceLease?: boolean; quick?: boolean } | null
+    { forceLease?: boolean; quick?: boolean; includeManualReview?: boolean } | null
   >(null);
   const authRetryAfterRef = useRef(0);
   const authRetryStateRef = useRef<DatabaseCloudSyncState>("signed-out");
@@ -142,7 +142,13 @@ export function useDatabaseCloudSync() {
   }, [refreshPendingStatus]);
 
   const runSync = useCallback(
-    async (options: { forceLease?: boolean; quick?: boolean } = {}) => {
+    async (
+      options: {
+        forceLease?: boolean;
+        quick?: boolean;
+        includeManualReview?: boolean;
+      } = {}
+    ) => {
       if (!isDatabaseSyncEnabled()) {
         setState("disabled");
         void refreshPendingStatus();
@@ -153,6 +159,9 @@ export function useDatabaseCloudSync() {
         rerunAfterCurrentSyncRef.current = {
           forceLease: Boolean(options.forceLease || pendingRerun?.forceLease),
           quick: options.quick ?? pendingRerun?.quick ?? true,
+          includeManualReview: Boolean(
+            options.includeManualReview || pendingRerun?.includeManualReview
+          ),
         };
         void refreshPendingStatus();
         return;
@@ -178,7 +187,10 @@ export function useDatabaseCloudSync() {
       setState("syncing");
       void refreshPendingStatus();
       try {
-        const result = await reconcileDatabaseSync({ quick: options.quick });
+        const result = await reconcileDatabaseSync({
+          quick: options.quick,
+          includeManualReview: options.includeManualReview,
+        });
         if (result.status === "ok") {
           authRetryAfterRef.current = 0;
           authRetryStateRef.current = "signed-out";
@@ -219,6 +231,7 @@ export function useDatabaseCloudSync() {
             void runSync({
               forceLease: pendingRerun.forceLease,
               quick: pendingRerun.quick ?? true,
+              includeManualReview: pendingRerun.includeManualReview,
             });
           }, 0);
         }

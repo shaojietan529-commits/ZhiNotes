@@ -198,6 +198,11 @@ export interface DatabaseReconcileResult {
 
 export interface DatabaseReconcileOptions {
   quick?: boolean;
+  includeManualReview?: boolean;
+}
+
+interface FlushPendingCloudDatabasePushOptions {
+  includeManualReview?: boolean;
 }
 
 export interface SyncCloudDatabaseByIdOptions {
@@ -1396,7 +1401,9 @@ export async function queueCloudDatabaseRecordsForKeys(
   queueCloudDatabaseRecords(records, delayMs);
 }
 
-export async function flushPendingCloudDatabasePushes(): Promise<PushLocalDatabasesResult> {
+export async function flushPendingCloudDatabasePushes(
+  options: FlushPendingCloudDatabasePushOptions = {}
+): Promise<PushLocalDatabasesResult> {
   if (!isDatabaseSyncEnabled()) {
     return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
   }
@@ -1404,16 +1411,27 @@ export async function flushPendingCloudDatabasePushes(): Promise<PushLocalDataba
   if (keys.length === 0) {
     return { status: "ok", pushed: 0, skipped: 0, total: 0 };
   }
-  const records = await getDatabaseRecordsForSyncByKeys(keys);
+  const pendingMeta = getPendingCloudDatabasePushMeta();
+  const retryableKeys = options.includeManualReview
+    ? keys
+    : keys.filter(
+        (key) =>
+          (pendingMeta[key]?.failureCount ?? 0) <
+          PENDING_CLOUD_DATABASE_MANUAL_REVIEW_FAILURE_COUNT
+      );
+  if (retryableKeys.length === 0) {
+    return { status: "ok", pushed: 0, skipped: 0, total: keys.length };
+  }
+  const records = await getDatabaseRecordsForSyncByKeys(retryableKeys);
   const foundKeys = new Set(records.map(getRemoteDatabaseRecordKey));
-  const missingKeys = keys.filter((key) => !foundKeys.has(key));
+  const missingKeys = retryableKeys.filter((key) => !foundKeys.has(key));
   clearPendingCloudDatabasePushKeys(missingKeys);
   if (records.length === 0) {
     return {
       status: "ok",
       pushed: 0,
       skipped: 0,
-      total: keys.length,
+      total: retryableKeys.length,
       acceptedKeys: [],
       skippedKeys: missingKeys,
     };
@@ -1704,7 +1722,9 @@ export async function reconcileDatabaseSync(
   if (!isDatabaseSyncEnabled()) {
     return { status: "disabled", pulled: 0, pushed: 0, skipped: 0 };
   }
-  const queuedPush = await flushPendingCloudDatabasePushes();
+  const queuedPush = await flushPendingCloudDatabasePushes({
+    includeManualReview: options.includeManualReview,
+  });
   if (queuedPush.status !== "ok") {
     return {
       status: queuedPush.status,

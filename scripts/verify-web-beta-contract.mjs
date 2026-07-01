@@ -4490,13 +4490,27 @@ function run() {
       "settingsSync.status.manualReviewCount > 0",
       "Account cloud sync coordinator must count settings manual-review rows as visible sync work.",
     ],
-    [
-      "knowledgeSync.status.manualReviewCount > 0",
-      "Account cloud sync coordinator must count knowledge manual-review rows as visible sync work.",
-    ],
-  ]) {
-    assertSourceIncludes(files.accountCloudSyncCoordinator, accountCloudSyncCoordinator, snippet, message);
-  }
+	    [
+	      "knowledgeSync.status.manualReviewCount > 0",
+	      "Account cloud sync coordinator must count knowledge manual-review rows as visible sync work.",
+	    ],
+	    [
+	      "autoRetryableSyncWorkTotal",
+	      "Account cloud sync coordinator must keep manual-review rows visible without letting them drive automatic retry loops.",
+	    ],
+	    [
+	      "retryableFailedTotal",
+	      "Account cloud sync coordinator must separate retryable failures from rows that need manual review.",
+	    ],
+	  ]) {
+	    assertSourceIncludes(files.accountCloudSyncCoordinator, accountCloudSyncCoordinator, snippet, message);
+	  }
+	  assertSourceIncludes(
+	    files.accountCloudSyncCoordinator,
+	    accountCloudSyncCoordinator,
+	    "autoRetryableSyncWorkTotal <= 0",
+	    "Account cloud sync coordinator must not auto-drain when only manual-review rows remain."
+	  );
   if (
     !(
       accountCloudSyncCoordinator.indexOf(
@@ -8945,8 +8959,12 @@ function run() {
       "Sync UI must expose a manual page pending retry action.",
     ],
     [
-      "reconcilePageSync({ quick: true })",
+      "reconcilePageSync({",
       "Sync UI manual page retry must use quick incremental reconcile.",
+    ],
+    [
+      "includeManualReview: true",
+      "Sync UI manual retry actions must explicitly include manual-review rows.",
     ],
     [
       "只保存 page id 和排队时间，不保存页面正文",
@@ -9073,7 +9091,7 @@ function run() {
       "Database pending details must avoid database row value reads.",
     ],
     [
-      "reconcileDatabaseSync({ quick: true })",
+      "reconcileDatabaseSync({",
       "Sync UI manual database retry must use quick incremental reconcile.",
     ],
     [

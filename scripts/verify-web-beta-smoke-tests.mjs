@@ -7832,13 +7832,27 @@ function run() {
       "settingsSync.status.manualReviewCount > 0",
       "Account cloud sync coordinator must count settings manual-review rows as visible sync work.",
     ],
-    [
-      "knowledgeSync.status.manualReviewCount > 0",
-      "Account cloud sync coordinator must count knowledge manual-review rows as visible sync work.",
-    ],
-  ]) {
-    assertIncludes(files.accountCloudSyncCoordinator, accountCloudSyncCoordinator, snippet, message);
-  }
+	    [
+	      "knowledgeSync.status.manualReviewCount > 0",
+	      "Account cloud sync coordinator must count knowledge manual-review rows as visible sync work.",
+	    ],
+	    [
+	      "autoRetryableSyncWorkTotal",
+	      "Account cloud sync coordinator must keep manual-review rows visible without letting them drive automatic retry loops.",
+	    ],
+	    [
+	      "retryableFailedTotal",
+	      "Account cloud sync coordinator must separate retryable failures from rows that need manual review.",
+	    ],
+	  ]) {
+	    assertIncludes(files.accountCloudSyncCoordinator, accountCloudSyncCoordinator, snippet, message);
+	  }
+	  assertIncludes(
+	    files.accountCloudSyncCoordinator,
+	    accountCloudSyncCoordinator,
+	    "autoRetryableSyncWorkTotal <= 0",
+	    "Account cloud sync coordinator must not auto-drain when only manual-review rows remain."
+	  );
   if (
     !(
       accountCloudSyncCoordinator.indexOf(

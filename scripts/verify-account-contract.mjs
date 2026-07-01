@@ -518,8 +518,8 @@ check(
 );
 check(
   pageSyncClient.includes("getPagesForSyncByIds") &&
-    pageSyncClient.includes("pages = await getPagesForSyncByIds(ids)") &&
-    pageSyncClient.indexOf("pages = await getPagesForSyncByIds(ids)") <
+    pageSyncClient.includes("pages = await getPagesForSyncByIds(retryableIds)") &&
+    pageSyncClient.indexOf("pages = await getPagesForSyncByIds(retryableIds)") <
       pageSyncClient.indexOf("const localById = new Map(pages.map"),
   "待上传队列补发必须按 page id 精确读取，短轮询不能为了 pending push 扫描全部本地页面"
 );
@@ -529,7 +529,8 @@ check(
   "页面同步客户端的防抖上传成功或被远端跳过后应清理待上传 id"
 );
 check(
-  pageSyncClient.includes("const pendingPush = await flushPendingCloudPushes()") &&
+  pageSyncClient.includes("const pendingPush = await flushPendingCloudPushes({") &&
+    pageSyncClient.includes("includeManualReview: options.includeManualReview") &&
     pageSyncClient.includes("const pushed = pendingPush.pushed") &&
     pageSyncClient.includes("const local = await getAllPageMetadata()") &&
     pageSyncClient.includes("only flushPendingCloudPushes may") &&
@@ -537,6 +538,13 @@ check(
     !pageSyncClient.includes("const toPush: Page[]") &&
     !pageSyncClient.includes("pendingPush.pushed + pushResult.accepted"),
   "reconcile 每轮同步应先补发待上传页面；本地页面表只是缓存，不能全量扫描后按 updated_at 自动推上云"
+);
+check(
+  pageSyncClient.includes("FlushPendingCloudPushOptions") &&
+    pageSyncClient.includes("const retryableIds = options.includeManualReview") &&
+    pageSyncClient.includes("PENDING_CLOUD_PAGE_MANUAL_REVIEW_FAILURE_COUNT") &&
+    pageSyncClient.includes("retryableIds.length === 0"),
+  "页面后台补传默认应跳过连续失败进入 manual review 的 page id，只有人工触发时才包含这些 dead-letter 项"
 );
 check(
   pageSyncClient.includes("readSyncStorage(PENDING_PUSH_IDS_KEY)") &&
@@ -564,11 +572,12 @@ check(
     syncDashboardShell.includes("只保存 page id 和排队时间，不保存页面正文") &&
     syncDashboardShell.includes("最早排队") &&
     syncDashboardShell.includes("认证退避") &&
-    syncDashboardShell.includes("下次自动重试") &&
-    syncDashboardShell.includes("样本 page id") &&
-    syncDashboardShell.includes("补传页面队列") &&
-    syncDashboardShell.includes("reconcilePageSync({ quick: true })") &&
-    syncDashboardShell.includes("普通同步只会补传 pending queue 里的页面"),
+	    syncDashboardShell.includes("下次自动重试") &&
+	    syncDashboardShell.includes("样本 page id") &&
+	    syncDashboardShell.includes("补传页面队列") &&
+	    syncDashboardShell.includes("reconcilePageSync({") &&
+	    syncDashboardShell.includes("includeManualReview: true") &&
+	    syncDashboardShell.includes("普通同步只会补传 pending queue 里的页面"),
   "同步页应展示页面 pending 上传队列并提供 quick 增量补传，不能暗示全量上传本地缓存"
 );
 check(
@@ -589,10 +598,11 @@ check(
 );
 check(
   syncDashboardShell.includes("数据库 pending 上传队列") &&
-    syncDashboardShell.includes("不展示或导出数据库行值") &&
-    syncDashboardShell.includes("补传数据库队列") &&
-    syncDashboardShell.includes("reconcileDatabaseSync({ quick: true })") &&
-    syncDashboardShell.includes("普通同步只会补传") &&
+	    syncDashboardShell.includes("不展示或导出数据库行值") &&
+	    syncDashboardShell.includes("补传数据库队列") &&
+	    syncDashboardShell.includes("reconcileDatabaseSync({") &&
+	    syncDashboardShell.includes("includeManualReview: true") &&
+	    syncDashboardShell.includes("普通同步只会补传") &&
     syncDashboardShell.includes("不会把本地数据库缓存全量上传"),
   "同步页应展示数据库 pending 上传队列并提供 quick 增量补传，不能暗示全量上传本地数据库缓存"
 );
@@ -2311,8 +2321,10 @@ check(
     accountCloudSyncCoordinator.includes("pageVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("databaseVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("settingsVisibleSyncWork") &&
-    accountCloudSyncCoordinator.includes("knowledgeVisibleSyncWork") &&
-    accountCloudSyncCoordinator.includes("enabledDomainCount") &&
+	    accountCloudSyncCoordinator.includes("knowledgeVisibleSyncWork") &&
+	    accountCloudSyncCoordinator.includes("autoRetryableSyncWorkTotal") &&
+	    accountCloudSyncCoordinator.includes("retryableFailedTotal") &&
+	    accountCloudSyncCoordinator.includes("enabledDomainCount") &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
     accountCloudSyncCoordinator.includes("账号云同步正在检查") &&
@@ -2337,7 +2349,19 @@ check(
     accountCloudSyncCoordinator.includes(
       "knowledgeSync.status.manualReviewCount > 0"
     ),
-  "账号级云同步协调器必须把 pending、failed 和 manual review 都计入可见状态，不能因同步域关闭而隐藏待处理队列"
+	  "账号级云同步协调器必须把 pending、failed 和 manual review 都计入可见状态，不能因同步域关闭而隐藏待处理队列"
+	);
+check(
+  accountCloudSyncCoordinator.includes(
+    "autoRetryableSyncWorkTotal <= 0"
+  ) &&
+    accountCloudSyncCoordinator.includes(
+      "pageSync.pendingStatus.pending -"
+    ) &&
+    accountCloudSyncCoordinator.includes(
+      "databaseSync.pendingStatus.pending -"
+    ),
+  "账号级云同步协调器后台自动补传只能看可自动重试队列，manual review 项必须保持可见但不能触发后台循环重试"
 );
 check(
   accountCloudSyncCoordinator.indexOf("manualReviewTotal > 0 || failedTotal > 0") <

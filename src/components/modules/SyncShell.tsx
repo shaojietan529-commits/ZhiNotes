@@ -4405,6 +4405,7 @@ function SyncDashboard() {
 
       const pageResult: SyncUploadDrainResultSnapshot = await reconcilePageSync({
         quick: true,
+        includeManualReview: true,
       })
         .then((result) => ({
           status: result.status,
@@ -4422,7 +4423,10 @@ function SyncDashboard() {
         }));
 
       const databaseResult: SyncUploadDrainResultSnapshot =
-        await reconcileDatabaseSync({ quick: true })
+        await reconcileDatabaseSync({
+          quick: true,
+          includeManualReview: true,
+        })
           .then((result) => ({
             status: result.status,
             pushed: result.pushed,
@@ -4495,7 +4499,10 @@ function SyncDashboard() {
     setBusyQueueAction("page-pending");
     setPagePendingMessage(null);
     try {
-      const result = await reconcilePageSync({ quick: true });
+      const result = await reconcilePageSync({
+        quick: true,
+        includeManualReview: true,
+      });
       const nextStatus = getPendingCloudPageSyncStatus();
       setPagePendingStatus(nextStatus);
       if (result.status === "ok") {
@@ -4526,7 +4533,10 @@ function SyncDashboard() {
     setBusyQueueAction("database-pending");
     setDatabasePendingMessage(null);
     try {
-      const result = await reconcileDatabaseSync({ quick: true });
+      const result = await reconcileDatabaseSync({
+        quick: true,
+        includeManualReview: true,
+      });
       const nextStatus = await getPendingCloudDatabaseSyncStatus();
       setDatabasePendingStatus(nextStatus);
       if (result.status === "ok") {

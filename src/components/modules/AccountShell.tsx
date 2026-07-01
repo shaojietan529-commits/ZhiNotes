@@ -388,7 +388,7 @@ export default function AccountShell() {
   async function handlePageSyncRun() {
     setPageSyncBusy(true);
     setPageSyncNotice(null);
-    const result = await reconcilePageSync();
+    const result = await reconcilePageSync({ includeManualReview: true });
     if (result.status === "ok") {
       setPageSyncLastAt(getLastPageSyncAt());
       setPageSyncNotice(
@@ -538,7 +538,7 @@ export default function AccountShell() {
     setDatabaseSyncBusy(true);
     setDatabaseSyncNotice(null);
     try {
-      const result = await reconcileDatabaseSync();
+      const result = await reconcileDatabaseSync({ includeManualReview: true });
       if (result.status === "ok") {
         setDatabaseSyncLastAt(getLastDatabaseSyncAt());
         setDatabaseSyncNotice(
