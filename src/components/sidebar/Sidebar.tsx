@@ -147,11 +147,19 @@ function getAccountSyncToneClass(state: AccountCloudSyncCoordinatorState) {
 function getAccountSyncCenterTarget(accountSync: {
   failedTotal: number;
   manualReviewTotal: number;
+  pagePendingTotal: number;
+  databasePendingTotal: number;
   settingsPendingTotal: number;
   knowledgePendingTotal: number;
 }) {
   if (accountSync.failedTotal > 0 || accountSync.manualReviewTotal > 0) {
     return "/modules/sync#sync-upload-safety-panel";
+  }
+  if (accountSync.pagePendingTotal > 0) {
+    return "/modules/sync#page-pending-upload-queue";
+  }
+  if (accountSync.databasePendingTotal > 0) {
+    return "/modules/sync#database-pending-upload-queue";
   }
   if (accountSync.knowledgePendingTotal > 0) {
     return "/modules/sync#knowledge-replay-batch-plan";
@@ -456,11 +464,13 @@ export default function Sidebar() {
   const accountSyncNeedsSyncCenter =
     accountSync.failedTotal > 0 ||
     accountSync.manualReviewTotal > 0 ||
+    accountSync.pagePendingTotal > 0 ||
+    accountSync.databasePendingTotal > 0 ||
     accountSync.settingsPendingTotal > 0 ||
     accountSync.knowledgePendingTotal > 0;
   const accountSyncCenterTarget = getAccountSyncCenterTarget(accountSync);
   const accountSyncActionLabel = accountSyncNeedsSyncCenter
-    ? "打开同步中心"
+    ? "查看队列"
     : "快速同步";
   const accountSyncAriaLabel = `${accountSyncShortLabel}，${accountSyncActionLabel}：${accountSyncTitle.replace(
     /\n/g,
