@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { PagePeekModalProps } from "@/components/page/PagePeekModal";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
@@ -95,9 +95,8 @@ function LocalFirstPeekLoadingShell({
   const openedAtRef = useRef(getLocalPerformanceNow());
   const openedAtIsoRef = useRef(new Date().toISOString());
   const readyNotifiedRef = useRef<string | null>(null);
-  const seed = useMemo(
-    () => readLocalFirstLoadingSeed(pageId, initialPage),
-    [initialPage, pageId]
+  const [seed, setSeed] = useState<Page | null>(() =>
+    readLocalFirstLoadingSeed(pageId, initialPage)
   );
   const title = seed ? displayPageTitle(seed.title) : "正在打开页面";
   const propertyCount = seed ? parsePageProperties(seed.properties).length : 0;
@@ -114,6 +113,22 @@ function LocalFirstPeekLoadingShell({
   }, [pageId]);
 
   useEffect(() => {
+    let cancelled = false;
+    const refreshLocalSeed = () => {
+      if (cancelled) return;
+      setSeed(readLocalFirstLoadingSeed(pageId, initialPage));
+    };
+    refreshLocalSeed();
+    queueMicrotask(refreshLocalSeed);
+    const retryTimer = window.setTimeout(refreshLocalSeed, 120);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(retryTimer);
+    };
+  }, [initialPage, pageId]);
+
+  useEffect(() => {
+    if (!seed) return;
     if (readyNotifiedRef.current === pageId) return;
     readyNotifiedRef.current = pageId;
     onReady?.(pageId);
