@@ -241,6 +241,7 @@ check(doc.includes("ZHINOTES_ACCOUNT_ALLOWED_EMAILS"), "文档缺少环境变量
 
 // 5. Account-scoped portfolio sync: session-gated, share allowlist enforced
 const accountSync = read("src/app/api/portfolio/account-sync/route.ts");
+const portfolioAccountSyncClient = read("src/lib/portfolio/accountSync.ts");
 for (const token of [
   "getAccountConfig",
   "readSessionToken",
@@ -253,6 +254,13 @@ for (const token of [
   check(accountSync.includes(token), `account-sync route 缺少 ${token}`);
 }
 check(!accountSync.includes("console."), "account-sync route 不应该写日志");
+check(
+  portfolioAccountSyncClient.includes("checkAccountCloudSyncGate") &&
+    portfolioAccountSyncClient.includes('accountGate.status === "signed-out"') &&
+    portfolioAccountSyncClient.includes("组合同步接口暂时无法确认账号权限；本地组合数据未删除，请稍后重试。") &&
+    !portfolioAccountSyncClient.includes('if (res.status === 401) return { status: "unauthenticated" }'),
+  "portfolio account-sync client 应先复用共享账号 gate；具体同步接口 401 只能作为可重试错误，不能把组合同步误判为未登录"
+);
 
 // 6. Shell: viewing a shared portfolio is read-only and never pushes
 const board = read("src/components/modules/PortfolioBoardShell.tsx");

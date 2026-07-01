@@ -2,6 +2,7 @@
 // browser is signed in (session cookie); devices that are not signed in
 // keep using the passcode-based cloudSync helpers.
 
+import { checkAccountCloudSyncGate } from "@/lib/account/accountCloudSyncGate";
 import type { CloudPortfolioData } from "./cloudSync";
 import type { TagMap } from "./positionReport";
 
@@ -17,13 +18,29 @@ async function call<T>(
   pick: (json: Record<string, unknown>) => T
 ): Promise<AccountSyncResult<T>> {
   try {
+    const accountGate = await checkAccountCloudSyncGate();
+    if (accountGate.status === "unconfigured") return { status: "unconfigured" };
+    if (accountGate.status === "signed-out") return { status: "unauthenticated" };
+    if (accountGate.status === "error") {
+      return {
+        status: "error",
+        message:
+          "账号状态暂时无法确认；组合数据仍保留在本地，稍后可重试。",
+      };
+    }
     const res = await fetch("/api/portfolio/account-sync", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
     if (res.status === 501) return { status: "unconfigured" };
-    if (res.status === 401) return { status: "unauthenticated" };
+    if (res.status === 401) {
+      return {
+        status: "error",
+        message:
+          "组合同步接口暂时无法确认账号权限；本地组合数据未删除，请稍后重试。",
+      };
+    }
     if (res.status === 403) return { status: "forbidden" };
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
