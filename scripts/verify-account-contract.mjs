@@ -192,6 +192,9 @@ check(
 check(
   accountCloudSyncGate.includes("fetchAccountSession") &&
     accountCloudSyncGate.includes("account-unconfigured") &&
+    accountCloudSyncGate.includes(
+      'session.status === "unconfigured" && session.authenticated'
+    ) &&
     accountCloudSyncGate.includes("authenticated: session.authenticated") &&
     accountCloudSyncGate.includes("reads_page_body_text: false") &&
     accountCloudSyncGate.includes("reads_database_row_values: false") &&
@@ -199,6 +202,12 @@ check(
     accountCloudSyncGate.includes("mutates_workspace_data: false") &&
     accountCloudSyncGate.includes("stores_account_email: false"),
   "账号云同步 gate 必须复用账号会话检查，临时错误时保持身份可见但同步保持可重试错误，并声明不读取/上传/修改 workspace 数据"
+);
+check(
+  accountCloudSyncGate.indexOf(
+    'session.status === "unconfigured" && session.authenticated'
+  ) < accountCloudSyncGate.indexOf('if (session.status === "unconfigured") {'),
+  "账号云同步 gate 必须先识别最近登录账号兜底，再处理真正未配置状态"
 );
 const page = read("src/app/(workspace)/account/page.tsx");
 check(page.includes("AccountShell"), "/account 路由缺少 AccountShell");

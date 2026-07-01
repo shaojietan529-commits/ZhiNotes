@@ -7639,6 +7639,23 @@ function run() {
   assertIncludes(
     files.accountCloudSyncGate,
     accountCloudSyncGate,
+    'session.status === "unconfigured" && session.authenticated',
+    "Account cloud sync gate must keep a stale authenticated account visible during transient unconfigured responses."
+  );
+  if (
+    !(
+      accountCloudSyncGate.indexOf(
+        'session.status === "unconfigured" && session.authenticated'
+      ) < accountCloudSyncGate.indexOf('if (session.status === "unconfigured") {')
+    )
+  ) {
+    failures.push(
+      "Account cloud sync gate must check stale authenticated unconfigured sessions before the generic unconfigured branch."
+    );
+  }
+  assertIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
     "reads_page_body_text: false",
     "Account cloud sync gate must not inspect page body text."
   );
