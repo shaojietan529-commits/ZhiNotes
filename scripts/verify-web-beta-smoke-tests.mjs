@@ -4821,6 +4821,22 @@ function run() {
   ]) {
     assertIncludes(files.dailyCalendarLoadStatus, dailyCalendarLoadStatus, snippet, message);
   }
+  for (const [snippet, message] of [
+    [
+      "dailyCalendarEmptyLoadHint",
+      "Daily calendar must show a visible empty-grid loading hint while hot-cache, local index, or cloud metadata is still being checked.",
+    ],
+    [
+      'data-testid="daily-calendar-empty-load-hint"',
+      "Daily calendar empty-grid loading hint must be discoverable in UI smoke checks.",
+    ],
+    [
+      "pointer-events-none absolute",
+      "Daily calendar empty-grid loading hint must not block date-level add buttons.",
+    ],
+  ]) {
+    assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
   for (const forbiddenDailyStatusSnippet of [
     "content_text",
     "content_yjs",
@@ -4854,6 +4870,14 @@ function run() {
     [
       'data-testid="meeting-calendar-load-status"',
       "Meeting calendar status strip must be discoverable in UI smoke checks.",
+    ],
+    [
+      "meetingCalendarEmptyLoadHint",
+      "Meeting calendar must show a visible empty-grid loading hint while hot-cache, local index, or cloud metadata is still being checked.",
+    ],
+    [
+      'data-testid="meeting-calendar-empty-load-hint"',
+      "Meeting calendar empty-grid loading hint must be discoverable in UI smoke checks.",
     ],
     [
       'publishCalendarStatus("cloud-checking"',

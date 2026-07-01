@@ -1940,6 +1940,15 @@ export default function DailyNotesShell() {
     const now = new Date();
     setViewMonth(new Date(now.getFullYear(), now.getMonth(), 1));
   };
+  const dailyCalendarEmptyLoadHint =
+    notes.length === 0 &&
+    (cloudNotice ||
+      calendarLoadStatus.cloudLoading ||
+      calendarLoadStatus.backgroundActive)
+      ? cloudLoading
+        ? "正在从热缓存、本地索引和云端目录加载每日纪要…"
+        : cloudNotice ?? calendarLoadStatusView.detail
+      : null;
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -2039,10 +2048,15 @@ export default function DailyNotesShell() {
 
           {/* Calendar grid */}
           <div className="relative grid grid-cols-7 items-stretch">
-            {notes.length === 0 && cloudNotice && (
-              <div className="absolute inset-x-0 top-16 z-10 flex justify-center px-4">
+            {dailyCalendarEmptyLoadHint && (
+              <div className="pointer-events-none absolute inset-x-0 top-16 z-10 flex justify-center px-4">
                 <div className="rounded-md border border-zinc-200 bg-white/95 px-3 py-2 text-xs text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/95 dark:text-zinc-400">
-                  {cloudLoading ? "正在从云端加载每日纪要…" : cloudNotice}
+                  <span
+                    data-testid="daily-calendar-empty-load-hint"
+                    data-load-phase={calendarLoadStatusView.phase}
+                  >
+                    {dailyCalendarEmptyLoadHint}
+                  </span>
                 </div>
               </div>
             )}

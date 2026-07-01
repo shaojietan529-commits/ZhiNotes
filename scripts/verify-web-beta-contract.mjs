@@ -2397,6 +2397,14 @@ function run() {
       "Meeting calendar status strip must be discoverable in UI smoke checks.",
     ],
     [
+      "meetingCalendarEmptyLoadHint",
+      "Meeting calendar must show a visible empty-grid loading hint while hot-cache, local index, or cloud metadata is still being checked.",
+    ],
+    [
+      'data-testid="meeting-calendar-empty-load-hint"',
+      "Meeting calendar empty-grid loading hint must be discoverable in UI checks.",
+    ],
+    [
       'publishCalendarStatus("cloud-checking"',
       "Meeting calendar must make cloud metadata correction visible.",
     ],
@@ -2667,6 +2675,18 @@ function run() {
     [
       "已先显示本机热缓存",
       "Daily notes must surface the local hot cache first-paint path.",
+    ],
+    [
+      "dailyCalendarEmptyLoadHint",
+      "Daily calendar must show a visible empty-grid loading hint while hot-cache, local index, or cloud metadata is still being checked.",
+    ],
+    [
+      'data-testid="daily-calendar-empty-load-hint"',
+      "Daily calendar empty-grid loading hint must be discoverable in UI checks.",
+    ],
+    [
+      "pointer-events-none absolute",
+      "Daily calendar empty-grid loading hint must not block date-level add buttons.",
     ],
   ]) {
     assertSourceIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
