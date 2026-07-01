@@ -1520,7 +1520,7 @@ function PageContent({ pageId }: { pageId: string }) {
             <div className="flex items-center gap-1">
               <PageSyncStatusBadge
                 status={pageCloudSaveStatus}
-                onOpenSync={() => router.push("/modules/sync")}
+                onOpenSync={(target) => router.push(target)}
               />
               <button
                 onClick={handleToggleFavorite}
@@ -1774,7 +1774,7 @@ function PageSyncStatusBadge({
   onOpenSync,
   status,
 }: {
-  onOpenSync: () => void;
+  onOpenSync: (target: PageCloudSaveStatusView["sync_center_target"]) => void;
   status: PageCloudSaveStatusView;
 }) {
   return (
@@ -1782,9 +1782,10 @@ function PageSyncStatusBadge({
       type="button"
       data-testid="page-sync-status-badge"
       aria-label={status.aria_label}
-      onClick={onOpenSync}
-      title={status.title}
+      onClick={() => onOpenSync(status.sync_center_target)}
+      title={`${status.title}\n将直接定位到页面 pending 上传队列。`}
       data-sync-status={status.id}
+      data-sync-target={status.sync_center_target}
       data-blocks-cache-rebuild={String(status.blocks_cache_rebuild)}
       className={`hidden h-7 items-center rounded border px-2 text-[11px] font-medium transition-colors hover:border-zinc-300 hover:bg-zinc-100 dark:hover:border-zinc-700 dark:hover:bg-zinc-800 md:inline-flex ${pageCloudSaveStatusToneClass(
         status.tone

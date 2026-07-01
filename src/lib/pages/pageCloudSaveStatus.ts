@@ -30,6 +30,7 @@ export interface PageCloudSaveStatusView {
   title: string;
   tone: PageCloudSaveStatusTone;
   aria_label: string;
+  sync_center_target: "/modules/sync#page-pending-upload-queue";
   total_pending_rows: number;
   failed_rows: number;
   manual_review_rows: number;
@@ -61,6 +62,7 @@ export function buildPageCloudSaveStatus(
     manual_review_rows: input.status.manualReviewCount,
     can_claim_cloud_confirmed: cloudConfirmed,
     opens_sync_center: true as const,
+    sync_center_target: "/modules/sync#page-pending-upload-queue" as const,
     privacy_boundary:
       "Page save status is computed locally from queue counts, page id membership in pending/failure samples, auth retry state, and last sync timestamps. It never reads page body text, editor state, database row values, comments, files, secrets, tokens, cookies, or remote data. It does not read page body text, does not send network requests, does not upload data, does not write server data, does not acknowledge remote rows, does not mark local rows synced, and does not clear cache.",
   };
@@ -193,6 +195,7 @@ function view(input: {
   can_claim_cloud_confirmed: boolean;
   blocksCacheRebuild: boolean;
   opens_sync_center: true;
+  sync_center_target: "/modules/sync#page-pending-upload-queue";
   privacy_boundary: string;
 }): PageCloudSaveStatusView {
   return {
@@ -200,7 +203,8 @@ function view(input: {
     label: input.label,
     title: input.title,
     tone: input.tone,
-    aria_label: `${input.label}，打开同步中心`,
+    aria_label: `${input.label}，打开同步中心的页面 pending 上传队列`,
+    sync_center_target: input.sync_center_target,
     total_pending_rows: input.total_pending_rows,
     failed_rows: input.failed_rows,
     manual_review_rows: input.manual_review_rows,

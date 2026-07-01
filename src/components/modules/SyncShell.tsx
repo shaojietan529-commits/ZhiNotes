@@ -10630,7 +10630,11 @@ function SyncDashboard() {
                 handoffReceipt={syncHandoffReadinessReceipt}
               />
             </div>
-            <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+            <div
+              id="page-pending-upload-queue"
+              data-testid="page-pending-upload-queue"
+              className="mt-4 scroll-mt-6 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60"
+            >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
