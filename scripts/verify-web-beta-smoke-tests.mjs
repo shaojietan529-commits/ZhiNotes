@@ -9099,6 +9099,18 @@ function run() {
     "会议信息读取超时，已先保留会议痕迹。",
     "Meeting import timeout must fall back to a visible trace instead of dropping the user's pasted invite."
   );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "fetchMeetingIntakeWithTimeout(input)",
+    "Meeting invite import must use the bounded intake helper."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "fetchMeetingIntakeWithTimeout(inputText)",
+    "Meeting retry parsing must use the bounded intake helper so review batches cannot hang on one slow request."
+  );
   assertExcludes(
     files.meetingScheduleShell,
     meetingScheduleShell,

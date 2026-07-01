@@ -6340,6 +6340,14 @@ function run() {
       "Meeting import timeout must fall back to a visible trace instead of dropping the user's pasted invite.",
     ],
     [
+      "fetchMeetingIntakeWithTimeout(input)",
+      "Meeting invite import must use the bounded intake helper.",
+    ],
+    [
+      "fetchMeetingIntakeWithTimeout(inputText)",
+      "Meeting retry parsing must use the bounded intake helper so review batches cannot hang on one slow request.",
+    ],
+    [
       "revealMeetingOnCalendar(optimisticPage)",
       "Meeting import/create must reveal the optimistic meeting in the calendar immediately.",
     ],

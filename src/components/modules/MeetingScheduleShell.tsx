@@ -210,6 +210,45 @@ interface IntakeResponse {
   error?: string;
 }
 
+async function fetchMeetingIntakeWithTimeout(
+  input: string
+): Promise<IntakeResponse & { meeting: IntakeMeeting }> {
+  const controller = new AbortController();
+  let intakeTimeoutId: number | null = window.setTimeout(() => {
+    controller.abort();
+  }, MEETING_INTAKE_TIMEOUT_MS);
+  const clearIntakeTimeout = () => {
+    if (intakeTimeoutId === null) return;
+    window.clearTimeout(intakeTimeoutId);
+    intakeTimeoutId = null;
+  };
+
+  try {
+    const res = await fetch("/api/meetings/intake", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({ input }),
+    });
+    clearIntakeTimeout();
+    const data = (await res.json()) as IntakeResponse;
+    if (!res.ok || !data.meeting) {
+      throw new Error(data.error || "读取会议信息失败。");
+    }
+    return { ...data, meeting: data.meeting };
+  } finally {
+    clearIntakeTimeout();
+  }
+}
+
+function getMeetingIntakeFailureMessage(error: unknown) {
+  return error instanceof Error && error.name === "AbortError"
+    ? "会议信息读取超时，已先保留会议痕迹。"
+    : error instanceof Error
+      ? error.message
+      : "读取会议信息失败。";
+}
+
 interface CreateMeetingOptions {
   importSource?: string;
   hasJoinUrl?: boolean;
@@ -1941,29 +1980,8 @@ export default function MeetingScheduleShell() {
     setIntakeMessage("正在读取会议信息；如果接口超时，会先保留会议痕迹并弹出会议页。");
     setIntakePreview(null);
 
-    const controller = new AbortController();
-    let intakeTimeoutId: number | null = window.setTimeout(() => {
-      controller.abort();
-    }, MEETING_INTAKE_TIMEOUT_MS);
-    const clearIntakeTimeout = () => {
-      if (intakeTimeoutId === null) return;
-      window.clearTimeout(intakeTimeoutId);
-      intakeTimeoutId = null;
-    };
-
     try {
-      const res = await fetch("/api/meetings/intake", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({ input }),
-      });
-      clearIntakeTimeout();
-      const data = (await res.json()) as IntakeResponse;
-      if (!res.ok || !data.meeting) {
-        throw new Error(data.error || "读取会议信息失败。");
-      }
-
+      const data = await fetchMeetingIntakeWithTimeout(input);
       const meeting = data.meeting;
       setIntakePreview(meeting);
       const hasExecutableTime = Boolean(meeting.date && meeting.time);
@@ -2012,12 +2030,7 @@ export default function MeetingScheduleShell() {
       );
       openCreatedMeetingPage(result.page);
     } catch (error) {
-      const message =
-        error instanceof Error && error.name === "AbortError"
-          ? "会议信息读取超时，已先保留会议痕迹。"
-          : error instanceof Error
-            ? error.message
-            : "读取会议信息失败。";
+      const message = getMeetingIntakeFailureMessage(error);
       const fallback = buildFallbackTraceFromInput(input, form.date || toDateKey(new Date()));
       try {
         const result = createMeetingPage(fallback.draft, {
@@ -2047,7 +2060,6 @@ export default function MeetingScheduleShell() {
         setIntakeError(`导入失败：${message}；保留痕迹也失败：${fallbackMessage}`);
       }
     } finally {
-      clearIntakeTimeout();
       setIntakeLoading(false);
     }
   }, [
@@ -2086,14 +2098,8 @@ export default function MeetingScheduleShell() {
         ]
           .filter(Boolean)
           .join(" ");
-        const res = await fetch("/api/meetings/intake", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ input: inputText }),
-        });
-        const data = await res.json();
-        const m = data?.meeting;
-        if (!m) continue;
+        const data = await fetchMeetingIntakeWithTimeout(inputText);
+        const m = data.meeting;
         const hasTime = Boolean(m.date && m.time);
         if (!hasTime && !m.date) continue;
         const props = parsePageProperties(entry.page.properties);
