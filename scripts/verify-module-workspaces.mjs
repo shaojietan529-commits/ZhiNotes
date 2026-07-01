@@ -219,6 +219,8 @@ for (const token of [
   'data-testid="daily-calendar-load-status"',
   "data-load-phase={view.phase}",
   "data-load-step={step.id}",
+  "formatDailyCloudMetadataFailureMessage",
+  "云端每日纪要索引本轮读取失败；当前先显示本机/热缓存内容，稍后刷新会自动重试。",
   'publishCalendarStatus("cloud-checking"',
   'phase: "cloud-ready"',
   'phase: "optimistic-draft"',

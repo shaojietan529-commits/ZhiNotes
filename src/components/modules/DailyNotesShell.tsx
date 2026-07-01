@@ -178,6 +178,9 @@ const DAILY_CREATE_OPEN_MODE_CHANGED_STORAGE_KEY =
 let dailyDateIndexBackfillRunning = false;
 let dailyDateIndexBackfillDoneInMemory = false;
 
+const DAILY_CLOUD_METADATA_FAILURE_MESSAGE =
+  "云端每日纪要索引本轮读取失败；当前先显示本机/热缓存内容，稍后刷新会自动重试。";
+
 type CachedDailyCloudMetadataResult = DailyCloudMetadataResult & {
   cachedAt: string;
   stale: boolean;
@@ -192,6 +195,14 @@ type DailyCloudMetadataCacheSignature = {
   signature: string;
   cachedAt: number;
 };
+
+function formatDailyCloudMetadataFailureMessage(message?: string | null) {
+  const detail = message?.trim();
+  if (!detail || detail === "云端每日纪要索引读取失败。") {
+    return DAILY_CLOUD_METADATA_FAILURE_MESSAGE;
+  }
+  return `${DAILY_CLOUD_METADATA_FAILURE_MESSAGE} 原因：${detail}`;
+}
 
 function readDailyCreateOpenModeFastCache(): DailyCreateOpenMode {
   if (typeof window === "undefined") return DEFAULT_DAILY_CREATE_OPEN_MODE;
@@ -1054,21 +1065,23 @@ export default function DailyNotesShell() {
           publishNotice("云端账号系统未配置，只显示本机每日纪要。");
           recordDailyPerformance("cloud-unconfigured");
         } else {
+          const message = formatDailyCloudMetadataFailureMessage(cloud.message);
           publishCalendarStatus("cloud-error", Array.from(byId.values()), {
             backgroundActive: false,
             cloudLoading: false,
-            message: cloud.message ?? "云端每日纪要索引读取失败。",
+            message,
           });
-          publishNotice(cloud.message ?? "云端每日纪要索引读取失败。");
+          publishNotice(message);
           recordDailyPerformance("cloud-error");
         }
       } catch {
+        const message = formatDailyCloudMetadataFailureMessage();
         publishCalendarStatus("cloud-error", Array.from(byId.values()), {
           backgroundActive: false,
           cloudLoading: false,
-          message: "云端每日纪要索引读取失败。",
+          message,
         });
-        publishNotice("云端每日纪要索引读取失败。");
+        publishNotice(message);
         recordDailyPerformance("cloud-error");
       } finally {
         if (loadRequestRef.current === requestId) setCloudLoading(false);

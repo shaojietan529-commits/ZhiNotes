@@ -826,6 +826,8 @@ check(
     dailyNotesShell.includes("const startDailyCloudMetadataFetch = () => {") &&
     dailyNotesShell.includes("const earlyCloudMetadata = includeCloud") &&
     dailyNotesShell.includes("云端每日纪要目录先返回") &&
+    dailyNotesShell.includes("formatDailyCloudMetadataFailureMessage") &&
+    dailyNotesShell.includes("云端每日纪要索引本轮读取失败；当前先显示本机/热缓存内容，稍后刷新会自动重试。") &&
     dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") <
       dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") &&
     dailyNotesShell.indexOf("const earlyCloudMetadata = includeCloud") <
