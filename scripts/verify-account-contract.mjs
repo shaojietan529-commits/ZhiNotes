@@ -2437,11 +2437,16 @@ check(
 );
 check(
   sidebar.includes("fetchAccountSession") &&
+    sidebar.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
     sidebar.includes("getLastAuthenticatedAccount") &&
     sidebar.includes("getLastKnownAccountLabel") &&
+    sidebar.includes('window.addEventListener("storage", handleAccountStorage)') &&
+    sidebar.includes(
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
+    ) &&
     sidebar.includes('session.status === "ok"') &&
     sidebar.includes("currentLabel === \"账号\" ? getLastKnownAccountLabel() : currentLabel"),
-  "Sidebar 应通过共享账号状态 helper 读取当前账号资料，并在接口临时失败时保留最近用户名"
+  "Sidebar 应通过共享账号状态 helper 读取当前账号资料，并在接口临时失败或跨标签页缓存变化时保留/刷新最近用户名"
 );
 check(
   sidebar.includes("accountLabel"),

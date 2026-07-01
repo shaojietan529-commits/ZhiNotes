@@ -35,6 +35,7 @@ import {
   ACCOUNT_PROFILE_UPDATED_EVENT,
 } from "@/lib/account/clientProfile";
 import {
+  ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
   fetchAccountSession,
   getLastAuthenticatedAccount,
 } from "@/lib/account/clientSession";
@@ -587,15 +588,22 @@ export default function Sidebar() {
 
   useEffect(() => {
     void refreshAccountLabel();
+    const handleAccountStorage = (event: StorageEvent) => {
+      if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
+        void refreshAccountLabel();
+      }
+    };
     window.addEventListener(
       ACCOUNT_PROFILE_UPDATED_EVENT,
       refreshAccountLabel
     );
+    window.addEventListener("storage", handleAccountStorage);
     return () => {
       window.removeEventListener(
         ACCOUNT_PROFILE_UPDATED_EVENT,
         refreshAccountLabel
       );
+      window.removeEventListener("storage", handleAccountStorage);
     };
   }, [refreshAccountLabel]);
 

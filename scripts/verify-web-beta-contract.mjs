@@ -4369,6 +4369,10 @@ function run() {
       "Account session helper must read the stale authenticated fallback from bounded browser storage helpers.",
     ],
     [
+      "export const ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+      "Account session helper must expose the cross-tab stale authenticated storage key to UI listeners.",
+    ],
+    [
       "window.localStorage.setItem",
       "Account session helper must preserve the masked last-authenticated fallback across tabs without storing tokens.",
     ],
@@ -22125,6 +22129,24 @@ function run() {
       sidebar,
       "accountSync.databasePendingTotal > 0",
       "Sidebar cloud-sync control must treat database pending uploads as queue-review states.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+      "Sidebar account label must use the shared last-authenticated storage key.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'window.addEventListener("storage", handleAccountStorage)',
+      "Sidebar account label must refresh when another tab updates the last-authenticated fallback.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+      "Sidebar account label storage listener must ignore unrelated localStorage churn.",
     ],
     [
       files.sidebar,
