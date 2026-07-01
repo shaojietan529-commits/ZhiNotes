@@ -693,6 +693,8 @@ check(
       "Local page create failed; using cloud draft fallback"
     ) &&
     cloudPageMutationsSource.includes("createCloudDraftFallbackPage") &&
+    cloudPageMutationsSource.includes('import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts"') &&
+    cloudPageMutationsSource.includes("rememberPendingPageDraft(page)") &&
     cloudPageMutationsSource.includes("owner_id: DEFAULT_OWNER_ID") &&
     cloudPageMutationsSource.includes("sync_version: 0") &&
     cloudPageMutationsSource.includes("queuePageCloudDelete") &&

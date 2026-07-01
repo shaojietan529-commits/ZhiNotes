@@ -9,6 +9,7 @@ import {
   movePage as moveLocalPage,
   updatePage as updateLocalPage,
 } from "@/lib/db/local/queries";
+import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import type { Page } from "@/lib/utils/types";
 
@@ -26,6 +27,7 @@ export async function createPageWithCloud(
   } catch (error) {
     console.warn("Local page create failed; using cloud draft fallback", error);
     page = createCloudDraftFallbackPage(opts);
+    rememberPendingPageDraft(page);
   }
   void queuePageCloudPush(page).catch(() => undefined);
   return page;
