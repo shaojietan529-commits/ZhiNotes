@@ -12559,8 +12559,14 @@ function run() {
   assertIncludes(
     files.localFirstModuleNavigation,
     localFirstModuleNavigation,
-    "router.prefetch(route);",
-    "Shared module navigation must prefetch module routes as a speed hint."
+    "getModulePrefetchTarget(route)",
+    "Shared module navigation must normalize hash-bearing module routes before prefetch."
+  );
+  assertIncludes(
+    files.localFirstModuleNavigation,
+    localFirstModuleNavigation,
+    "router.prefetch(prefetchTarget);",
+    "Shared module navigation must prefetch the hash-free module route as a speed hint while preserving the final push target."
   );
   for (const snippet of [
     "@/components/modules/DailyNotesShell",
