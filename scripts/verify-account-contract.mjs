@@ -1542,7 +1542,10 @@ check(
     pageCloudSyncHook.includes("authRetryStateRef") &&
     pageCloudSyncHook.includes("setState(authRetryStateRef.current)") &&
     pageCloudSyncHook.includes('result.status === "unauthenticated"') &&
-    pageCloudSyncHook.includes('result.status === "unconfigured"'),
+    pageCloudSyncHook.includes('result.status === "unconfigured"') &&
+    pageCloudSyncHook.includes(
+      'result.status === "unconfigured") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";'
+    ),
   "页面同步在未登录/未配置时应短期退避；账号/网络临时错误退避不能显示成未登录，避免误导用户以为账号掉线"
 );
 check(
@@ -1600,7 +1603,10 @@ check(
     databaseCloudSyncHook.includes("authRetryStateRef") &&
     databaseCloudSyncHook.includes("setState(authRetryStateRef.current)") &&
     databaseCloudSyncHook.includes('result.status === "unauthenticated"') &&
-    databaseCloudSyncHook.includes('result.status === "unconfigured"'),
+    databaseCloudSyncHook.includes('result.status === "unconfigured"') &&
+    databaseCloudSyncHook.includes(
+      'result.status === "unconfigured") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";'
+    ),
   "数据库同步在未登录/未配置时应短期退避；账号/网络临时错误退避不能显示成未登录，避免误导用户以为账号掉线"
 );
 check(

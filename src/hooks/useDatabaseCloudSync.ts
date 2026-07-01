@@ -205,13 +205,14 @@ export function useDatabaseCloudSync() {
           } else if (result.pushed > 0) {
             emitDatabasesUpdated("cloud-push", result.pushed);
           }
-        } else if (
-          result.status === "unauthenticated" ||
-          result.status === "unconfigured"
-        ) {
+        } else if (result.status === "unauthenticated") {
           authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
           authRetryStateRef.current = "signed-out";
           setState("signed-out");
+        } else if (result.status === "unconfigured") {
+          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+          authRetryStateRef.current = "error";
+          setState("error");
         } else if (result.status === "disabled") {
           authRetryAfterRef.current = 0;
           authRetryStateRef.current = "signed-out";
@@ -261,13 +262,14 @@ export function useDatabaseCloudSync() {
         emitDatabasesUpdated("cloud-pull", result.pulled, result.records);
       }
       void runSync({ forceLease: true, quick: true });
-    } else if (
-      result.status === "unauthenticated" ||
-      result.status === "unconfigured"
-    ) {
+    } else if (result.status === "unauthenticated") {
       authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
       authRetryStateRef.current = "signed-out";
       setState("signed-out");
+    } else if (result.status === "unconfigured") {
+      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+      authRetryStateRef.current = "error";
+      setState("error");
     } else if (result.status === "disabled") {
       authRetryStateRef.current = "signed-out";
       setState("disabled");
