@@ -392,10 +392,14 @@ check(
   pageSyncClient.includes("checkAccountCloudSyncGate") &&
     pageSyncClient.includes('accountGate.status === "unconfigured"') &&
     pageSyncClient.includes('accountGate.status === "signed-out"') &&
+    pageSyncClient.includes("页面同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。") &&
+    !pageSyncClient.includes('probeStatus = "unauthenticated";\n      rememberAuthRetryStatus("unauthenticated");') &&
     databaseSyncClient.includes("checkAccountCloudSyncGate") &&
     databaseSyncClient.includes('accountGate.status === "unconfigured"') &&
-    databaseSyncClient.includes('accountGate.status === "signed-out"'),
-  "页面/数据库同步底层客户端应先共享账号 gate，再访问具体 account-sync 路由"
+    databaseSyncClient.includes('accountGate.status === "signed-out"') &&
+    databaseSyncClient.includes("数据库同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。") &&
+    !databaseSyncClient.includes('probeStatus = "unauthenticated";\n      rememberAuthRetryStatus("unauthenticated");'),
+  "页面/数据库同步底层客户端应先共享账号 gate，再访问具体 account-sync 路由；具体同步接口 401 只能作为可重试错误，不能把用户踢成未登录"
 );
 const coreManifestCompareReceipt = read(
   "src/lib/sync/coreManifestCompareReceipt.ts"

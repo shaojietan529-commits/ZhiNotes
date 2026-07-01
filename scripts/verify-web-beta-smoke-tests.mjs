@@ -7760,6 +7760,18 @@ function run() {
     "Page account-sync client must pass the shared account gate before all direct page pulls or summaries."
   );
   assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "页面同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。",
+    "Page account-sync client must treat a domain-route 401 after the shared gate as a retryable sync error, not a sign-out."
+  );
+  assertExcludes(
+    files.accountPageSync,
+    accountPageSync,
+    'probeStatus = "unauthenticated";\n      rememberAuthRetryStatus("unauthenticated");',
+    "Page account-sync client must not write a long unauthenticated backoff from the domain sync route after the shared gate has passed."
+  );
+  assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
     "gateAccountSync",
@@ -7776,6 +7788,18 @@ function run() {
     accountDatabaseSync,
     "checkAccountCloudSyncGate",
     "Database account-sync client must pass the shared account gate before direct summaries or deltas."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "数据库同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。",
+    "Database account-sync client must treat a domain-route 401 after the shared gate as a retryable sync error, not a sign-out."
+  );
+  assertExcludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    'probeStatus = "unauthenticated";\n      rememberAuthRetryStatus("unauthenticated");',
+    "Database account-sync client must not write a long unauthenticated backoff from the domain sync route after the shared gate has passed."
   );
   assertIncludes(
     files.databaseCloudSync,

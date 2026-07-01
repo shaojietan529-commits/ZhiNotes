@@ -679,9 +679,13 @@ async function call(body: Record<string, unknown>): Promise<
       return { ok: false, status: "unconfigured" };
     }
     if (res.status === 401) {
-      probeStatus = "unauthenticated";
-      rememberAuthRetryStatus("unauthenticated");
-      return { ok: false, status: "unauthenticated" };
+      probeStatus = "error";
+      return {
+        ok: false,
+        status: "error",
+        message:
+          "数据库同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。",
+      };
     }
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
