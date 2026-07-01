@@ -12775,12 +12775,22 @@ function run() {
     'data-testid="account-hot-cache-route-warmup"',
     "只做 route prefetch",
     "不写 sync_log",
+    "同步失败，请稍后重试。本地输入仍保留在本机和待上传队列中。",
+    "finally {\n      setPageSyncBusy(false);\n      void refreshCloudUploadReliability();\n    }",
   ]) {
     assertIncludes(
       files.accountShell,
       accountShell,
       snippet,
       "Account hot-cache preferences must expose safe route-only warmup from the account page."
+    );
+  }
+  if (
+    (accountShell.match(/finally \{\n      setShareBusy\(false\);\n    \}/g) ?? [])
+      .length < 2
+  ) {
+    failures.push(
+      "Account share add/remove actions must always clear their busy state after failures."
     );
   }
   for (const snippet of [

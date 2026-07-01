@@ -358,51 +358,68 @@ export default function AccountShell() {
     if (!email.includes("@")) return;
     setShareBusy(true);
     setShareNotice(null);
-    const result = await addShareEmail(email);
-    if (result.status === "ok") {
-      setShareMembers(result.data);
-      setShareInput("");
-      setShareNotice("已共享。对方登录后在组合管理页可以切换查看你的持仓。");
-    } else {
-      setShareNotice(
-        result.status === "error" && result.message
-          ? result.message
-          : "共享失败，请稍后重试。"
-      );
+    try {
+      const result = await addShareEmail(email);
+      if (result.status === "ok") {
+        setShareMembers(result.data);
+        setShareInput("");
+        setShareNotice("已共享。对方登录后在组合管理页可以切换查看你的持仓。");
+      } else {
+        setShareNotice(
+          result.status === "error" && result.message
+            ? result.message
+            : "共享失败，请稍后重试。"
+        );
+      }
+    } catch {
+      setShareNotice("共享失败，请稍后重试。");
+    } finally {
+      setShareBusy(false);
     }
-    setShareBusy(false);
   }
 
   async function handleShareRemove(email: string) {
     setShareBusy(true);
     setShareNotice(null);
-    const result = await removeShareEmail(email);
-    if (result.status === "ok") {
-      setShareMembers(result.data);
-    } else {
+    try {
+      const result = await removeShareEmail(email);
+      if (result.status === "ok") {
+        setShareMembers(result.data);
+      } else {
+        setShareNotice("移除失败，请稍后重试。");
+      }
+    } catch {
       setShareNotice("移除失败，请稍后重试。");
+    } finally {
+      setShareBusy(false);
     }
-    setShareBusy(false);
   }
 
   async function handlePageSyncRun() {
     setPageSyncBusy(true);
     setPageSyncNotice(null);
-    const result = await reconcilePageSync({ includeManualReview: true });
-    if (result.status === "ok") {
-      setPageSyncLastAt(getLastPageSyncAt());
+    try {
+      const result = await reconcilePageSync({ includeManualReview: true });
+      if (result.status === "ok") {
+        setPageSyncLastAt(getLastPageSyncAt());
+        setPageSyncNotice(
+          `同步完成：拉取 ${result.pulled} 页，修复归档 ${result.repaired ?? 0} 页，推送 ${result.pushed} 页。`
+        );
+      } else if (result.status === "unauthenticated") {
+        setPageSyncNotice("登录已过期，请重新登录后再同步。");
+      } else if (result.status === "disabled") {
+        setPageSyncNotice("请先打开页面云同步开关。");
+      } else {
+        setPageSyncNotice(result.message ?? "同步失败，请稍后重试。");
+      }
+    } catch {
       setPageSyncNotice(
-        `同步完成：拉取 ${result.pulled} 页，修复归档 ${result.repaired ?? 0} 页，推送 ${result.pushed} 页。`
+        "同步失败，请稍后重试。本地输入仍保留在本机和待上传队列中。"
       );
-    } else if (result.status === "unauthenticated") {
-      setPageSyncNotice("登录已过期，请重新登录后再同步。");
-    } else if (result.status === "disabled") {
-      setPageSyncNotice("请先打开页面云同步开关。");
-    } else {
-      setPageSyncNotice(result.message ?? "同步失败，请稍后重试。");
+    } finally {
+      setPageSyncBusy(false);
+      void refreshCloudUploadReliability();
     }
-    setPageSyncBusy(false);
-    void refreshCloudUploadReliability();
   }
 
   async function handleDailyRepairRun() {

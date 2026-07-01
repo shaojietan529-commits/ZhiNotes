@@ -22043,6 +22043,14 @@ function run() {
     "await updateRow(rowId, { fieldValues });",
     "Database cell edits must not await local write and reload the whole database."
   );
+  if (
+    (accountShell.match(/finally \{\n      setShareBusy\(false\);\n    \}/g) ?? [])
+      .length < 2
+  ) {
+    fail(
+      "Account share add/remove actions must always clear their busy state after failures."
+    );
+  }
   for (const [sourceLabel, source, snippet, message] of [
     [
       files.usePages,
@@ -22085,6 +22093,18 @@ function run() {
       accountShell,
       "不写 sync_log",
       "Account hot-cache route warmup must disclose that it does not enter the upload queue.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "同步失败，请稍后重试。本地输入仍保留在本机和待上传队列中。",
+      "Account page manual page sync failures must say local input remains preserved.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "finally {\n      setPageSyncBusy(false);\n      void refreshCloudUploadReliability();\n    }",
+      "Account page manual page sync must always clear busy state and refresh the cloud upload reliability card.",
     ],
     [
       files.hotCacheRouteWarmup,

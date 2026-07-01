@@ -122,6 +122,16 @@ check(
   "AccountShell 应在账号页显示本地输入上云健康卡，只读 pending/sync_log/workspace metadata，不触发上传"
 );
 check(
+  (shell.match(/finally \{\n      setShareBusy\(false\);\n    \}/g) ?? [])
+    .length >= 2,
+  "AccountShell 共享添加/移除失败时必须恢复按钮状态，不能卡在共享中"
+);
+check(
+  shell.includes("同步失败，请稍后重试。本地输入仍保留在本机和待上传队列中。") &&
+    shell.includes("finally {\n      setPageSyncBusy(false);\n      void refreshCloudUploadReliability();\n    }"),
+  "AccountShell 手动页面同步异常时必须恢复按钮状态、刷新健康卡，并说明本地输入仍保留"
+);
+check(
   shell.includes("AccountHotCachePreferenceCard") &&
     shell.includes('data-testid="account-hot-cache-preferences"') &&
     shell.includes("HOT_CACHE_PREFERENCES_SETTING_KEY") &&
