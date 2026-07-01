@@ -8917,6 +8917,22 @@ function run() {
       "Meeting creation must mark the optimistic page as opening immediately.",
     ],
     [
+      "const clearFailedLocalMeetingCreate = () =>",
+      "Meeting creation must recover if the local optimistic draft path throws.",
+    ],
+    [
+      "current.filter((item) => item.id !== optimisticPage.id)",
+      "Meeting creation local failures must remove only the failed optimistic meeting draft.",
+    ],
+    [
+      "新建会议时本地草稿准备失败，会议日历仍保留现有内容。",
+      "Meeting creation local failures must keep the existing calendar visible.",
+    ],
+    [
+      "已有会议和本地缓存没有被删除，可以稍后重试。",
+      "Meeting creation local failures must tell the user existing meetings and caches were preserved.",
+    ],
+    [
       "status: \"meeting-create-local-shell-requested\"",
       "Meeting creation must record a local shell request metric so click-to-peek latency can be diagnosed.",
     ],

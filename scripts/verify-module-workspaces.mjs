@@ -1359,6 +1359,10 @@ check(
     shells.schedule.includes("const [openingMeetingId, setOpeningMeetingId]") &&
     shells.schedule.includes("setOpeningDraft({") &&
     shells.schedule.includes("setOpeningMeetingId(optimisticPage.id);") &&
+    shells.schedule.includes("const clearFailedLocalMeetingCreate = () =>") &&
+    shells.schedule.includes("current.filter((item) => item.id !== optimisticPage.id)") &&
+    shells.schedule.includes("新建会议时本地草稿准备失败，会议日历仍保留现有内容。") &&
+    shells.schedule.includes("已有会议和本地缓存没有被删除，可以稍后重试。") &&
     shells.schedule.includes("void seedMeetingPageForImmediateOpen(optimisticPage);") &&
     shells.schedule.includes("data-testid={`meeting-opening-page-${key}`}") &&
     shells.schedule.includes('data-testid="meeting-opening-draft-banner"') &&

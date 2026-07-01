@@ -1714,20 +1714,49 @@ export default function MeetingScheduleShell() {
           }
         : undefined;
 
-      upsertMeetingInView(optimisticPage);
-      upsertPages([optimisticPage]);
-      setOpeningDraft({
-        pageId: optimisticPage.id,
-        dateKey: toMeetingEntry(optimisticPage).dateKey || draft.date,
-      });
-      setOpeningMeetingId(optimisticPage.id);
-      rememberPendingPageDraft(optimisticPage);
-      rememberPageRouteHandoff(optimisticPage, "meeting-create");
-      warmMeetingPeekOpen();
-      setSelectedMeeting(null);
-      setRunNowMessage("");
-      setPeekInitialPage(optimisticPage);
-      setPeekPageId(optimisticPage.id);
+      const clearFailedLocalMeetingCreate = () => {
+        setMeetings((current) =>
+          current.filter((item) => item.id !== optimisticPage.id)
+        );
+        setOpeningDraft((current) =>
+          current?.pageId === optimisticPage.id ? null : current
+        );
+        setOpeningMeetingId((current) =>
+          current === optimisticPage.id ? null : current
+        );
+        setPeekInitialPage(null);
+        setPeekPageId(null);
+        publishCalendarStatus("cloud-error", {
+          visibleMeetings: meetingsRef.current.length,
+          visibleDays: countMeetingDates(meetingsRef.current),
+          cloudLoading: false,
+          backgroundActive: false,
+          message: "新建会议时本地草稿准备失败，会议日历仍保留现有内容。",
+        });
+      };
+      try {
+        upsertMeetingInView(optimisticPage);
+        upsertPages([optimisticPage]);
+        setOpeningDraft({
+          pageId: optimisticPage.id,
+          dateKey: toMeetingEntry(optimisticPage).dateKey || draft.date,
+        });
+        setOpeningMeetingId(optimisticPage.id);
+        rememberPendingPageDraft(optimisticPage);
+        rememberPageRouteHandoff(optimisticPage, "meeting-create");
+        warmMeetingPeekOpen();
+        setSelectedMeeting(null);
+        setRunNowMessage("");
+        setPeekInitialPage(optimisticPage);
+        setPeekPageId(optimisticPage.id);
+      } catch (error) {
+        clearFailedLocalMeetingCreate();
+        const message =
+          error instanceof Error ? error.message : "本机会议草稿创建失败";
+        throw new Error(
+          `会议页面未能创建：${message}。已有会议和本地缓存没有被删除，可以稍后重试。`
+        );
+      }
       const localShellRequestedMs =
         getLocalPerformanceNow() - createStartedAt;
       recordLocalPerformanceSnapshot({

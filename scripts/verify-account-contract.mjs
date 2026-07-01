@@ -1207,6 +1207,10 @@ check(
     meetingScheduleShell.includes("const [openingMeetingId, setOpeningMeetingId]") &&
     meetingScheduleShell.includes("setOpeningDraft({") &&
     meetingScheduleShell.includes("setOpeningMeetingId(optimisticPage.id);") &&
+    meetingScheduleShell.includes("const clearFailedLocalMeetingCreate = () =>") &&
+    meetingScheduleShell.includes("current.filter((item) => item.id !== optimisticPage.id)") &&
+    meetingScheduleShell.includes("新建会议时本地草稿准备失败，会议日历仍保留现有内容。") &&
+    meetingScheduleShell.includes("已有会议和本地缓存没有被删除，可以稍后重试。") &&
     meetingScheduleShell.includes("void seedMeetingPageForImmediateOpen(optimisticPage);") &&
     meetingScheduleShell.includes("const targetDateKey = form.date || toDateKey(new Date());") &&
     meetingScheduleShell.includes("if (creatingMeetingDateKeyRef.current !== null) return;") &&
