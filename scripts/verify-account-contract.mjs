@@ -1242,7 +1242,12 @@ check(
     !meetingScheduleShell.includes('openPage(page, { source: "meeting-create" })') &&
     meetingScheduleShell.includes('prepareMeetingPageOpen(page, "meeting-create")') &&
     meetingScheduleShell.includes("prepareMeetingPageOpen(page, source)") &&
-    meetingScheduleShell.includes("const seededPage = getMeetingPageOpenSeed(page)") &&
+    meetingScheduleShell.includes("let seededPage = page") &&
+    meetingScheduleShell.includes("seededPage = getMeetingPageOpenSeed(page)") &&
+    meetingScheduleShell.includes("Meeting page local prepare failed") &&
+    meetingScheduleShell.includes("打开会议页时本地预热失败，已继续打开页面；会议数据没有被删除。") &&
+    meetingScheduleShell.includes("Meeting page local prime failed") &&
+    meetingScheduleShell.includes("会议详情本地预热失败，已保留当前日历内容；仍可继续打开会议页。") &&
     meetingScheduleShell.includes("rememberPendingPageDraft(seededPage)") &&
     meetingScheduleShell.includes("rememberPageRouteHandoff(seededPage, source)") &&
     !meetingScheduleShell.includes("const warmMeetingPageContent = useCallback") &&

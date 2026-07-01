@@ -1391,7 +1391,12 @@ check(
     shells.schedule.includes("setPeekPageId(page.id)") &&
     shells.schedule.includes('status: "meeting-create-local-shell-requested"') &&
     shells.schedule.includes("local_handoff_seeded: 1") &&
-    shells.schedule.includes("const seededPage = getMeetingPageOpenSeed(page)") &&
+    shells.schedule.includes("let seededPage = page") &&
+    shells.schedule.includes("seededPage = getMeetingPageOpenSeed(page)") &&
+    shells.schedule.includes("Meeting page local prepare failed") &&
+    shells.schedule.includes("打开会议页时本地预热失败，已继续打开页面；会议数据没有被删除。") &&
+    shells.schedule.includes("Meeting page local prime failed") &&
+    shells.schedule.includes("会议详情本地预热失败，已保留当前日历内容；仍可继续打开会议页。") &&
     shells.schedule.includes("rememberPendingPageDraft(seededPage)") &&
     shells.schedule.includes("rememberPageRouteHandoff(seededPage, source)") &&
     !shells.schedule.includes("const warmMeetingPageContent = useCallback") &&

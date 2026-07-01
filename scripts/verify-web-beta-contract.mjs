@@ -6086,8 +6086,20 @@ function run() {
       "Newly created meeting page opens must prepare the local draft before navigation.",
     ],
     [
-      "const seededPage = getMeetingPageOpenSeed(page)",
+      "let seededPage = page",
+      "Meeting full-page opens must retain the original page if local seed preparation fails.",
+    ],
+    [
+      "seededPage = getMeetingPageOpenSeed(page)",
       "Meeting full-page opens must prefer the fullest local seed before navigation.",
+    ],
+    [
+      "Meeting page local prepare failed",
+      "Meeting full-page opens must recover when the local pre-navigation handoff fails.",
+    ],
+    [
+      "打开会议页时本地预热失败，已继续打开页面；会议数据没有被删除。",
+      "Meeting full-page open recovery must tell the user the page continues opening and data was preserved.",
     ],
     [
       "rememberPendingPageDraft(seededPage)",
@@ -6280,6 +6292,14 @@ function run() {
     [
       "const seededPage = getMeetingPagePrimeSeed(page)",
       "Meeting entry warmup must create a metadata-only local-first seed before navigation.",
+    ],
+    [
+      "Meeting page local prime failed",
+      "Meeting entry warmup must recover when metadata-only local prewarm fails.",
+    ],
+    [
+      "会议详情本地预热失败，已保留当前日历内容；仍可继续打开会议页。",
+      "Meeting entry warmup recovery must keep the existing calendar visible.",
     ],
     [
       'rememberPageRouteHandoff(seededPage, "meeting-open")',

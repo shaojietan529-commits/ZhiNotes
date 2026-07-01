@@ -8812,7 +8812,10 @@ function run() {
     "openPage(page, { source })",
     "prepareMeetingPageOpen(page, source)",
     'prepareMeetingPageOpen(page, "meeting-create")',
-    "const seededPage = getMeetingPageOpenSeed(page)",
+    "let seededPage = page",
+    "seededPage = getMeetingPageOpenSeed(page)",
+    "Meeting page local prepare failed",
+    "打开会议页时本地预热失败，已继续打开页面；会议数据没有被删除。",
     "rememberPendingPageDraft(seededPage)",
     "rememberPageRouteHandoff(seededPage, source)",
     "const openMeetingDetail = useCallback",
@@ -8975,6 +8978,18 @@ function run() {
     meetingScheduleShell,
     "const seededPage = getMeetingPagePrimeSeed(page)",
     "Meeting entry warmup must create a metadata-only local-first seed before navigation."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "Meeting page local prime failed",
+    "Meeting entry warmup must recover when metadata-only local prewarm fails."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "会议详情本地预热失败，已保留当前日历内容；仍可继续打开会议页。",
+    "Meeting entry warmup recovery must keep the existing calendar visible."
   );
   assertIncludes(
     files.meetingScheduleShell,

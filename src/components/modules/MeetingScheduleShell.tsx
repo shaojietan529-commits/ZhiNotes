@@ -1901,20 +1901,33 @@ export default function MeetingScheduleShell() {
 
   const prepareMeetingPageOpen = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
-      const seededPage = getMeetingPageOpenSeed(page);
-      warmMeetingPeekOpen();
-      upsertPages([seededPage]);
-      rememberPendingPageDraft(seededPage);
-      rememberPageRouteHandoff(seededPage, source);
-      const pageRoute = `/page/${seededPage.id}`;
+      let seededPage = page;
       try {
-        router.prefetch(pageRoute);
-      } catch {
-        // The page draft handoff already carries the first paint if prefetch is unavailable.
+        seededPage = getMeetingPageOpenSeed(page);
+        warmMeetingPeekOpen();
+        upsertPages([seededPage]);
+        rememberPendingPageDraft(seededPage);
+        rememberPageRouteHandoff(seededPage, source);
+        const pageRoute = `/page/${seededPage.id}`;
+        try {
+          router.prefetch(pageRoute);
+        } catch {
+          // The page draft handoff already carries the first paint if prefetch is unavailable.
+        }
+      } catch (error) {
+        console.warn("Meeting page local prepare failed", error);
+        publishCalendarStatus("cloud-error", {
+          visibleMeetings: meetingsRef.current.length,
+          visibleDays: countMeetingDates(meetingsRef.current),
+          cloudLoading: false,
+          backgroundActive: false,
+          message:
+            "打开会议页时本地预热失败，已继续打开页面；会议数据没有被删除。",
+        });
       }
       return seededPage;
     },
-    [router, upsertPages, warmMeetingPeekOpen]
+    [publishCalendarStatus, router, upsertPages, warmMeetingPeekOpen]
   );
 
   const openCreatedMeetingPage = useCallback(
@@ -1945,19 +1958,31 @@ export default function MeetingScheduleShell() {
 
   const primeMeetingEntryPage = useCallback(
     (page: Page) => {
-      const seededPage = getMeetingPagePrimeSeed(page);
-      warmMeetingPeekOpen();
-      upsertPages([seededPage]);
-      rememberPendingPageDraft(seededPage);
-      rememberPageRouteHandoff(seededPage, "meeting-open");
-      const pageRoute = `/page/${seededPage.id}`;
       try {
-        router.prefetch(pageRoute);
-      } catch {
-        // The metadata-only seed still lets the page shell paint immediately.
+        const seededPage = getMeetingPagePrimeSeed(page);
+        warmMeetingPeekOpen();
+        upsertPages([seededPage]);
+        rememberPendingPageDraft(seededPage);
+        rememberPageRouteHandoff(seededPage, "meeting-open");
+        const pageRoute = `/page/${seededPage.id}`;
+        try {
+          router.prefetch(pageRoute);
+        } catch {
+          // The metadata-only seed still lets the page shell paint immediately.
+        }
+      } catch (error) {
+        console.warn("Meeting page local prime failed", error);
+        publishCalendarStatus("cloud-error", {
+          visibleMeetings: meetingsRef.current.length,
+          visibleDays: countMeetingDates(meetingsRef.current),
+          cloudLoading: false,
+          backgroundActive: false,
+          message:
+            "会议详情本地预热失败，已保留当前日历内容；仍可继续打开会议页。",
+        });
       }
     },
-    [router, upsertPages, warmMeetingPeekOpen]
+    [publishCalendarStatus, router, upsertPages, warmMeetingPeekOpen]
   );
 
   const handleCreate = useCallback(() => {
