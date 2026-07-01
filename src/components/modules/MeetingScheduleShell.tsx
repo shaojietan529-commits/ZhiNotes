@@ -137,8 +137,6 @@ const MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT = 160;
 const MEETING_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
 const MEETING_CALENDAR_HYDRATION_BATCH = 7;
 const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
-const MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH = 10;
-const MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS = 32;
 const MEETING_PEEK_EDITOR_WARMUP_DELAY_MS = 1600;
 const MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
@@ -2183,41 +2181,16 @@ export default function MeetingScheduleShell() {
     );
     if (occupiedDateKeys.length === 0) return;
 
-    let cancelled = false;
-    let cancelScheduledBatch: (() => void) | null = null;
-    const queue = [...occupiedDateKeys];
-
-    const revealNextOccupiedBatch = () => {
-      cancelScheduledBatch = null;
-      if (cancelled || queue.length === 0) return;
-      const nextBatch = queue.splice(
-        0,
-        MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH
-      );
-      setHydratedMeetingDateKeys((current) => {
-        let changed = false;
-        const next = new Set(current);
-        for (const dateKey of nextBatch) {
-          if (next.has(dateKey)) continue;
-          next.add(dateKey);
-          changed = true;
-        }
-        return changed ? next : current;
-      });
-      if (queue.length > 0) {
-        cancelScheduledBatch = scheduleMeetingIdleTask(
-          revealNextOccupiedBatch,
-          MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS
-        );
+    setHydratedMeetingDateKeys((current) => {
+      let changed = false;
+      const next = new Set(current);
+      for (const dateKey of occupiedDateKeys) {
+        if (next.has(dateKey)) continue;
+        next.add(dateKey);
+        changed = true;
       }
-    };
-
-    revealNextOccupiedBatch();
-
-    return () => {
-      cancelled = true;
-      cancelScheduledBatch?.();
-    };
+      return changed ? next : current;
+    });
   }, [entriesByDate, grid, meetingCountByDate]);
 
   const traceReviewEntries = useMemo(

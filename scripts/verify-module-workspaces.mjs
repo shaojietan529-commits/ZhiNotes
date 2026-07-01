@@ -1206,6 +1206,12 @@ check(
     shells.schedule.includes("setMeetings(pages)") &&
     shells.schedule.includes("setExpandedMeetingDateKeys((current) =>") &&
     shells.schedule.includes("setVisibleMeetingLimitByDate((limits) =>") &&
+    shells.schedule.includes("buildOccupiedMeetingCalendarHydrationKeys") &&
+    shells.schedule.includes("const occupiedDateKeys = buildOccupiedMeetingCalendarHydrationKeys") &&
+    shells.schedule.includes("for (const dateKey of occupiedDateKeys)") &&
+    shells.schedule.includes("return changed ? next : current;") &&
+    !shells.schedule.includes("const revealNextOccupiedBatch = () =>") &&
+    !shells.schedule.includes("MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
     shells.schedule.includes("revealMeetingOnCalendar(optimisticPage)") &&
     shells.schedule.includes("revealMeetingOnCalendar(finalPage)") &&
     shells.schedule.includes("const visibleLimit = isExpanded") &&
@@ -1218,7 +1224,7 @@ check(
     !shells.schedule.includes(".sort((a, b) => a.dateKey.localeCompare(b.dateKey))\n      .slice(0, 8)") &&
     !shells.schedule.includes(".sort((a, b) =>\n          (b.page.updated_at || \"\").localeCompare(a.page.updated_at || \"\")\n        )\n        .slice(0, 20)") &&
     !shells.schedule.includes("? dayMeetings\n                : dayMeetings.slice"),
-  "MeetingScheduleShell 展开某一天时也必须分批渲染，不能一次性把大批量导入会议全部挂到 DOM"
+  "MeetingScheduleShell 应立即显示有会议日期的轻量 metadata；展开某一天时仍必须分批渲染，不能一次性把大批量导入会议全部挂到 DOM"
 );
 for (const token of [
   "daily_date_key",

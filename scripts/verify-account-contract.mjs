@@ -1179,13 +1179,14 @@ check(
     meetingScheduleShell.includes("MEETING_RENDER_UNDATED_REVIEW_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_MANUAL_DAY_LOAD_LIMIT") &&
     meetingScheduleShell.includes("MEETING_CALENDAR_HYDRATION_BATCH") &&
-    meetingScheduleShell.includes("MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
-    meetingScheduleShell.includes("MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS") &&
     meetingScheduleShell.includes("hydratedMeetingDateKeys") &&
     meetingScheduleShell.includes("buildInitialMeetingCalendarHydrationKeys") &&
     meetingScheduleShell.includes("buildOccupiedMeetingCalendarHydrationKeys") &&
     meetingScheduleShell.includes("const occupiedDateKeys = buildOccupiedMeetingCalendarHydrationKeys") &&
-    meetingScheduleShell.includes("const revealNextOccupiedBatch = () =>") &&
+    meetingScheduleShell.includes("for (const dateKey of occupiedDateKeys)") &&
+    meetingScheduleShell.includes("return changed ? next : current;") &&
+    !meetingScheduleShell.includes("const revealNextOccupiedBatch = () =>") &&
+    !meetingScheduleShell.includes("MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
     meetingScheduleShell.includes("const [meetingCountByDate, setMeetingCountByDate]") &&
     meetingScheduleShell.includes("const meetingCalendarRenderFingerprintRef = useRef(\"\")") &&
     meetingScheduleShell.includes("publishMeetingCalendarRenderSelection(") &&
@@ -1231,7 +1232,7 @@ check(
     !meetingScheduleShell.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
     meetingScheduleShell.includes("为保持日历流畅") &&
     !meetingScheduleShell.includes("{dayMeetings.map"),
-  "MeetingScheduleShell 月历单元格应按日期空闲 metadata hydration，只渲染用户已关注日期的可见会议，更多会议必须点击后分批展开；正文必须在 peek/full page 打开后按需补齐，不能 hover 或首屏批量预热正文；单日高 volume 会议应限量渲染并可按天补齐"
+  "MeetingScheduleShell 月历单元格应立即显示有会议日期的轻量 metadata，只渲染可见会议，更多会议必须点击后分批展开；正文必须在 peek/full page 打开后按需补齐，不能 hover 或首屏批量预热正文；单日高 volume 会议应限量渲染并可按天补齐"
 );
 
 const usePageHook = read("src/hooks/usePage.ts");

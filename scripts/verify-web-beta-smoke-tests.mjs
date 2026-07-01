@@ -6291,12 +6291,12 @@ function run() {
       "Meeting calendar must hydrate date cells in idle batches instead of rendering every meeting chip at first paint.",
     ],
     [
-      "MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH",
-      "Meeting calendar must prioritize occupied date cells so imported meetings appear before full-month idle hydration completes.",
+      "for (const dateKey of occupiedDateKeys)",
+      "Meeting calendar must hydrate occupied date cells immediately so imported meetings appear without waiting for full-month idle hydration.",
     ],
     [
-      "MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS",
-      "Meeting calendar occupied-date hydration must remain idle-batched instead of synchronously rendering every occupied day.",
+      "return changed ? next : current;",
+      "Meeting calendar occupied-date hydration must skip redundant state updates while making available meeting metadata visible immediately.",
     ],
     [
       "hydratedMeetingDateKeys",
@@ -6313,10 +6313,6 @@ function run() {
     [
       "const occupiedDateKeys = buildOccupiedMeetingCalendarHydrationKeys",
       "Meeting calendar must run a dedicated occupied-date hydration pass after metadata arrives.",
-    ],
-    [
-      "const revealNextOccupiedBatch = () =>",
-      "Meeting calendar occupied-date hydration must reveal occupied days in bounded batches.",
     ],
     [
       "const [meetingCountByDate, setMeetingCountByDate]",
@@ -6414,6 +6410,18 @@ function run() {
     assertIncludes(files.meetingScheduleShell, meetingScheduleShell, snippet, message);
   }
   for (const [snippet, message] of [
+    [
+      "const revealNextOccupiedBatch = () =>",
+      "Meeting calendar occupied-date hydration must not return to the old delayed batch path.",
+    ],
+    [
+      "MEETING_CALENDAR_OCCUPIED_HYDRATION_BATCH",
+      "Meeting calendar occupied-date hydration no longer needs a separate batch constant.",
+    ],
+    [
+      "MEETING_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS",
+      "Meeting calendar occupied-date hydration should not wait for a separate idle frame delay.",
+    ],
     [
       "MEETING_VISIBLE_CONTENT_WARMUP",
       "Meeting calendar must not automatically hydrate imported meeting bodies from the month grid.",
