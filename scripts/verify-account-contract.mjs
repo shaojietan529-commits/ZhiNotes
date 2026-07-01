@@ -175,6 +175,7 @@ check(
     accountClientSession.includes("ACCOUNT_SESSION_RETRY_BACKOFF_MS") &&
     accountClientSession.includes("clearAccountSessionCache") &&
     accountClientSession.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    accountClientSession.includes("getLastAuthenticatedAccount") &&
     accountClientSession.includes("withStoredAuthenticatedFallback") &&
     accountClientSession.includes("staleReason") &&
     accountClientSession.includes("clearStoredAuthenticatedAccount"),
@@ -2359,8 +2360,12 @@ check(
   "评论、版本历史和双链写入后应发出不含内容的刷新事件，让账号同步总控能看到知识库附属 pending 队列"
 );
 check(
-  sidebar.includes("fetchAccountSession"),
-  "Sidebar 应通过共享账号状态 helper 读取当前账号资料"
+  sidebar.includes("fetchAccountSession") &&
+    sidebar.includes("getLastAuthenticatedAccount") &&
+    sidebar.includes("getLastKnownAccountLabel") &&
+    sidebar.includes('session.status === "ok"') &&
+    sidebar.includes("currentLabel === \"账号\" ? getLastKnownAccountLabel() : currentLabel"),
+  "Sidebar 应通过共享账号状态 helper 读取当前账号资料，并在接口临时失败时保留最近用户名"
 );
 check(
   sidebar.includes("accountLabel"),

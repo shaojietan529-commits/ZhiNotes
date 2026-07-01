@@ -34,7 +34,10 @@ import {
 import {
   ACCOUNT_PROFILE_UPDATED_EVENT,
 } from "@/lib/account/clientProfile";
-import { fetchAccountSession } from "@/lib/account/clientSession";
+import {
+  fetchAccountSession,
+  getLastAuthenticatedAccount,
+} from "@/lib/account/clientSession";
 import {
   SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
   SIDEBAR_PRIMARY_ORDER_SETTING_KEY,
@@ -168,6 +171,10 @@ function getAccountSyncCenterTarget(accountSync: {
     return "/modules/sync#account-module-settings-pending-plan";
   }
   return "/modules/sync#sync-upload-safety-panel";
+}
+
+function getLastKnownAccountLabel() {
+  return getLastAuthenticatedAccount()?.display_name || "账号";
 }
 
 function normalizePrimaryIcon(value: unknown, fallback: string): string {
@@ -392,7 +399,7 @@ export default function Sidebar() {
   const [markdownExportRunning, setMarkdownExportRunning] = useState(false);
   const [zipExportRunning, setZipExportRunning] = useState(false);
   const [modulesOpen, setModulesOpen] = useState(false);
-  const [accountLabel, setAccountLabel] = useState("账号");
+  const [accountLabel, setAccountLabel] = useState(getLastKnownAccountLabel);
   const [primaryItems, setPrimaryItems] = useState(DEFAULT_PRIMARY_ITEMS);
   const [draggedPrimaryId, setDraggedPrimaryId] = useState<string | null>(null);
   const [primaryCustomizations, setPrimaryCustomizations] = useState<
@@ -497,9 +504,17 @@ export default function Sidebar() {
         setAccountLabel(session.account.display_name || "账号");
         return;
       }
-      setAccountLabel("账号");
+      if (session.status === "ok") {
+        setAccountLabel("账号");
+        return;
+      }
+      setAccountLabel((currentLabel) =>
+        currentLabel === "账号" ? getLastKnownAccountLabel() : currentLabel
+      );
     } catch {
-      setAccountLabel("账号");
+      setAccountLabel((currentLabel) =>
+        currentLabel === "账号" ? getLastKnownAccountLabel() : currentLabel
+      );
     }
   }, []);
 

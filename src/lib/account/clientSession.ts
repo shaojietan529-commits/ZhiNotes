@@ -35,6 +35,10 @@ export function clearAccountSessionCache(): void {
   clearStoredAuthenticatedAccount();
 }
 
+export function getLastAuthenticatedAccount(): ClientAccountInfo | null {
+  return readStoredAuthenticatedAccount(Date.now());
+}
+
 export async function fetchAccountSession(
   options: { force?: boolean } = {}
 ): Promise<AccountSessionResult> {
