@@ -139,6 +139,7 @@ const MEETING_CALENDAR_HYDRATION_BATCH = 7;
 const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
 const MEETING_PEEK_EDITOR_WARMUP_DELAY_MS = 1600;
 const MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2000;
+const MEETING_INTAKE_TIMEOUT_MS = 8000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
@@ -1937,15 +1938,27 @@ export default function MeetingScheduleShell() {
 
     setIntakeLoading(true);
     setIntakeError("");
-    setIntakeMessage("");
+    setIntakeMessage("正在读取会议信息；如果接口超时，会先保留会议痕迹并弹出会议页。");
     setIntakePreview(null);
+
+    const controller = new AbortController();
+    let intakeTimeoutId: number | null = window.setTimeout(() => {
+      controller.abort();
+    }, MEETING_INTAKE_TIMEOUT_MS);
+    const clearIntakeTimeout = () => {
+      if (intakeTimeoutId === null) return;
+      window.clearTimeout(intakeTimeoutId);
+      intakeTimeoutId = null;
+    };
 
     try {
       const res = await fetch("/api/meetings/intake", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({ input }),
       });
+      clearIntakeTimeout();
       const data = (await res.json()) as IntakeResponse;
       if (!res.ok || !data.meeting) {
         throw new Error(data.error || "读取会议信息失败。");
@@ -1999,7 +2012,12 @@ export default function MeetingScheduleShell() {
       );
       openCreatedMeetingPage(result.page);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "读取会议信息失败。";
+      const message =
+        error instanceof Error && error.name === "AbortError"
+          ? "会议信息读取超时，已先保留会议痕迹。"
+          : error instanceof Error
+            ? error.message
+            : "读取会议信息失败。";
       const fallback = buildFallbackTraceFromInput(input, form.date || toDateKey(new Date()));
       try {
         const result = createMeetingPage(fallback.draft, {
@@ -2021,7 +2039,7 @@ export default function MeetingScheduleShell() {
           traceNote: `解析接口失败，但已保留会议痕迹。失败原因：${message}`,
         });
         focusCalendarDate(fallback.draft.date);
-        setIntakeError(`解析失败但已保留痕迹，并已弹出会议页：${message}`);
+        setIntakeError(`解析未完成但已保留痕迹，并已弹出会议页：${message}`);
         openCreatedMeetingPage(result.page);
       } catch (fallbackError) {
         const fallbackMessage =
@@ -2029,6 +2047,7 @@ export default function MeetingScheduleShell() {
         setIntakeError(`导入失败：${message}；保留痕迹也失败：${fallbackMessage}`);
       }
     } finally {
+      clearIntakeTimeout();
       setIntakeLoading(false);
     }
   }, [

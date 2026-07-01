@@ -1149,6 +1149,11 @@ check(
     meetingScheduleShell.includes("queueCloudPagePush(record)") &&
     !meetingScheduleShell.includes("const result = await pushCloudPages(records)") &&
     meetingScheduleShell.includes("disabled={intakeLoading || !intakeText.trim()}") &&
+    meetingScheduleShell.includes("const MEETING_INTAKE_TIMEOUT_MS = 8000") &&
+    meetingScheduleShell.includes("const controller = new AbortController();") &&
+    meetingScheduleShell.includes("signal: controller.signal") &&
+    meetingScheduleShell.includes("controller.abort();") &&
+    meetingScheduleShell.includes("会议信息读取超时，已先保留会议痕迹。") &&
     !meetingScheduleShell.includes("): Promise<CreateMeetingResult> =>") &&
     meetingScheduleShell.includes("): CreateMeetingResult =>") &&
     meetingScheduleShell.includes("const result = createMeetingPage(form") &&

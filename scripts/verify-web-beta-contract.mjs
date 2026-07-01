@@ -6324,6 +6324,22 @@ function run() {
       "Meeting import button must be available as soon as text is present; root id resolution happens in the create path.",
     ],
     [
+      "const MEETING_INTAKE_TIMEOUT_MS = 8000",
+      "Meeting import must have a bounded wait so pasted invites do not leave users stuck on the loading state.",
+    ],
+    [
+      "signal: controller.signal",
+      "Meeting import fetch must be abortable when the intake API is slow or unavailable.",
+    ],
+    [
+      "controller.abort();",
+      "Meeting import timeout must actively abort the slow intake request.",
+    ],
+    [
+      "会议信息读取超时，已先保留会议痕迹。",
+      "Meeting import timeout must fall back to a visible trace instead of dropping the user's pasted invite.",
+    ],
+    [
       "revealMeetingOnCalendar(optimisticPage)",
       "Meeting import/create must reveal the optimistic meeting in the calendar immediately.",
     ],

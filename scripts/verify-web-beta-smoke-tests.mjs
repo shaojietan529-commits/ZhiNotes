@@ -9075,6 +9075,30 @@ function run() {
     "disabled={intakeLoading || !intakeText.trim()}",
     "Meeting import button must be available as soon as text is present; root id resolution happens in the create path."
   );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "const MEETING_INTAKE_TIMEOUT_MS = 8000",
+    "Meeting import must have a bounded wait so pasted invites do not leave users stuck on the loading state."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "signal: controller.signal",
+    "Meeting import fetch must be abortable when the intake API is slow or unavailable."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "controller.abort();",
+    "Meeting import timeout must actively abort the slow intake request."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "会议信息读取超时，已先保留会议痕迹。",
+    "Meeting import timeout must fall back to a visible trace instead of dropping the user's pasted invite."
+  );
   assertExcludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
