@@ -1834,6 +1834,10 @@ check(
     pagePeekModal.includes("schedulePeekIdleTask(callback, 60)") &&
     pagePeekModal.includes("schedulePeekIdleTask") &&
     pagePeekModal.includes("const initialPeekPage = getInitialPeekPage(pageId, initialPage)") &&
+    pagePeekModal.includes("const handleOpenFullPage = useCallback") &&
+    pagePeekModal.includes("prepareLocalFirstPageNavigation(seed, \"page-open\")") &&
+    pagePeekModal.includes("onClick={handleOpenFullPage}") &&
+    pagePeekModal.includes("handleOpenFullPage();") &&
     pagePeekModal.includes("useState(() => initialPeekPage?.title ?? \"\")") &&
     pagePeekModal.includes("applyPeekMetadataSnapshot") &&
     pagePeekModal.includes("const localFirstSeedPage = currentFallbackPage ?? currentInitialPage") &&
@@ -1891,6 +1895,9 @@ check(
     lazyPagePeekModal.includes("readLocalFirstLoadingSeed") &&
     lazyPagePeekModal.includes("readPendingPageDraft(pageId)") &&
     lazyPagePeekModal.includes("readPageRouteHandoff(pageId)") &&
+    lazyPagePeekModal.includes("const openFullFromLoadingShell = useCallback") &&
+    lazyPagePeekModal.includes("prepareLocalFirstPageNavigation(seed, \"page-open\")") &&
+    lazyPagePeekModal.includes("onClick={openFullFromLoadingShell}") &&
     lazyPagePeekModal.includes("onReady?.(pageId)") &&
     lazyPagePeekModal.includes('status: seed ? "local-shell-ready" : "local-shell-loading"') &&
     lazyPagePeekModal.includes("新页面已在本机创建，完整编辑器正在载入。") &&

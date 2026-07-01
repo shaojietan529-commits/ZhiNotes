@@ -24,6 +24,7 @@ import {
   subscribePageBodyHydrationStatus,
 } from "@/lib/pages/pageBodyHydrationStatus";
 import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import { prepareLocalFirstPageNavigation } from "@/lib/pages/localFirstPageNavigation";
 import {
   readPendingPageDraft,
   rememberPendingPageDraft,
@@ -323,18 +324,24 @@ export default function PagePeekModal({
     });
   }, [effectivePage, isOptimisticDraft, metadataLoading, onReady, pageId]);
 
+  const handleOpenFullPage = useCallback(() => {
+    const seed = effectivePage ?? getInitialPeekPage(pageId, initialPage);
+    if (seed) prepareLocalFirstPageNavigation(seed, "page-open");
+    onOpenFull(pageId);
+  }, [effectivePage, initialPage, onOpenFull, pageId]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
       // Cmd+Enter (mac) / Ctrl+Enter — jump to the full page view.
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
-        onOpenFull(pageId);
+        handleOpenFullPage();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, onOpenFull, pageId]);
+  }, [handleOpenFullPage, onClose]);
 
   useEffect(() => {
     if (!hasEffectivePage || editorMounted) return;
@@ -505,7 +512,7 @@ export default function PagePeekModal({
         <header className="flex items-center justify-end gap-1 border-b border-zinc-100 px-3 py-2 dark:border-zinc-800">
           <button
             type="button"
-            onClick={() => onOpenFull(pageId)}
+            onClick={handleOpenFullPage}
             className="rounded px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             title="打开完整页面（⌘+回车）"
           >
@@ -526,7 +533,7 @@ export default function PagePeekModal({
             <PeekMetadataRecoveryShell
               pageId={pageId}
               initialPage={initialPage}
-              onOpenFull={onOpenFull}
+              onOpenFullPage={handleOpenFullPage}
             />
           ) : (
             <div className="mx-auto w-full max-w-4xl">
@@ -596,11 +603,11 @@ export default function PagePeekModal({
 function PeekMetadataRecoveryShell({
   pageId,
   initialPage,
-  onOpenFull,
+  onOpenFullPage,
 }: {
   pageId: string;
   initialPage?: Page | null;
-  onOpenFull: (pageId: string) => void;
+  onOpenFullPage: () => void;
 }) {
   const seed = getInitialPeekPage(pageId, initialPage);
   const title = seed ? displayPageTitle(seed.title) : "正在打开页面";
@@ -631,7 +638,7 @@ function PeekMetadataRecoveryShell({
       </div>
       <button
         type="button"
-        onClick={() => onOpenFull(pageId)}
+        onClick={onOpenFullPage}
         className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
       >
         打开完整页面继续编辑 ↗

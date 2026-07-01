@@ -5416,6 +5416,18 @@ function run() {
       "PagePeekModal must reuse local-first route handoff metadata before waiting on IndexedDB metadata.",
     ],
     [
+      "const handleOpenFullPage = useCallback",
+      "PagePeekModal full-page escape hatch must prepare local-first route context before navigating.",
+    ],
+    [
+      "prepareLocalFirstPageNavigation(seed, \"page-open\")",
+      "PagePeekModal full-page navigation must seed the target route from available local metadata.",
+    ],
+    [
+      "handleOpenFullPage();",
+      "PagePeekModal keyboard shortcut must use the same local-first full-page path as the button.",
+    ],
+    [
       "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
       "PagePeekModal must prefer complete local drafts before metadata-only route handoff previews.",
     ],
@@ -5646,6 +5658,18 @@ function run() {
     [
       "readPageRouteHandoff(pageId)",
       "Lazy peek modal fallback must reuse route handoff metadata during cold chunk loads.",
+    ],
+    [
+      "const openFullFromLoadingShell = useCallback",
+      "Lazy peek modal fallback must wrap full-page opens with local-first handoff preparation.",
+    ],
+    [
+      "prepareLocalFirstPageNavigation(seed, \"page-open\")",
+      "Lazy peek modal fallback must seed complete-page navigation before the modal chunk finishes loading.",
+    ],
+    [
+      "onClick={openFullFromLoadingShell}",
+      "Lazy peek modal fallback full-page buttons must use the local-first handoff path.",
     ],
     [
       "已先显示本地页面信息",

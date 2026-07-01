@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { PagePeekModalProps } from "@/components/page/PagePeekModal";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
@@ -9,6 +9,7 @@ import {
   recordLocalPerformanceSnapshot,
 } from "@/lib/performance/localPerformance";
 import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
+import { prepareLocalFirstPageNavigation } from "@/lib/pages/localFirstPageNavigation";
 import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
 import { parsePageProperties } from "@/lib/pages/pageProperties";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -101,6 +102,10 @@ function LocalFirstPeekLoadingShell({
   const title = seed ? displayPageTitle(seed.title) : "正在打开页面";
   const propertyCount = seed ? parsePageProperties(seed.properties).length : 0;
   const isOptimisticDraft = seed?.content_text === "";
+  const openFullFromLoadingShell = useCallback(() => {
+    if (seed) prepareLocalFirstPageNavigation(seed, "page-open");
+    onOpenFull(pageId);
+  }, [onOpenFull, pageId, seed]);
 
   useEffect(() => {
     openedAtRef.current = getLocalPerformanceNow();
@@ -146,7 +151,7 @@ function LocalFirstPeekLoadingShell({
         <header className="flex items-center justify-end gap-1 border-b border-zinc-100 px-3 py-2 dark:border-zinc-800">
           <button
             type="button"
-            onClick={() => onOpenFull(pageId)}
+            onClick={openFullFromLoadingShell}
             className="rounded px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             title="打开完整页面"
           >
@@ -187,7 +192,7 @@ function LocalFirstPeekLoadingShell({
               <div className="mb-6 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => onOpenFull(pageId)}
+                  onClick={openFullFromLoadingShell}
                   className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
                 >
                   打开完整页面继续编辑 ↗
