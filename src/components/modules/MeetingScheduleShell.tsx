@@ -2385,6 +2385,14 @@ export default function MeetingScheduleShell() {
                 会议管理中心。导入会议信息，查看当天日程，日历总览。
               </p>
               <MeetingCalendarLoadStatusStrip view={calendarLoadStatusView} />
+              {openingDraft && (
+                <MeetingOpeningDraftBanner
+                  dateKey={openingDraft.dateKey}
+                  onOpenFull={() =>
+                    openMeetingFullPageById(openingDraft.pageId)
+                  }
+                />
+              )}
             </div>
             <button
               type="button"
@@ -4316,6 +4324,35 @@ function MeetingCalendarLoadStatusStrip({
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+function MeetingOpeningDraftBanner({
+  dateKey,
+  onOpenFull,
+}: {
+  dateKey: string;
+  onOpenFull: () => void;
+}) {
+  return (
+    <div
+      data-testid="meeting-opening-draft-banner"
+      className="mt-3 flex max-w-3xl flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200"
+    >
+      <span className="font-medium">
+        {dateKey} 的会议页面已创建，弹窗正在准备。
+      </span>
+      <span className="text-amber-600 dark:text-amber-400">
+        日历和云端同步会在后台继续。
+      </span>
+      <button
+        type="button"
+        onClick={onOpenFull}
+        className="rounded border border-amber-300 px-2 py-1 font-medium transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/50"
+      >
+        打开完整页面
+      </button>
     </div>
   );
 }

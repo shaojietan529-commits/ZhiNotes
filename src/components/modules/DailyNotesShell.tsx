@@ -1547,9 +1547,11 @@ export default function DailyNotesShell() {
               error instanceof Error ? error.message : "账号云端保存失败";
             setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
           } finally {
-            setOpeningDraft((current) =>
-              current?.pageId === optimisticNote.id ? null : current
-            );
+            if (dailyCreateOpenMode === "peek") {
+              setOpeningDraft((current) =>
+                current?.pageId === optimisticNote.id ? null : current
+              );
+            }
             releaseCreatingDate();
           }
         })();
@@ -1908,6 +1910,15 @@ export default function DailyNotesShell() {
                 </p>
               )}
               <DailyCalendarLoadStatusStrip view={calendarLoadStatusView} />
+              {openingDraft && (
+                <DailyOpeningDraftBanner
+                  dateKey={openingDraft.dateKey}
+                  mode={dailyCreateOpenMode}
+                  onOpenFull={() =>
+                    openDailyNoteFullPageById(openingDraft.pageId)
+                  }
+                />
+              )}
             </div>
             <div className="flex items-center gap-2">
               <div
@@ -3342,6 +3353,43 @@ function DailyCalendarLoadStatusStrip({
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+function DailyOpeningDraftBanner({
+  dateKey,
+  mode,
+  onOpenFull,
+}: {
+  dateKey: string;
+  mode: DailyCreateOpenMode;
+  onOpenFull: () => void;
+}) {
+  const message =
+    mode === "peek"
+      ? `${dateKey} 的新纪要已创建，弹窗正在准备。`
+      : `${dateKey} 的新纪要已创建，正在进入完整页面。`;
+  const actionLabel =
+    mode === "peek" ? "打开完整页面" : "没有跳转？打开页面";
+
+  return (
+    <div
+      data-testid="daily-opening-draft-banner"
+      data-open-mode={mode}
+      className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200"
+    >
+      <span className="font-medium">{message}</span>
+      <span className="text-amber-600 dark:text-amber-400">
+        后台会继续保存并同步。
+      </span>
+      <button
+        type="button"
+        onClick={onOpenFull}
+        className="rounded border border-amber-300 px-2 py-1 font-medium transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/50"
+      >
+        {actionLabel}
+      </button>
     </div>
   );
 }
