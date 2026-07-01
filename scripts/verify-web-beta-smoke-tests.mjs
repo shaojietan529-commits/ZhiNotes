@@ -5465,6 +5465,18 @@ function run() {
       "Daily notes initial cloud correction must have a bounded idle timeout.",
     ],
     [
+      "const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900",
+      "Daily notes follow-up cloud metadata correction must start quickly after local updates.",
+    ],
+    [
+      "const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 450",
+      "Daily notes initial cloud correction must start shortly after local first paint.",
+    ],
+    [
+      "const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 1400",
+      "Daily notes initial cloud correction idle timeout must stay bounded for cloud-first users.",
+    ],
+    [
       "void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleNotes: true,\n      });",
       "Daily notes first dbReady load must render local/cache metadata before starting cloud correction.",
     ],

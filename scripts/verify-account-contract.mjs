@@ -807,6 +807,9 @@ check(
     dailyNotesShell.includes("DAILY_CLOUD_METADATA_RECHECK_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
+    dailyNotesShell.includes("const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900") &&
+    dailyNotesShell.includes("const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 450") &&
+    dailyNotesShell.includes("const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 1400") &&
     dailyNotesShell.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleNotes: true,\n      });") &&
     dailyNotesShell.includes("cancelCloudRecheck = scheduleDailyIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });\n      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
     dailyNotesShell.includes("}, DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS);") &&
