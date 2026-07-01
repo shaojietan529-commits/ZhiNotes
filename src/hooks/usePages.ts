@@ -10,7 +10,10 @@ import {
   listPagesForPriorityContentHydration,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
-import { syncCloudPageMetadataDelta } from "@/lib/pages/accountPageSync";
+import {
+  isCloudPagePendingSync,
+  syncCloudPageMetadataDelta,
+} from "@/lib/pages/accountPageSync";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   emitPageSnapshotsUpdated,
@@ -282,6 +285,33 @@ function mergeFullMetadataWithCurrentStore(localMetadata: Page[]): Page[] {
   return [...byId.values()];
 }
 
+function mergeCloudMetadataWithPendingLocalPages(cloudMetadata: Page[]): Page[] {
+  const currentPages = useWorkspaceStore.getState().pages;
+  const byId = new Map(cloudMetadata.map((page) => [page.id, page]));
+  for (const current of currentPages) {
+    const cloud = byId.get(current.id);
+    if (!cloud) {
+      if (isCloudPagePendingSync(current.id)) {
+        byId.set(current.id, current);
+      }
+      continue;
+    }
+    const preferred = isCloudPagePendingSync(current.id) ? current : cloud;
+    byId.set(current.id, {
+      ...preferred,
+      content_text:
+        preferred.content_text === null && current.content_text !== null
+          ? current.content_text
+          : preferred.content_text,
+      content_yjs:
+        preferred.content_yjs === null && current.content_yjs !== null
+          ? current.content_yjs
+          : preferred.content_yjs,
+    });
+  }
+  return [...byId.values()];
+}
+
 export function usePages(options: UsePagesOptions = {}) {
   const includeContent = options.includeContent ?? false;
   const deferContent = options.deferContent ?? false;
@@ -358,9 +388,9 @@ export function usePages(options: UsePagesOptions = {}) {
         if (cloud.status === "ok") {
           const cloudPages = cloud.pages.map(remoteMetadataToPage);
           if (cloud.fullRefresh && (!includeContent || metadataFirstContent)) {
-            all = cloudPages;
+            all = mergeCloudMetadataWithPendingLocalPages(cloudPages);
             cloudSnapshotAuthoritative = true;
-            setPages(cloudPages);
+            setPages(all);
           } else if (cloudPages.length > 0) {
             if (localSnapshotLoaded) {
               all = mergeMetadataForCount(all, cloudPages);

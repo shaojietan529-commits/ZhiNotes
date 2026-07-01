@@ -691,6 +691,8 @@ check(
     usePagesHook.includes("metadataRecentLimitForHotCachePreferences(preferences)") &&
     usePagesHook.includes("scheduleDeferredMetadataHydration(setPages)") &&
     usePagesHook.includes("mergeFullMetadataWithCurrentStore(metadataPages)") &&
+    usePagesHook.includes("mergeCloudMetadataWithPendingLocalPages") &&
+    usePagesHook.includes("isCloudPagePendingSync(current.id)") &&
     usePagesHook.includes("const currentIsNewer =") &&
     usePagesHook.includes("HOT_CACHE_PREFERENCES_CHANGED_EVENT") &&
     usePagesHook.includes("HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY") &&
@@ -712,14 +714,14 @@ check(
     usePagesHook.includes("void applyCloudMetadataDelta({") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     usePagesHook.includes("The browser database is only a rebuildable hot cache") &&
-    usePagesHook.includes("setPages(cloudPages)") &&
+    usePagesHook.includes("setPages(all)") &&
     usePagesHook.includes("Cloud metadata refresh is best effort") &&
     usePagesHook.includes("cloudSnapshotAuthoritative = true") &&
     usePagesHook.includes("includeContent && !localSnapshotLoaded && all.length === 0") &&
     usePagesHook.indexOf("await renderLocalPagesSnapshot()") <
       usePagesHook.indexOf("const cloud = await syncCloudPageMetadataDelta") &&
     !usePagesHook.includes("fetchCloudPageMetadata"),
-  "usePages 应先显示本地热缓存，再用云端 metadata 增量校正；includeContent 只能在本地缓存不可读时用云端 metadata 兜底"
+  "usePages 应先显示本地热缓存，再用云端 metadata 增量校正；includeContent 只能在本地缓存不可读时用云端 metadata 兜底；云端 full refresh 不能隐藏本机 pending 待上传页面"
 );
 check(
   usePagesHook.includes("autoLoad?: boolean") &&
