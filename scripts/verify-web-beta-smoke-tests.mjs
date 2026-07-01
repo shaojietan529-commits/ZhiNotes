@@ -7762,6 +7762,20 @@ function run() {
     "manualReviewTotal",
     "Account cloud sync coordinator must surface manual-review queues before claiming all local input is safely uploaded."
   );
+  if (
+    !(
+      accountCloudSyncCoordinator.indexOf(
+        "manualReviewTotal > 0 || failedTotal > 0"
+      ) <
+      accountCloudSyncCoordinator.indexOf(
+        'pageSync.state === "error" || databaseSync.state === "error"'
+      )
+    )
+  ) {
+    failures.push(
+      "Account cloud sync coordinator must show failed/manual-review queues before transient page/database errors."
+    );
+  }
   assertIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,

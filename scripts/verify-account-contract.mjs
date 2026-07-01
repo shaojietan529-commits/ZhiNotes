@@ -2300,6 +2300,13 @@ check(
   "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
 );
 check(
+  accountCloudSyncCoordinator.indexOf("manualReviewTotal > 0 || failedTotal > 0") <
+    accountCloudSyncCoordinator.indexOf(
+      'pageSync.state === "error" || databaseSync.state === "error"'
+    ),
+  "账号级云同步协调器必须优先显示失败/人工处理队列，不能被临时接口错误盖住"
+);
+check(
   settingsCloudSyncStatusHook.includes(
     "getPendingWorkspaceSettingSyncLogEntries"
   ) &&

@@ -103,10 +103,10 @@ export function useAccountCloudSyncCoordinator() {
   const state: AccountCloudSyncCoordinatorState =
     enabledDomainCount === 0
       ? "disabled"
-      : pageSync.state === "error" || databaseSync.state === "error"
-        ? "error"
-        : manualReviewTotal > 0 || failedTotal > 0
-          ? "attention"
+      : manualReviewTotal > 0 || failedTotal > 0
+        ? "attention"
+        : pageSync.state === "error" || databaseSync.state === "error"
+          ? "error"
           : pageSync.state === "signed-out" || databaseSync.state === "signed-out"
             ? "signed-out"
             : pageSync.state === "syncing" || databaseSync.state === "syncing"
