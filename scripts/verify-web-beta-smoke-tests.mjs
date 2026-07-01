@@ -8772,6 +8772,20 @@ function run() {
     "openCreatedMeetingPage",
     "Meeting manual create and invite import must share the same same-page peek opening path."
   );
+  for (const snippet of [
+    "const targetDateKey = form.date || toDateKey(new Date());",
+    "if (creatingMeetingDateKeyRef.current !== null) return;",
+    "creatingMeetingDateKeyRef.current = targetDateKey;",
+    "setCreatingMeetingDateKey(targetDateKey);",
+    "creatingMeetingDateKeyRef.current === targetDateKey",
+  ]) {
+    assertIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      "Meeting manual create must use the same synchronous duplicate guard as calendar + creates."
+    );
+  }
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,

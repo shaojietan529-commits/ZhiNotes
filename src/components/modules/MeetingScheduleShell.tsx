@@ -1892,8 +1892,9 @@ export default function MeetingScheduleShell() {
   );
 
   const handleCreate = useCallback(() => {
-    if (creatingMeetingDateKey !== null) return;
     const targetDateKey = form.date || toDateKey(new Date());
+    if (creatingMeetingDateKeyRef.current !== null) return;
+    creatingMeetingDateKeyRef.current = targetDateKey;
     setCreatingMeetingDateKey(targetDateKey);
     setIntakeError("");
     setIntakeMessage("正在创建会议页面，后台会继续保存到账号云端…");
@@ -1914,11 +1915,17 @@ export default function MeetingScheduleShell() {
       setIntakeError(message);
       setIntakeMessage("");
     } finally {
-      setCreatingMeetingDateKey(null);
+      window.setTimeout(() => {
+        if (creatingMeetingDateKeyRef.current === targetDateKey) {
+          creatingMeetingDateKeyRef.current = null;
+        }
+        setCreatingMeetingDateKey((current) =>
+          current === targetDateKey ? null : current
+        );
+      }, 250);
     }
   }, [
     createMeetingPage,
-    creatingMeetingDateKey,
     focusCalendarDate,
     form,
     openCreatedMeetingPage,

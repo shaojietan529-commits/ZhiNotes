@@ -6004,6 +6004,26 @@ function run() {
       "Meeting manual create and invite import must share the same same-page peek opening path.",
     ],
     [
+      "const targetDateKey = form.date || toDateKey(new Date());",
+      "Meeting manual create must derive its date before taking the duplicate-create lock.",
+    ],
+    [
+      "if (creatingMeetingDateKeyRef.current !== null) return;",
+      "Meeting manual create must use a synchronous duplicate guard before React state catches up.",
+    ],
+    [
+      "creatingMeetingDateKeyRef.current = targetDateKey;",
+      "Meeting manual create must lock the target date before creating the local draft.",
+    ],
+    [
+      "setCreatingMeetingDateKey(targetDateKey);",
+      "Meeting manual create must show immediate creating feedback.",
+    ],
+    [
+      "creatingMeetingDateKeyRef.current === targetDateKey",
+      "Meeting manual create must release only its own duplicate-create lock.",
+    ],
+    [
       "prepareMeetingPageOpen",
       "Meeting page opens must share a pre-navigation local cache handoff.",
     ],

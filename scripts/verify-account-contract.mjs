@@ -1182,6 +1182,11 @@ check(
     meetingScheduleShell.includes("setOpeningDraft({") &&
     meetingScheduleShell.includes("setOpeningMeetingId(optimisticPage.id);") &&
     meetingScheduleShell.includes("void seedMeetingPageForImmediateOpen(optimisticPage);") &&
+    meetingScheduleShell.includes("const targetDateKey = form.date || toDateKey(new Date());") &&
+    meetingScheduleShell.includes("if (creatingMeetingDateKeyRef.current !== null) return;") &&
+    meetingScheduleShell.includes("creatingMeetingDateKeyRef.current = targetDateKey;") &&
+    meetingScheduleShell.includes("setCreatingMeetingDateKey(targetDateKey);") &&
+    meetingScheduleShell.includes("creatingMeetingDateKeyRef.current === targetDateKey") &&
     meetingScheduleShell.includes("data-testid={`meeting-opening-page-${key}`}") &&
     meetingScheduleShell.includes('data-testid="meeting-opening-draft-banner"') &&
     meetingScheduleShell.includes("openingMeetingId === entry.page.id") &&
