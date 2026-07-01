@@ -9111,6 +9111,18 @@ function run() {
     "fetchMeetingIntakeWithTimeout(inputText)",
     "Meeting retry parsing must use the bounded intake helper so review batches cannot hang on one slow request."
   );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "重新识别完成，但刷新列表失败",
+    "Meeting retry parsing must show a recoverable refresh failure instead of leaving users with a silent stuck state."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "finally {\n      setRetryLoading(false);\n    }",
+    "Meeting retry parsing must always clear the loading state."
+  );
   assertExcludes(
     files.meetingScheduleShell,
     meetingScheduleShell,

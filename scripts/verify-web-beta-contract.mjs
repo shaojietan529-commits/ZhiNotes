@@ -6348,6 +6348,14 @@ function run() {
       "Meeting retry parsing must use the bounded intake helper so review batches cannot hang on one slow request.",
     ],
     [
+      "重新识别完成，但刷新列表失败",
+      "Meeting retry parsing must show a recoverable refresh failure instead of leaving users with a silent stuck state.",
+    ],
+    [
+      "finally {\n      setRetryLoading(false);\n    }",
+      "Meeting retry parsing must always clear the loading state.",
+    ],
+    [
       "revealMeetingOnCalendar(optimisticPage)",
       "Meeting import/create must reveal the optimistic meeting in the calendar immediately.",
     ],

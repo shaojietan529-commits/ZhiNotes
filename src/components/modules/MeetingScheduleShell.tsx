@@ -2086,71 +2086,81 @@ export default function MeetingScheduleShell() {
     setRetryLoading(true);
     setRetryResult("");
     let fixed = 0;
-    for (const entry of pending) {
-      try {
-        const inputText = [
-          entry.page.title,
-          entry.topic,
-          entry.dateKey,
-          entry.time,
-          entry.platform,
-          entry.organizer,
-        ]
-          .filter(Boolean)
-          .join(" ");
-        const data = await fetchMeetingIntakeWithTimeout(inputText);
-        const m = data.meeting;
-        const hasTime = Boolean(m.date && m.time);
-        if (!hasTime && !m.date) continue;
-        const props = parsePageProperties(entry.page.properties);
-        const update = (name: string, value: string) => {
-          const prop = props.find((p) => p.name === name);
-          if (prop) prop.value = value;
-        };
-        let changed = false;
-        if (m.date && m.date !== entry.dateKey) {
-          update("日期", m.date);
-          changed = true;
-        }
-        if (m.time && !entry.time) {
-          update("时间", formatMeetingTime(m.time, m.endTime));
-          update("时间状态", "已识别");
-          update("会议痕迹", "已留痕-待执行");
-          changed = true;
-        }
-        if (m.platform && m.platform !== "其他" && entry.platform === "其他") {
-          update("平台", m.platform);
-          changed = true;
-        }
-        if (changed) {
-          const { updatePageWithCloud } = await loadPageMutationModule();
-          const updatedPage = await updatePageWithCloud(entry.page.id, {
-            properties: stringifyPageProperties(props),
-          });
-          if (rootId && updatedPage) {
-            await pushMeetingPageCloudSnapshot(rootId, updatedPage);
-            upsertMeetingInView(updatedPage);
-            upsertPages([updatedPage]);
-            writeOptimisticMeetingHotCache(updatedPage, rootId);
-            revealMeetingOnCalendar(updatedPage);
+    try {
+      for (const entry of pending) {
+        try {
+          const inputText = [
+            entry.page.title,
+            entry.topic,
+            entry.dateKey,
+            entry.time,
+            entry.platform,
+            entry.organizer,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          const data = await fetchMeetingIntakeWithTimeout(inputText);
+          const m = data.meeting;
+          const hasTime = Boolean(m.date && m.time);
+          if (!hasTime && !m.date) continue;
+          const props = parsePageProperties(entry.page.properties);
+          const update = (name: string, value: string) => {
+            const prop = props.find((p) => p.name === name);
+            if (prop) prop.value = value;
+          };
+          let changed = false;
+          if (m.date && m.date !== entry.dateKey) {
+            update("日期", m.date);
+            changed = true;
           }
-          fixed++;
+          if (m.time && !entry.time) {
+            update("时间", formatMeetingTime(m.time, m.endTime));
+            update("时间状态", "已识别");
+            update("会议痕迹", "已留痕-待执行");
+            changed = true;
+          }
+          if (m.platform && m.platform !== "其他" && entry.platform === "其他") {
+            update("平台", m.platform);
+            changed = true;
+          }
+          if (changed) {
+            const { updatePageWithCloud } = await loadPageMutationModule();
+            const updatedPage = await updatePageWithCloud(entry.page.id, {
+              properties: stringifyPageProperties(props),
+            });
+            if (rootId && updatedPage) {
+              await pushMeetingPageCloudSnapshot(rootId, updatedPage);
+              upsertMeetingInView(updatedPage);
+              upsertPages([updatedPage]);
+              writeOptimisticMeetingHotCache(updatedPage, rootId);
+              revealMeetingOnCalendar(updatedPage);
+            }
+            fixed++;
+          }
+        } catch {
+          // skip individual failures
         }
-      } catch {
-        // skip individual failures
       }
+      await load({
+        includeCloud: false,
+        interruptCloud: false,
+        preserveVisibleMeetings: true,
+      });
+      setRetryResult(
+        fixed > 0
+          ? `已重新识别 ${fixed} 条会议`
+          : "没有新的信息可以补充"
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "刷新会议列表失败。";
+      setRetryResult(
+        fixed > 0
+          ? `已重新识别 ${fixed} 条会议，但刷新列表失败：${message}`
+          : `重新识别完成，但刷新列表失败：${message}`
+      );
+    } finally {
+      setRetryLoading(false);
     }
-    await load({
-      includeCloud: false,
-      interruptCloud: false,
-      preserveVisibleMeetings: true,
-    });
-    setRetryLoading(false);
-    setRetryResult(
-      fixed > 0
-        ? `已重新识别 ${fixed} 条会议`
-        : "没有新的信息可以补充"
-    );
   }, [
     entries,
     load,

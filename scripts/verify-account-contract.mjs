@@ -1156,6 +1156,8 @@ check(
     meetingScheduleShell.includes("会议信息读取超时，已先保留会议痕迹。") &&
     meetingScheduleShell.includes("fetchMeetingIntakeWithTimeout(input)") &&
     meetingScheduleShell.includes("fetchMeetingIntakeWithTimeout(inputText)") &&
+    meetingScheduleShell.includes("重新识别完成，但刷新列表失败") &&
+    meetingScheduleShell.includes("finally {\n      setRetryLoading(false);\n    }") &&
     !meetingScheduleShell.includes("): Promise<CreateMeetingResult> =>") &&
     meetingScheduleShell.includes("): CreateMeetingResult =>") &&
     meetingScheduleShell.includes("const result = createMeetingPage(form") &&
