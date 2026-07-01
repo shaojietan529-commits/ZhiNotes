@@ -1445,9 +1445,11 @@ check(
 check(
   pageCloudSyncHook.includes("AUTH_RETRY_BACKOFF_MS") &&
     pageCloudSyncHook.includes("authRetryAfterRef") &&
+    pageCloudSyncHook.includes("authRetryStateRef") &&
+    pageCloudSyncHook.includes("setState(authRetryStateRef.current)") &&
     pageCloudSyncHook.includes('result.status === "unauthenticated"') &&
     pageCloudSyncHook.includes('result.status === "unconfigured"'),
-  "页面同步在未登录/未配置时应短期退避，避免多端或本地开发环境持续空转轮询"
+  "页面同步在未登录/未配置时应短期退避；账号/网络临时错误退避不能显示成未登录，避免误导用户以为账号掉线"
 );
 check(
   pageCloudSyncHook.includes("getPendingCloudPageSyncStatus") &&
@@ -1497,6 +1499,15 @@ check(
     databaseCloudSyncHook.includes("refreshPendingStatus") &&
     databaseCloudSyncHook.includes("return { state, lastSyncAt, pendingStatus, syncNow: runSync }"),
   "数据库云同步 hook 应把 cloud key 队列和 sync_log pending 计数暴露给侧边栏"
+);
+check(
+  databaseCloudSyncHook.includes("AUTH_RETRY_BACKOFF_MS") &&
+    databaseCloudSyncHook.includes("authRetryAfterRef") &&
+    databaseCloudSyncHook.includes("authRetryStateRef") &&
+    databaseCloudSyncHook.includes("setState(authRetryStateRef.current)") &&
+    databaseCloudSyncHook.includes('result.status === "unauthenticated"') &&
+    databaseCloudSyncHook.includes('result.status === "unconfigured"'),
+  "数据库同步在未登录/未配置时应短期退避；账号/网络临时错误退避不能显示成未登录，避免误导用户以为账号掉线"
 );
 check(
   databaseCloudSyncHook.includes("DATABASE_SYNC_STATUS_EVENT") &&
@@ -2281,6 +2292,7 @@ check(
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
     accountCloudSyncCoordinator.includes("账号云同步正在检查") &&
+    accountCloudSyncCoordinator.includes("账号云同步暂不可确认，稍后重试；本地输入已保留") &&
     accountCloudSyncCoordinator.includes("syncNow"),
   "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
 );
@@ -2363,6 +2375,8 @@ check(
     sidebar.includes("accountSyncAriaLabel") &&
     sidebar.includes("getAccountSyncToneClass") &&
     sidebar.includes("检查中") &&
+    sidebar.includes("重试中") &&
+    sidebar.includes("账号或网络暂不可确认，已保留本地输入，稍后重试") &&
     sidebar.includes("accountSyncNeedsSyncCenter") &&
     sidebar.includes("accountSync.pagePendingTotal > 0") &&
     sidebar.includes("accountSync.databasePendingTotal > 0") &&
