@@ -358,6 +358,49 @@ function stringifyPageChangeCursor(updatedAt: string, id: string): string {
   return JSON.stringify({ updatedAt, id });
 }
 
+function canUseChangeLogFromCursor(
+  log: PageChangeLogEntry[],
+  cursor: PageChangeCursor
+): boolean {
+  const firstLogEntry = log[0];
+  return (
+    Boolean(cursor.updatedAt) &&
+    Boolean(firstLogEntry) &&
+    compareChangePosition(
+      cursor.updatedAt,
+      cursor.id,
+      firstLogEntry?.u ?? "",
+      firstLogEntry?.id ?? ""
+    ) >= 0
+  );
+}
+
+async function readChangedPageRecordsFromChangeLog(
+  config: AccountConfig,
+  email: string,
+  cursorText: string | undefined
+): Promise<{
+  changedIds: Set<string>;
+  records: PageRecord[];
+} | null> {
+  const cursor = parsePageChangeCursor(cursorText ?? "");
+  const log = await readChangeLog(config, email);
+  if (!canUseChangeLogFromCursor(log, cursor)) return null;
+
+  const changed = log.filter((entry) => isAfterCursor(entry, cursor));
+  const changedIds = new Set(changed.map((entry) => entry.id));
+  if (changedIds.size === 0) {
+    return { changedIds, records: [] };
+  }
+
+  const records = await readPageRecordsByIds(
+    config,
+    email,
+    Array.from(changedIds)
+  );
+  return { changedIds, records };
+}
+
 function hasSameOriginReferer(request: Request): boolean {
   const referer = request.headers.get("referer");
   if (!referer) return false;
@@ -894,15 +937,6 @@ async function readMeetingCalendarCacheSnapshot(
   }
 }
 
-async function readMeetingCalendarCache(
-  config: AccountConfig,
-  email: string,
-  watermark: string
-): Promise<MeetingCalendarCache | null> {
-  const parsed = await readMeetingCalendarCacheSnapshot(config, email);
-  return parsed?.watermark === watermark ? parsed : null;
-}
-
 async function writeMeetingCalendarCache(
   config: AccountConfig,
   email: string,
@@ -975,15 +1009,32 @@ async function getMeetingCalendarMetadata(
 ): Promise<MeetingCalendarMetadataResult> {
   const index = await readIndex(config, email);
   const summary = summarizeIndex(index);
-  const cached = await readMeetingCalendarCache(config, email, summary.watermark);
-  if (cached) {
+  const cachedSnapshot = await readMeetingCalendarCacheSnapshot(config, email);
+  if (cachedSnapshot?.watermark === summary.watermark) {
     return selectMeetingCalendarMetadata(
-      cached,
+      cachedSnapshot,
       startDate,
       endDate,
       recentLimit,
       true
     );
+  }
+  if (cachedSnapshot) {
+    const refreshed = await refreshMeetingCalendarCacheFromChangeLog(
+      config,
+      email,
+      cachedSnapshot,
+      summary
+    );
+    if (refreshed) {
+      return selectMeetingCalendarMetadata(
+        refreshed,
+        startDate,
+        endDate,
+        recentLimit,
+        true
+      );
+    }
   }
 
   const pages = await readIndexedPages(config, email, index);
@@ -1157,15 +1208,6 @@ async function readDailyCalendarCacheSnapshot(
   }
 }
 
-async function readDailyCalendarCache(
-  config: AccountConfig,
-  email: string,
-  watermark: string
-): Promise<DailyCalendarCache | null> {
-  const parsed = await readDailyCalendarCacheSnapshot(config, email);
-  return parsed?.watermark === watermark ? parsed : null;
-}
-
 async function writeDailyCalendarCache(
   config: AccountConfig,
   email: string,
@@ -1185,9 +1227,11 @@ async function writeDailyCalendarCache(
 function updateDailyCalendarCacheWithRecords(
   cache: DailyCalendarCache,
   records: PageRecord[],
-  summary: IndexSummary
+  summary: IndexSummary,
+  changedIdsOverride?: Set<string>
 ): DailyCalendarCache {
-  const changedIds = new Set(records.map((record) => record.id));
+  const changedIds =
+    changedIdsOverride ?? new Set(records.map((record) => record.id));
   const notes = cache.notes.filter((item) => !changedIds.has(item.record.id));
   const noteById = new Map(notes.map((item) => [item.record.id, item]));
   let rootId = cache.rootId;
@@ -1231,9 +1275,11 @@ function updateDailyCalendarCacheWithRecords(
 function updateMeetingCalendarCacheWithRecords(
   cache: MeetingCalendarCache,
   records: PageRecord[],
-  summary: IndexSummary
+  summary: IndexSummary,
+  changedIdsOverride?: Set<string>
 ): MeetingCalendarCache {
-  const changedIds = new Set(records.map((record) => record.id));
+  const changedIds =
+    changedIdsOverride ?? new Set(records.map((record) => record.id));
   const meetings = cache.meetings.filter(
     (item) => !changedIds.has(item.record.id)
   );
@@ -1276,6 +1322,84 @@ function updateMeetingCalendarCacheWithRecords(
   };
 }
 
+function createDailyCalendarCacheFromRecords(
+  records: PageRecord[],
+  summary: IndexSummary
+): DailyCalendarCache {
+  return updateDailyCalendarCacheWithRecords(
+    {
+      rootId: null,
+      scanned: 0,
+      watermark: "",
+      cursor: "",
+      notes: [],
+    },
+    [...records].sort((a, b) => (a.depth || 0) - (b.depth || 0)),
+    summary
+  );
+}
+
+function createMeetingCalendarCacheFromRecords(
+  records: PageRecord[],
+  summary: IndexSummary
+): MeetingCalendarCache {
+  return updateMeetingCalendarCacheWithRecords(
+    {
+      rootId: null,
+      scanned: 0,
+      watermark: "",
+      cursor: "",
+      meetings: [],
+    },
+    [...records].sort((a, b) => (a.depth || 0) - (b.depth || 0)),
+    summary
+  );
+}
+
+async function refreshDailyCalendarCacheFromChangeLog(
+  config: AccountConfig,
+  email: string,
+  cache: DailyCalendarCache,
+  summary: IndexSummary
+): Promise<DailyCalendarCache | null> {
+  const changed = await readChangedPageRecordsFromChangeLog(
+    config,
+    email,
+    cache.cursor
+  );
+  if (!changed) return null;
+  const nextCache = updateDailyCalendarCacheWithRecords(
+    cache,
+    changed.records,
+    summary,
+    changed.changedIds
+  );
+  await writeDailyCalendarCache(config, email, nextCache);
+  return nextCache;
+}
+
+async function refreshMeetingCalendarCacheFromChangeLog(
+  config: AccountConfig,
+  email: string,
+  cache: MeetingCalendarCache,
+  summary: IndexSummary
+): Promise<MeetingCalendarCache | null> {
+  const changed = await readChangedPageRecordsFromChangeLog(
+    config,
+    email,
+    cache.cursor
+  );
+  if (!changed) return null;
+  const nextCache = updateMeetingCalendarCacheWithRecords(
+    cache,
+    changed.records,
+    summary,
+    changed.changedIds
+  );
+  await writeMeetingCalendarCache(config, email, nextCache);
+  return nextCache;
+}
+
 async function updateCalendarCachesForPageWrites(
   config: AccountConfig,
   email: string,
@@ -1296,6 +1420,12 @@ async function updateCalendarCachesForPageWrites(
             email,
             updateDailyCalendarCacheWithRecords(dailyCache, records, nextSummary)
           )
+        : !dailyCache
+          ? writeDailyCalendarCache(
+              config,
+              email,
+              createDailyCalendarCacheFromRecords(records, nextSummary)
+            )
         : Promise.resolve(),
       meetingCache?.watermark === previousSummary.watermark
         ? writeMeetingCalendarCache(
@@ -1307,6 +1437,12 @@ async function updateCalendarCachesForPageWrites(
               nextSummary
             )
           )
+        : !meetingCache
+          ? writeMeetingCalendarCache(
+              config,
+              email,
+              createMeetingCalendarCacheFromRecords(records, nextSummary)
+            )
         : Promise.resolve(),
     ]);
   } catch {
@@ -1370,15 +1506,32 @@ async function getDailyCalendarMetadata(
 ): Promise<DailyCalendarMetadataResult> {
   const index = await readIndex(config, email);
   const summary = summarizeIndex(index);
-  const cached = await readDailyCalendarCache(config, email, summary.watermark);
-  if (cached) {
+  const cachedSnapshot = await readDailyCalendarCacheSnapshot(config, email);
+  if (cachedSnapshot?.watermark === summary.watermark) {
     return selectDailyCalendarMetadata(
-      cached,
+      cachedSnapshot,
       startDate,
       endDate,
       recentLimit,
       true
     );
+  }
+  if (cachedSnapshot) {
+    const refreshed = await refreshDailyCalendarCacheFromChangeLog(
+      config,
+      email,
+      cachedSnapshot,
+      summary
+    );
+    if (refreshed) {
+      return selectDailyCalendarMetadata(
+        refreshed,
+        startDate,
+        endDate,
+        recentLimit,
+        true
+      );
+    }
   }
 
   const pages = await readIndexedPages(config, email, index);

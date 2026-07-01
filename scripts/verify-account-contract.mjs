@@ -290,8 +290,23 @@ check(
   "页面写入后应增量维护每日/会议日历缓存，避免下次打开重新扫描完整页面索引"
 );
 check(
+  pageSyncRoute.includes("refreshDailyCalendarCacheFromChangeLog") &&
+    pageSyncRoute.includes("refreshMeetingCalendarCacheFromChangeLog") &&
+    pageSyncRoute.includes("readChangedPageRecordsFromChangeLog") &&
+    pageSyncRoute.includes("cache.cursor") &&
+    pageSyncRoute.includes("changed.changedIds"),
+  "每日/会议日历缓存 watermark 过期时，应优先用 change log 快进缓存，不能直接退回完整页面扫描"
+);
+check(
+  pageSyncRoute.includes("createDailyCalendarCacheFromRecords") &&
+    pageSyncRoute.includes("createMeetingCalendarCacheFromRecords") &&
+    pageSyncRoute.includes("!dailyCache") &&
+    pageSyncRoute.includes("!meetingCache"),
+  "页面批量写入时如果日历缓存还不存在，应用本批轻量记录先建立缓存，降低导入后的首次日历冷启动成本"
+);
+check(
   pageSyncRoute.includes("MEETING_CALENDAR_CACHE_KEY_PREFIX") &&
-    pageSyncRoute.includes("readMeetingCalendarCache") &&
+    pageSyncRoute.includes("readMeetingCalendarCacheSnapshot") &&
     pageSyncRoute.includes("selectMeetingCalendarMetadata") &&
     pageSyncRoute.includes("getMeetingCalendarMetadata("),
   "会议日历 metadata 应维护按 watermark 失效的云端索引缓存"
