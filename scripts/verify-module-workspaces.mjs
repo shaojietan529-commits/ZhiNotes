@@ -1156,11 +1156,12 @@ check(
 check(
   shells.daily.includes("DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT") &&
     shells.daily.includes("DAILY_CALENDAR_HYDRATION_BATCH") &&
-    shells.daily.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
     shells.daily.includes("buildOccupiedDailyCalendarHydrationKeys(") &&
     shells.daily.includes("const occupiedDateKeys = buildOccupiedDailyCalendarHydrationKeys") &&
-    shells.daily.includes("const revealNextOccupiedBatch = () =>") &&
-    shells.daily.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS") &&
+    shells.daily.includes("for (const dateKey of occupiedDateKeys)") &&
+    shells.daily.includes("return changed ? next : current;") &&
+    !shells.daily.includes("const revealNextOccupiedBatch = () =>") &&
+    !shells.daily.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
     shells.daily.includes("const [hydratedDateKeys, setHydratedDateKeys]") &&
     shells.daily.includes("buildInitialDailyCalendarHydrationKeys(") &&
     shells.daily.includes("const remainingDateKeys = allDateKeys.filter") &&
@@ -1170,7 +1171,7 @@ check(
     shells.daily.includes("hydrateDailyDateKey(key);") &&
     shells.daily.includes("isDateHydrated && visibleNotes.map") &&
     shells.daily.includes("isDateHydrated && dayTotalCount > DAILY_CALENDAR_VISIBLE_LIMIT"),
-  "DailyNotesShell 大批量每日纪要必须先渲染轻量日期摘要，再按小批次激活详情，避免首屏一次性挂载大量按钮"
+  "DailyNotesShell 大批量每日纪要必须立即显示有内容日期的轻量 metadata，但单日详情和空白日期仍按小批次激活，避免首屏一次性挂载大量按钮"
 );
 check(
   shells.schedule.includes("MEETING_CALENDAR_EXPAND_BATCH") &&

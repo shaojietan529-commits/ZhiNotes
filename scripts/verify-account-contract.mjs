@@ -952,11 +952,12 @@ check(
     dailyNotesShell.includes("点击补齐") &&
     dailyNotesShell.includes("DAILY_CALENDAR_EXPAND_BATCH") &&
     dailyNotesShell.includes("DAILY_CALENDAR_RENDER_DAY_LIMIT") &&
-    dailyNotesShell.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
     dailyNotesShell.includes("buildOccupiedDailyCalendarHydrationKeys(") &&
     dailyNotesShell.includes("const occupiedDateKeys = buildOccupiedDailyCalendarHydrationKeys") &&
-    dailyNotesShell.includes("const revealNextOccupiedBatch = () =>") &&
-    dailyNotesShell.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS") &&
+    dailyNotesShell.includes("for (const dateKey of occupiedDateKeys)") &&
+    dailyNotesShell.includes("return changed ? next : current;") &&
+    !dailyNotesShell.includes("const revealNextOccupiedBatch = () =>") &&
+    !dailyNotesShell.includes("DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH") &&
     dailyNotesShell.includes("const dayTotalCount =") &&
     dailyNotesShell.includes("const loadedHiddenCount = Math.max(") &&
     dailyNotesShell.includes("const isRenderCapped =") &&
@@ -973,7 +974,7 @@ check(
     !dailyNotesShell.includes("warmDailyNoteContent") &&
     !dailyNotesShell.includes("onMouseEnter={() => warmDailyNoteContent(note)}") &&
     !dailyNotesShell.includes("hiddenNotes.map"),
-  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；超大单日导入只能按当天补齐 metadata，自动 hydration 必须走空闲调度；正文必须在 peek/full page 打开后按需补齐，不能把全部 metadata 或正文塞进 DOM"
+  "DailyNotesShell 月历单元格应只渲染可见条目，更多纪要必须点击后分批展开；有内容日期必须立即显示 metadata 以避免刷新后延迟出现；超大单日导入只能按当天补齐 metadata；正文必须在 peek/full page 打开后按需补齐，不能把全部 metadata 或正文塞进 DOM"
 );
 
 const meetingScheduleShell = read(

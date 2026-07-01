@@ -156,8 +156,6 @@ const DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT = 160;
 const DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
 const DAILY_CALENDAR_HYDRATION_BATCH = 7;
 const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
-const DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH = 10;
-const DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS = 32;
 const DAILY_PEEK_EDITOR_WARMUP_DELAY_MS = 1400;
 const DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 1800;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
@@ -1367,41 +1365,16 @@ export default function DailyNotesShell() {
     );
     if (occupiedDateKeys.length === 0) return;
 
-    let cancelled = false;
-    let cancelScheduledBatch: (() => void) | null = null;
-    const queue = [...occupiedDateKeys];
-
-    const revealNextOccupiedBatch = () => {
-      cancelScheduledBatch = null;
-      if (cancelled || queue.length === 0) return;
-      const nextBatch = queue.splice(
-        0,
-        DAILY_CALENDAR_OCCUPIED_HYDRATION_BATCH
-      );
-      setHydratedDateKeys((current) => {
-        let changed = false;
-        const next = new Set(current);
-        for (const dateKey of nextBatch) {
-          if (next.has(dateKey)) continue;
-          next.add(dateKey);
-          changed = true;
-        }
-        return changed ? next : current;
-      });
-      if (queue.length > 0) {
-        cancelScheduledBatch = scheduleDailyIdleTask(
-          revealNextOccupiedBatch,
-          DAILY_CALENDAR_OCCUPIED_HYDRATION_FRAME_DELAY_MS
-        );
+    setHydratedDateKeys((current) => {
+      let changed = false;
+      const next = new Set(current);
+      for (const dateKey of occupiedDateKeys) {
+        if (next.has(dateKey)) continue;
+        next.add(dateKey);
+        changed = true;
       }
-    };
-
-    revealNextOccupiedBatch();
-
-    return () => {
-      cancelled = true;
-      cancelScheduledBatch?.();
-    };
+      return changed ? next : current;
+    });
   }, [dailyNoteCountByDate, grid, notesByDate]);
 
   // Add a new note page on the given day, then open it for editing.
