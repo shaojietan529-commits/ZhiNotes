@@ -22543,6 +22543,18 @@ function run() {
       "Cloud metadata hydration must preserve local page body content.",
     ],
     [
+      files.usePages,
+      usePages,
+      "const hasUsableLocalFirstPaint = localSnapshotLoaded && all.length > 0",
+      "Cloud metadata correction must move behind local first paint when the local hot cache has usable rows.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "void applyCloudMetadataDelta({",
+      "Cloud metadata correction must run as a background task after local first paint.",
+    ],
+    [
       files.notesShell,
       notesShell,
       "deferContent: true",

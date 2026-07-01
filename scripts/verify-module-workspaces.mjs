@@ -833,6 +833,10 @@ check(
     usePagesHook.includes("force: true") &&
     usePagesHook.includes("requireLocalCacheCoverage: true") &&
     usePagesHook.includes("cloudSnapshotAuthoritative = true") &&
+    usePagesHook.includes("const refreshRequestRef = useRef(0)") &&
+    usePagesHook.includes("const isCurrentRefresh = () => refreshRequestRef.current === requestId") &&
+    usePagesHook.includes("const hasUsableLocalFirstPaint = localSnapshotLoaded && all.length > 0") &&
+    usePagesHook.includes("void applyCloudMetadataDelta({") &&
     usePagesHook.includes("includeContent && !localSnapshotLoaded && all.length === 0") &&
     usePagesHook.indexOf("await renderLocalPagesSnapshot()") <
       usePagesHook.indexOf("const cloud = await syncCloudPageMetadataDelta") &&

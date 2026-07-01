@@ -677,6 +677,10 @@ check(
     usePagesHook.includes("force: true") &&
     usePagesHook.includes("requireLocalCacheCoverage: true") &&
     usePagesHook.includes("localSnapshotLoaded") &&
+    usePagesHook.includes("const refreshRequestRef = useRef(0)") &&
+    usePagesHook.includes("const isCurrentRefresh = () => refreshRequestRef.current === requestId") &&
+    usePagesHook.includes("const hasUsableLocalFirstPaint = localSnapshotLoaded && all.length > 0") &&
+    usePagesHook.includes("void applyCloudMetadataDelta({") &&
     !usePagesHook.includes("fullRefresh: all.length === 0 || !localSnapshotLoaded") &&
     usePagesHook.includes("The browser database is only a rebuildable hot cache") &&
     usePagesHook.includes("setPages(cloudPages)") &&

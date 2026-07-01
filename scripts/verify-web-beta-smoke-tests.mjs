@@ -12357,6 +12357,19 @@ function run() {
     "Page and sidebar lists must read the rebuildable local snapshot first, with content callers allowed to start metadata-only."
   );
   for (const snippet of [
+    "const refreshRequestRef = useRef(0)",
+    "const isCurrentRefresh = () => refreshRequestRef.current === requestId",
+    "const hasUsableLocalFirstPaint = localSnapshotLoaded && all.length > 0",
+    "void applyCloudMetadataDelta({",
+  ]) {
+    assertIncludes(
+      files.usePages,
+      usePages,
+      snippet,
+      "Page and sidebar lists must move cloud metadata correction behind local first paint."
+    );
+  }
+  for (const snippet of [
     "getHotCacheRouteTargets",
     "prefetchHotCacheRoutes",
     "router.prefetch(routeTarget)",

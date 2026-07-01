@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import {
   getAllPageMetadata,
   getAllPages,
@@ -292,6 +292,7 @@ export function usePages(options: UsePagesOptions = {}) {
   const pages = useWorkspaceStore((s) => s.pages);
   const setPages = useWorkspaceStore((s) => s.setPages);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
+  const refreshRequestRef = useRef(0);
 
   const upsertPageSnapshots = useCallback(
     (incomingPages: Page[], reason: PageUpdateReason = "cloud-push") => {
@@ -309,9 +310,10 @@ export function usePages(options: UsePagesOptions = {}) {
 
   const refresh = useCallback(async (options: RefreshOptions = {}) => {
     if (!dbReady) return;
+    const requestId = ++refreshRequestRef.current;
+    const isCurrentRefresh = () => refreshRequestRef.current === requestId;
     let all: Page[] = [];
     let localSnapshotLoaded = false;
-    let cloudPages: Page[] = [];
     let cloudSnapshotAuthoritative = false;
 
     const renderLocalPagesSnapshot = async (): Promise<boolean> => {
@@ -321,6 +323,7 @@ export function usePages(options: UsePagesOptions = {}) {
           if (hotPages.length > 0) {
             all = hotPages;
             localSnapshotLoaded = true;
+            if (!isCurrentRefresh()) return false;
             setPages(hotPages);
             scheduleDeferredMetadataHydration(setPages);
             return true;
@@ -330,6 +333,7 @@ export function usePages(options: UsePagesOptions = {}) {
           metadataFirstContent ? false : includeContent
         );
         localSnapshotLoaded = true;
+        if (!isCurrentRefresh()) return false;
         setPages(all);
         return true;
       } catch {
@@ -342,31 +346,50 @@ export function usePages(options: UsePagesOptions = {}) {
     // Page lists should feel local: render the rebuildable hot cache first,
     // then let the cloud ledger correct metadata in the background.
     await renderLocalPagesSnapshot();
+    if (!isCurrentRefresh()) return;
 
-    try {
-      const cloud = await syncCloudPageMetadataDelta({
+    const applyCloudMetadataDelta = async (cloudOptions: {
+      force: boolean;
+      requireLocalCacheCoverage: boolean;
+    }) => {
+      try {
+        const cloud = await syncCloudPageMetadataDelta(cloudOptions);
+        if (!isCurrentRefresh()) return;
+        if (cloud.status === "ok") {
+          const cloudPages = cloud.pages.map(remoteMetadataToPage);
+          if (cloud.fullRefresh && (!includeContent || metadataFirstContent)) {
+            all = cloudPages;
+            cloudSnapshotAuthoritative = true;
+            setPages(cloudPages);
+          } else if (cloudPages.length > 0) {
+            if (localSnapshotLoaded) {
+              all = mergeMetadataForCount(all, cloudPages);
+              setPages(all);
+            } else {
+              all = cloudPages;
+              setPages(cloudPages);
+            }
+          }
+        }
+      } catch {
+        // Cloud metadata refresh is best effort. If the network or auth layer
+        // is unavailable, the already-rendered local hot cache remains usable.
+      }
+    };
+
+    const hasUsableLocalFirstPaint = localSnapshotLoaded && all.length > 0;
+    if (hasUsableLocalFirstPaint) {
+      scheduleIdleTask(() => {
+        void applyCloudMetadataDelta({
+          force: false,
+          requireLocalCacheCoverage: false,
+        });
+      }, 700);
+    } else {
+      await applyCloudMetadataDelta({
         force: false,
         requireLocalCacheCoverage: false,
       });
-      if (cloud.status === "ok") {
-        cloudPages = cloud.pages.map(remoteMetadataToPage);
-        if (cloud.fullRefresh && (!includeContent || metadataFirstContent)) {
-          all = cloudPages;
-          cloudSnapshotAuthoritative = true;
-          setPages(cloudPages);
-        } else if (cloudPages.length > 0) {
-          if (localSnapshotLoaded) {
-            all = mergeMetadataForCount(all, cloudPages);
-            setPages(all);
-          } else {
-            all = cloudPages;
-            setPages(cloudPages);
-          }
-        }
-      }
-    } catch {
-      // Cloud metadata refresh is best effort. If the network or auth layer
-      // is unavailable, the already-rendered local hot cache remains usable.
     }
 
     const needsCloudCoverageRecovery =
@@ -374,42 +397,20 @@ export function usePages(options: UsePagesOptions = {}) {
       !cloudSnapshotAuthoritative &&
       (!localSnapshotLoaded || all.length === 0);
     if (needsCloudCoverageRecovery) {
-      try {
-        const cloud = await syncCloudPageMetadataDelta({
-          force: true,
-          requireLocalCacheCoverage: true,
-        });
-        if (
-          cloud.status === "ok" &&
-          (cloud.fullRefresh || cloud.pages.length > 0)
-        ) {
-          const cloudPages = cloud.pages.map(remoteMetadataToPage);
-          all = cloudPages;
-          setPages(cloudPages);
-        }
-      } catch {
-        // If both cloud and local cache are unavailable, keep the existing
-        // in-memory workspace instead of blocking navigation.
-      }
+      await applyCloudMetadataDelta({
+        force: true,
+        requireLocalCacheCoverage: true,
+      });
     }
 
     if (includeContent && !localSnapshotLoaded && all.length === 0) {
-      try {
-        const cloud = await syncCloudPageMetadataDelta({
-          force: true,
-          requireLocalCacheCoverage: true,
-        });
-        if (cloud.status === "ok" && cloud.pages.length > 0) {
-          const cloudPages = cloud.pages.map(remoteMetadataToPage);
-          all = cloudPages;
-          setPages(cloudPages);
-        }
-      } catch {
-        // Include-content callers still get metadata when the rebuildable
-        // browser database is temporarily unavailable.
-      }
+      await applyCloudMetadataDelta({
+        force: true,
+        requireLocalCacheCoverage: true,
+      });
     }
 
+    if (!isCurrentRefresh()) return;
     if (options.broadcast !== false) {
       emitPagesUpdated(options.reason ?? "local-refresh", all.length);
     }
