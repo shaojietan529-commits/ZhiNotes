@@ -86,6 +86,8 @@ const files = {
     "src/lib/sync/quickSearchWorkspaceSettings.ts",
   calendarViewStateWorkspaceSettings:
     "src/lib/sync/calendarViewStateWorkspaceSettings.ts",
+  dailyCreateOpenModeWorkspaceSettings:
+    "src/lib/sync/dailyCreateOpenModeWorkspaceSettings.ts",
   meetingReviewStateWorkspaceSettings:
     "src/lib/sync/meetingReviewStateWorkspaceSettings.ts",
   meetingDeletionTombstonesWorkspaceSettings:
@@ -506,6 +508,9 @@ function run() {
   );
   const calendarViewStateWorkspaceSettings = readProjectFile(
     files.calendarViewStateWorkspaceSettings
+  );
+  const dailyCreateOpenModeWorkspaceSettings = readProjectFile(
+    files.dailyCreateOpenModeWorkspaceSettings
   );
   const meetingReviewStateWorkspaceSettings = readProjectFile(
     files.meetingReviewStateWorkspaceSettings
@@ -1259,12 +1264,24 @@ function run() {
       "Daily notes must keep a local-first opener ready before create/open actions.",
     ],
     [
+      "DEFAULT_DAILY_CREATE_OPEN_MODE",
+      "Daily note creation must default to full-page opening while keeping peek as an explicit user mode.",
+    ],
+    [
+      'data-testid="daily-create-open-mode"',
+      "Daily note creation must expose a small mode switch for full-page versus peek opening.",
+    ],
+    [
+      'openPage(optimisticNote, { source: "daily-create" });',
+      "Daily note creation must route to the full page by default after the local draft and handoff are seeded.",
+    ],
+    [
       "setPeekInitialPage(optimisticNote);",
-      "Daily note creation must seed the optimistic page into the peek modal before cloud persistence finishes.",
+      "Daily note creation must keep the optimistic page seed for the optional peek mode.",
     ],
     [
       "setPeekPageId(optimisticNote.id);",
-      "Daily note creation must open the optimistic page in the same-page peek modal immediately.",
+      "Daily note creation must keep same-page peek opening available as an explicit mode.",
     ],
     [
       "daily-create-local-shell-requested",
@@ -1294,10 +1311,6 @@ function run() {
     assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }
   for (const [snippet, message] of [
-    [
-      'openPage(optimisticNote, { source: "daily-create" });',
-      "Daily note creation must not route to the full page before the peek editor can appear.",
-    ],
     [
       "router.push(pageRoute);",
       "Daily note creation must not wait on a page route push path after optimistic create.",
@@ -8295,8 +8308,8 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "onPointerEnter={warmDailyPeekOpen}",
-    "Daily calendar + controls must warm the lazy peek modal on pointer intent before opening."
+    "onPointerEnter={warmDailyCreateOpenPath}",
+    "Daily calendar + controls must warm the selected create-open path on pointer intent before opening."
   );
   assertIncludes(
     files.dailyNotesShell,
@@ -8343,8 +8356,8 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "onFocus={warmDailyPeekOpen}",
-    "Daily calendar + controls must warm the lazy peek modal on keyboard focus before opening."
+    "onFocus={warmDailyCreateOpenPath}",
+    "Daily calendar + controls must warm the selected create-open path on keyboard focus before opening."
   );
   assertIncludes(
     files.dailyNotesShell,
@@ -8389,7 +8402,10 @@ function run() {
     );
   }
   for (const snippet of [
-    "warmDailyPeekOpen();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+    "warmDailyCreateOpenPath();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+    "DEFAULT_DAILY_CREATE_OPEN_MODE",
+    'data-testid="daily-create-open-mode"',
+    'openPage(optimisticNote, { source: "daily-create" });',
     "setPeekInitialPage(optimisticNote);",
     "setPeekPageId(optimisticNote.id);",
     "const localShellRequestedMs =\n        getLocalPerformanceNow() - createStartedAt;",
@@ -8400,15 +8416,9 @@ function run() {
       files.dailyNotesShell,
       dailyNotesShell,
       snippet,
-      "Daily + creation must open the same-page peek editor immediately after optimistic local seeding."
+      "Daily + creation must seed local state first, default to full-page opening, and keep peek mode available."
     );
   }
-  assertExcludes(
-    files.dailyNotesShell,
-    dailyNotesShell,
-    'openPage(optimisticNote, { source: "daily-create" })',
-    "Daily + creation must not route directly into the full page before the peek editor opens."
-  );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
@@ -9219,6 +9229,36 @@ function run() {
     workspaceSettingsPendingSync,
     "meeting_view_month",
     "Smoke verifier must keep meeting calendar view uploads limited to month metadata."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "DAILY_CREATE_OPEN_MODE_SETTING_KEY",
+    "Smoke verifier must keep daily create open mode in the pending-only upload allowlist."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "open_mode",
+    "Smoke verifier must keep daily create mode uploads limited to open-mode metadata."
+  );
+  assertIncludes(
+    files.workspaceSettingsPendingSync,
+    workspaceSettingsPendingSync,
+    "readRecord(value.daily_create_open_mode)",
+    "Smoke verifier must keep daily create open mode restorable from cloud settings metadata."
+  );
+  assertIncludes(
+    files.dailyCreateOpenModeWorkspaceSettings,
+    dailyCreateOpenModeWorkspaceSettings,
+    "validateDailyCreateOpenModeWorkspaceSettingsCloudPayload",
+    "Smoke verifier must keep daily create open-mode payload validation."
+  );
+  assertIncludes(
+    files.dailyCreateOpenModeWorkspaceSettings,
+    dailyCreateOpenModeWorkspaceSettings,
+    "buildDailyCreateOpenModeWorkspaceSettingsCloudReceipt",
+    "Smoke verifier must keep daily create open-mode cloud receipts."
   );
   assertIncludes(
     files.workspaceSettingsPendingSync,
@@ -10416,6 +10456,18 @@ function run() {
     workspaceSettingsRoute,
     "calendar_view_state",
     "Smoke verifier must keep workspace settings API returning calendar view metadata."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "validateDailyCreateOpenModeWorkspaceSettingsCloudPayload",
+    "Smoke verifier must keep workspace settings API accepting daily create open mode."
+  );
+  assertIncludes(
+    files.workspaceSettingsRoute,
+    workspaceSettingsRoute,
+    "daily_create_open_mode",
+    "Smoke verifier must keep workspace settings API returning daily create open-mode metadata."
   );
   assertIncludes(
     files.workspaceSettingsRoute,

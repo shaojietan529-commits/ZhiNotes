@@ -864,7 +864,7 @@ check(
     dailyNotesShell.indexOf("writeOptimisticDailyHotCache") <
       dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     dailyNotesShell.includes(
-      "warmDailyPeekOpen();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });"
+      "warmDailyCreateOpenPath();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });"
     ) &&
     dailyNotesShell.indexOf("setPeekInitialPage(optimisticNote);") <
       dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id);") &&
@@ -881,9 +881,15 @@ check(
     ) &&
     dailyNotesShell.includes("setPeekInitialPage(optimisticNote);") &&
     dailyNotesShell.includes("setPeekPageId(optimisticNote.id);") &&
-    !dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
+    dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
+    dailyNotesShell.includes("DEFAULT_DAILY_CREATE_OPEN_MODE") &&
+    dailyNotesShell.includes('data-testid="daily-create-open-mode"') &&
+    dailyNotesShell.includes("open_mode_full_page: dailyCreateOpenMode === \"full-page\" ? 1 : 0") &&
+    dailyNotesShell.includes("updateDailyCreateOpenMode") &&
+    dailyNotesShell.includes("upsertWorkspaceSetting(") &&
     dailyNotesShell.includes("setOpeningDraft({ pageId: optimisticNote.id, dateKey })") &&
     dailyNotesShell.includes("const warmDailyPeekOpen = useCallback") &&
+    dailyNotesShell.includes("const warmDailyCreateOpenPath = useCallback") &&
     dailyNotesShell.includes("warmDailyPeekOpen();") &&
     dailyNotesShell.includes("DAILY_PEEK_EDITOR_WARMUP_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS") &&
@@ -893,11 +899,11 @@ check(
     dailyNotesShell.includes("}, DAILY_PEEK_EDITOR_WARMUP_DELAY_MS)") &&
     dailyNotesShell.includes("window.clearTimeout(peekEditorWarmupTimer)") &&
     dailyNotesShell.includes("cancelPeekEditorWarmup?.();") &&
-    dailyNotesShell.includes("onPointerEnter={warmDailyPeekOpen}") &&
+    dailyNotesShell.includes("onPointerEnter={warmDailyCreateOpenPath}") &&
     dailyNotesShell.includes("const addNoteOnPointerDown = useCallback") &&
     dailyNotesShell.includes("onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}") &&
     dailyNotesShell.includes("onPointerDown={(event) => addNoteOnPointerDown(event, key)}") &&
-    dailyNotesShell.includes("onFocus={warmDailyPeekOpen}") &&
+    dailyNotesShell.includes("onFocus={warmDailyCreateOpenPath}") &&
     !dailyNotesShell.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     dailyNotesShell.includes("data-testid={`daily-opening-note-${key}`}") &&
     dailyNotesShell.includes("title: dateKey") &&
@@ -1881,7 +1887,7 @@ check(
     dailyNotesShell.includes("DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS") &&
     dailyNotesShell.includes("cancelPeekEditorWarmup = scheduleDailyIdleTask(() => {") &&
     dailyNotesShell.includes("const warmDailyPeekOpen = useCallback") &&
-    dailyNotesShell.includes("onPointerEnter={warmDailyPeekOpen}") &&
+    dailyNotesShell.includes("onPointerEnter={warmDailyCreateOpenPath}") &&
     !dailyNotesShell.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !dailyNotesShell.includes('@/components/page/PagePeekModal') &&
     dailyNotesShell.includes("setPeekPageId(note.id)") &&
@@ -1913,7 +1919,8 @@ check(
     dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&
     dailyNotesShell.includes("setPeekPageId(optimisticNote.id);") &&
-    !dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
+    dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&
+    dailyNotesShell.includes('data-open-mode={dailyCreateOpenMode}') &&
     dailyNotesShell.includes("openDailyNoteFullPageById") &&
     dailyNotesShell.includes("openDailyNoteFullPage(note, \"daily-open\")") &&
     knowledgeBaseShell.includes('@/components/page/LazyPagePeekModal') &&

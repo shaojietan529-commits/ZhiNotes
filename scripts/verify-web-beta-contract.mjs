@@ -165,6 +165,8 @@ const files = {
     "src/lib/sync/quickSearchWorkspaceSettings.ts",
   calendarViewStateWorkspaceSettings:
     "src/lib/sync/calendarViewStateWorkspaceSettings.ts",
+  dailyCreateOpenModeWorkspaceSettings:
+    "src/lib/sync/dailyCreateOpenModeWorkspaceSettings.ts",
   meetingReviewStateWorkspaceSettings:
     "src/lib/sync/meetingReviewStateWorkspaceSettings.ts",
   meetingDeletionTombstonesWorkspaceSettings:
@@ -682,6 +684,9 @@ function run() {
   const calendarViewStateWorkspaceSettings = readProjectFile(
     files.calendarViewStateWorkspaceSettings
   );
+  const dailyCreateOpenModeWorkspaceSettings = readProjectFile(
+    files.dailyCreateOpenModeWorkspaceSettings
+  );
   const meetingReviewStateWorkspaceSettings = readProjectFile(
     files.meetingReviewStateWorkspaceSettings
   );
@@ -938,6 +943,10 @@ function run() {
     [
       files.calendarViewStateWorkspaceSettings,
       calendarViewStateWorkspaceSettings,
+    ],
+    [
+      files.dailyCreateOpenModeWorkspaceSettings,
+      dailyCreateOpenModeWorkspaceSettings,
     ],
     [
       files.meetingReviewStateWorkspaceSettings,
@@ -5043,6 +5052,10 @@ function run() {
       "Daily calendar must split route-shell warmup from lazy peek-modal warmup.",
     ],
     [
+      "const warmDailyCreateOpenPath = useCallback",
+      "Daily + creation must warm the full-page route by default and only warm peek when that mode is selected.",
+    ],
+    [
       "warmDailyPeekOpen();",
       "Daily calendar must warm the lazy peek modal on page-open intent while keeping first paint light.",
     ],
@@ -5071,8 +5084,8 @@ function run() {
       "Daily + creation must hand off the optimistic page before peek or full-page opening.",
     ],
     [
-      "warmDailyPeekOpen();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
-      "Daily + creation must warm the lazy peek/editor path before setting the opening draft state.",
+      "warmDailyCreateOpenPath();\n      setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+      "Daily + creation must warm the selected open path before setting the opening draft state.",
     ],
     [
       "rememberPageRouteHandoff(initialSeed, source)",
@@ -5091,12 +5104,24 @@ function run() {
       "Daily full-page openings must use the shared local-first page navigation path.",
     ],
     [
+      "DEFAULT_DAILY_CREATE_OPEN_MODE",
+      "Daily + creation must default to full-page opening while keeping peek as an explicit mode.",
+    ],
+    [
+      'data-testid="daily-create-open-mode"',
+      "Daily + creation must expose a mode switch for full-page versus peek opening.",
+    ],
+    [
+      'openPage(optimisticNote, { source: "daily-create" });',
+      "Daily + creation must route to the full page by default after local draft and handoff seeding.",
+    ],
+    [
       "setPeekInitialPage(optimisticNote);",
-      "Daily + creation must seed the optimistic page into the peek modal before background persistence.",
+      "Daily + creation must keep the optimistic page seed for the optional peek mode.",
     ],
     [
       "setPeekPageId(optimisticNote.id);",
-      "Daily + creation must open the same-page peek editor immediately after local seeding.",
+      "Daily + creation must keep same-page peek opening available as an explicit mode.",
     ],
     [
       "const localShellRequestedMs =\n        getLocalPerformanceNow() - createStartedAt;",
@@ -5124,7 +5149,7 @@ function run() {
     ],
     [
       "每日纪要已弹出",
-      "Daily + creation must tell the user that the new page popped open and will sync in the background.",
+      "Daily + creation must keep the peek-mode notice while default full-page mode uses the route notice.",
     ],
     [
       "openPage(note, { source })",
@@ -5573,13 +5598,13 @@ function run() {
     files.dailyNotesShell,
     dailyNotesShell,
     "setPeekPageId(optimisticNote.id);",
-    "Daily + creation must open the same-page peek editor immediately after optimistic local seeding."
+    "Daily + creation must keep same-page peek opening available as an explicit mode."
   );
-  assertSourceExcludes(
+  assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
     'openPage(optimisticNote, { source: "daily-create" })',
-    "Daily + creation must not route to the full page before the peek editor appears."
+    "Daily + creation must use local-first navigation to open the full page by default."
   );
   assertSourceExcludes(
     files.dailyNotesShell,
@@ -5683,8 +5708,8 @@ function run() {
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "onPointerEnter={warmDailyPeekOpen}",
-    "Daily calendar + controls must warm the lazy peek modal on pointer intent before opening."
+    "onPointerEnter={warmDailyCreateOpenPath}",
+    "Daily calendar + controls must warm the selected create-open path on pointer intent before opening."
   );
   assertSourceIncludes(
     files.dailyNotesShell,
@@ -5731,8 +5756,8 @@ function run() {
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "onFocus={warmDailyPeekOpen}",
-    "Daily calendar + controls must warm the lazy peek modal on keyboard focus before opening."
+    "onFocus={warmDailyCreateOpenPath}",
+    "Daily calendar + controls must warm the selected create-open path on keyboard focus before opening."
   );
   assertSourceExcludes(
     files.dailyNotesShell,
@@ -7315,6 +7340,18 @@ function run() {
       "Workspace settings pending sync must upload only meeting view month metadata for calendar view state.",
     ],
     [
+      "DAILY_CREATE_OPEN_MODE_SETTING_KEY",
+      "Workspace settings pending sync must include the daily create open mode preference.",
+    ],
+    [
+      "open_mode",
+      "Workspace settings pending sync must upload only daily create open-mode metadata.",
+    ],
+    [
+      "readRecord(value.daily_create_open_mode)",
+      "Workspace settings cloud restore must rebuild the daily create open mode preference from cloud metadata.",
+    ],
+    [
       "MEETING_REVIEW_STATE_SETTING_KEY",
       "Workspace settings pending sync must include meeting review state settings.",
     ],
@@ -8384,6 +8421,22 @@ function run() {
     [
       "CALENDAR_VIEW_STATE_SETTING_KEY",
       "Workspace settings route must advertise calendar view state as a supported setting.",
+    ],
+    [
+      "validateDailyCreateOpenModeWorkspaceSettingsCloudPayload",
+      "Workspace settings route must validate daily create open mode payloads before writing.",
+    ],
+    [
+      "buildDailyCreateOpenModeWorkspaceSettingsCloudValue",
+      "Workspace settings route must write daily create open-mode metadata to cloud settings.",
+    ],
+    [
+      "daily_create_open_mode",
+      "Workspace settings route must return daily create open-mode metadata on reads.",
+    ],
+    [
+      "DAILY_CREATE_OPEN_MODE_SETTING_KEY",
+      "Workspace settings route must advertise daily create open mode as a supported setting.",
     ],
     [
       "validateMeetingReviewStateWorkspaceSettingsCloudPayload",

@@ -151,6 +151,10 @@ for (const token of [
   'router.prefetch("/page/zhinote-route-prefetch")',
   "const pageRoute = `/page/${optimisticNote.id}`",
   "router.prefetch(pageRoute)",
+  "DAILY_CREATE_OPEN_MODE_SETTING_KEY",
+  "DEFAULT_DAILY_CREATE_OPEN_MODE",
+  'data-testid="daily-create-open-mode"',
+  'openPage(optimisticNote, { source: "daily-create" })',
   "@/components/page/LazyPagePeekModal",
   "warmPagePeekModal();",
   "setPeekInitialPage(optimisticNote)",
@@ -1018,11 +1022,12 @@ for (const token of [
   "data-testid={`daily-opening-note-${key}`}",
   "hydrateDailyDateKey(key);\n                    warmPageRoute();",
   "const warmDailyPeekOpen = useCallback",
-  "onPointerEnter={warmDailyPeekOpen}",
+  "const warmDailyCreateOpenPath = useCallback",
+  "onPointerEnter={warmDailyCreateOpenPath}",
   "const addNoteOnPointerDown = useCallback",
   "onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}",
   "onPointerDown={(event) => addNoteOnPointerDown(event, key)}",
-  "onFocus={warmDailyPeekOpen}",
+  "onFocus={warmDailyCreateOpenPath}",
   "setPeekInitialPage(toDailyNoteSeed(seededNote, note));",
   'import("@/components/providers/PageShell")',
   "setPeekInitialPage(optimisticNote)",
@@ -1059,6 +1064,8 @@ check(
       shells.daily.indexOf("setPeekInitialPage(optimisticNote)") &&
     shells.daily.indexOf("setPeekInitialPage(optimisticNote)") <
       shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&
+    shells.daily.indexOf('openPage(optimisticNote, { source: "daily-create" })') <
+      shells.daily.indexOf("writeOptimisticDailyHotCache") &&
     shells.daily.indexOf("setPeekPageId(optimisticNote.id)") <
       shells.daily.indexOf("writeOptimisticDailyHotCache") &&
     shells.daily.indexOf("writeOptimisticDailyHotCache") <
@@ -1081,11 +1088,11 @@ check(
     shells.daily.includes("warmPagePeekModal();") &&
     shells.daily.includes("const warmDailyPeekOpen = useCallback") &&
     shells.daily.includes("warmDailyPeekOpen();") &&
-    shells.daily.includes("onPointerEnter={warmDailyPeekOpen}") &&
+    shells.daily.includes("onPointerEnter={warmDailyCreateOpenPath}") &&
     shells.daily.includes("const addNoteOnPointerDown = useCallback") &&
     shells.daily.includes("onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}") &&
     shells.daily.includes("onPointerDown={(event) => addNoteOnPointerDown(event, key)}") &&
-    shells.daily.includes("onFocus={warmDailyPeekOpen}") &&
+    shells.daily.includes("onFocus={warmDailyCreateOpenPath}") &&
     !shells.daily.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !shells.daily.includes("@/components/page/PagePeekModal") &&
     pagePeekModal.includes('dynamic(() => import("@/components/editor/Editor")') &&

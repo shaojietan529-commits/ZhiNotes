@@ -35,6 +35,10 @@ import {
   MEETING_DELETION_TOMBSTONES_SETTING_KEY,
   parseMeetingDeletionTombstonesWorkspaceSettingValue,
 } from "@/lib/sync/meetingDeletionTombstonesWorkspaceSettings";
+import {
+  DAILY_CREATE_OPEN_MODE_SETTING_KEY,
+  parseDailyCreateOpenModeWorkspaceSettingValue,
+} from "@/lib/sync/dailyCreateOpenModeWorkspaceSettings";
 
 export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   HOT_CACHE_PREFERENCES_SETTING_KEY,
@@ -44,6 +48,7 @@ export const SUPPORTED_WORKSPACE_SETTING_SYNC_KEYS = [
   PAGE_VIEW_PREFERENCES_SETTING_KEY,
   QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
   CALENDAR_VIEW_STATE_SETTING_KEY,
+  DAILY_CREATE_OPEN_MODE_SETTING_KEY,
   MEETING_REVIEW_STATE_SETTING_KEY,
   MEETING_DELETION_TOMBSTONES_SETTING_KEY,
 ] as const;
@@ -154,6 +159,13 @@ export type WorkspaceSettingCloudPayload =
       client_pending_row_id: typeof CALENDAR_VIEW_STATE_SETTING_KEY;
       daily_view_month: string | null;
       meeting_view_month: string | null;
+    }
+  | {
+      setting_key: typeof DAILY_CREATE_OPEN_MODE_SETTING_KEY;
+      client_pending_row_id: typeof DAILY_CREATE_OPEN_MODE_SETTING_KEY;
+      open_mode: ReturnType<
+        typeof parseDailyCreateOpenModeWorkspaceSettingValue
+      >["open_mode"];
     }
   | {
       setting_key: typeof MEETING_REVIEW_STATE_SETTING_KEY;
@@ -354,6 +366,16 @@ export function buildWorkspaceSettingCloudPayload(
     };
   }
 
+  if (setting.key === DAILY_CREATE_OPEN_MODE_SETTING_KEY) {
+    const dailyCreateOpenMode =
+      parseDailyCreateOpenModeWorkspaceSettingValue(value);
+    return {
+      setting_key: DAILY_CREATE_OPEN_MODE_SETTING_KEY,
+      client_pending_row_id: DAILY_CREATE_OPEN_MODE_SETTING_KEY,
+      open_mode: dailyCreateOpenMode.open_mode,
+    };
+  }
+
   if (setting.key === MEETING_REVIEW_STATE_SETTING_KEY) {
     const meetingReviewState =
       parseMeetingReviewStateWorkspaceSettingValue(value);
@@ -517,6 +539,19 @@ function parseWorkspaceSettingsCloudRestoreRecords(value: unknown): {
         daily_view_month: parsed.daily_view_month,
         meeting_view_month: parsed.meeting_view_month,
         cloud_target: "workspaces.settings.calendar_view_state",
+        ordinary_sync_pending_only: true,
+      };
+    }
+  );
+  addSetting(
+    DAILY_CREATE_OPEN_MODE_SETTING_KEY,
+    readRecord(value.daily_create_open_mode),
+    (summary) => {
+      const parsed = parseDailyCreateOpenModeWorkspaceSettingValue(summary);
+      return {
+        schema_version: 1,
+        open_mode: parsed.open_mode,
+        cloud_target: "workspaces.settings.daily_create_open_mode",
         ordinary_sync_pending_only: true,
       };
     }

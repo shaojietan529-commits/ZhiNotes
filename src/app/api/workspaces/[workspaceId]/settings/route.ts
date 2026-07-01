@@ -64,6 +64,15 @@ import {
   validateCalendarViewStateWorkspaceSettingsCloudPayload,
 } from "@/lib/sync/calendarViewStateWorkspaceSettings";
 import {
+  DAILY_CREATE_OPEN_MODE_CLOUD_FIELD,
+  DAILY_CREATE_OPEN_MODE_SETTING_KEY,
+  buildDailyCreateOpenModeWorkspaceSettingsCloudReceipt,
+  buildDailyCreateOpenModeWorkspaceSettingsCloudValue,
+  isDailyCreateOpenModeWorkspaceSettingKey,
+  parseDailyCreateOpenModeWorkspaceSettingsCloudValue,
+  validateDailyCreateOpenModeWorkspaceSettingsCloudPayload,
+} from "@/lib/sync/dailyCreateOpenModeWorkspaceSettings";
+import {
   MEETING_REVIEW_STATE_CLOUD_FIELD,
   MEETING_REVIEW_STATE_SETTING_KEY,
   buildMeetingReviewStateWorkspaceSettingsCloudReceipt,
@@ -181,6 +190,10 @@ export async function GET(
       parseCalendarViewStateWorkspaceSettingsCloudValue(
         isPlainObject(workspace.settings) ? workspace.settings : null
       );
+    const dailyCreateOpenMode =
+      parseDailyCreateOpenModeWorkspaceSettingsCloudValue(
+        isPlainObject(workspace.settings) ? workspace.settings : null
+      );
     const meetingReviewState =
       parseMeetingReviewStateWorkspaceSettingsCloudValue(
         isPlainObject(workspace.settings) ? workspace.settings : null
@@ -209,6 +222,7 @@ export async function GET(
           PAGE_VIEW_PREFERENCES_SETTING_KEY,
           QUICK_SEARCH_SAVED_SEARCHES_SETTING_KEY,
           CALENDAR_VIEW_STATE_SETTING_KEY,
+          DAILY_CREATE_OPEN_MODE_SETTING_KEY,
           MEETING_REVIEW_STATE_SETTING_KEY,
           MEETING_DELETION_TOMBSTONES_SETTING_KEY,
           ACCOUNT_DISPLAY_NAME_SETTING_KEY,
@@ -221,6 +235,7 @@ export async function GET(
         page_view_preferences: pageViewPreferences,
         quick_search_saved_searches: quickSearchSavedSearches,
         calendar_view_state: calendarViewState,
+        daily_create_open_mode: dailyCreateOpenMode,
         meeting_review_state: meetingReviewState,
         meeting_deletion_tombstones: meetingDeletionTombstones,
         account_module_settings: accountModuleSettings,
@@ -271,23 +286,27 @@ export async function PATCH(
                 ? validateCalendarViewStateWorkspaceSettingsCloudPayload(
                     body.value
                   )
-                : isMeetingReviewStateWorkspaceSettingKey(settingKey)
-                  ? validateMeetingReviewStateWorkspaceSettingsCloudPayload(
+                : isDailyCreateOpenModeWorkspaceSettingKey(settingKey)
+                  ? validateDailyCreateOpenModeWorkspaceSettingsCloudPayload(
                       body.value
                     )
-                  : isMeetingDeletionTombstonesWorkspaceSettingKey(settingKey)
-                    ? validateMeetingDeletionTombstonesWorkspaceSettingsCloudPayload(
+                  : isMeetingReviewStateWorkspaceSettingKey(settingKey)
+                    ? validateMeetingReviewStateWorkspaceSettingsCloudPayload(
                         body.value
                       )
-                    : typeof settingKey === "string" &&
-                        (isSupportedAccountSettingSyncKey(settingKey) ||
-                          isSupportedModuleSettingSyncKey(settingKey))
-                      ? validateAccountModuleSettingCloudPayload(body.value)
-                    : {
-                        ok: false as const,
-                        message:
-                          "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1、quick_search.savedSearches.v1、calendar.viewState.v1、meeting.reviewState.v1、meeting.deletionTombstones.v1、account_profile.display_name.v1、account_preferences.ui.v1、module_settings.pinned_items.v1 或 module_settings.dashboard_layout.v1。",
-                      };
+                    : isMeetingDeletionTombstonesWorkspaceSettingKey(settingKey)
+                      ? validateMeetingDeletionTombstonesWorkspaceSettingsCloudPayload(
+                          body.value
+                        )
+                      : typeof settingKey === "string" &&
+                          (isSupportedAccountSettingSyncKey(settingKey) ||
+                            isSupportedModuleSettingSyncKey(settingKey))
+                        ? validateAccountModuleSettingCloudPayload(body.value)
+                        : {
+                            ok: false as const,
+                            message:
+                              "setting_key 必须是 hot_cache_preferences.v1、sidebar.primaryOrder.v1、sidebar.primaryCustomization.v1、page.favorites.v1、page.viewPreferences.v1、quick_search.savedSearches.v1、calendar.viewState.v1、daily_create_open_mode.v1、meeting.reviewState.v1、meeting.deletionTombstones.v1、account_profile.display_name.v1、account_preferences.ui.v1、module_settings.pinned_items.v1 或 module_settings.dashboard_layout.v1。",
+                          };
   if (!validatedPayload.ok) {
     return badRequestResponse(validatedPayload.message);
   }
@@ -436,6 +455,14 @@ export async function PATCH(
           savedAt
         );
     } else if (
+      validatedPayload.payload.setting_key === DAILY_CREATE_OPEN_MODE_SETTING_KEY
+    ) {
+      nextSettings[DAILY_CREATE_OPEN_MODE_CLOUD_FIELD] =
+        buildDailyCreateOpenModeWorkspaceSettingsCloudValue(
+          validatedPayload.payload,
+          savedAt
+        );
+    } else if (
       validatedPayload.payload.setting_key === MEETING_REVIEW_STATE_SETTING_KEY
     ) {
       nextSettings[MEETING_REVIEW_STATE_CLOUD_FIELD] =
@@ -546,6 +573,19 @@ export async function PATCH(
     if (validatedPayload.payload.setting_key === CALENDAR_VIEW_STATE_SETTING_KEY) {
       return NextResponse.json(
         buildCalendarViewStateWorkspaceSettingsCloudReceipt({
+          workspaceId,
+          role: membership.role,
+          savedAt,
+          payload: validatedPayload.payload,
+        })
+      );
+    }
+
+    if (
+      validatedPayload.payload.setting_key === DAILY_CREATE_OPEN_MODE_SETTING_KEY
+    ) {
+      return NextResponse.json(
+        buildDailyCreateOpenModeWorkspaceSettingsCloudReceipt({
           workspaceId,
           role: membership.role,
           savedAt,

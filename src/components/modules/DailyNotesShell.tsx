@@ -23,6 +23,7 @@ import {
   getPage,
   listDailyPageMetadataForCalendar,
   rebuildPageDateKeyIndex,
+  upsertWorkspaceSetting,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
 import {
@@ -85,6 +86,14 @@ import {
   parseHotCachePreferences,
   type HotCachePreferences,
 } from "@/lib/sync/hotCacheSelectionSettings";
+import {
+  DAILY_CREATE_OPEN_MODE_SETTING_KEY,
+  DEFAULT_DAILY_CREATE_OPEN_MODE,
+  buildDailyCreateOpenModeWorkspaceSettingValue,
+  normalizeDailyCreateOpenMode,
+  parseDailyCreateOpenModeWorkspaceSetting,
+  type DailyCreateOpenMode,
+} from "@/lib/sync/dailyCreateOpenModeWorkspaceSettings";
 import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPreference";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/LazyPageContextMenu";
@@ -162,6 +171,12 @@ const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
 const DAILY_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
 const DAILY_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const DAILY_DATE_INDEX_BACKFILL_KEY = "zhinote.daily.dateIndex.backfilled.v2";
+const DAILY_CREATE_OPEN_MODE_STORAGE_KEY =
+  "zhinote.daily.createOpenMode.v1";
+const DAILY_CREATE_OPEN_MODE_CHANGED_EVENT =
+  "zhinote:daily-create-open-mode-changed";
+const DAILY_CREATE_OPEN_MODE_CHANGED_STORAGE_KEY =
+  "zhinote.daily.createOpenMode.changed-at";
 let dailyDateIndexBackfillRunning = false;
 let dailyDateIndexBackfillDoneInMemory = false;
 
@@ -179,6 +194,45 @@ type DailyCloudMetadataCacheSignature = {
   signature: string;
   cachedAt: number;
 };
+
+function readDailyCreateOpenModeFastCache(): DailyCreateOpenMode {
+  if (typeof window === "undefined") return DEFAULT_DAILY_CREATE_OPEN_MODE;
+  try {
+    const raw = window.localStorage.getItem(DAILY_CREATE_OPEN_MODE_STORAGE_KEY);
+    if (!raw) return DEFAULT_DAILY_CREATE_OPEN_MODE;
+    try {
+      return normalizeDailyCreateOpenMode(JSON.parse(raw));
+    } catch {
+      return normalizeDailyCreateOpenMode(raw);
+    }
+  } catch {
+    return DEFAULT_DAILY_CREATE_OPEN_MODE;
+  }
+}
+
+function writeDailyCreateOpenModeFastCache(openMode: DailyCreateOpenMode) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      DAILY_CREATE_OPEN_MODE_STORAGE_KEY,
+      JSON.stringify({
+        open_mode: openMode,
+        saved_at: new Date().toISOString(),
+      })
+    );
+    window.localStorage.setItem(
+      DAILY_CREATE_OPEN_MODE_CHANGED_STORAGE_KEY,
+      String(Date.now())
+    );
+  } catch {
+    // localStorage is a fast cross-tab hint; workspace_settings is durable.
+  }
+  window.dispatchEvent(
+    new CustomEvent(DAILY_CREATE_OPEN_MODE_CHANGED_EVENT, {
+      detail: { open_mode: openMode },
+    })
+  );
+}
 
 export default function DailyNotesShell() {
   const router = useRouter();
@@ -220,6 +274,8 @@ export default function DailyNotesShell() {
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [dragOverDateKey, setDragOverDateKey] = useState<string | null>(null);
   const [highlightedDailyDateKey, setHighlightedDailyDateKey] = useState("");
+  const [dailyCreateOpenMode, setDailyCreateOpenMode] =
+    useState<DailyCreateOpenMode>(() => readDailyCreateOpenModeFastCache());
   const [expandedDateKeys, setExpandedDateKeys] = useState<Set<string>>(
     () => new Set()
   );
@@ -363,6 +419,14 @@ export default function DailyNotesShell() {
     warmPageRoute();
   }, [warmPageRoute]);
 
+  const warmDailyCreateOpenPath = useCallback(() => {
+    if (dailyCreateOpenMode === "peek") {
+      warmDailyPeekOpen();
+      return;
+    }
+    warmPageRoute();
+  }, [dailyCreateOpenMode, warmDailyPeekOpen, warmPageRoute]);
+
   useEffect(() => {
     const cancelPageShellPreload = scheduleDailyIdleTask(() => {
       warmPageRoute();
@@ -379,6 +443,71 @@ export default function DailyNotesShell() {
       cancelPeekEditorWarmup?.();
     };
   }, [warmPageRoute]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let cancelled = false;
+
+    const reloadDailyCreateOpenMode = () => {
+      void getWorkspaceSetting(DAILY_CREATE_OPEN_MODE_SETTING_KEY)
+        .then((setting) => {
+          if (cancelled) return;
+          const openMode = setting
+            ? parseDailyCreateOpenModeWorkspaceSetting(setting).open_mode
+            : readDailyCreateOpenModeFastCache();
+          setDailyCreateOpenMode(openMode);
+          writeDailyCreateOpenModeFastCache(openMode);
+        })
+        .catch(() => undefined);
+    };
+
+    const handleDailyCreateOpenModeChanged = (event: Event) => {
+      const openMode = normalizeDailyCreateOpenMode(
+        (event as CustomEvent<{ open_mode?: DailyCreateOpenMode }>).detail
+          ?.open_mode
+      );
+      if (cancelled) return;
+      setDailyCreateOpenMode(openMode);
+    };
+
+    const handleDailyCreateOpenModeStorage = (event: StorageEvent) => {
+      if (event.key !== DAILY_CREATE_OPEN_MODE_CHANGED_STORAGE_KEY) return;
+      reloadDailyCreateOpenMode();
+    };
+
+    reloadDailyCreateOpenMode();
+    window.addEventListener(
+      DAILY_CREATE_OPEN_MODE_CHANGED_EVENT,
+      handleDailyCreateOpenModeChanged
+    );
+    window.addEventListener("storage", handleDailyCreateOpenModeStorage);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        DAILY_CREATE_OPEN_MODE_CHANGED_EVENT,
+        handleDailyCreateOpenModeChanged
+      );
+      window.removeEventListener("storage", handleDailyCreateOpenModeStorage);
+    };
+  }, [dbReady]);
+
+  const updateDailyCreateOpenMode = useCallback(
+    (openMode: DailyCreateOpenMode) => {
+      const normalizedOpenMode = normalizeDailyCreateOpenMode(openMode);
+      setDailyCreateOpenMode(normalizedOpenMode);
+      writeDailyCreateOpenModeFastCache(normalizedOpenMode);
+      if (!dbReady) return;
+      void upsertWorkspaceSetting(
+        DAILY_CREATE_OPEN_MODE_SETTING_KEY,
+        buildDailyCreateOpenModeWorkspaceSettingValue(normalizedOpenMode),
+        "daily-create-open-mode-ui"
+      ).catch(() => {
+        setCloudNotice("每日纪要打开方式已在本机保存，账号设置稍后重试同步。");
+      });
+    },
+    [dbReady]
+  );
 
   useEffect(() => {
     if (!dbReady) return;
@@ -1319,7 +1448,7 @@ export default function DailyNotesShell() {
         dailyDateKey: dateKey,
         cloudOnly: true,
       };
-      warmDailyPeekOpen();
+      warmDailyCreateOpenPath();
       setOpeningDraft({ pageId: optimisticNote.id, dateKey });
       rememberPendingPageDraft(optimisticNote);
       rememberPageRouteHandoff(optimisticNote, "daily-create");
@@ -1328,15 +1457,25 @@ export default function DailyNotesShell() {
         ...current.filter((item) => item.id !== optimisticNote.id),
       ]);
       upsertPages([optimisticNote]);
-      setPeekInitialPage(optimisticNote);
-      setOpeningNoteId(optimisticNote.id);
-      setPeekPageId(optimisticNote.id);
+      if (dailyCreateOpenMode === "peek") {
+        setPeekInitialPage(optimisticNote);
+        setOpeningNoteId(optimisticNote.id);
+        setPeekPageId(optimisticNote.id);
+      } else {
+        setPeekInitialPage(null);
+        setOpeningNoteId(null);
+        setPeekPageId(null);
+        openPage(optimisticNote, { source: "daily-create" });
+      }
       const localShellRequestedMs =
         getLocalPerformanceNow() - createStartedAt;
       recordLocalPerformanceSnapshot({
-        kind: "page-peek",
+        kind: dailyCreateOpenMode === "peek" ? "page-peek" : "page-open",
         label: "每日纪要新建本地草稿",
-        route: "/page/[pageId]#peek",
+        route:
+          dailyCreateOpenMode === "peek"
+            ? "/page/[pageId]#peek"
+            : "/page/[pageId]",
         status: "daily-create-local-shell-requested",
         startedAt: createStartedAtIso,
         durationMs: localShellRequestedMs,
@@ -1346,6 +1485,8 @@ export default function DailyNotesShell() {
           optimistic_draft: 1,
           property_count: props.length,
           local_handoff_seeded: 1,
+          open_mode_full_page: dailyCreateOpenMode === "full-page" ? 1 : 0,
+          open_mode_peek: dailyCreateOpenMode === "peek" ? 1 : 0,
         },
       });
       revealDailyNoteOnCalendar(optimisticNote);
@@ -1371,7 +1512,11 @@ export default function DailyNotesShell() {
         // Route prefetch is best-effort. The local draft and route handoff
         // already give the full page enough metadata for immediate first paint.
       }
-      setCloudNotice(`${dateKey} 的每日纪要已弹出，后台会加入账号云端上传队列…`);
+      setCloudNotice(
+        dailyCreateOpenMode === "peek"
+          ? `${dateKey} 的每日纪要已弹出，后台会加入账号云端上传队列…`
+          : `${dateKey} 的每日纪要正在进入页面，后台会加入账号云端上传队列…`
+      );
       const optimisticRange = buildMonthGrid(viewMonth);
       setCalendarLoadStatus(
         createDailyCalendarLoadStatus({
@@ -1444,7 +1589,9 @@ export default function DailyNotesShell() {
       upsertPages,
       revealDailyNoteOnCalendar,
       viewMonth,
-      warmDailyPeekOpen,
+      dailyCreateOpenMode,
+      openPage,
+      warmDailyCreateOpenPath,
     ]
   );
 
@@ -1453,11 +1600,11 @@ export default function DailyNotesShell() {
       if (event.button !== 0) return;
       if (creatingDateKeyRef.current) return;
       event.preventDefault();
-      warmDailyPeekOpen();
+      warmDailyCreateOpenPath();
       hydrateDailyDateKey(dateKey);
       void addNote(dateKey);
     },
-    [addNote, hydrateDailyDateKey, warmDailyPeekOpen]
+    [addNote, hydrateDailyDateKey, warmDailyCreateOpenPath]
   );
 
   const addNoteOnPointerDown = useCallback(
@@ -1465,11 +1612,11 @@ export default function DailyNotesShell() {
       if (event.pointerType === "mouse" && event.button !== 0) return;
       if (creatingDateKeyRef.current) return;
       event.preventDefault();
-      warmDailyPeekOpen();
+      warmDailyCreateOpenPath();
       hydrateDailyDateKey(dateKey);
       void addNote(dateKey);
     },
-    [addNote, hydrateDailyDateKey, warmDailyPeekOpen]
+    [addNote, hydrateDailyDateKey, warmDailyCreateOpenPath]
   );
 
   const primeDailyNoteOpen = useCallback(
@@ -1789,18 +1936,41 @@ export default function DailyNotesShell() {
               )}
               <DailyCalendarLoadStatusStrip view={calendarLoadStatusView} />
             </div>
-            <button
-              type="button"
-              disabled={creatingDateKey !== null}
-              onPointerEnter={warmDailyPeekOpen}
-              onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}
-              onMouseDown={(event) => addNoteOnMouseDown(event, todayKey)}
-              onFocus={warmDailyPeekOpen}
-              onClick={() => void addNote(todayKey)}
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-            >
-              {creatingDateKey === todayKey ? "创建中…" : "+ 今天新增"}
-            </button>
+            <div className="flex items-center gap-2">
+              <div
+                className="flex rounded-md border border-zinc-200 bg-white p-0.5 text-xs dark:border-zinc-800 dark:bg-zinc-950"
+                data-testid="daily-create-open-mode"
+                data-open-mode={dailyCreateOpenMode}
+                aria-label="每日纪要新建打开方式"
+              >
+                {(["full-page", "peek"] as const).map((openMode) => (
+                  <button
+                    key={openMode}
+                    type="button"
+                    onClick={() => updateDailyCreateOpenMode(openMode)}
+                    className={`rounded px-2 py-1 transition-colors ${
+                      dailyCreateOpenMode === openMode
+                        ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
+                        : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                    }`}
+                  >
+                    {openMode === "full-page" ? "进入页面" : "弹窗"}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                disabled={creatingDateKey !== null}
+                onPointerEnter={warmDailyCreateOpenPath}
+                onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}
+                onMouseDown={(event) => addNoteOnMouseDown(event, todayKey)}
+                onFocus={warmDailyCreateOpenPath}
+                onClick={() => void addNote(todayKey)}
+                className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              >
+                {creatingDateKey === todayKey ? "创建中…" : "+ 今天新增"}
+              </button>
+            </div>
           </div>
 
           {/* Calendar controls */}
@@ -1933,10 +2103,10 @@ export default function DailyNotesShell() {
                       aria-label={`在 ${key} 新增每日纪要`}
                       data-testid={`daily-add-note-${key}`}
                       disabled={creatingDateKey !== null}
-                      onPointerEnter={warmDailyPeekOpen}
+                      onPointerEnter={warmDailyCreateOpenPath}
                       onPointerDown={(event) => addNoteOnPointerDown(event, key)}
                       onMouseDown={(event) => addNoteOnMouseDown(event, key)}
-                      onFocus={warmDailyPeekOpen}
+                      onFocus={warmDailyCreateOpenPath}
                       onClick={() => void addNote(key)}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title="在这天新增纪要"
