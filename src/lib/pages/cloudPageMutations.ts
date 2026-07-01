@@ -9,6 +9,7 @@ import {
   movePage as moveLocalPage,
   updatePage as updateLocalPage,
 } from "@/lib/db/local/queries";
+import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import type { Page } from "@/lib/utils/types";
 
 type CreatePageOptions = Parameters<typeof createLocalPage>[0];
@@ -19,7 +20,13 @@ const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 export async function createPageWithCloud(
   opts?: CreatePageOptions
 ): Promise<Page> {
-  const page = await createLocalPage(opts);
+  let page: Page;
+  try {
+    page = await createLocalPage(opts);
+  } catch (error) {
+    console.warn("Local page create failed; using cloud draft fallback", error);
+    page = createCloudDraftFallbackPage(opts);
+  }
   void queuePageCloudPush(page).catch(() => undefined);
   return page;
 }
@@ -102,4 +109,26 @@ async function queuePageSubtreePush(rootId: string): Promise<void> {
     queueCloudPagePush(page);
     stack.push(...(byParent.get(page.id) ?? []));
   }
+}
+
+function createCloudDraftFallbackPage(opts?: CreatePageOptions): Page {
+  const now = new Date().toISOString();
+  return {
+    id: generateId(),
+    owner_id: DEFAULT_OWNER_ID,
+    parent_id: opts?.parentId ?? null,
+    database_id: null,
+    title: opts?.title ?? "",
+    icon: opts?.icon ?? null,
+    cover_url: null,
+    content_yjs: null,
+    content_text: "",
+    properties: null,
+    position: Date.now(),
+    depth: opts?.parentId ? 1 : 0,
+    created_at: now,
+    updated_at: now,
+    deleted_at: null,
+    sync_version: 0,
+  };
 }

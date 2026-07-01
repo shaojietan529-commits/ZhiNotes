@@ -689,6 +689,12 @@ check(
     cloudPageMutationsSource.includes(
       "void queuePageCloudPush(page).catch(() => undefined)"
     ) &&
+    cloudPageMutationsSource.includes(
+      "Local page create failed; using cloud draft fallback"
+    ) &&
+    cloudPageMutationsSource.includes("createCloudDraftFallbackPage") &&
+    cloudPageMutationsSource.includes("owner_id: DEFAULT_OWNER_ID") &&
+    cloudPageMutationsSource.includes("sync_version: 0") &&
     cloudPageMutationsSource.includes("queuePageCloudDelete") &&
     pageContextMenuSource.includes(
       'const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")'
