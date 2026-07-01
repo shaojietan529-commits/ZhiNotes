@@ -5698,6 +5698,26 @@ function run() {
       "Lazy peek modal fallback must seed itself from local page metadata before waiting on the full modal.",
     ],
     [
+      "const [seed, setSeed] = useState<Page | null>(() =>",
+      "Lazy peek modal fallback must keep its local seed in state so late local drafts can appear before the modal chunk loads.",
+    ],
+    [
+      "const refreshLocalSeed = () => {",
+      "Lazy peek modal fallback must retry local seed reads during create/open races.",
+    ],
+    [
+      "queueMicrotask(refreshLocalSeed)",
+      "Lazy peek modal fallback must re-check local seeds after pending draft writes settle.",
+    ],
+    [
+      "const retryTimer = window.setTimeout(refreshLocalSeed, 120)",
+      "Lazy peek modal fallback must keep the local seed retry short so it does not delay editor loading.",
+    ],
+    [
+      "if (!seed) return;",
+      "Lazy peek modal fallback must only clear parent opening feedback after local metadata is actually visible.",
+    ],
+    [
       "readPendingPageDraft(pageId)",
       "Lazy peek modal fallback must reuse optimistic drafts during cold chunk loads.",
     ],
@@ -5723,7 +5743,7 @@ function run() {
     ],
     [
       "onReady?.(pageId)",
-      "Lazy peek modal fallback must clear parent opening state as soon as the local shell is visible.",
+      "Lazy peek modal fallback must clear parent opening state after the local metadata shell is visible.",
     ],
     [
       'status: seed ? "local-shell-ready" : "local-shell-loading"',

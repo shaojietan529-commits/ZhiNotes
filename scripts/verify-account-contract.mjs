@@ -1901,6 +1901,11 @@ check(
     lazyPagePeekModal.includes("dynamic(loadPagePeekModal") &&
     lazyPagePeekModal.includes("LocalFirstPeekLoadingShell") &&
     lazyPagePeekModal.includes("readLocalFirstLoadingSeed") &&
+    lazyPagePeekModal.includes("const [seed, setSeed] = useState<Page | null>(() =>") &&
+    lazyPagePeekModal.includes("const refreshLocalSeed = () => {") &&
+    lazyPagePeekModal.includes("queueMicrotask(refreshLocalSeed)") &&
+    lazyPagePeekModal.includes("const retryTimer = window.setTimeout(refreshLocalSeed, 120)") &&
+    lazyPagePeekModal.includes("if (!seed) return;") &&
     lazyPagePeekModal.includes("readPendingPageDraft(pageId)") &&
     lazyPagePeekModal.includes("readPageRouteHandoff(pageId)") &&
     lazyPagePeekModal.includes("const openFullFromLoadingShell = useCallback") &&
