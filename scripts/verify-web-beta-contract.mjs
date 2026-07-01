@@ -4461,6 +4461,42 @@ function run() {
     "manualReviewTotal",
     "Account cloud sync coordinator must surface manual-review queues before claiming all local input is safely uploaded."
   );
+  for (const [snippet, message] of [
+    [
+      "pageVisibleSyncWork",
+      "Account cloud sync coordinator must keep page queues visible even when the page sync domain is disabled.",
+    ],
+    [
+      "databaseVisibleSyncWork",
+      "Account cloud sync coordinator must keep database queues visible even when the database sync domain is disabled.",
+    ],
+    [
+      "settingsVisibleSyncWork",
+      "Account cloud sync coordinator must keep settings queues visible even when they only contain failed/manual-review rows.",
+    ],
+    [
+      "knowledgeVisibleSyncWork",
+      "Account cloud sync coordinator must keep knowledge queues visible even when they only contain failed/manual-review rows.",
+    ],
+    [
+      "pageSync.pendingStatus.manualReviewCount > 0",
+      "Account cloud sync coordinator must count page manual-review rows as visible sync work.",
+    ],
+    [
+      "databaseSync.pendingStatus.manualReviewCount > 0",
+      "Account cloud sync coordinator must count database manual-review rows as visible sync work.",
+    ],
+    [
+      "settingsSync.status.manualReviewCount > 0",
+      "Account cloud sync coordinator must count settings manual-review rows as visible sync work.",
+    ],
+    [
+      "knowledgeSync.status.manualReviewCount > 0",
+      "Account cloud sync coordinator must count knowledge manual-review rows as visible sync work.",
+    ],
+  ]) {
+    assertSourceIncludes(files.accountCloudSyncCoordinator, accountCloudSyncCoordinator, snippet, message);
+  }
   if (
     !(
       accountCloudSyncCoordinator.indexOf(

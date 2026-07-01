@@ -84,13 +84,35 @@ export function useAccountCloudSyncCoordinator() {
     databaseSync.pendingStatus.manualReviewCount +
     settingsSync.status.manualReviewCount +
     knowledgeSync.status.manualReviewCount;
+  const pageVisibleSyncWork =
+    pagePendingTotal > 0 ||
+    pageSync.pendingStatus.failed > 0 ||
+    pageSync.pendingStatus.manualReviewCount > 0;
+  const databaseVisibleSyncWork =
+    databasePendingTotal > 0 ||
+    databaseSync.pendingStatus.failed > 0 ||
+    databaseSync.pendingStatus.manualReviewCount > 0;
+  const settingsVisibleSyncWork =
+    settingsPendingTotal > 0 ||
+    settingsSync.status.failed > 0 ||
+    settingsSync.status.manualReviewCount > 0;
+  const knowledgeVisibleSyncWork =
+    knowledgePendingTotal > 0 ||
+    knowledgeSync.status.failed > 0 ||
+    knowledgeSync.status.manualReviewCount > 0;
   const enabledDomainCount =
-    (pageSync.pendingStatus.enabled || pageSync.state !== "disabled" ? 1 : 0) +
-    (databaseSync.pendingStatus.enabled || databaseSync.state !== "disabled"
+    (pageSync.pendingStatus.enabled ||
+    pageSync.state !== "disabled" ||
+    pageVisibleSyncWork
       ? 1
       : 0) +
-    (settingsPendingTotal > 0 ? 1 : 0) +
-    (knowledgePendingTotal > 0 ? 1 : 0);
+    (databaseSync.pendingStatus.enabled ||
+    databaseSync.state !== "disabled" ||
+    databaseVisibleSyncWork
+      ? 1
+      : 0) +
+    (settingsVisibleSyncWork ? 1 : 0) +
+    (knowledgeVisibleSyncWork ? 1 : 0);
   const lastSyncAt =
     [pageSync.lastSyncAt, databaseSync.lastSyncAt]
       .filter((value): value is string => Boolean(value))

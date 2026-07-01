@@ -2308,6 +2308,10 @@ check(
     accountCloudSyncCoordinator.includes("settingsPendingTotal") &&
     accountCloudSyncCoordinator.includes("knowledgePendingTotal") &&
     accountCloudSyncCoordinator.includes("manualReviewTotal") &&
+    accountCloudSyncCoordinator.includes("pageVisibleSyncWork") &&
+    accountCloudSyncCoordinator.includes("databaseVisibleSyncWork") &&
+    accountCloudSyncCoordinator.includes("settingsVisibleSyncWork") &&
+    accountCloudSyncCoordinator.includes("knowledgeVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("enabledDomainCount") &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
@@ -2315,6 +2319,25 @@ check(
     accountCloudSyncCoordinator.includes("账号云同步暂不可确认，稍后重试；本地输入已保留") &&
     accountCloudSyncCoordinator.includes("syncNow"),
   "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
+);
+check(
+  accountCloudSyncCoordinator.includes("pageSync.pendingStatus.failed > 0") &&
+    accountCloudSyncCoordinator.includes(
+      "pageSync.pendingStatus.manualReviewCount > 0"
+    ) &&
+    accountCloudSyncCoordinator.includes("databaseSync.pendingStatus.failed > 0") &&
+    accountCloudSyncCoordinator.includes(
+      "databaseSync.pendingStatus.manualReviewCount > 0"
+    ) &&
+    accountCloudSyncCoordinator.includes("settingsSync.status.failed > 0") &&
+    accountCloudSyncCoordinator.includes(
+      "settingsSync.status.manualReviewCount > 0"
+    ) &&
+    accountCloudSyncCoordinator.includes("knowledgeSync.status.failed > 0") &&
+    accountCloudSyncCoordinator.includes(
+      "knowledgeSync.status.manualReviewCount > 0"
+    ),
+  "账号级云同步协调器必须把 pending、failed 和 manual review 都计入可见状态，不能因同步域关闭而隐藏待处理队列"
 );
 check(
   accountCloudSyncCoordinator.indexOf("manualReviewTotal > 0 || failedTotal > 0") <
