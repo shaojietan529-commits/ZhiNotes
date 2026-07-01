@@ -173,18 +173,31 @@ check(
     accountClientSession.includes("accountSessionInFlight") &&
     accountClientSession.includes("cachedAccountSession") &&
     accountClientSession.includes("ACCOUNT_SESSION_RETRY_BACKOFF_MS") &&
-    accountClientSession.includes("clearAccountSessionCache"),
-  "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重和未配置退避"
+    accountClientSession.includes("clearAccountSessionCache") &&
+    accountClientSession.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    accountClientSession.includes("withStoredAuthenticatedFallback") &&
+    accountClientSession.includes("staleReason") &&
+    accountClientSession.includes("clearStoredAuthenticatedAccount"),
+  "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和最近登录账号降级保护"
+);
+check(
+  shell.includes("session.authenticated && session.account") &&
+    shell.includes("session.stale") &&
+    shell.includes("已保留最近一次登录状态") &&
+    shell.indexOf("session.authenticated && session.account") <
+      shell.indexOf('session.status === "unconfigured"'),
+  "AccountShell 应先保留最近登录账号，再处理临时未配置/错误，避免账号接口短暂失败时把用户踢回登录页"
 );
 check(
   accountCloudSyncGate.includes("fetchAccountSession") &&
     accountCloudSyncGate.includes("account-unconfigured") &&
+    accountCloudSyncGate.includes("authenticated: session.authenticated") &&
     accountCloudSyncGate.includes("reads_page_body_text: false") &&
     accountCloudSyncGate.includes("reads_database_row_values: false") &&
     accountCloudSyncGate.includes("uploads_workspace_data: false") &&
     accountCloudSyncGate.includes("mutates_workspace_data: false") &&
     accountCloudSyncGate.includes("stores_account_email: false"),
-  "账号云同步 gate 必须复用账号会话检查，并声明不读取/上传/修改 workspace 数据"
+  "账号云同步 gate 必须复用账号会话检查，临时错误时保持身份可见但同步保持可重试错误，并声明不读取/上传/修改 workspace 数据"
 );
 const page = read("src/app/(workspace)/account/page.tsx");
 check(page.includes("AccountShell"), "/account 路由缺少 AccountShell");
