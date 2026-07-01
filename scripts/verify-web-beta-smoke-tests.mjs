@@ -8109,8 +8109,26 @@ function run() {
   assertIncludes(
     files.pageShell,
     pageShell,
-    'router.push("/modules/sync")',
-    "Page sync status badge must open the Sync module where pending queues can be reviewed and retried."
+    "router.push(target)",
+    "Page sync status badge must open the targeted Sync module queue where pending pages can be reviewed and retried."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "data-sync-target={status.sync_center_target}",
+    "Page sync status badge must expose the exact Sync module queue target."
+  );
+  assertIncludes(
+    files.pageCloudSaveStatus,
+    pageCloudSaveStatus,
+    "/modules/sync#page-pending-upload-queue",
+    "Page save status model must target the page pending upload queue directly."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'id="page-pending-upload-queue"',
+    "Sync module must provide a stable anchor for the page pending upload queue."
   );
   assertIncludes(
     files.syncShell,

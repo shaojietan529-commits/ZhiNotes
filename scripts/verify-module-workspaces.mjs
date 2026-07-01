@@ -68,6 +68,7 @@ const shells = {
 const localQueries = read("src/lib/db/local/queries.ts");
 const localSchema = read("src/lib/db/local/schema.ts");
 const localClient = read("src/lib/db/local/client.ts");
+const syncShell = read("src/components/modules/SyncShell.tsx");
 const usePageHook = read("src/hooks/usePage.ts");
 const usePagesHook = read("src/hooks/usePages.ts");
 const workspaceStore = read("src/stores/workspaceStore.ts");
@@ -615,8 +616,9 @@ check(
     pageShell.includes("buildPageCloudSaveStatus") &&
     pageShell.includes("data-sync-status") &&
     pageShell.includes("data-blocks-cache-rebuild") &&
-    pageShell.includes('router.push("/modules/sync")') &&
+    pageShell.includes("router.push(target)") &&
     pageShell.includes('data-testid="page-sync-status-badge"') &&
+    pageShell.includes("data-sync-target={status.sync_center_target}") &&
     pageShell.includes("aria-label={status.aria_label}") &&
     pageCloudSaveStatus.includes("current-page-needs-review") &&
     pageCloudSaveStatus.includes("current-page-failed") &&
@@ -624,8 +626,12 @@ check(
     pageCloudSaveStatus.includes("当前页待云同步") &&
     pageCloudSaveStatus.includes("cloud-confirmed") &&
     pageCloudSaveStatus.includes("blocks_cache_rebuild") &&
+    pageCloudSaveStatus.includes("sync_center_target") &&
+    pageCloudSaveStatus.includes("/modules/sync#page-pending-upload-queue") &&
     pageCloudSaveStatus.includes("does not read page body text") &&
-    pageCloudSaveStatus.includes("等待云同步"),
+    pageCloudSaveStatus.includes("等待云同步") &&
+    syncShell.includes('id="page-pending-upload-queue"') &&
+    syncShell.includes('data-testid="page-pending-upload-queue"'),
   "PageShell 必须显示当前页/全局只读页面同步状态 badge，并提供到同步中心的队列查看入口"
 );
 check(
