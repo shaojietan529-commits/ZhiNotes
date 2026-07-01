@@ -149,6 +149,8 @@ check(
     shell.includes('data-testid="account-hot-cache-route-warmup"') &&
     shell.includes("只做 route prefetch") &&
     shell.includes("不写 sync_log") &&
+    shell.includes("预热入口失败；这只影响首次打开速度，不影响数据，也不会上传或改写本地内容。") &&
+    shell.includes("finally {\n      setHotCacheRouteWarmupBusy(false);\n    }") &&
     shell.includes("这里只保存偏好") &&
     shell.includes("不读取正文、文件或行值") &&
     shell.includes("不清理本地缓存"),

@@ -772,17 +772,25 @@ export default function AccountShell() {
   ) {
     setHotCacheRouteWarmupBusy(true);
     setHotCacheRouteWarmupNotice(null);
-    const receipt = prefetchHotCacheRoutes(
-      (routeTarget) => router.prefetch(routeTarget),
-      preferences
-    );
-    setHotCacheRouteWarmupNotice(
-      receipt.failed > 0
-        ? `已尝试预热 ${receipt.attempted} 个入口，其中 ${receipt.failed} 个暂时失败；这只影响首次打开速度，不影响数据。`
-        : `已预热 ${receipt.attempted} 个常用入口。只做 route prefetch，不读取正文、不上传、不写 sync_log。`
-    );
-    setHotCacheRouteWarmupBusy(false);
-    return receipt;
+    try {
+      const receipt = prefetchHotCacheRoutes(
+        (routeTarget) => router.prefetch(routeTarget),
+        preferences
+      );
+      setHotCacheRouteWarmupNotice(
+        receipt.failed > 0
+          ? `已尝试预热 ${receipt.attempted} 个入口，其中 ${receipt.failed} 个暂时失败；这只影响首次打开速度，不影响数据。`
+          : `已预热 ${receipt.attempted} 个常用入口。只做 route prefetch，不读取正文、不上传、不写 sync_log。`
+      );
+      return receipt;
+    } catch {
+      setHotCacheRouteWarmupNotice(
+        "预热入口失败；这只影响首次打开速度，不影响数据，也不会上传或改写本地内容。"
+      );
+      return null;
+    } finally {
+      setHotCacheRouteWarmupBusy(false);
+    }
   }
 
   async function handleGenerateApiKey() {

@@ -22097,6 +22097,18 @@ function run() {
     [
       files.accountShell,
       accountShell,
+      "预热入口失败；这只影响首次打开速度，不影响数据，也不会上传或改写本地内容。",
+      "Account hot-cache route warmup failures must be visible while preserving local and cloud data.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "finally {\n      setHotCacheRouteWarmupBusy(false);\n    }",
+      "Account hot-cache route warmup must always clear its busy state.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
       "同步失败，请稍后重试。本地输入仍保留在本机和待上传队列中。",
       "Account page manual page sync failures must say local input remains preserved.",
     ],

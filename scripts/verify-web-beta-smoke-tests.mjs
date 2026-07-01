@@ -12775,6 +12775,8 @@ function run() {
     'data-testid="account-hot-cache-route-warmup"',
     "只做 route prefetch",
     "不写 sync_log",
+    "预热入口失败；这只影响首次打开速度，不影响数据，也不会上传或改写本地内容。",
+    "finally {\n      setHotCacheRouteWarmupBusy(false);\n    }",
     "同步失败，请稍后重试。本地输入仍保留在本机和待上传队列中。",
     "finally {\n      setPageSyncBusy(false);\n      void refreshCloudUploadReliability();\n    }",
   ]) {
