@@ -52,7 +52,7 @@ export async function checkAccountCloudSyncGate(
   if (session.status === "error") {
     return {
       status: "error",
-      authenticated: false,
+      authenticated: session.authenticated,
       reason: "account-check-failed",
       retryable: true,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,

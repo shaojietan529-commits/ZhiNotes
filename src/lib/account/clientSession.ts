@@ -6,6 +6,9 @@ const ACCOUNT_SESSION_CACHE_MS = 10 * 1000;
 const ACCOUNT_SESSION_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY =
   "zhinote:account-session-unconfigured:v1";
+const ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY =
+  "zhinote:account-session-last-authenticated:v1";
+const ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS = 24 * 60 * 60 * 1000;
 
 export type AccountSessionStatus = "ok" | "unconfigured" | "error";
 
@@ -14,6 +17,8 @@ export interface AccountSessionResult {
   authenticated: boolean;
   account: ClientAccountInfo | null;
   error?: string;
+  stale?: boolean;
+  staleReason?: string;
 }
 
 let accountSessionInFlight: Promise<AccountSessionResult> | null = null;
@@ -27,6 +32,7 @@ export function clearAccountSessionCache(): void {
   cachedAccountSessionAt = 0;
   accountSessionRetryAfter = 0;
   clearStoredUnconfiguredAccountSession();
+  clearStoredAuthenticatedAccount();
 }
 
 export async function fetchAccountSession(
@@ -61,14 +67,22 @@ export async function fetchAccountSession(
   accountSessionInFlight = runFetchAccountSession().finally(() => {
     accountSessionInFlight = null;
   });
-  const result = await accountSessionInFlight;
+  const result = withStoredAuthenticatedFallback(
+    await accountSessionInFlight,
+    Date.now()
+  );
   cachedAccountSession = result;
   cachedAccountSessionAt = Date.now();
   accountSessionRetryAfter =
     result.status === "unconfigured" || result.status === "error"
       ? Date.now() + ACCOUNT_SESSION_RETRY_BACKOFF_MS
       : 0;
-  if (result.status === "unconfigured") {
+  if (result.authenticated && result.account && !result.stale) {
+    storeAuthenticatedAccount(result.account, Date.now());
+  } else if (result.status === "ok" && !result.authenticated) {
+    clearStoredAuthenticatedAccount();
+  }
+  if (result.status === "unconfigured" && !result.stale) {
     storeUnconfiguredAccountSession(Date.now());
   } else if (result.status === "ok") {
     clearStoredUnconfiguredAccountSession();
@@ -160,5 +174,105 @@ function clearStoredUnconfiguredAccountSession(): void {
     window.sessionStorage.removeItem(ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY);
   } catch {
     // Ignore storage failures; account checks can still use the network path.
+  }
+}
+
+function withStoredAuthenticatedFallback(
+  result: AccountSessionResult,
+  now: number
+): AccountSessionResult {
+  if (
+    result.authenticated ||
+    (result.status !== "error" && result.status !== "unconfigured")
+  ) {
+    return result;
+  }
+  const account = readStoredAuthenticatedAccount(now);
+  if (!account) return result;
+  return {
+    ...result,
+    authenticated: true,
+    account,
+    stale: true,
+    staleReason:
+      result.status === "unconfigured"
+        ? "account system temporarily unconfigured"
+        : result.error ?? "account session check temporarily unavailable",
+  };
+}
+
+function storeAuthenticatedAccount(
+  account: ClientAccountInfo,
+  now: number
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+      JSON.stringify({
+        storedAt: now,
+        account: {
+          id: account.id,
+          email_hint: account.email_hint,
+          display_name: account.display_name,
+          createdAt: account.createdAt,
+        },
+      })
+    );
+  } catch {
+    // A stale UI fallback is optional; the httpOnly cookie remains authoritative.
+  }
+}
+
+function readStoredAuthenticatedAccount(
+  now: number
+): ClientAccountInfo | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(
+      ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY
+    );
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      storedAt?: unknown;
+      account?: Partial<ClientAccountInfo>;
+    };
+    if (
+      typeof parsed.storedAt !== "number" ||
+      now - parsed.storedAt > ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS
+    ) {
+      clearStoredAuthenticatedAccount();
+      return null;
+    }
+    const account = parsed.account;
+    if (
+      !account ||
+      typeof account.id !== "string" ||
+      typeof account.email_hint !== "string" ||
+      typeof account.display_name !== "string" ||
+      typeof account.createdAt !== "string"
+    ) {
+      clearStoredAuthenticatedAccount();
+      return null;
+    }
+    return {
+      id: account.id,
+      email_hint: account.email_hint,
+      display_name: account.display_name,
+      createdAt: account.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearStoredAuthenticatedAccount(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(
+      ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY
+    );
+  } catch {
+    // Ignore storage failures; explicit server logout still clears the cookie.
   }
 }

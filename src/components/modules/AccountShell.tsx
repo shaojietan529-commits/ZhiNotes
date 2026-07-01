@@ -305,6 +305,18 @@ export default function AccountShell() {
   const refreshSession = useCallback(async () => {
     try {
       const session = await fetchAccountSession({ force: true });
+      if (session.authenticated && session.account) {
+        setSignedInAccount(session.account);
+        setPhase("signed-in");
+        if (session.stale) {
+          setNotice(
+            "账号会话暂时无法向云端确认，已保留最近一次登录状态；本地输入可继续保存，同步会稍后重试。"
+          );
+        } else {
+          setNotice(null);
+        }
+        return;
+      }
       if (session.status === "unconfigured") {
         setPhase("unconfigured");
         return;
@@ -313,12 +325,7 @@ export default function AccountShell() {
         setPhase("error");
         return;
       }
-      if (session.authenticated && session.account) {
-        setSignedInAccount(session.account);
-        setPhase("signed-in");
-      } else {
-        setPhase("email");
-      }
+      setPhase("email");
     } catch {
       setPhase("error");
     }
