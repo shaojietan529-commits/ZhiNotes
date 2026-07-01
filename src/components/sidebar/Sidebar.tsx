@@ -174,6 +174,39 @@ function getAccountSyncCenterTarget(accountSync: {
   return "/modules/sync#sync-upload-safety-panel";
 }
 
+function getAccountSyncInlineSummary(accountSync: {
+  state: AccountCloudSyncCoordinatorState;
+  pendingTotal: number;
+  failedTotal: number;
+  manualReviewTotal: number;
+}) {
+  if (accountSync.state === "queued") {
+    return `${accountSync.pendingTotal} 项待上传，本地已保留`;
+  }
+  if (accountSync.state === "attention") {
+    const parts = [
+      accountSync.failedTotal > 0 ? `${accountSync.failedTotal} 项失败` : null,
+      accountSync.manualReviewTotal > 0
+        ? `${accountSync.manualReviewTotal} 项需确认`
+        : null,
+    ].filter(Boolean);
+    return `${parts.length ? parts.join(" · ") : "同步需处理"}，打开同步中心`;
+  }
+  if (accountSync.state === "error") {
+    return "云端待确认，本地已保留";
+  }
+  if (accountSync.state === "signed-out") {
+    return "登录后继续上传本地队列";
+  }
+  if (accountSync.state === "syncing") {
+    return "正在补传本地队列";
+  }
+  if (accountSync.state === "checking") {
+    return "正在确认云端状态";
+  }
+  return null;
+}
+
 function getLastKnownAccountLabel() {
   return getLastAuthenticatedAccount()?.display_name || "账号";
 }
@@ -469,6 +502,7 @@ export default function Sidebar() {
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
   const accountSyncIcon = getAccountSyncIcon(accountSync.state);
   const accountSyncToneClass = getAccountSyncToneClass(accountSync.state);
+  const accountSyncInlineSummary = getAccountSyncInlineSummary(accountSync);
   const accountSyncNeedsSyncCenter =
     accountSync.failedTotal > 0 ||
     accountSync.manualReviewTotal > 0 ||
@@ -1120,6 +1154,17 @@ export default function Sidebar() {
             </button>
           )}
         </div>
+        {accountSync.enabledDomainCount > 0 && accountSyncInlineSummary && (
+          <p
+            data-testid="account-cloud-sync-inline-summary"
+            data-sync-state={accountSync.state}
+            data-sync-inline-summary={accountSyncInlineSummary}
+            className="mt-0.5 truncate px-3 text-[10px] leading-4 text-zinc-500 dark:text-zinc-400"
+            title={accountSyncButtonTitle}
+          >
+            {accountSyncInlineSummary}
+          </p>
+        )}
       </div>
       <div className="grid grid-cols-3 gap-1 border-t border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <button

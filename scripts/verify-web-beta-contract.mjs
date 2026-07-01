@@ -22397,6 +22397,30 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "getAccountSyncInlineSummary",
+      "Sidebar cloud-sync control must show a compact visible summary for pending, retry, sign-in, and manual-review states.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "云端待确认，本地已保留",
+      "Sidebar cloud-sync retry state must visibly reassure that local input is retained instead of looking like sign-out.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'data-testid="account-cloud-sync-inline-summary"',
+      "Sidebar cloud-sync inline summary must be testable.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "data-sync-inline-summary={accountSyncInlineSummary}",
+      "Sidebar cloud-sync inline summary must expose the rendered safety message for smoke checks.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "data-sync-state={accountSync.state}",
       "Sidebar cloud-sync control must expose the coordinator state for smoke checks.",
     ],

@@ -2526,9 +2526,15 @@ check(
     sidebar.includes('data-testid="account-cloud-sync-coordinator"') &&
     sidebar.includes("accountSyncShortLabel") &&
     sidebar.includes("accountSyncAriaLabel") &&
+    sidebar.includes("accountSyncInlineSummary") &&
+    sidebar.includes("getAccountSyncInlineSummary") &&
     sidebar.includes("getAccountSyncToneClass") &&
     sidebar.includes("检查中") &&
     sidebar.includes("重试中") &&
+    sidebar.includes("云端待确认，本地已保留") &&
+    sidebar.includes("登录后继续上传本地队列") &&
+    sidebar.includes('data-testid="account-cloud-sync-inline-summary"') &&
+    sidebar.includes("data-sync-inline-summary={accountSyncInlineSummary}") &&
     sidebar.includes("账号或网络暂不可确认，已保留本地输入，稍后重试") &&
     sidebar.includes("accountSyncNeedsSyncCenter") &&
     sidebar.includes("accountSync.pagePendingTotal > 0") &&
