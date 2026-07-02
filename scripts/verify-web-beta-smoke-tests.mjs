@@ -5410,6 +5410,36 @@ function run() {
     "writeDailyHotCacheSnapshot",
     "Daily notes must refresh the local hot cache snapshot after metadata loads."
   );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "DAILY_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",
+    "Daily hot cache must keep a fresh window for unchanged-write skipping."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "DAILY_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000",
+    "Daily hot cache must keep a bounded stale metadata fallback for hard refresh first paint."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "withDailyHotCacheSnapshotFreshness",
+    "Daily hot cache reads must mark stale metadata so the UI can explain background correction."
+  );
+  assertIncludes(
+    files.dailyHotCacheSnapshot,
+    dailyHotCacheSnapshot,
+    "isStaleDailyHotCacheSnapshot(current)",
+    "Daily hot cache writes must refresh stale-but-usable snapshots after metadata reloads."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "已先显示较早的本机热缓存",
+    "Daily notes must explain when stale local hot cache supplied first paint."
+  );
   for (const [snippet, message] of [
     [
       "DAILY_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",

@@ -883,6 +883,7 @@ check(
 );
 
 const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
+const dailyHotCacheSnapshot = read("src/lib/sync/dailyHotCacheSnapshot.ts");
 const dailyCalendarLoadStatus = read("src/lib/sync/dailyCalendarLoadStatus.ts");
 const meetingCalendarLoadStatus = read(
   "src/lib/sync/meetingCalendarLoadStatus.ts"
@@ -1008,6 +1009,22 @@ check(
       dailyNotesShell.indexOf("await ensureDailyDateIndexBackfilled()") &&
     !dailyNotesShell.includes("getAllPageMetadata"),
   "DailyNotesShell 首屏应本地/缓存优先，recent metadata 窗口按热缓存偏好有界扩大；首屏只能走日期索引，未索引 Notion 导入 fallback 必须后台补齐"
+);
+check(
+  dailyHotCacheSnapshot.includes("DAILY_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000") &&
+    dailyHotCacheSnapshot.includes("DAILY_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000") &&
+    dailyHotCacheSnapshot.includes("stale?: boolean") &&
+    dailyHotCacheSnapshot.includes("withDailyHotCacheSnapshotFreshness") &&
+    dailyHotCacheSnapshot.includes("isStaleDailyHotCacheSnapshot(current)") &&
+    dailyHotCacheSnapshot.includes('key === "cached_at" || key === "stale"'),
+  "Daily hot cache 应区分 24h 新鲜窗口和 7 天旧缓存兜底窗口；旧缓存可先显示但不能影响签名对比或成为真实数据源"
+);
+check(
+  dailyNotesShell.includes("staleHotCacheMerged") &&
+    dailyNotesShell.includes("overlappingStaleHotMerged") &&
+    dailyNotesShell.includes("已先显示较早的本机热缓存") &&
+    dailyNotesShell.includes("已先显示较早的本机重叠热缓存"),
+  "DailyNotesShell 使用旧热缓存首屏兜底时必须明确提示后台仍在校正，避免用户把旧 metadata 当成最终同步结果"
 );
 check(
   dailyCalendarLoadStatus.includes("DailyCalendarLoadPhase") &&

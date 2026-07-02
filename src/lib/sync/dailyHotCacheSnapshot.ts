@@ -3,7 +3,8 @@ import type { Page } from "@/lib/utils/types";
 
 const DAILY_HOT_CACHE_PREFIX = "zhinote.daily.hotCacheSnapshot.";
 const DAILY_HOT_CACHE_INDEX_KEY = "zhinote.daily.hotCacheSnapshot.index.v1";
-const DAILY_HOT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const DAILY_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
+const DAILY_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const DAILY_HOT_CACHE_MAX_PAGES = 500;
 const DAILY_HOT_CACHE_OVERLAP_MAX_SNAPSHOTS = 6;
 const DAILY_HOT_CACHE_INDEX_MAX_ENTRIES = 120;
@@ -39,6 +40,7 @@ export interface DailyHotCacheSnapshot {
   start_date: string;
   end_date: string;
   cached_at: string;
+  stale?: boolean;
   privacy_boundary: string;
   boundary: {
     reads_page_body_text: false;
@@ -100,10 +102,8 @@ export function readDailyHotCacheSnapshot(
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<DailyHotCacheSnapshot>;
     if (!isValidDailyHotCacheSnapshot(parsed, startDate, endDate)) return null;
-    if (Date.now() - Date.parse(parsed.cached_at) > DAILY_HOT_CACHE_TTL_MS) {
-      return null;
-    }
-    return parsed;
+    if (isExpiredDailyHotCacheSnapshot(parsed)) return null;
+    return withDailyHotCacheSnapshotFreshness(parsed);
   } catch {
     return null;
   }
@@ -128,13 +128,11 @@ export function readDailyHotCacheSnapshotsForRange(
       if (!raw) continue;
       const parsed = JSON.parse(raw) as Partial<DailyHotCacheSnapshot>;
       if (!isDailyHotCacheSnapshotShape(parsed)) continue;
-      if (isExpiredDailyHotCacheSnapshot(parsed)) {
-        continue;
-      }
+      if (isExpiredDailyHotCacheSnapshot(parsed)) continue;
       if (!rangesOverlap(parsed.start_date, parsed.end_date, startDate, endDate)) {
         continue;
       }
-      snapshots.push(parsed);
+      snapshots.push(withDailyHotCacheSnapshotFreshness(parsed));
     }
 
     return snapshots
@@ -241,7 +239,7 @@ function shouldWriteDailyHotCacheSnapshot(
 ): boolean {
   const current = readDailyHotCacheSnapshotForWrite(key);
   if (!current) return true;
-  if (isExpiredDailyHotCacheSnapshot(current)) return true;
+  if (isStaleDailyHotCacheSnapshot(current)) return true;
   return (
     buildDailyHotCacheSnapshotSignature(current) !==
     buildDailyHotCacheSnapshotSignature(snapshot)
@@ -275,7 +273,7 @@ function stableDailyHotCacheSnapshotValue(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
   const result: Record<string, unknown> = {};
   for (const key of Object.keys(value).sort()) {
-    if (key === "cached_at") continue;
+    if (key === "cached_at" || key === "stale") continue;
     const nextValue = (value as Record<string, unknown>)[key];
     if (typeof nextValue !== "undefined") {
       result[key] = stableDailyHotCacheSnapshotValue(nextValue);
@@ -500,13 +498,27 @@ function isDailyHotCacheSnapshotIndexEntry(
 function isExpiredDailyHotCacheSnapshot(
   value: DailyHotCacheSnapshot
 ): boolean {
-  return Date.now() - Date.parse(value.cached_at) > DAILY_HOT_CACHE_TTL_MS;
+  return Date.now() - Date.parse(value.cached_at) > DAILY_HOT_CACHE_STALE_MS;
+}
+
+function isStaleDailyHotCacheSnapshot(value: DailyHotCacheSnapshot): boolean {
+  const ageMs = Date.now() - Date.parse(value.cached_at);
+  return ageMs > DAILY_HOT_CACHE_FRESH_MS;
 }
 
 function isExpiredDailyHotCacheEntry(
   value: Pick<DailyHotCacheSnapshotIndexEntry, "cached_at">
 ): boolean {
-  return Date.now() - Date.parse(value.cached_at) > DAILY_HOT_CACHE_TTL_MS;
+  return Date.now() - Date.parse(value.cached_at) > DAILY_HOT_CACHE_STALE_MS;
+}
+
+function withDailyHotCacheSnapshotFreshness(
+  snapshot: DailyHotCacheSnapshot
+): DailyHotCacheSnapshot {
+  return {
+    ...snapshot,
+    stale: isStaleDailyHotCacheSnapshot(snapshot),
+  };
 }
 
 function rangesOverlap(

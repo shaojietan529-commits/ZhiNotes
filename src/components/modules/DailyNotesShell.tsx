@@ -400,18 +400,28 @@ export default function DailyNotesShell() {
     let merged = 0;
     let rootHint: string | null = cachedHotSnapshot?.root_id ?? null;
     let cachedCloudMerged = 0;
+    let staleHotCacheMerged = 0;
 
     if (cachedHotSnapshot) {
-      merged += mergeDailyHotCacheSnapshot(
+      const snapshotMerged = mergeDailyHotCacheSnapshot(
         byId,
         cachedHotSnapshot,
         startDate,
         endDate
       );
+      merged += snapshotMerged;
+      if (cachedHotSnapshot.stale) staleHotCacheMerged += snapshotMerged;
     }
     for (const snapshot of overlappingHotSnapshots) {
       if (!rootHint) rootHint = snapshot.root_id;
-      merged += mergeDailyHotCacheSnapshot(byId, snapshot, startDate, endDate);
+      const snapshotMerged = mergeDailyHotCacheSnapshot(
+        byId,
+        snapshot,
+        startDate,
+        endDate
+      );
+      merged += snapshotMerged;
+      if (snapshot.stale) staleHotCacheMerged += snapshotMerged;
     }
     if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
       rootHint = rootHint ?? cachedCloud.rootId;
@@ -450,6 +460,8 @@ export default function DailyNotesShell() {
     setCloudNotice(
       cachedCloudMerged > 0
         ? `已先显示浏览器缓存的云端每日纪要目录 ${renderableNotes.length} 条，正在启动本地数据库和云端校正…`
+        : staleHotCacheMerged > 0
+          ? `已先显示较早的本机热缓存 ${renderableNotes.length} 条每日纪要 metadata，正在启动本地数据库和云端校正…`
         : `已先显示本机热缓存 ${renderableNotes.length} 条每日纪要 metadata，正在启动本地数据库和云端校正…`
     );
     setCalendarLoadStatus(
@@ -462,6 +474,8 @@ export default function DailyNotesShell() {
         message:
           cachedCloudMerged > 0
             ? "已先显示浏览器缓存的云端目录，正在启动本地数据库和云端校正。"
+            : staleHotCacheMerged > 0
+              ? "已先显示较早的本机热缓存，正在启动本地数据库和云端校正。"
             : "已先显示本机热缓存，正在启动本地数据库和云端校正。",
       })
     );
@@ -844,32 +858,44 @@ export default function DailyNotesShell() {
           phase: "hot-cache",
           backgroundActive: true,
           cloudLoading: includeCloud,
-          message: `已先显示本机热缓存 ${merged} 条，后台继续校正本地和云端主库。`,
+          message: cachedHotSnapshot.stale
+            ? `已先显示较早的本机热缓存 ${merged} 条，后台继续校正本地和云端主库。`
+            : `已先显示本机热缓存 ${merged} 条，后台继续校正本地和云端主库。`,
         });
         publishNotice(
-          `已先显示本机热缓存 ${merged} 条每日纪要 metadata，正在后台校正本地和云端主库…`
+          cachedHotSnapshot.stale
+            ? `已先显示较早的本机热缓存 ${merged} 条每日纪要 metadata，正在后台校正本地和云端主库…`
+            : `已先显示本机热缓存 ${merged} 条每日纪要 metadata，正在后台校正本地和云端主库…`
         );
       }
     }
 
     let overlappingHotMerged = 0;
+    let overlappingStaleHotMerged = 0;
     for (const snapshot of overlappingHotSnapshots) {
-      overlappingHotMerged += mergeDailyHotCacheSnapshot(
+      const snapshotMerged = mergeDailyHotCacheSnapshot(
         byId,
         snapshot,
         startDate,
         endDate
       );
+      overlappingHotMerged += snapshotMerged;
+      if (snapshot.stale) overlappingStaleHotMerged += snapshotMerged;
     }
     if (overlappingHotMerged > 0) {
       publishNotes(Array.from(byId.values()), {
         phase: "hot-cache",
         backgroundActive: true,
         cloudLoading: includeCloud,
-        message: `已先显示本机重叠热缓存 ${overlappingHotMerged} 条，后台继续校正。`,
+        message:
+          overlappingStaleHotMerged > 0
+            ? `已先显示较早的本机重叠热缓存 ${overlappingHotMerged} 条，后台继续校正。`
+            : `已先显示本机重叠热缓存 ${overlappingHotMerged} 条，后台继续校正。`,
       });
       publishNotice(
-        `已先显示本机重叠热缓存 ${overlappingHotMerged} 条每日纪要 metadata，后台继续校正本地和云端主库…`
+        overlappingStaleHotMerged > 0
+          ? `已先显示较早的本机重叠热缓存 ${overlappingHotMerged} 条每日纪要 metadata，后台继续校正本地和云端主库…`
+          : `已先显示本机重叠热缓存 ${overlappingHotMerged} 条每日纪要 metadata，后台继续校正本地和云端主库…`
       );
     }
 
