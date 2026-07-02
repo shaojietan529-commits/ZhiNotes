@@ -8155,6 +8155,34 @@ function run() {
 	    "autoRetryableSyncWorkTotal <= 0",
 	    "Account cloud sync coordinator must not auto-drain when only manual-review rows remain."
 	  );
+  const accountAutoRetryableSyncWorkBlock =
+    accountCloudSyncCoordinator.match(
+      /const autoRetryableSyncWorkTotal =[\s\S]*?;/
+    )?.[0] ?? "";
+  if (
+    !(
+      accountCloudSyncCoordinator.includes("syncCenterVisibleOnlyPendingTotal") &&
+      accountAutoRetryableSyncWorkBlock.includes(
+        "pageAutoRetryablePendingTotal"
+      ) &&
+      accountAutoRetryableSyncWorkBlock.includes(
+        "databaseAutoRetryablePendingTotal"
+      ) &&
+      !accountAutoRetryableSyncWorkBlock.includes(
+        "settingsAutoRetryablePendingTotal"
+      ) &&
+      !accountAutoRetryableSyncWorkBlock.includes(
+        "knowledgeAutoRetryablePendingTotal"
+      ) &&
+      !accountAutoRetryableSyncWorkBlock.includes(
+        "globalSyncLogExtraPendingTotal"
+      )
+    )
+  ) {
+    failures.push(
+      "Account cloud sync coordinator auto-drain must only drive currently executable page/database queues; settings, knowledge, and uncovered sync_log queues stay visible for Sync Center handling."
+    );
+  }
   if (
     !(
       accountCloudSyncCoordinator.indexOf(

@@ -146,11 +146,13 @@ export function useAccountCloudSyncCoordinator() {
     knowledgePendingTotal - knowledgeSync.status.manualReviewCount,
     0
   );
+  const syncCenterVisibleOnlyPendingTotal =
+    settingsAutoRetryablePendingTotal +
+    knowledgeAutoRetryablePendingTotal +
+    globalSyncLogExtraPendingTotal;
   const autoRetryableSyncWorkTotal =
     pageAutoRetryablePendingTotal +
-    databaseAutoRetryablePendingTotal +
-    settingsAutoRetryablePendingTotal +
-    knowledgeAutoRetryablePendingTotal;
+    databaseAutoRetryablePendingTotal;
   const pageVisibleSyncWork =
     pagePendingTotal > 0 ||
     pageSync.pendingStatus.failed > 0 ||
@@ -228,6 +230,9 @@ export function useAccountCloudSyncCoordinator() {
       globalSyncLogExtraPendingTotal > 0
         ? `其他本地队列 ${globalSyncLogExtraPendingTotal}（同步中心处理）`
         : null,
+      syncCenterVisibleOnlyPendingTotal > 0
+        ? `同步中心待处理 ${syncCenterVisibleOnlyPendingTotal}`
+        : null,
       lastSyncAt ? `最近同步 ${formatLastSyncTime(lastSyncAt)}` : null,
     ].filter(Boolean);
     if (state === "checking") {
@@ -263,6 +268,7 @@ export function useAccountCloudSyncCoordinator() {
     pendingTotal,
     retryableFailedTotal,
     settingsPendingTotal,
+    syncCenterVisibleOnlyPendingTotal,
     state,
   ]);
 

@@ -2583,6 +2583,29 @@ check(
     ),
   "账号级云同步协调器后台自动补传只能看可自动重试队列，manual review 项必须保持可见但不能触发后台循环重试"
 );
+const accountAutoRetryableSyncWorkBlock =
+  accountCloudSyncCoordinator.match(
+    /const autoRetryableSyncWorkTotal =[\s\S]*?;/
+  )?.[0] ?? "";
+check(
+  accountCloudSyncCoordinator.includes("syncCenterVisibleOnlyPendingTotal") &&
+    accountAutoRetryableSyncWorkBlock.includes(
+      "pageAutoRetryablePendingTotal"
+    ) &&
+    accountAutoRetryableSyncWorkBlock.includes(
+      "databaseAutoRetryablePendingTotal"
+    ) &&
+    !accountAutoRetryableSyncWorkBlock.includes(
+      "settingsAutoRetryablePendingTotal"
+    ) &&
+    !accountAutoRetryableSyncWorkBlock.includes(
+      "knowledgeAutoRetryablePendingTotal"
+    ) &&
+    !accountAutoRetryableSyncWorkBlock.includes(
+      "globalSyncLogExtraPendingTotal"
+    ),
+  "账号级自动补传只能驱动页面/数据库当前可执行队列；设置、知识库附属和其他 sync_log 队列必须只显示并交给同步中心处理，避免后台无效循环"
+);
 check(
   accountCloudSyncCoordinator.indexOf("manualReviewTotal > 0 || failedTotal > 0") <
     accountCloudSyncCoordinator.indexOf(
