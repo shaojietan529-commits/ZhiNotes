@@ -6160,8 +6160,24 @@ function run() {
       "Lazy peek modal fallback must re-check local seeds after pending draft writes settle.",
     ],
     [
-      "const retryTimer = window.setTimeout(refreshLocalSeed, 120)",
-      "Lazy peek modal fallback must keep the local seed retry short so it does not delay editor loading.",
+      "LAZY_PEEK_LOCAL_SEED_RETRY_DELAYS_MS = [80, 160, 360, 900]",
+      "Lazy peek modal fallback must use a bounded short retry window so late local drafts can appear without polling indefinitely.",
+    ],
+    [
+      "LAZY_PEEK_LOCAL_SEED_RETRY_DELAYS_MS.map",
+      "Lazy peek modal fallback must retry local seed reads more than once during cold chunk loads.",
+    ],
+    [
+      'data-testid="page-peek-loading-shell"',
+      "Lazy peek modal fallback must expose a stable test hook for cold-load diagnostics.",
+    ],
+    [
+      'data-local-seed-state={seed ? "ready" : "loading"}',
+      "Lazy peek modal fallback must expose whether local metadata is visible during cold-load diagnostics.",
+    ],
+    [
+      "data-optimistic-draft={isOptimisticDraft}",
+      "Lazy peek modal fallback must expose whether the visible shell is a local optimistic draft.",
     ],
     [
       "if (!seed) return;",

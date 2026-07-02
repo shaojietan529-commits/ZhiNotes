@@ -22,6 +22,7 @@ let pagePeekEditorPromise:
   | Promise<typeof import("@/components/editor/Editor")>
   | null = null;
 let pagePeekModalLoaded = false;
+const LAZY_PEEK_LOCAL_SEED_RETRY_DELAYS_MS = [80, 160, 360, 900];
 
 function loadPagePeekModal() {
   if (!pagePeekModalPromise) {
@@ -120,10 +121,12 @@ function LocalFirstPeekLoadingShell({
     };
     refreshLocalSeed();
     queueMicrotask(refreshLocalSeed);
-    const retryTimer = window.setTimeout(refreshLocalSeed, 120);
+    const retryTimers = LAZY_PEEK_LOCAL_SEED_RETRY_DELAYS_MS.map((delay) =>
+      window.setTimeout(refreshLocalSeed, delay)
+    );
     return () => {
       cancelled = true;
-      window.clearTimeout(retryTimer);
+      retryTimers.forEach((timer) => window.clearTimeout(timer));
     };
   }, [initialPage, pageId]);
 
@@ -158,6 +161,9 @@ function LocalFirstPeekLoadingShell({
       onMouseDown={onClose}
     >
       <div
+        data-testid="page-peek-loading-shell"
+        data-local-seed-state={seed ? "ready" : "loading"}
+        data-optimistic-draft={isOptimisticDraft}
         className="flex h-[85vh] w-[82vw] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-950"
         role="dialog"
         aria-label="页面弹窗"
