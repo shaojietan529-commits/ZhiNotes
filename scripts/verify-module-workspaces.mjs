@@ -1463,6 +1463,17 @@ check(
   "MeetingScheduleShell 手动创建和导入会议应直接进入本地优先流程，导入按钮不能等待模块根页面先加载；会议页和 root 保存必须走统一云端上传队列；日历和 hover 只能预热页面壳/路由，不能提前读取会议正文"
 );
 check(
+  shells.schedule.includes("function MeetingIntakeProgressBanner") &&
+    shells.schedule.includes("function MeetingIntakeTodayPlaceholder") &&
+    shells.schedule.includes('data-testid="meeting-intake-progress-banner"') &&
+    shells.schedule.includes('data-testid="meeting-intake-today-placeholder"') &&
+    shells.schedule.includes('data-intake-state="parsing"') &&
+    shells.schedule.includes('data-calendar-preserved="true"') &&
+    shells.schedule.includes("如果解析超时，会自动生成一条待补时间的会议留痕") &&
+    shells.schedule.includes("如果不是今天，今日会议不会增加"),
+  "MeetingScheduleShell 导入会议等待解析期间必须有明确可见反馈，不能让用户以为日历空白或点击无效"
+);
+check(
   shells.schedule.includes("listDailyPageMetadataForCalendar({") &&
     shells.schedule.includes("startDate: dateKeys[0]") &&
     shells.schedule.includes("endDate: dateKeys[dateKeys.length - 1]") &&

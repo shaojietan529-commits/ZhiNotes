@@ -2530,6 +2530,7 @@ export default function MeetingScheduleShell() {
                 会议管理中心。导入会议信息，查看当天日程，日历总览。
               </p>
               <MeetingCalendarLoadStatusStrip view={calendarLoadStatusView} />
+              {intakeLoading && <MeetingIntakeProgressBanner />}
               {openingDraft && (
                 <MeetingOpeningDraftBanner
                   dateKey={openingDraft.dateKey}
@@ -2686,7 +2687,9 @@ export default function MeetingScheduleShell() {
                   {todayMeetings.length} 场
                 </span>
               </div>
-              {todayMeetings.length === 0 ? (
+              {intakeLoading && todayMeetings.length === 0 ? (
+                <MeetingIntakeTodayPlaceholder />
+              ) : todayMeetings.length === 0 ? (
                 <div className="flex h-40 items-center justify-center text-sm text-zinc-400 dark:text-zinc-500">
                   今天暂无会议
                 </div>
@@ -4486,6 +4489,38 @@ function MeetingCalendarLoadStatusStrip({
             {step.label}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function MeetingIntakeProgressBanner() {
+  return (
+    <div
+      data-testid="meeting-intake-progress-banner"
+      data-intake-state="parsing"
+      data-calendar-preserved="true"
+      className="mt-3 max-w-3xl rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/30 dark:text-sky-200"
+    >
+      <div className="font-medium">正在解析会议邀请</div>
+      <div className="mt-1 text-sky-700 dark:text-sky-300">
+        日历会先保留当前内容；如果解析超时，会自动生成一条待补时间的会议留痕。
+      </div>
+    </div>
+  );
+}
+
+function MeetingIntakeTodayPlaceholder() {
+  return (
+    <div
+      data-testid="meeting-intake-today-placeholder"
+      data-intake-state="parsing"
+      data-calendar-preserved="true"
+      className="flex h-40 flex-col items-center justify-center rounded-md border border-dashed border-sky-200 bg-sky-50/70 px-4 text-center text-sm text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/20 dark:text-sky-200"
+    >
+      <div className="font-medium">导入处理中</div>
+      <div className="mt-1 max-w-xs text-xs leading-5 text-sky-700 dark:text-sky-300">
+        解析完成后会自动定位到会议日期；如果不是今天，今日会议不会增加。
       </div>
     </div>
   );
