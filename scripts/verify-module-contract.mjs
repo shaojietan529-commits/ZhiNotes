@@ -40,8 +40,11 @@ const requiredPlatformModuleFields = [
   "description: string;",
   "category: ModuleCategory;",
   "status: ModuleStatus;",
+  "usageTier: ModuleUsageTier;",
   "route: string | null;",
   "icon: string;",
+  "stableUseNote: string;",
+  "developmentBoundary: string;",
   "capabilities: string[];",
   "dataSurfaces: string[];",
   "extensionSlots: string[];",
@@ -214,6 +217,18 @@ function extractModuleIds(registrySource) {
   ].map((match) => match[1]);
 }
 
+function extractModuleBlock(registrySource, moduleId) {
+  const moduleArray = extractPlatformModulesArray(registrySource);
+  const match = moduleArray.match(
+    new RegExp(`\\{\\s*id:\\s*"${moduleId}"[\\s\\S]*?\\n\\s*\\},`)
+  );
+  if (!match) {
+    failures.push(`Unable to locate module block ${moduleId}.`);
+    return "";
+  }
+  return match[0];
+}
+
 function extractModuleRoutes(registrySource) {
   const moduleArray = extractPlatformModulesArray(registrySource);
   return [
@@ -276,6 +291,21 @@ function run() {
     "export interface PlatformModule",
     "Module registry must expose a typed platform module contract."
   );
+  for (const snippet of [
+    "export type ModuleUsageTier",
+    '"stable-use"',
+    '"beta-hardening"',
+    '"owner-gated-experiment"',
+    "getModulesByUsageTier",
+    "getModuleUsageTierLabel",
+  ]) {
+    assertIncludes(
+      files.registry,
+      registry,
+      snippet,
+      "Module registry must classify stable use, beta hardening, and owner-gated experiment tiers."
+    );
+  }
   for (const field of requiredPlatformModuleFields) {
     assertIncludes(
       files.registry,
@@ -286,6 +316,17 @@ function run() {
   }
 
   const moduleIds = extractModuleIds(registry);
+  for (const moduleId of moduleIds) {
+    const moduleBlock = extractModuleBlock(registry, moduleId);
+    for (const snippet of ["usageTier:", "stableUseNote:", "developmentBoundary:"]) {
+      assertIncludes(
+        files.registry,
+        moduleBlock,
+        snippet,
+        `Module ${moduleId} must declare stable-use tier and development boundary.`
+      );
+    }
+  }
   const duplicateIds = moduleIds.filter(
     (id, index) => moduleIds.indexOf(id) !== index
   );
@@ -716,6 +757,24 @@ function run() {
       dashboard,
       snippet,
       "Module center must show a stable-use status panel so development state is visible without blocking use."
+    );
+  }
+  for (const snippet of [
+    "getModulesByUsageTier",
+    "module-stable-use-tier-summary",
+    "data-stable-use-modules",
+    "data-beta-hardening-modules",
+    "data-owner-gated-experiment-modules",
+    "data-module-usage-tier={module.usageTier}",
+    "ModuleUsageTierPill",
+    "稳定使用说明",
+    "开发边界",
+  ]) {
+    assertIncludes(
+      files.dashboard,
+      dashboard,
+      snippet,
+      "Module center must expose stable-use tiers and development boundaries before users open modules."
     );
   }
   assertIncludes(

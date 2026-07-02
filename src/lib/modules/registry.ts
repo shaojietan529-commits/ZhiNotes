@@ -1,5 +1,10 @@
 export type ModuleStatus = "active" | "beta" | "planned";
 
+export type ModuleUsageTier =
+  | "stable-use"
+  | "beta-hardening"
+  | "owner-gated-experiment";
+
 export type ModuleCategory =
   | "Workspace"
   | "Research"
@@ -13,8 +18,11 @@ export interface PlatformModule {
   description: string;
   category: ModuleCategory;
   status: ModuleStatus;
+  usageTier: ModuleUsageTier;
   route: string | null;
   icon: string;
+  stableUseNote: string;
+  developmentBoundary: string;
   capabilities: string[];
   dataSurfaces: string[];
   extensionSlots: string[];
@@ -90,8 +98,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "类似 Notion 的投研页面、Markdown 笔记、页面链接、反向链接、评论和版本历史。",
     category: "Workspace",
     status: "active",
+    usageTier: "stable-use",
     route: "/modules/notes",
     icon: "NOTE",
+    stableUseNote:
+      "可作为日常写作入口；页面创建、Markdown 和本地草稿走本地优先路径。",
+    developmentBoundary:
+      "云端写回、批量导入、AI 总结和外部资源加载继续保持 gated。",
     capabilities: [
       "独立模块页面",
       "笔记工作台",
@@ -118,8 +131,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "本地表格、看板、日历、画廊、时间线、表单、动态流视图和 CSV/XLSX 工作流。",
     category: "Data",
     status: "active",
+    usageTier: "stable-use",
     route: "/modules/databases",
     icon: "DB",
+    stableUseNote:
+      "可作为日常数据库入口；本地表格、视图、导入预览和 pending 队列可继续使用。",
+    developmentBoundary:
+      "云端主库切换、批量覆盖、恢复写回和高风险同步必须先过 owner gate。",
     capabilities: [
       "独立模块页面",
       "表格/列表/看板视图",
@@ -146,8 +164,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "本地预览 AI 生成的 HTML 报告、PDF、Office 文档、notebook 和压缩包。",
     category: "Research",
     status: "beta",
+    usageTier: "beta-hardening",
     route: "/modules/reports",
     icon: "RPT",
+    stableUseNote:
+      "适合试用本地报告库和预览路线，继续打磨大文件、Office 和 HTML 报告体验。",
+    developmentBoundary:
+      "文件上传云端、外部资源加载、AI 解读和批量入库都必须显式确认。",
     capabilities: [
       "独立模块页面",
       "HTML 报告沙盒",
@@ -188,8 +211,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "本地文件 metadata 工作台，用于盘点 HTML、Markdown、PDF、Excel、Word、PPT 和其他附件的处理路线。",
     category: "Data",
     status: "beta",
+    usageTier: "beta-hardening",
     route: "/modules/files",
     icon: "FILE",
+    stableUseNote:
+      "适合试用文件 metadata 工作台和格式路线，不把文件内容自动外传。",
+    developmentBoundary:
+      "原生渲染器、云文件存储、外部资产加载和 AI 文件处理保持 owner-gated。",
     capabilities: [
       "独立模块页面",
       "本地文件工作台",
@@ -230,8 +258,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "公司主页、投资备忘录、业绩复盘、估值假设和跟踪事项。",
     category: "Research",
     status: "beta",
+    usageTier: "beta-hardening",
     route: "/modules/company-research",
     icon: "CO",
+    stableUseNote:
+      "适合试用公司研究模板、dossier 和本地 tracker intake。",
+    developmentBoundary:
+      "自动关联持仓、会议、报告和云端公司主库前需要明确复核。",
     capabilities: [
       "公司主页",
       "投资备忘录模板",
@@ -257,8 +290,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "本地持仓、观察名单、仓位、催化剂、投资假设和风险跟踪，并关联研究资料。",
     category: "Research",
     status: "beta",
+    usageTier: "beta-hardening",
     route: "/modules/portfolio",
     icon: "PF",
+    stableUseNote:
+      "适合试用观察名单、position memo 和本地组合 tracker。",
+    developmentBoundary:
+      "真实持仓推断、券商连接、外部邮件写入和云端共享必须保持 gated。",
     capabilities: [
       "持仓跟踪",
       "观察名单流程",
@@ -284,8 +322,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "会议纪要、管理层电话会记录、行动项，以及与公司和报告的关联。",
     category: "Research",
     status: "beta",
+    usageTier: "beta-hardening",
     route: "/modules/meetings",
     icon: "MTG",
+    stableUseNote:
+      "适合试用会议纪要、行动项和本地会议 tracker。",
+    developmentBoundary:
+      "自动入会、录音、转写上传、会议正文外发和自动关系写回必须显式确认。",
     capabilities: [
       "独立模块页面",
       "会议纪要模板",
@@ -318,8 +361,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "把研究主题沉淀成项目页、项目 checklist、模块准备度和本地项目跟踪表。",
     category: "Research",
     status: "beta",
+    usageTier: "beta-hardening",
     route: "/modules/projects",
     icon: "PRJ",
+    stableUseNote:
+      "适合试用投研项目页、checklist 和本地项目 tracker 创建流程。",
+    developmentBoundary:
+      "跨模块自动写关系、批量建库和云端项目协作保持 owner-gated。",
     capabilities: [
       "独立模块页面",
       "研究项目 Brief",
@@ -354,8 +402,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "集中查看公司、报告、会议和组合之间的本地 relation 连接、覆盖率和待补全资产。",
     category: "Research",
     status: "beta",
+    usageTier: "beta-hardening",
     route: "/modules/research-graph",
     icon: "MAP",
+    stableUseNote:
+      "适合试用本地 relation 覆盖率和跨模块研究缺口检查。",
+    developmentBoundary:
+      "自动改写关系、批量补链和云端图谱同步必须先预览再确认。",
     capabilities: [
       "跨模块关系总览",
       "资产覆盖率",
@@ -382,8 +435,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "本地暂存 AI 请求，用于总结、问答、报告生成、文件对比和研究框架。",
     category: "Automation",
     status: "planned",
+    usageTier: "owner-gated-experiment",
     route: "/modules/ai",
     icon: "AI",
+    stableUseNote:
+      "仅可查看 AI payload 预览和隐私边界，不作为稳定日常入口。",
+    developmentBoundary:
+      "真实 AI 执行、正文发送、文件发送、输出写回和外部模型调用全部需要 owner gate。",
     capabilities: [
       "本地上下文选择",
       "隐私确认",
@@ -407,8 +465,13 @@ export const PLATFORM_MODULES: PlatformModule[] = [
       "本地 Web Beta 准备面板，用于备份、同步队列、恢复规划和权限边界。",
     category: "Workspace",
     status: "planned",
+    usageTier: "stable-use",
     route: "/modules/sync",
     icon: "SYNC",
+    stableUseNote:
+      "可作为稳定同步观察入口；pending、failed、manual review 和本地可继续状态可见。",
+    developmentBoundary:
+      "真实云同步、缓存重建、恢复写回、文件上传和权限切换仍必须 owner-gated。",
     capabilities: [
       "本地备份导出",
       "同步队列可见性",
@@ -444,6 +507,10 @@ export function getModulesByStatus(status: ModuleStatus) {
   return PLATFORM_MODULES.filter((module) => module.status === status);
 }
 
+export function getModulesByUsageTier(usageTier: ModuleUsageTier) {
+  return PLATFORM_MODULES.filter((module) => module.usageTier === usageTier);
+}
+
 export function getRoutableModules() {
   return PLATFORM_MODULES.filter((module) => Boolean(module.route));
 }
@@ -456,6 +523,17 @@ export function getModuleStatusLabel(status: ModuleStatus) {
       return "Beta";
     case "planned":
       return "规划中";
+  }
+}
+
+export function getModuleUsageTierLabel(usageTier: ModuleUsageTier) {
+  switch (usageTier) {
+    case "stable-use":
+      return "稳定使用";
+    case "beta-hardening":
+      return "Beta 强化";
+    case "owner-gated-experiment":
+      return "Owner-gated 实验";
   }
 }
 

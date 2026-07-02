@@ -17,8 +17,11 @@ import {
   PLATFORM_MODULES,
   getModuleCategoryLabel,
   getModuleStatusLabel,
+  getModuleUsageTierLabel,
   getModulesByStatus,
+  getModulesByUsageTier,
   type ModuleStatus,
+  type ModuleUsageTier,
   type PlatformModule,
 } from "@/lib/modules/registry";
 import {
@@ -89,6 +92,15 @@ export default function ModuleDashboard() {
   const activeModules = useMemo(() => getModulesByStatus("active"), []);
   const betaModules = useMemo(() => getModulesByStatus("beta"), []);
   const plannedModules = useMemo(() => getModulesByStatus("planned"), []);
+  const stableUseModules = useMemo(() => getModulesByUsageTier("stable-use"), []);
+  const betaHardeningModules = useMemo(
+    () => getModulesByUsageTier("beta-hardening"),
+    []
+  );
+  const ownerGatedExperimentModules = useMemo(
+    () => getModulesByUsageTier("owner-gated-experiment"),
+    []
+  );
   const moduleManifest = useMemo(() => buildModuleManifestReport(), []);
   const moduleOnboarding = useMemo(() => buildModuleOnboardingContract(), []);
   const moduleStarterPack = useMemo(() => buildModuleStarterPackContract(), []);
@@ -362,12 +374,14 @@ export default function ModuleDashboard() {
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-5">
+        <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
           <Metric label="页面" value={pageCount} />
           <Metric label="数据库" value={databaseCount} />
           <Metric label="已启用模块" value={activeModules.length} />
           <Metric label="Beta 模块" value={betaModules.length} />
           <Metric label="规划中模块" value={plannedModules.length} />
+          <Metric label="稳定入口" value={stableUseModules.length} />
+          <Metric label="Owner gate" value={ownerGatedExperimentModules.length} />
         </section>
 
         <ProjectProgressSnapshotPanel
@@ -792,6 +806,32 @@ export default function ModuleDashboard() {
               <span className="text-xs text-zinc-400">
                 {PLATFORM_MODULES.length} 个模块
               </span>
+            </div>
+            <div
+              id="module-stable-use-tier-summary"
+              data-testid="module-stable-use-tier-summary"
+              data-stable-use-modules={stableUseModules.length}
+              data-beta-hardening-modules={betaHardeningModules.length}
+              data-owner-gated-experiment-modules={
+                ownerGatedExperimentModules.length
+              }
+              className="mb-3 grid gap-2 text-xs md:grid-cols-3"
+            >
+              <ModuleUsageTierSummaryCard
+                usageTier="stable-use"
+                count={stableUseModules.length}
+                detail="你日常可以优先使用的入口"
+              />
+              <ModuleUsageTierSummaryCard
+                usageTier="beta-hardening"
+                count={betaHardeningModules.length}
+                detail="可以试用，但继续打磨体验"
+              />
+              <ModuleUsageTierSummaryCard
+                usageTier="owner-gated-experiment"
+                count={ownerGatedExperimentModules.length}
+                detail="高风险能力保持关闭"
+              />
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               {STATUS_ORDER.flatMap((status) =>
@@ -2051,9 +2091,15 @@ function ModuleCard({
   onStart: () => void;
 }) {
   const statusLabel = getModuleStatusLabel(module.status);
+  const usageTierLabel = getModuleUsageTierLabel(module.usageTier);
 
   return (
-    <article className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+    <article
+      data-module-id={module.id}
+      data-module-status={module.status}
+      data-module-usage-tier={module.usageTier}
+      className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
@@ -2080,9 +2126,33 @@ function ModuleCard({
           {statusLabel}
         </span>
       </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <ModuleUsageTierPill usageTier={module.usageTier} />
+        <span className="text-[11px] text-zinc-400">
+          {usageTierLabel} · 开发期风险层
+        </span>
+      </div>
       <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
         {module.description}
       </p>
+      <div className="mt-3 grid gap-2 text-xs">
+        <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+          <div className="font-semibold text-zinc-800 dark:text-zinc-100">
+            稳定使用说明
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {module.stableUseNote}
+          </p>
+        </div>
+        <div className="rounded-md bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
+          <div className="font-semibold text-zinc-800 dark:text-zinc-100">
+            开发边界
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {module.developmentBoundary}
+          </p>
+        </div>
+      </div>
       <div className="mt-3 flex flex-wrap gap-1">
         {module.capabilities.slice(0, 4).map((capability) => (
           <span
@@ -2116,6 +2186,50 @@ function ModuleCard({
         </div>
       )}
     </article>
+  );
+}
+
+function ModuleUsageTierSummaryCard({
+  usageTier,
+  count,
+  detail,
+}: {
+  usageTier: ModuleUsageTier;
+  count: number;
+  detail: string;
+}) {
+  return (
+    <article className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[11px] text-zinc-400">
+          {getModuleUsageTierLabel(usageTier)}
+        </div>
+        <ModuleUsageTierPill usageTier={usageTier} />
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {count}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </article>
+  );
+}
+
+function ModuleUsageTierPill({
+  usageTier,
+}: {
+  usageTier: ModuleUsageTier;
+}) {
+  const className =
+    usageTier === "stable-use"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : usageTier === "beta-hardening"
+        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {getModuleUsageTierLabel(usageTier)}
+    </span>
   );
 }
 
