@@ -6390,6 +6390,21 @@ function SyncDashboard() {
           </div>
         )}
 
+        <SyncOperationalStatusStrip
+          readiness={syncLocalUseReadiness}
+          pendingTotal={syncLocalUseQueueSnapshot.pendingTotal}
+          failedTotal={syncLocalUseQueueSnapshot.failedTotal}
+          manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
+          pendingDomainRows={pendingDomainRows}
+          onDrainAll={() => void handleDrainAllPendingPush()}
+          onOpenSyncLog={() =>
+            document
+              .getElementById("sync-log-visibility-section")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+          onOpenAccount={() => router.push("/account")}
+        />
+
         <CloudAlphaPanel
           email={cloudEmail}
           workspaceName={cloudWorkspaceName}
@@ -6426,21 +6441,6 @@ function SyncDashboard() {
             />
           ))}
         </section>
-
-        <SyncOperationalStatusStrip
-          readiness={syncLocalUseReadiness}
-          pendingTotal={syncLocalUseQueueSnapshot.pendingTotal}
-          failedTotal={syncLocalUseQueueSnapshot.failedTotal}
-          manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
-          pendingDomainRows={pendingDomainRows}
-          onDrainAll={() => void handleDrainAllPendingPush()}
-          onOpenSyncLog={() =>
-            document
-              .getElementById("sync-log-visibility-section")
-              ?.scrollIntoView({ behavior: "smooth", block: "start" })
-          }
-          onOpenAccount={() => router.push("/account")}
-        />
 
         <CloudMasterReconcilePanel
           report={cloudMasterReconcile}
@@ -11184,7 +11184,11 @@ function CloudAlphaPanel({
   );
 
   return (
-    <section className="rounded-lg border border-blue-200 bg-white p-4 dark:border-blue-900 dark:bg-zinc-950">
+    <section
+      id="cloud-alpha-panel"
+      data-testid="cloud-alpha-panel"
+      className="rounded-lg border border-blue-200 bg-white p-4 dark:border-blue-900 dark:bg-zinc-950"
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">

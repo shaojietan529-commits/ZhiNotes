@@ -2556,6 +2556,18 @@ check(
   "同步中心顶部应提供 P0 使用安全状态条：一眼显示能否继续写、待上传/失败/人工处理、缓存重建阻断和详细队列入口"
 );
 check(
+  syncDashboardShell.indexOf("<SyncOperationalStatusStrip") >= 0 &&
+    syncDashboardShell.indexOf("<CloudAlphaPanel") >= 0 &&
+    syncDashboardShell.indexOf("<SyncOperationalStatusStrip") <
+      syncDashboardShell.indexOf("<CloudAlphaPanel"),
+  "同步中心首屏应先显示当前使用安全状态，再显示云登录/Cloud Alpha 配置，避免用户误以为必须先处理云配置才能继续写作"
+);
+check(
+  syncDashboardShell.includes('id="cloud-alpha-panel"') &&
+    syncDashboardShell.includes('data-testid="cloud-alpha-panel"'),
+  "Cloud Alpha 配置面板应有稳定 test id，方便只读 UI 检查确认它排在使用安全状态之后"
+);
+check(
   syncDashboardShell.includes("DevelopmentStabilityPlanPanel") &&
     syncDashboardShell.includes("buildDevelopmentStabilityPlan") &&
     syncDashboardShell.includes("syncLocalUseQueueSnapshot") &&
