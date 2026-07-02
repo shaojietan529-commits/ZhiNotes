@@ -1363,6 +1363,34 @@ function run() {
       'openPage(pageId, { source: "daily-open" });',
       "Daily note fallback opens must still use the local-first route handoff.",
     ],
+    [
+      "buildOpeningDailyNoteView(",
+      "Daily note peek opens must keep a lightweight opening view model for fallback UI.",
+    ],
+    [
+      "DailyOpeningNoteBanner",
+      "Daily note peek opens must show a top-level fallback banner while the modal is preparing.",
+    ],
+    [
+      'data-testid="daily-opening-note-banner"',
+      "Daily note opening fallback banner must be discoverable in UI smoke checks.",
+    ],
+    [
+      'data-testid="daily-opening-note-toast"',
+      "Daily note opening fallback toast must be discoverable in UI smoke checks.",
+    ],
+    [
+      'data-page-open-fallback="local-first"',
+      "Daily note opening fallback must document that it uses the local-first page handoff.",
+    ],
+    [
+      "cancelOpeningDailyNote",
+      "Daily note opening fallback must let the user cancel a stuck modal wait.",
+    ],
+    [
+      "openOpeningDailyNoteFullPage",
+      "Daily note opening fallback must let the user jump to the full page without waiting on the modal.",
+    ],
   ]) {
     assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }

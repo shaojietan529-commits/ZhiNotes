@@ -1379,6 +1379,12 @@ export default function DailyNotesShell() {
     () => buildDailyCalendarLoadStatusView(calendarLoadStatus),
     [calendarLoadStatus]
   );
+  const openingExistingNote = buildOpeningDailyNoteView(
+    openingNoteId,
+    notesById,
+    peekInitialPage,
+    openingDraft
+  );
 
   const scheduleOptimisticDailyHotCacheWrite = useCallback(
     (note: DailyNote, rootHint: string | null, timeoutMs = 220) => {
@@ -1752,6 +1758,22 @@ export default function DailyNotesShell() {
     setOpeningNoteId((current) => (current === pageId ? null : current));
   }, []);
 
+  const cancelOpeningDailyNote = useCallback((pageId: string) => {
+    setOpeningNoteId((current) => (current === pageId ? null : current));
+    setPeekPageId((current) => (current === pageId ? null : current));
+    setPeekInitialPage((current) => (current?.id === pageId ? null : current));
+  }, []);
+
+  const openOpeningDailyNoteFullPage = useCallback(
+    (pageId: string) => {
+      openDailyNoteFullPageById(pageId);
+      setOpeningNoteId((current) => (current === pageId ? null : current));
+      setPeekPageId((current) => (current === pageId ? null : current));
+      setPeekInitialPage((current) => (current?.id === pageId ? null : current));
+    },
+    [openDailyNoteFullPageById]
+  );
+
   useEffect(() => {
     if (peekPageId) return;
     if (!openingNoteId) return;
@@ -2009,6 +2031,18 @@ export default function DailyNotesShell() {
                   mode={dailyCreateOpenMode}
                   onOpenFull={() =>
                     openDailyNoteFullPageById(openingDraft.pageId)
+                  }
+                />
+              )}
+              {openingExistingNote && (
+                <DailyOpeningNoteBanner
+                  noteTitle={openingExistingNote.title}
+                  dateKey={openingExistingNote.dateKey}
+                  onCancel={() =>
+                    cancelOpeningDailyNote(openingExistingNote.pageId)
+                  }
+                  onOpenFull={() =>
+                    openOpeningDailyNoteFullPage(openingExistingNote.pageId)
                   }
                 />
               )}
@@ -2442,6 +2476,16 @@ export default function DailyNotesShell() {
           dateKey={openingDraft.dateKey}
           mode={dailyCreateOpenMode}
           onOpenFull={() => openDailyNoteFullPageById(openingDraft.pageId)}
+        />
+      )}
+      {openingExistingNote && (
+        <DailyOpeningNoteToast
+          noteTitle={openingExistingNote.title}
+          dateKey={openingExistingNote.dateKey}
+          onCancel={() => cancelOpeningDailyNote(openingExistingNote.pageId)}
+          onOpenFull={() =>
+            openOpeningDailyNoteFullPage(openingExistingNote.pageId)
+          }
         />
       )}
     </div>
@@ -3462,6 +3506,64 @@ function DailyCalendarLoadStatusStrip({
   );
 }
 
+function buildOpeningDailyNoteView(
+  pageId: string | null,
+  notesById: Map<string, DailyNote>,
+  peekInitialPage: DailyNote | null,
+  openingDraft: OpeningDailyDraft | null
+): { pageId: string; title: string; dateKey: string } | null {
+  if (!pageId || openingDraft?.pageId === pageId) return null;
+  const note =
+    notesById.get(pageId) ?? (peekInitialPage?.id === pageId ? peekInitialPage : null);
+  return {
+    pageId,
+    title: note ? displayPageTitle(note.title) : "每日纪要",
+    dateKey: note ? dailyNoteDateKey(note) : "",
+  };
+}
+
+function DailyOpeningNoteBanner({
+  noteTitle,
+  dateKey,
+  onCancel,
+  onOpenFull,
+}: {
+  noteTitle: string;
+  dateKey: string;
+  onCancel: () => void;
+  onOpenFull: () => void;
+}) {
+  return (
+    <div
+      data-testid="daily-opening-note-banner"
+      data-page-open-fallback="local-first"
+      className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-200"
+    >
+      <span className="min-w-0 truncate font-medium">
+        正在打开 {dateKey ? `${dateKey} · ` : ""}
+        {noteTitle}
+      </span>
+      <span className="text-blue-600 dark:text-blue-400">
+        弹窗准备中；本地 handoff 已保留，可直接进完整页面。
+      </span>
+      <button
+        type="button"
+        onClick={onOpenFull}
+        className="rounded border border-blue-300 px-2 py-1 font-medium transition-colors hover:bg-blue-100 dark:border-blue-800 dark:hover:bg-blue-900/50"
+      >
+        打开完整页面
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded px-2 py-1 font-medium text-blue-600 transition-colors hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-900/40"
+      >
+        取消等待
+      </button>
+    </div>
+  );
+}
+
 function DailyOpeningDraftBanner({
   dateKey,
   mode,
@@ -3495,6 +3597,52 @@ function DailyOpeningDraftBanner({
       >
         {actionLabel}
       </button>
+    </div>
+  );
+}
+
+function DailyOpeningNoteToast({
+  noteTitle,
+  dateKey,
+  onCancel,
+  onOpenFull,
+}: {
+  noteTitle: string;
+  dateKey: string;
+  onCancel: () => void;
+  onOpenFull: () => void;
+}) {
+  return (
+    <div className="pointer-events-none fixed bottom-5 right-5 z-40 max-w-sm px-4">
+      <div
+        data-testid="daily-opening-note-toast"
+        data-page-open-fallback="local-first"
+        className="pointer-events-auto rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 shadow-lg dark:border-blue-900/70 dark:bg-blue-950 dark:text-blue-200"
+      >
+        <div className="truncate font-medium">
+          正在打开 {dateKey ? `${dateKey} · ` : ""}
+          {noteTitle}
+        </div>
+        <div className="mt-1 text-blue-600 dark:text-blue-400">
+          弹窗准备中；如果卡住，可以直接打开完整页面。
+        </div>
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={onOpenFull}
+            className="rounded border border-blue-300 px-2 py-1 font-medium transition-colors hover:bg-blue-100 dark:border-blue-800 dark:hover:bg-blue-900/50"
+          >
+            打开完整页面
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded px-2 py-1 font-medium text-blue-600 transition-colors hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-900/40"
+          >
+            取消
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
