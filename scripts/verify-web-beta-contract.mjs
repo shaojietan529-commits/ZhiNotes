@@ -22811,6 +22811,42 @@ function run() {
     [
       files.workspaceStore,
       workspaceStore,
+      "WORKSPACE_ORDERED_MERGE_LIMIT",
+      "Workspace page upserts must cap the small-batch ordered merge path so bulk imports still use the safer full sorted rebuild.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "canPatchPagesWithOrderedMerge",
+      "Workspace page upserts must detect small create/move/delete batches that should not full-sort the page library.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "patchPagesWithOrderedMerge",
+      "Workspace page upserts must merge small ordering-sensitive batches directly into the existing sorted list.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "insertPageInWorkspaceOrder",
+      "Workspace page upserts must insert a new page into the existing sorted list instead of sorting every page.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "comparePagesForWorkspace",
+      "Workspace page upserts must share one comparator between full sort and ordered small-batch insert.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "if (canPatchPagesWithOrderedMerge(pages))",
+      "Workspace page upserts must take the ordered small-batch merge path before falling back to a full sort.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
       "hasWorkspaceOrderChange",
       "Workspace page upserts must fall back to the sorted path when ordering-sensitive fields change.",
     ],

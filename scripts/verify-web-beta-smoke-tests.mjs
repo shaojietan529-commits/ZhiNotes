@@ -13219,6 +13219,12 @@ function run() {
   for (const snippet of [
     "canPatchPagesWithoutResort",
     "patchPagesWithoutResort",
+    "WORKSPACE_ORDERED_MERGE_LIMIT",
+    "canPatchPagesWithOrderedMerge",
+    "patchPagesWithOrderedMerge",
+    "insertPageInWorkspaceOrder",
+    "comparePagesForWorkspace",
+    "if (canPatchPagesWithOrderedMerge(pages))",
     "hasWorkspaceOrderChange",
     "if (pages.length === 0) return {};",
     "pagesById: Map<string, Page>;",

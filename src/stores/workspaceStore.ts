@@ -35,13 +35,16 @@ interface WorkspaceState {
 }
 
 const MAX_MOVE_HISTORY = 20;
+const WORKSPACE_ORDERED_MERGE_LIMIT = 32;
+
+function comparePagesForWorkspace(a: Page, b: Page): number {
+  const updated = (b.updated_at || "").localeCompare(a.updated_at || "");
+  if (updated !== 0) return updated;
+  return a.id.localeCompare(b.id);
+}
 
 function sortPagesForWorkspace(pages: Page[]): Page[] {
-  return [...pages].sort((a, b) => {
-    const updated = (b.updated_at || "").localeCompare(a.updated_at || "");
-    if (updated !== 0) return updated;
-    return a.id.localeCompare(b.id);
-  });
+  return [...pages].sort(comparePagesForWorkspace);
 }
 
 function indexPagesById(pages: Page[]): Map<string, Page> {
@@ -100,6 +103,52 @@ function patchPagesWithoutResort(
   return { pages, pagesById };
 }
 
+function insertPageInWorkspaceOrder(pages: Page[], page: Page): void {
+  let low = 0;
+  let high = pages.length;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (comparePagesForWorkspace(page, pages[mid]) < 0) {
+      high = mid;
+    } else {
+      low = mid + 1;
+    }
+  }
+  pages.splice(low, 0, page);
+}
+
+function canPatchPagesWithOrderedMerge(incomingPages: Page[]): boolean {
+  return incomingPages.length <= WORKSPACE_ORDERED_MERGE_LIMIT;
+}
+
+function patchPagesWithOrderedMerge(
+  currentPages: Page[],
+  incomingPages: Page[],
+  currentById: Map<string, Page>
+): { pages: Page[]; pagesById: Map<string, Page> } {
+  const pagesById = new Map(currentById);
+  const pages = [...currentPages];
+  for (const incoming of incomingPages) {
+    const existing = pagesById.get(incoming.id);
+    const existingIndex = existing
+      ? pages.findIndex((page) => page.id === incoming.id)
+      : -1;
+    if (existingIndex >= 0) {
+      pages.splice(existingIndex, 1);
+    }
+
+    if (incoming.deleted_at) {
+      pagesById.delete(incoming.id);
+      continue;
+    }
+
+    const merged = mergePageSnapshot(incoming, existing);
+    pagesById.set(merged.id, merged);
+    insertPageInWorkspaceOrder(pages, merged);
+  }
+  return { pages, pagesById };
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   pages: [],
   pagesById: new Map(),
@@ -125,6 +174,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const byId = new Map(s.pagesById);
       if (canPatchPagesWithoutResort(pages, byId)) {
         return patchPagesWithoutResort(s.pages, pages, byId);
+      }
+      if (canPatchPagesWithOrderedMerge(pages)) {
+        return patchPagesWithOrderedMerge(s.pages, pages, byId);
       }
       for (const page of pages) {
         if (page.deleted_at) {
