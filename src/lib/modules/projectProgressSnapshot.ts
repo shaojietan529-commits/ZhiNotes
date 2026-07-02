@@ -43,6 +43,19 @@ export interface ProjectProgressBlocker {
   next_action: string;
 }
 
+export interface ProjectStableUseStatus {
+  status: "can-use-now" | "use-with-care" | "blocked";
+  label: string;
+  detail: string;
+  user_can_keep_working: boolean;
+  local_input_priority: "local-first";
+  web_beta_can_launch_now: false;
+  cloud_sync_can_start_now: false;
+  protected_boundaries: string[];
+  stable_entrypoints: string[];
+  next_safe_action: string;
+}
+
 export interface ProjectProgressSnapshot {
   format: "zhinote-project-progress-snapshot";
   format_version: 1;
@@ -81,6 +94,7 @@ export interface ProjectProgressSnapshot {
   };
   current_stage: string;
   current_conclusion: string;
+  stable_use_status: ProjectStableUseStatus;
   completed_foundation: string[];
   in_progress_hardening: string[];
   owner_gated_work: string[];
@@ -151,6 +165,7 @@ export function buildProjectProgressSnapshot(
     },
     current_stage: getCurrentStage(phases, blockers.length),
     current_conclusion: getCurrentConclusion(input, blockers.length),
+    stable_use_status: buildStableUseStatus(input, blockers.length),
     completed_foundation: buildCompletedFoundation(input.health),
     in_progress_hardening: buildInProgressHardening(input.health),
     owner_gated_work: buildOwnerGatedWork(input.roadmap),
@@ -171,6 +186,65 @@ export function buildProjectProgressSnapshot(
       "npm run lint",
       "npm run build",
     ],
+  };
+}
+
+function buildStableUseStatus(
+  input: ProjectProgressSnapshotInput,
+  blockerCount: number
+): ProjectStableUseStatus {
+  const hasStableCore =
+    input.manifest.summary.active >= 2 && input.health.summary.ready >= 2;
+  const status =
+    hasStableCore && input.manifest.summary.routable > 0
+      ? "can-use-now"
+      : blockerCount > 0
+        ? "use-with-care"
+        : "blocked";
+  const stableEntryPoints = [
+    "/daily",
+    "/schedule",
+    "/modules",
+    "/modules/sync",
+    "/modules/notes",
+    "/modules/databases",
+  ].filter((route) =>
+    route === "/daily" ||
+    route === "/schedule" ||
+    route === "/modules" ||
+    route === "/modules/sync" ||
+    input.manifest.modules.some((module) => module.route === route)
+  );
+
+  return {
+    status,
+    label:
+      status === "can-use-now"
+        ? "当前版本可继续稳定使用"
+        : status === "use-with-care"
+          ? "当前版本可用，但上线能力仍需确认"
+          : "当前版本不建议作为主工作区",
+    detail:
+      status === "can-use-now"
+        ? "本地输入优先保存；Web Beta、云同步、AI 和高风险写回仍保持 owner-gated，不会自动启用。"
+        : status === "use-with-care"
+          ? "本地模块可以继续试用，但请先处理 owner gate、权限、云同步和恢复证明，再作为正式 Web 版本使用。"
+          : "缺少稳定核心模块或可打开入口前，不应承载真实投研工作。",
+    user_can_keep_working: status !== "blocked",
+    local_input_priority: "local-first",
+    web_beta_can_launch_now: false,
+    cloud_sync_can_start_now: false,
+    protected_boundaries: [
+      "本地输入先保存到本地缓存和 pending queue",
+      "Web Beta 发布需要 owner review",
+      "云同步启用需要明确确认",
+      "AI、外部资产、批量恢复和写回默认禁用",
+    ],
+    stable_entrypoints: stableEntryPoints,
+    next_safe_action:
+      status === "can-use-now"
+        ? "继续做小步本地改进；每次改动后运行 Private Alpha 或 Web Beta 验证、commit 并 push。"
+        : "先修复 owner gate 和阻塞项，再扩大使用范围。",
   };
 }
 

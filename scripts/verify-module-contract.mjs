@@ -454,6 +454,18 @@ function run() {
     "enables_ai: false",
     "current_stage",
     "current_conclusion",
+    "stable_use_status",
+    "ProjectStableUseStatus",
+    "user_can_keep_working",
+    "local_input_priority",
+    "web_beta_can_launch_now: false",
+    "cloud_sync_can_start_now: false",
+    "protected_boundaries",
+    "stable_entrypoints",
+    "buildStableUseStatus",
+    "当前版本可继续稳定使用",
+    "本地输入优先保存",
+    "Web Beta、云同步、AI 和高风险写回仍保持 owner-gated",
     "completed_foundation",
     "in_progress_hardening",
     "owner_gated_work",
@@ -687,6 +699,25 @@ function run() {
     "新模块接入清单",
     "Module center must render the onboarding panel."
   );
+  for (const snippet of [
+    "ProjectStableUsePanel",
+    'data-testid="project-stable-use-status"',
+    "data-stable-use-status={stableUse.status}",
+    "data-user-can-keep-working={stableUse.user_can_keep_working}",
+    "data-web-beta-can-launch-now={stableUse.web_beta_can_launch_now}",
+    "data-cloud-sync-can-start-now={stableUse.cloud_sync_can_start_now}",
+    "稳定使用状态",
+    "输入策略：本地优先",
+    "Web Beta：未批准上线",
+    "云同步：需确认",
+  ]) {
+    assertIncludes(
+      files.dashboard,
+      dashboard,
+      snippet,
+      "Module center must show a stable-use status panel so development state is visible without blocking use."
+    );
+  }
   assertIncludes(
     files.dashboard,
     dashboard,

@@ -933,6 +933,8 @@ function ProjectProgressSnapshotPanel({
         </div>
       </div>
 
+      <ProjectStableUsePanel snapshot={snapshot} />
+
       <div className="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-6">
         <ProjectProgressMetric
           label="就绪目标"
@@ -1067,6 +1069,80 @@ function ProjectProgressSnapshotPanel({
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+function ProjectStableUsePanel({
+  snapshot,
+}: {
+  snapshot: ProjectProgressSnapshot;
+}) {
+  const stableUse = snapshot.stable_use_status;
+  const toneClass =
+    stableUse.status === "can-use-now"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100"
+      : stableUse.status === "use-with-care"
+        ? "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
+        : "border-red-200 bg-red-50 text-red-950 dark:border-red-900 dark:bg-red-950 dark:text-red-100";
+
+  return (
+    <section
+      data-testid="project-stable-use-status"
+      data-stable-use-status={stableUse.status}
+      data-user-can-keep-working={stableUse.user_can_keep_working}
+      data-web-beta-can-launch-now={stableUse.web_beta_can_launch_now}
+      data-cloud-sync-can-start-now={stableUse.cloud_sync_can_start_now}
+      className={`mt-4 rounded-lg border px-4 py-3 ${toneClass}`}
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider opacity-70">
+            稳定使用状态
+          </p>
+          <h3 className="mt-1 text-base font-semibold">{stableUse.label}</h3>
+          <p className="mt-2 max-w-4xl text-sm leading-6 opacity-80">
+            {stableUse.detail}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-[11px]">
+          <span className="rounded-md bg-white/70 px-2 py-1 dark:bg-black/20">
+            输入策略：本地优先
+          </span>
+          <span className="rounded-md bg-white/70 px-2 py-1 dark:bg-black/20">
+            Web Beta：未批准上线
+          </span>
+          <span className="rounded-md bg-white/70 px-2 py-1 dark:bg-black/20">
+            云同步：需确认
+          </span>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr]">
+        <div className="rounded-md bg-white/60 px-3 py-2 text-xs dark:bg-black/20">
+          <div className="font-semibold">当前可用入口</div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {stableUse.stable_entrypoints.map((entrypoint) => (
+              <span
+                key={entrypoint}
+                className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300"
+              >
+                {entrypoint}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-md bg-white/60 px-3 py-2 text-xs dark:bg-black/20">
+          <div className="font-semibold">保护边界</div>
+          <ul className="mt-2 space-y-1 leading-5 opacity-80">
+            {stableUse.protected_boundaries.slice(0, 4).map((boundary) => (
+              <li key={boundary}>{boundary}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <p className="mt-3 text-xs leading-5 opacity-80">
+        下一步：{stableUse.next_safe_action}
+      </p>
     </section>
   );
 }
