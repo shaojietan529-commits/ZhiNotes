@@ -374,6 +374,20 @@ function assertExcludes(sourceLabel, source, snippet, message) {
   }
 }
 
+function assertOrderedSnippets(sourceLabel, source, snippets, message) {
+  let cursor = 0;
+  for (const snippet of snippets) {
+    const index = source.indexOf(snippet, cursor);
+    if (index < 0) {
+      failures.push(
+        `${sourceLabel} missing ordered snippet ${snippet}: ${message}`
+      );
+      return;
+    }
+    cursor = index + snippet.length;
+  }
+}
+
 function assertFileExists(relativePath, message) {
   if (!existsSync(path.join(root, relativePath))) {
     failures.push(`${message}: ${relativePath}`);
@@ -6184,6 +6198,35 @@ function run() {
       "Meeting schedule must read browser hot cache before the first dbReady-gated effect."
     );
   }
+  assertOrderedSnippets(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    [
+      "upsertMeetingInView(optimisticPage);",
+      "upsertPages([optimisticPage]);",
+      "setOpeningDraft({",
+      "setOpeningMeetingId(optimisticPage.id);",
+      "rememberPendingPageDraft(optimisticPage);",
+      "rememberPageRouteHandoff(optimisticPage, \"meeting-create\");",
+      "warmMeetingPeekOpen();",
+      "setPeekInitialPage(optimisticPage);",
+      "setPeekPageId(optimisticPage.id);",
+      "recordLocalPerformanceSnapshot({",
+      "writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);",
+    ],
+    "Meeting + creation must show the local peek/opening shell before hot-cache and cloud queue background work."
+  );
+  assertOrderedSnippets(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    [
+      "page = prepareMeetingPageOpen(page, \"meeting-create\");",
+      "setPeekInitialPage(page);",
+      "setOpeningMeetingId(page.id);",
+      "setPeekPageId(page.id);",
+    ],
+    "Meeting manual/import created pages must seed local metadata before showing the peek target."
+  );
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
@@ -8765,6 +8808,44 @@ function run() {
       "Daily + creation must seed local state first, default to peek opening, and keep explicit full-page mode available."
     );
   }
+  assertOrderedSnippets(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    [
+      "warmDailyCreateOpenPath();",
+      "setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+      "rememberPendingPageDraft(optimisticNote);",
+      "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
+      "setPeekInitialPage(optimisticNote);",
+      "setOpeningNoteId(optimisticNote.id);",
+      "setPeekPageId(optimisticNote.id);",
+      "recordLocalPerformanceSnapshot({",
+      "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+      "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
+    ],
+    "Daily + creation must show the local peek/opening shell before hot-cache and local-index background work."
+  );
+  assertOrderedSnippets(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    [
+      "rememberPendingPageDraft(optimisticNote);",
+      "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
+      'openPage(optimisticNote, { source: "daily-create" });',
+    ],
+    "Daily full-page creation must seed local draft and route handoff before navigating."
+  );
+  assertOrderedSnippets(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    [
+      'primeDailyNoteOpen(note, "daily-open");',
+      "setPeekInitialPage(toDailyNoteMetadataSeed(seededNote, note));",
+      "setOpeningNoteId(note.id);",
+      "setPeekPageId(note.id);",
+    ],
+    "Daily existing-note opens must seed metadata before showing the peek target."
+  );
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
