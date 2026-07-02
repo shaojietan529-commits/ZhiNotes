@@ -1207,7 +1207,10 @@ export default function MeetingScheduleShell() {
         });
       }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
       cloudRecheckTimer = window.setTimeout(() => {
-        void load({ includeCloud: true });
+        void load({
+          includeCloud: true,
+          preserveVisibleMeetings: true,
+        });
       }, MEETING_CLOUD_METADATA_RECHECK_DELAY_MS);
     };
 

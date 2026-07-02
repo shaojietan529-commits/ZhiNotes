@@ -1204,7 +1204,9 @@ check(
       meetingScheduleShell.includes("resolvedRootId,\n            finalPage,\n            upsertPages") ||
       meetingScheduleShell.includes("resolvedRootId,\n              finalPage,\n              upsertPages")) &&
     meetingScheduleShell.includes("observedPageRevisionRef") &&
-    meetingScheduleShell.includes("void load({ includeCloud: true })") &&
+    meetingScheduleShell.includes(
+      "void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n        });"
+    ) &&
     meetingScheduleShell.includes("type MeetingCalendarLoadOptions") &&
     meetingScheduleShell.includes(
       "const interruptCloud = opts?.interruptCloud ?? includeCloud"

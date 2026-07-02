@@ -1161,7 +1161,10 @@ export default function DailyNotesShell() {
         });
       }, DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS);
       cloudRecheckTimer = window.setTimeout(() => {
-        void load({ includeCloud: true });
+        void load({
+          includeCloud: true,
+          preserveVisibleNotes: true,
+        });
       }, DAILY_CLOUD_METADATA_RECHECK_DELAY_MS);
     };
 

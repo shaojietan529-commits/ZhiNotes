@@ -4960,8 +4960,8 @@ function run() {
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({ includeCloud: true });",
-    "Daily calendar delayed recheck must run cloud-enabled metadata loading, not only local hot-cache refresh."
+    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });",
+    "Daily calendar delayed recheck must run cloud-enabled metadata loading while preserving already visible local notes."
   );
   for (const [snippet, message] of [
     [
@@ -5036,8 +5036,8 @@ function run() {
   assertSourceIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({ includeCloud: true });",
-    "Meeting calendar delayed recheck must run cloud-enabled metadata loading, not only local hot-cache refresh."
+    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n        });",
+    "Meeting calendar delayed recheck must run cloud-enabled metadata loading while preserving already visible local meetings."
   );
   for (const [snippet, message] of [
     [
