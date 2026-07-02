@@ -2649,8 +2649,19 @@ check(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
     ) &&
     sidebar.includes('session.status === "ok"') &&
-    sidebar.includes("currentLabel === \"账号\" ? getLastKnownAccountLabel() : currentLabel"),
-  "Sidebar 应通过共享账号状态 helper 读取当前账号资料，并在接口临时失败或跨标签页缓存变化时保留/刷新最近用户名"
+    sidebar.includes("const lastKnownLabel = getLastKnownAccountLabel()") &&
+    sidebar.includes(
+      'currentLabel === "账号" ? lastKnownLabel : currentLabel'
+    ) &&
+    sidebar.includes("accountSessionFallback") &&
+    sidebar.includes("getAccountSessionFallbackReason") &&
+    sidebar.includes("session.stale") &&
+    sidebar.includes("session.staleReason") &&
+    sidebar.includes('data-testid="account-session-stale-fallback"') &&
+    sidebar.includes('data-account-session-fallback="stale"') &&
+    sidebar.includes("账号云端确认中，本地可继续") &&
+    sidebar.includes("本地输入可继续保存，同步会稍后重试"),
+  "Sidebar 应通过共享账号状态 helper 读取当前账号资料，并在接口临时失败或跨标签页缓存变化时保留/刷新最近用户名和 stale fallback"
 );
 check(
   sidebar.includes("accountLabel"),

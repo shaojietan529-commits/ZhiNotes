@@ -215,6 +215,17 @@ function getLastKnownAccountLabel() {
   return getLastAuthenticatedAccount()?.display_name || "账号";
 }
 
+function getAccountSessionFallbackReason(
+  status?: string,
+  staleReason?: string
+) {
+  if (staleReason) return staleReason;
+  if (status === "unconfigured") {
+    return "账号系统暂时不可用，已显示上次登录用户名";
+  }
+  return "账号云端暂不可确认，已显示上次登录用户名";
+}
+
 function normalizePrimaryIcon(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
   return value.trim().slice(0, 8) || fallback;
@@ -438,6 +449,10 @@ export default function Sidebar() {
   const [zipExportRunning, setZipExportRunning] = useState(false);
   const [modulesOpen, setModulesOpen] = useState(false);
   const [accountLabel, setAccountLabel] = useState(getLastKnownAccountLabel);
+  const [accountSessionFallback, setAccountSessionFallback] = useState<{
+    active: boolean;
+    reason: string;
+  }>({ active: false, reason: "" });
   const [primaryItems, setPrimaryItems] = useState(DEFAULT_PRIMARY_ITEMS);
   const [draggedPrimaryId, setDraggedPrimaryId] = useState<string | null>(null);
   const [primaryCustomizations, setPrimaryCustomizations] = useState<
@@ -524,6 +539,9 @@ export default function Sidebar() {
     "；"
   )}`;
   const accountSyncButtonTitle = `${accountSyncTitle}\n点击：${accountSyncActionLabel}`;
+  const accountSessionFallbackTitle = accountSessionFallback.active
+    ? `${accountSessionFallback.reason}；本地输入可继续保存，同步会稍后重试。`
+    : "";
   const handleAccountSyncButtonClick = useCallback(() => {
     if (accountSyncNeedsSyncCenter) {
       openModuleRoute(accountSyncCenterTarget);
@@ -542,19 +560,41 @@ export default function Sidebar() {
       const session = await fetchAccountSession();
       if (session.authenticated && session.account) {
         setAccountLabel(session.account.display_name || "账号");
+        setAccountSessionFallback(
+          session.stale
+            ? {
+                active: true,
+                reason: getAccountSessionFallbackReason(
+                  session.status,
+                  session.staleReason
+                ),
+              }
+            : { active: false, reason: "" }
+        );
         return;
       }
       if (session.status === "ok") {
         setAccountLabel("账号");
+        setAccountSessionFallback({ active: false, reason: "" });
         return;
       }
+      const lastKnownLabel = getLastKnownAccountLabel();
       setAccountLabel((currentLabel) =>
-        currentLabel === "账号" ? getLastKnownAccountLabel() : currentLabel
+        currentLabel === "账号" ? lastKnownLabel : currentLabel
       );
+      setAccountSessionFallback({
+        active: lastKnownLabel !== "账号",
+        reason: getAccountSessionFallbackReason(session.status),
+      });
     } catch {
+      const lastKnownLabel = getLastKnownAccountLabel();
       setAccountLabel((currentLabel) =>
-        currentLabel === "账号" ? getLastKnownAccountLabel() : currentLabel
+        currentLabel === "账号" ? lastKnownLabel : currentLabel
       );
+      setAccountSessionFallback({
+        active: lastKnownLabel !== "账号",
+        reason: getAccountSessionFallbackReason("error"),
+      });
     }
   }, []);
 
@@ -1188,6 +1228,19 @@ export default function Sidebar() {
             title={accountSyncButtonTitle}
           >
             {accountSyncInlineSummary}
+          </p>
+        )}
+        {accountSessionFallback.active && (
+          <p
+            data-testid="account-session-stale-fallback"
+            data-account-session-fallback="stale"
+            data-account-session-fallback-reason={
+              accountSessionFallback.reason
+            }
+            className="mt-0.5 truncate px-3 text-[10px] leading-4 text-amber-600 dark:text-amber-300"
+            title={accountSessionFallbackTitle}
+          >
+            账号云端确认中，本地可继续
           </p>
         )}
       </div>
