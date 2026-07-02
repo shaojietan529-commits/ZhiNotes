@@ -66,6 +66,56 @@ function mergePageSnapshot(incoming: Page, existing?: Page): Page {
   };
 }
 
+function pageBinaryEqual(a: Uint8Array | null, b: Uint8Array | null): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) return false;
+  }
+  return true;
+}
+
+function pageSnapshotEqual(a: Page, b: Page): boolean {
+  return (
+    a.id === b.id &&
+    a.owner_id === b.owner_id &&
+    a.parent_id === b.parent_id &&
+    a.database_id === b.database_id &&
+    a.title === b.title &&
+    a.icon === b.icon &&
+    a.cover_url === b.cover_url &&
+    pageBinaryEqual(a.content_yjs, b.content_yjs) &&
+    a.content_text === b.content_text &&
+    a.properties === b.properties &&
+    a.position === b.position &&
+    a.depth === b.depth &&
+    a.created_at === b.created_at &&
+    a.updated_at === b.updated_at &&
+    a.deleted_at === b.deleted_at &&
+    a.sync_version === b.sync_version
+  );
+}
+
+function pageListSnapshotEqual(a: Page[], b: Page[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    if (!pageSnapshotEqual(a[index], b[index])) return false;
+  }
+  return true;
+}
+
+function incomingPagesAreNoop(
+  incomingPages: Page[],
+  currentById: Map<string, Page>
+): boolean {
+  return incomingPages.every((incoming) => {
+    const existing = currentById.get(incoming.id);
+    if (incoming.deleted_at) return !existing;
+    if (!existing) return false;
+    return pageSnapshotEqual(mergePageSnapshot(incoming, existing), existing);
+  });
+}
+
 function hasWorkspaceOrderChange(incoming: Page, existing?: Page): boolean {
   if (!existing || incoming.deleted_at) return true;
   return (
@@ -160,9 +210,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setPages: (pages) =>
     set((s) => {
       const previous = s.pagesById;
+      if (
+        pages.length === s.pages.length &&
+        pages.every((page, index) =>
+          pageSnapshotEqual(
+            mergePageSnapshot(page, previous.get(page.id)),
+            s.pages[index]
+          )
+        )
+      ) {
+        return {};
+      }
       const nextPages = sortPagesForWorkspace(
         pages.map((page) => mergePageSnapshot(page, previous.get(page.id)))
       );
+      if (pageListSnapshotEqual(nextPages, s.pages)) return {};
       return {
         pages: nextPages,
         pagesById: indexPagesById(nextPages),
@@ -172,6 +234,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set((s) => {
       if (pages.length === 0) return {};
       const byId = new Map(s.pagesById);
+      if (incomingPagesAreNoop(pages, byId)) return {};
       if (canPatchPagesWithoutResort(pages, byId)) {
         return patchPagesWithoutResort(s.pages, pages, byId);
       }

@@ -897,10 +897,13 @@ check(
     workspaceStore.includes("if (canPatchPagesWithOrderedMerge(pages))") &&
     workspaceStore.includes("hasWorkspaceOrderChange") &&
     workspaceStore.includes("if (pages.length === 0) return {};") &&
+    workspaceStore.includes("incomingPagesAreNoop") &&
+    workspaceStore.includes("if (incomingPagesAreNoop(pages, byId)) return {};") &&
+    workspaceStore.includes("pageListSnapshotEqual(nextPages, s.pages)") &&
     workspaceStore.includes("pagesById: Map<string, Page>;") &&
     workspaceStore.includes("pagesById: indexPagesById(nextPages)") &&
     workspaceStore.includes("getPageById: (id) => get().pagesById.get(id)"),
-  "Workspace store 必须为正文补齐/云端字段回填保留 no-resort upsert 快路径，为单页新增/移动保留小批量有序合并路径，并维护全局 page id 索引，避免大批量导入后每次小更新/打开都扫描全量页面"
+  "Workspace store 必须为正文补齐/云端字段回填保留 no-resort upsert 快路径，为单页新增/移动保留小批量有序合并和 unchanged snapshot no-op 路径，并维护全局 page id 索引，避免大批量导入后每次小更新/打开都扫描或重发全量页面"
 );
 check(
   usePageHook.includes("useWorkspaceStore.getState().getPageById(pageId)") &&

@@ -23145,6 +23145,24 @@ function run() {
     [
       files.workspaceStore,
       workspaceStore,
+      "incomingPagesAreNoop",
+      "Workspace page upserts must ignore unchanged metadata/content snapshots instead of notifying the entire sidebar tree.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "if (incomingPagesAreNoop(pages, byId)) return {};",
+      "Workspace page upserts must return a no-op for unchanged batches before any sort/merge path.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
+      "pageListSnapshotEqual(nextPages, s.pages)",
+      "Workspace full snapshot refreshes must skip publishing unchanged sorted page lists after large imports.",
+    ],
+    [
+      files.workspaceStore,
+      workspaceStore,
       "pagesById: Map<string, Page>;",
       "Workspace page store must expose a reusable page id index for local-first opens.",
     ],
