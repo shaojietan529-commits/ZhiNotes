@@ -6438,6 +6438,18 @@ function run() {
     ],
     "Daily existing-note opens must seed metadata before showing the peek target."
   );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "const openOpeningDailyDraftFullPage = useCallback",
+    "Daily opening draft fallback must use one local-first full-page escape path."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "current?.pageId === pageId ? null : current",
+    "Daily opening feedback must clear from the ready page id, not from background persistence timing."
+  );
   for (const [snippet, message] of [
     [
       "quickCreateMeetingForDate",
@@ -6696,6 +6708,14 @@ function run() {
       "Meeting calendar must show an immediate opening chip after + is clicked.",
     ],
     [
+      "const openOpeningMeetingDraftFullPage = useCallback",
+      "Meeting opening draft fallback must use one local-first full-page escape path.",
+    ],
+    [
+      "current?.pageId === pageId ? null : current",
+      "Meeting opening feedback must clear from the ready page id, not from background persistence timing.",
+    ],
+    [
       'data-testid="meeting-opening-draft-banner"',
       "Meeting creation and import must show a top-level opening banner while the peek modal is preparing.",
     ],
@@ -6865,6 +6885,15 @@ function run() {
       meetingScheduleShell,
       snippet,
       message
+    );
+  }
+  if (
+    meetingScheduleShell.includes(
+      "} finally {\n            setOpeningDraft((current) =>\n              current?.pageId === optimisticPage.id ? null : current"
+    )
+  ) {
+    failures.push(
+      `${files.meetingScheduleShell} must not clear opening draft feedback from background persistence timing; wait for peek ready or the full-page fallback.`
     );
   }
   assertSourceExcludes(

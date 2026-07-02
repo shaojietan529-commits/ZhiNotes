@@ -1696,11 +1696,6 @@ export default function DailyNotesShell() {
               error instanceof Error ? error.message : "账号云端保存失败";
             setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
           } finally {
-            if (dailyCreateOpenMode === "peek") {
-              setOpeningDraft((current) =>
-                current?.pageId === optimisticNote.id ? null : current
-              );
-            }
             releaseCreatingDate();
           }
         })();
@@ -1817,6 +1812,9 @@ export default function DailyNotesShell() {
 
   const handlePeekReady = useCallback((pageId: string) => {
     setOpeningNoteId((current) => (current === pageId ? null : current));
+    setOpeningDraft((current) =>
+      current?.pageId === pageId ? null : current
+    );
   }, []);
 
   const cancelOpeningDailyNote = useCallback((pageId: string) => {
@@ -1828,6 +1826,22 @@ export default function DailyNotesShell() {
   const openOpeningDailyNoteFullPage = useCallback(
     (pageId: string) => {
       openDailyNoteFullPageById(pageId);
+      setOpeningNoteId((current) => (current === pageId ? null : current));
+      setOpeningDraft((current) =>
+        current?.pageId === pageId ? null : current
+      );
+      setPeekPageId((current) => (current === pageId ? null : current));
+      setPeekInitialPage((current) => (current?.id === pageId ? null : current));
+    },
+    [openDailyNoteFullPageById]
+  );
+
+  const openOpeningDailyDraftFullPage = useCallback(
+    (pageId: string) => {
+      openDailyNoteFullPageById(pageId);
+      setOpeningDraft((current) =>
+        current?.pageId === pageId ? null : current
+      );
       setOpeningNoteId((current) => (current === pageId ? null : current));
       setPeekPageId((current) => (current === pageId ? null : current));
       setPeekInitialPage((current) => (current?.id === pageId ? null : current));
@@ -2096,7 +2110,7 @@ export default function DailyNotesShell() {
                   dateKey={openingDraft.dateKey}
                   mode={dailyCreateOpenMode}
                   onOpenFull={() =>
-                    openDailyNoteFullPageById(openingDraft.pageId)
+                    openOpeningDailyDraftFullPage(openingDraft.pageId)
                   }
                 />
               )}
@@ -2347,7 +2361,7 @@ export default function DailyNotesShell() {
                         data-testid={`daily-opening-note-${key}`}
                         onClick={() => {
                           if (openingDraft) {
-                            openDailyNoteFullPageById(openingDraft.pageId);
+                            openOpeningDailyDraftFullPage(openingDraft.pageId);
                           }
                         }}
                         className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-left text-xs leading-4 text-amber-700 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
@@ -2556,6 +2570,9 @@ export default function DailyNotesShell() {
           }}
           onOpenFull={(id) => {
             setOpeningNoteId(null);
+            setOpeningDraft((current) =>
+              current?.pageId === id ? null : current
+            );
             setPeekPageId(null);
             setPeekInitialPage(null);
             openDailyNoteFullPageById(id);
@@ -2574,7 +2591,7 @@ export default function DailyNotesShell() {
         <DailyOpeningDraftToast
           dateKey={openingDraft.dateKey}
           mode={dailyCreateOpenMode}
-          onOpenFull={() => openDailyNoteFullPageById(openingDraft.pageId)}
+          onOpenFull={() => openOpeningDailyDraftFullPage(openingDraft.pageId)}
         />
       )}
       {openingExistingNote && (

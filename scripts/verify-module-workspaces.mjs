@@ -1094,6 +1094,9 @@ for (const token of [
   "data-testid={`daily-opening-note-${key}`}",
   'data-testid="daily-opening-draft-banner"',
   'data-testid="daily-opening-draft-toast"',
+  "const openOpeningDailyDraftFullPage = useCallback",
+  "current?.pageId === pageId ? null : current",
+  "onReady={handlePeekReady}",
   "没有跳转？打开页面",
   "hydrateDailyDateKey(key);\n                    warmPageRoute();",
   "const warmDailyPeekOpen = useCallback",
@@ -1433,8 +1436,11 @@ check(
     shells.schedule.includes("data-testid={`meeting-opening-page-${key}`}") &&
     shells.schedule.includes('data-testid="meeting-opening-draft-banner"') &&
     shells.schedule.includes('data-testid="meeting-opening-draft-toast"') &&
+    shells.schedule.includes("const openOpeningMeetingDraftFullPage = useCallback") &&
+    shells.schedule.includes("current?.pageId === pageId ? null : current") &&
     shells.schedule.includes("openingMeetingId === entry.page.id") &&
     shells.schedule.includes("onReady={handlePeekReady}") &&
+    !shells.schedule.includes("} finally {\n            setOpeningDraft((current) =>\n              current?.pageId === optimisticPage.id ? null : current") &&
     shells.schedule.includes("upsertMeetingPageInList(") &&
     shells.schedule.includes("mergeMeetingDateCountsForLocalUpsert(") &&
     shells.schedule.includes("setMeetingCountByDate((current) =>") &&

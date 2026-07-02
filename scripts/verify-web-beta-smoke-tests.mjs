@@ -9349,6 +9349,8 @@ function run() {
     "setPeekPageId(optimisticNote.id);",
     "const localShellRequestedMs =\n        getLocalPerformanceNow() - createStartedAt;",
     "status: \"daily-create-local-shell-requested\"",
+    "const openOpeningDailyDraftFullPage = useCallback",
+    "current?.pageId === pageId ? null : current",
     "每日纪要已弹出",
   ]) {
     assertIncludes(
@@ -9679,6 +9681,14 @@ function run() {
       "Meeting calendar must show an immediate opening chip after + is clicked.",
     ],
     [
+      "const openOpeningMeetingDraftFullPage = useCallback",
+      "Meeting opening draft fallback must use one local-first full-page escape path.",
+    ],
+    [
+      "current?.pageId === pageId ? null : current",
+      "Meeting opening feedback must clear from the ready page id, not from background persistence timing.",
+    ],
+    [
       'data-testid="meeting-opening-draft-banner"',
       "Meeting creation and import must show a top-level opening banner while the peek modal is preparing.",
     ],
@@ -9700,6 +9710,15 @@ function run() {
       meetingScheduleShell,
       snippet,
       message
+    );
+  }
+  if (
+    meetingScheduleShell.includes(
+      "} finally {\n            setOpeningDraft((current) =>\n              current?.pageId === optimisticPage.id ? null : current"
+    )
+  ) {
+    failures.push(
+      `${files.meetingScheduleShell} must not clear opening draft feedback from background persistence timing; wait for peek ready or the full-page fallback.`
     );
   }
   assertIncludes(

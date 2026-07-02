@@ -1976,10 +1976,6 @@ export default function MeetingScheduleShell() {
             const { pageToRemoteRecord, queueCloudPagePush } =
               await loadPageAccountSyncModule();
             queueCloudPagePush(pageToRemoteRecord(finalPage));
-          } finally {
-            setOpeningDraft((current) =>
-              current?.pageId === optimisticPage.id ? null : current
-            );
           }
         })();
       }, 420);
@@ -2050,6 +2046,9 @@ export default function MeetingScheduleShell() {
 
   const handlePeekReady = useCallback((pageId: string) => {
     setOpeningMeetingId((current) => (current === pageId ? null : current));
+    setOpeningDraft((current) =>
+      current?.pageId === pageId ? null : current
+    );
   }, []);
 
   useEffect(() => {
@@ -2500,6 +2499,19 @@ export default function MeetingScheduleShell() {
     [entriesById, openMeetingFullPage, openPage, selectedMeeting]
   );
 
+  const openOpeningMeetingDraftFullPage = useCallback(
+    (pageId: string) => {
+      openMeetingFullPageById(pageId);
+      setOpeningDraft((current) =>
+        current?.pageId === pageId ? null : current
+      );
+      setOpeningMeetingId((current) => (current === pageId ? null : current));
+      setPeekPageId((current) => (current === pageId ? null : current));
+      setPeekInitialPage((current) => (current?.id === pageId ? null : current));
+    },
+    [openMeetingFullPageById]
+  );
+
   const quickCreateMeetingForDate = useCallback(
     (dateKey: string) => {
       if (creatingMeetingDateKeyRef.current !== null) return;
@@ -2598,7 +2610,7 @@ export default function MeetingScheduleShell() {
                 <MeetingOpeningDraftBanner
                   dateKey={openingDraft.dateKey}
                   onOpenFull={() =>
-                    openMeetingFullPageById(openingDraft.pageId)
+                    openOpeningMeetingDraftFullPage(openingDraft.pageId)
                   }
                 />
               )}
@@ -3139,7 +3151,7 @@ export default function MeetingScheduleShell() {
                         data-testid={`meeting-opening-page-${key}`}
                         onClick={() => {
                           if (openingDraft) {
-                            openMeetingFullPageById(openingDraft.pageId);
+                            openOpeningMeetingDraftFullPage(openingDraft.pageId);
                           }
                         }}
                         className="flex items-center gap-1.5 rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-left text-xs text-amber-700 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
@@ -3324,6 +3336,9 @@ export default function MeetingScheduleShell() {
             setPeekInitialPage(null);
           }}
           onOpenFull={(id) => {
+            setOpeningDraft((current) =>
+              current?.pageId === id ? null : current
+            );
             setPeekPageId(null);
             setPeekInitialPage(null);
             openMeetingFullPageById(id);
@@ -3341,7 +3356,9 @@ export default function MeetingScheduleShell() {
       {openingDraft && (
         <MeetingOpeningDraftToast
           dateKey={openingDraft.dateKey}
-          onOpenFull={() => openMeetingFullPageById(openingDraft.pageId)}
+          onOpenFull={() =>
+            openOpeningMeetingDraftFullPage(openingDraft.pageId)
+          }
         />
       )}
     </div>
