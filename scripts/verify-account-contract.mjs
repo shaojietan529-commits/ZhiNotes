@@ -93,6 +93,9 @@ const sidebarShell = read("src/components/sidebar/Sidebar.tsx");
 const accountCloudSyncCoordinator = read(
   "src/hooks/useAccountCloudSyncCoordinator.ts"
 );
+const accountLocalUseReadiness = read(
+  "src/lib/sync/accountLocalUseReadiness.ts"
+);
 const settingsCloudSyncStatusHook = read(
   "src/hooks/useSettingsCloudSyncStatus.ts"
 );
@@ -2401,6 +2404,28 @@ check(
     ),
   "同步页应提供缓存重建安全入口和 metadata-only dry-run 预检收据：先展示 pending/manifest 风险，再跳转账号页确认重建，不能在同步页直接清缓存"
 );
+check(
+  syncDashboardShell.includes("SyncLocalUseReadinessPanel") &&
+    syncDashboardShell.includes("buildAccountLocalUseReadiness") &&
+    syncDashboardShell.includes('id="sync-local-use-readiness-panel"') &&
+    syncDashboardShell.includes('data-testid="sync-local-use-readiness-panel"') &&
+    syncDashboardShell.includes("data-local-use-status={readiness.status}") &&
+    syncDashboardShell.includes(
+      "data-local-input-can-continue={String(readiness.localInputCanContinue)}"
+    ) &&
+    syncDashboardShell.includes(
+      "data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}"
+    ) &&
+    syncDashboardShell.includes(
+      "data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}"
+    ) &&
+    syncDashboardShell.includes("本地可继续使用") &&
+    syncDashboardShell.includes("云端交接") &&
+    syncDashboardShell.includes("缓存重建") &&
+    syncDashboardShell.includes("补传全部本地输入") &&
+    syncDashboardShell.includes("不读取页面正文、数据库行值、文件 bytes"),
+  "同步中心应在上传安全总览前展示本地可继续使用、云端交接和缓存重建阻断状态，并保持 metadata-only 边界"
+);
 
 const sidebar = read("src/components/sidebar/Sidebar.tsx");
 check(
@@ -2422,23 +2447,29 @@ check(
 	    accountCloudSyncCoordinator.includes("retryableFailedTotal") &&
 	    accountCloudSyncCoordinator.includes("enabledDomainCount") &&
     accountCloudSyncCoordinator.includes("buildAccountLocalUseReadiness") &&
-    accountCloudSyncCoordinator.includes("localInputCanContinue: true") &&
-    accountCloudSyncCoordinator.includes("cloudHandoffReady") &&
-    accountCloudSyncCoordinator.includes("cacheRebuildBlocked") &&
-    accountCloudSyncCoordinator.includes("reads_page_body_text: false") &&
-    accountCloudSyncCoordinator.includes("reads_database_row_values: false") &&
-    accountCloudSyncCoordinator.includes("uploads_workspace_data: false") &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
     accountCloudSyncCoordinator.includes("账号云同步正在检查") &&
     accountCloudSyncCoordinator.includes("账号云同步暂不可确认，稍后重试；本地输入已保留") &&
-    accountCloudSyncCoordinator.includes("可继续写作，先处理同步队列") &&
-    accountCloudSyncCoordinator.includes("可继续写作，等待上传") &&
-    accountCloudSyncCoordinator.includes("可继续写作，云端暂不可确认") &&
-    accountCloudSyncCoordinator.includes("可继续写作，云端交接已就绪") &&
-    accountCloudSyncCoordinator.includes("清零前不要重建本地缓存或做云端交接") &&
     accountCloudSyncCoordinator.includes("syncNow"),
-  "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，区分初始化检查、可继续本地输入、缓存重建阻断和已同步，并提供合并 quick sync 入口"
+  "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
+);
+check(
+  accountLocalUseReadiness.includes("localInputCanContinue: true") &&
+    accountLocalUseReadiness.includes("cloudHandoffReady") &&
+    accountLocalUseReadiness.includes("cacheRebuildBlocked") &&
+    accountLocalUseReadiness.includes("reads_page_body_text: false") &&
+    accountLocalUseReadiness.includes("reads_database_row_values: false") &&
+    accountLocalUseReadiness.includes("reads_file_bytes: false") &&
+    accountLocalUseReadiness.includes("uploads_workspace_data: false") &&
+    accountLocalUseReadiness.includes("mutates_workspace_data: false") &&
+    accountLocalUseReadiness.includes('"checking"') &&
+    accountLocalUseReadiness.includes("可继续写作，先处理同步队列") &&
+    accountLocalUseReadiness.includes("可继续写作，等待上传") &&
+    accountLocalUseReadiness.includes("可继续写作，云端暂不可确认") &&
+    accountLocalUseReadiness.includes("可继续写作，云端交接已就绪") &&
+    accountLocalUseReadiness.includes("清零前不要重建本地缓存或做云端交接"),
+  "账号本地可用性判定应是共享 metadata-only 规则，侧边栏和同步中心必须复用同一套可继续输入、云端交接和缓存重建阻断口径"
 );
 check(
   accountCloudSyncCoordinator.includes("pageSync.pendingStatus.failed > 0") &&

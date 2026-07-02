@@ -372,6 +372,11 @@ import {
   type CloudSyncControlPlaneVerdict,
 } from "@/lib/sync/cloudSyncControlPlane";
 import {
+  buildAccountLocalUseReadiness,
+  type AccountLocalUseReadiness,
+  type AccountCloudSyncReadinessState,
+} from "@/lib/sync/accountLocalUseReadiness";
+import {
   buildSyncUploadDrainReceipt,
   type SyncUploadDrainReceipt,
   type SyncUploadDrainResultSnapshot,
@@ -1987,6 +1992,44 @@ function SyncDashboard() {
       }),
     [databasePendingStatus, pagePendingStatus, syncSummary?.pending, workspaceIdentity]
   );
+  const syncLocalUseReadiness = useMemo(() => {
+    const pageWaiting = pagePendingStatus.pending + pagePendingStatus.queued;
+    const databaseWaiting =
+      databasePendingStatus.pending +
+      databasePendingStatus.queued +
+      databasePendingStatus.syncLogPending;
+    const pendingTotal = Math.max(
+      pageWaiting + databaseWaiting,
+      syncSummary?.pending ?? 0
+    );
+    const failedTotal = Math.max(
+      pagePendingStatus.failed + databasePendingStatus.failed,
+      syncSummary?.failed ?? 0
+    );
+    const manualReviewTotal =
+      pagePendingStatus.manualReviewCount +
+      databasePendingStatus.manualReviewCount;
+    const enabledDomainCount =
+      (pagePendingStatus.enabled ? 1 : 0) +
+      (databasePendingStatus.enabled ? 1 : 0);
+    const state: AccountCloudSyncReadinessState =
+      failedTotal > 0 || manualReviewTotal > 0
+        ? "attention"
+        : pendingTotal > 0
+          ? "queued"
+          : enabledDomainCount === 0
+            ? "disabled"
+            : "synced";
+
+    return buildAccountLocalUseReadiness({
+      state,
+      pendingTotal,
+      failedTotal,
+      manualReviewTotal,
+      retryableFailedTotal: Math.max(0, failedTotal - manualReviewTotal),
+      enabledDomainCount,
+    });
+  }, [databasePendingStatus, pagePendingStatus, syncSummary]);
   const syncPayloadPreview = useMemo(
     () =>
       buildSyncPayloadPreview({
@@ -10620,6 +10663,33 @@ function SyncDashboard() {
               >
                 {busyQueueAction === "queue" ? "导出中..." : "导出队列"}
               </button>
+            </div>
+            <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+              <SyncLocalUseReadinessPanel
+                readiness={syncLocalUseReadiness}
+                pendingTotal={Math.max(
+                  pagePendingStatus.pending +
+                    pagePendingStatus.queued +
+                    databasePendingStatus.pending +
+                    databasePendingStatus.queued +
+                    databasePendingStatus.syncLogPending,
+                  syncSummary?.pending ?? 0
+                )}
+                failedTotal={Math.max(
+                  pagePendingStatus.failed + databasePendingStatus.failed,
+                  syncSummary?.failed ?? 0
+                )}
+                manualReviewTotal={
+                  pagePendingStatus.manualReviewCount +
+                  databasePendingStatus.manualReviewCount
+                }
+                enabledDomainCount={
+                  (pagePendingStatus.enabled ? 1 : 0) +
+                  (databasePendingStatus.enabled ? 1 : 0)
+                }
+                onDrainAll={() => void handleDrainAllPendingPush()}
+                onOpenAccount={() => router.push("/account")}
+              />
             </div>
             <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
               <SyncUploadSafetyPanel
@@ -19438,6 +19508,135 @@ function syncQueueHealthClass(level: SyncQueueHealthLevel) {
     return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
   }
   return "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+}
+
+function localUseReadinessClass(status: AccountLocalUseReadiness["status"]) {
+  if (status === "ready") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  if (status === "pending-upload" || status === "syncing" || status === "checking") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  if (status === "needs-review" || status === "cloud-uncertain") {
+    return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+  }
+  return "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+}
+
+function SyncLocalUseReadinessPanel({
+  readiness,
+  pendingTotal,
+  failedTotal,
+  manualReviewTotal,
+  enabledDomainCount,
+  onDrainAll,
+  onOpenAccount,
+}: {
+  readiness: AccountLocalUseReadiness;
+  pendingTotal: number;
+  failedTotal: number;
+  manualReviewTotal: number;
+  enabledDomainCount: number;
+  onDrainAll: () => void;
+  onOpenAccount: () => void;
+}) {
+  const attentionTotal = Math.max(failedTotal, manualReviewTotal);
+  const facts = [
+    {
+      label: "本地可继续使用",
+      value: readiness.localInputCanContinue ? "可以" : "先暂停",
+      detail: "输入仍先落本地",
+    },
+    {
+      label: "云端交接",
+      value: readiness.cloudHandoffReady ? "已就绪" : "等待",
+      detail: `${pendingTotal} 项待确认`,
+    },
+    {
+      label: "缓存重建",
+      value: readiness.cacheRebuildBlocked ? "先禁止" : "可按流程",
+      detail: readiness.cacheRebuildBlocked ? "避免覆盖未上传内容" : "仍需账号页确认",
+    },
+    {
+      label: "待处理队列",
+      value: `${attentionTotal} 项`,
+      detail: `${failedTotal} 失败 / ${manualReviewTotal} 人工`,
+    },
+    {
+      label: "同步域",
+      value: `${enabledDomainCount}/2`,
+      detail: "页面 + 数据库",
+    },
+  ];
+
+  return (
+    <div
+      id="sync-local-use-readiness-panel"
+      data-testid="sync-local-use-readiness-panel"
+      data-local-use-status={readiness.status}
+      data-local-input-can-continue={String(readiness.localInputCanContinue)}
+      data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
+      data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
+      className="space-y-3"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              本地使用状态
+            </h3>
+            <span
+              className={`rounded-md px-2 py-1 text-[10px] ${localUseReadinessClass(
+                readiness.status
+              )}`}
+            >
+              {readiness.label}
+            </span>
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            {readiness.detail}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onDrainAll}
+            className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            补传全部本地输入
+          </button>
+          <button
+            type="button"
+            onClick={onOpenAccount}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开账号页
+          </button>
+        </div>
+      </div>
+      <div className="grid gap-2 md:grid-cols-5">
+        {facts.map((fact) => (
+          <div
+            key={fact.label}
+            className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+          >
+            <div className="text-[11px] text-zinc-400">{fact.label}</div>
+            <div className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {fact.value}
+            </div>
+            <div className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+              {fact.detail}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        下一步：{readiness.nextAction}
+        <br />
+        边界：只读取同步状态、队列计数和失败计数；不读取页面正文、数据库行值、文件 bytes，也不会在这个卡片里直接清缓存。
+      </p>
+    </div>
+  );
 }
 
 function SyncUploadSafetyPanel({
