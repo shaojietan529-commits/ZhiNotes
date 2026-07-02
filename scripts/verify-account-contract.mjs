@@ -2813,6 +2813,10 @@ check(
     sidebar.includes('data-testid="sidebar-sync-status"') &&
     sidebar.includes('data-testid="account-cloud-sync-coordinator"') &&
     sidebar.includes("accountSyncShortLabel") &&
+    sidebar.includes("getAccountSyncButtonLabel") &&
+    sidebar.includes("accountSyncButtonLabel") &&
+    sidebar.includes('"待登录"') &&
+    sidebar.includes('"待重试"') &&
     sidebar.includes("accountSyncAriaLabel") &&
     sidebar.includes("accountSyncInlineSummary") &&
     sidebar.includes("getAccountSyncInlineSummary") &&
@@ -2832,6 +2836,8 @@ check(
     sidebar.includes("知识库 ${accountSync.knowledgePendingTotal}") &&
     sidebar.includes("其他 ${accountSync.globalSyncLogExtraPendingTotal}") &&
     sidebar.includes("云端待确认，本地已保留${breakdownSuffix}") &&
+    sidebar.includes("本地已保留，云端恢复后上传${breakdownSuffix}") &&
+    sidebar.includes("本地已保留，登录后上传${breakdownSuffix}") &&
     sidebar.includes("登录后继续上传本地队列${breakdownSuffix}") &&
     sidebar.includes("accountSync.localUseReadiness.label}${breakdownSuffix}") &&
     sidebar.includes("账号或网络暂不可确认，已保留本地输入，稍后重试") &&
@@ -2845,6 +2851,7 @@ check(
     sidebar.includes("accountSync.databasePendingTotal > 0") &&
     sidebar.includes("getAccountSyncCenterTarget") &&
     sidebar.includes('data-sync-action=') &&
+    sidebar.includes("data-sync-visible-label={accountSyncButtonLabel}") &&
     sidebar.includes('data-sync-target={accountSyncCenterTarget}') &&
     sidebar.includes('"open-sync-center"') &&
     sidebar.includes('"quick-sync"') &&

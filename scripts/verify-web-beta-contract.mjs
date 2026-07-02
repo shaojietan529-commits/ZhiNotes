@@ -22783,6 +22783,24 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "getAccountSyncButtonLabel",
+      "Sidebar cloud-sync control must derive its visible label from queue safety, not only raw auth state.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      '"待登录"',
+      "Sidebar cloud-sync control must show signed-out pending work as waiting for login, not as lost work.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      '"待重试"',
+      "Sidebar cloud-sync control must show cloud-uncertain pending work as retryable, not as lost work.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "检查中",
       "Sidebar cloud-sync control must show enabled-but-initializing cloud sync as checking, not synced.",
     ],
@@ -22897,6 +22915,12 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "data-sync-visible-label={accountSyncButtonLabel}",
+      "Sidebar cloud-sync control must expose the exact visible status label for smoke checks.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       'data-sync-target={accountSyncCenterTarget}',
       "Sidebar cloud-sync control must expose the precise Sync module deep-link target.",
     ],
@@ -22917,6 +22941,18 @@ function run() {
       sidebar,
       "云端待确认，本地已保留",
       "Sidebar cloud-sync retry state must visibly reassure that local input is retained instead of looking like sign-out.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "本地已保留，登录后上传",
+      "Sidebar signed-out pending state must visibly say local work is retained and will upload after login.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "本地已保留，云端恢复后上传",
+      "Sidebar cloud-uncertain pending state must visibly say local work is retained and will upload after recovery.",
     ],
     [
       files.sidebar,

@@ -8759,6 +8759,24 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
+    "getAccountSyncButtonLabel",
+    "Sidebar cloud-sync control must derive its visible label from queue safety, not only raw auth state."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    '"待登录"',
+    "Sidebar cloud-sync control must show signed-out pending work as waiting for login, not as lost work."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "本地已保留，登录后上传",
+    "Sidebar signed-out pending state must visibly say local work is retained and will upload after login."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
     "accountSyncShouldOpenSyncCenter",
     "Sidebar cloud-sync control must route disabled, signed-out, or uncertain cloud states to Sync status instead of hiding them."
   );

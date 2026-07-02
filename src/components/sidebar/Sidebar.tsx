@@ -109,6 +109,19 @@ function getAccountSyncShortLabel(state: AccountCloudSyncCoordinatorState) {
   }
 }
 
+function getAccountSyncButtonLabel(accountSync: {
+  state: AccountCloudSyncCoordinatorState;
+  pendingTotal: number;
+}) {
+  if (accountSync.state === "signed-out" && accountSync.pendingTotal > 0) {
+    return "待登录";
+  }
+  if (accountSync.state === "error" && accountSync.pendingTotal > 0) {
+    return "待重试";
+  }
+  return getAccountSyncShortLabel(accountSync.state);
+}
+
 function getAccountSyncIcon(state: AccountCloudSyncCoordinatorState) {
   switch (state) {
     case "checking":
@@ -248,9 +261,15 @@ function getAccountSyncInlineSummary(accountSync: {
     }${breakdownSuffix}`;
   }
   if (accountSync.state === "error") {
+    if (accountSync.pendingTotal > 0) {
+      return `本地已保留，云端恢复后上传${breakdownSuffix}`;
+    }
     return `${accountSync.localUseReadiness.label}，云端待确认，本地已保留${breakdownSuffix}`;
   }
   if (accountSync.state === "signed-out") {
+    if (accountSync.pendingTotal > 0) {
+      return `本地已保留，登录后上传${breakdownSuffix}`;
+    }
     return `${accountSync.localUseReadiness.label}，登录后继续上传本地队列${breakdownSuffix}`;
   }
   if (accountSync.state === "syncing") {
@@ -571,6 +590,7 @@ export default function Sidebar() {
   const accountLocalUseTitle = `${accountSync.localUseReadiness.label}：${accountSync.localUseReadiness.detail}\n下一步：${accountSync.localUseReadiness.nextAction}`;
   const accountSyncTitle = `${accountSync.localUseReadiness.label}\n${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}\n${accountLocalUseTitle}`;
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
+  const accountSyncButtonLabel = getAccountSyncButtonLabel(accountSync);
   const accountSyncIcon = getAccountSyncIcon(accountSync.state);
   const accountSyncToneClass = getAccountSyncToneClass(accountSync.state);
   const accountSyncDomainBreakdown =
@@ -1258,6 +1278,7 @@ export default function Sidebar() {
             data-sync-action={
               accountSyncShouldOpenSyncCenter ? "open-sync-center" : "quick-sync"
             }
+            data-sync-visible-label={accountSyncButtonLabel}
             data-sync-target={accountSyncCenterTarget}
             data-sync-domain-breakdown={accountSyncDomainBreakdown}
             className="contents"
@@ -1295,6 +1316,7 @@ export default function Sidebar() {
               data-sync-action={
                 accountSyncShouldOpenSyncCenter ? "open-sync-center" : "quick-sync"
               }
+              data-sync-visible-label={accountSyncButtonLabel}
               data-sync-target={accountSyncCenterTarget}
               data-sync-domain-breakdown={accountSyncDomainBreakdown}
               aria-label={accountSyncAriaLabel}
@@ -1313,7 +1335,7 @@ export default function Sidebar() {
               title={accountSyncButtonTitle}
             >
               <span aria-hidden="true">{accountSyncIcon}</span>
-              <span className="min-w-0 truncate">{accountSyncShortLabel}</span>
+              <span className="min-w-0 truncate">{accountSyncButtonLabel}</span>
               {accountSync.pendingTotal > 0 && (
                 <span className="rounded-full bg-amber-500 px-1 text-[9px] font-semibold leading-4 text-white">
                   {accountSync.pendingTotal}
