@@ -195,12 +195,14 @@ function withStoredAuthenticatedFallback(
   result: AccountSessionResult,
   now: number
 ): AccountSessionResult {
-  if (
-    result.authenticated ||
-    (result.status !== "error" && result.status !== "unconfigured")
-  ) {
+  if (result.authenticated) {
     return result;
   }
+  const canUseFallback =
+    result.status === "error" ||
+    result.status === "unconfigured" ||
+    (result.status === "ok" && !result.authenticated);
+  if (!canUseFallback) return result;
   const account = readStoredAuthenticatedAccount(now);
   if (!account) return result;
   return {
@@ -209,7 +211,9 @@ function withStoredAuthenticatedFallback(
     account,
     stale: true,
     staleReason:
-      result.status === "unconfigured"
+      result.status === "ok"
+        ? "account session could not be confirmed; explicit logout clears this fallback"
+        : result.status === "unconfigured"
         ? "account system temporarily unconfigured"
         : result.error ?? "account session check temporarily unavailable",
   };

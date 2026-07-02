@@ -1407,6 +1407,10 @@ check(
     shells.schedule.includes('data-testid="meeting-opening-draft-toast"') &&
     shells.schedule.includes("openingMeetingId === entry.page.id") &&
     shells.schedule.includes("onReady={handlePeekReady}") &&
+    shells.schedule.includes("upsertMeetingPageInList(") &&
+    shells.schedule.includes("mergeMeetingDateCountsForLocalUpsert(") &&
+    shells.schedule.includes("setMeetingCountByDate((current) =>") &&
+    shells.schedule.includes("meetingsRef.current = nextMeetings;") &&
     !shells.schedule.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     shells.schedule.includes("prepareMeetingPageOpen") &&
     shells.schedule.includes('import("@/components/providers/PageShell")') &&

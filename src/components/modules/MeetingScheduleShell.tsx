@@ -678,14 +678,26 @@ export default function MeetingScheduleShell() {
   }, []);
 
   const upsertMeetingInView = useCallback((page: Page) => {
-    setMeetings((prev) => {
-      const existingIndex = prev.findIndex((item) => item.id === page.id);
-      if (existingIndex === -1) return [...prev, page];
-      const next = [...prev];
-      next[existingIndex] = page;
-      return next;
+    const { pages: nextMeetings, previousPage, changed } =
+      upsertMeetingPageInList(
+        meetingsRef.current,
+        page,
+        deletedTombstoneRef.current
+      );
+    if (!changed) return;
+    meetingsRef.current = nextMeetings;
+    startTransition(() => {
+      setMeetings(nextMeetings);
+      setMeetingCountByDate((current) =>
+        mergeMeetingDateCountsForLocalUpsert(
+          current,
+          nextMeetings,
+          page,
+          previousPage
+        )
+      );
     });
-  }, []);
+  }, [deletedTombstoneRef]);
 
   const focusCalendarDate = useCallback(
     (dateKey: string) => {
@@ -3953,6 +3965,79 @@ function countMeetingDates(pages: Page[]): number {
     if (dateKey) dateKeys.add(dateKey);
   }
   return dateKeys.size;
+}
+
+function upsertMeetingPageInList(
+  current: Page[],
+  page: Page,
+  tombstone: Set<string>
+): { pages: Page[]; previousPage?: Page; changed: boolean } {
+  const previousIndex = current.findIndex((item) => item.id === page.id);
+  const previousPage =
+    previousIndex >= 0 ? current[previousIndex] : undefined;
+  if (page.deleted_at || tombstone.has(page.id)) {
+    if (previousIndex < 0) return { pages: current, previousPage, changed: false };
+    return {
+      pages: current.filter((item) => item.id !== page.id),
+      previousPage,
+      changed: true,
+    };
+  }
+  if (
+    previousPage &&
+    meetingPageMetadataFingerprint(previousPage) ===
+      meetingPageMetadataFingerprint(page) &&
+    previousPage.content_text === page.content_text
+  ) {
+    return { pages: current, previousPage, changed: false };
+  }
+  const next = [...current];
+  if (previousIndex >= 0) {
+    next[previousIndex] = page;
+  } else {
+    next.push(page);
+  }
+  return { pages: next, previousPage, changed: true };
+}
+
+function mergeMeetingDateCountsForLocalUpsert(
+  currentCounts: Map<string, number>,
+  pages: Page[],
+  page: Page,
+  previousPage?: Page
+): Map<string, number> {
+  const previousDateKey = previousPage ? toMeetingEntry(previousPage).dateKey : "";
+  const nextDateKey = toMeetingEntry(page).dateKey;
+  const affectedDateKeys = new Set(
+    [previousDateKey, nextDateKey].filter((dateKey) =>
+      DATE_KEY_PATTERN.test(dateKey)
+    )
+  );
+  if (affectedDateKeys.size === 0) return currentCounts;
+
+  const nextCounts = new Map(currentCounts);
+  for (const dateKey of affectedDateKeys) {
+    const visibleCount = pages.reduce(
+      (count, candidate) =>
+        toMeetingEntry(candidate).dateKey === dateKey ? count + 1 : count,
+      0
+    );
+    if (visibleCount > 0) {
+      nextCounts.set(
+        dateKey,
+        Math.max(nextCounts.get(dateKey) ?? 0, visibleCount)
+      );
+      continue;
+    }
+    if ((nextCounts.get(dateKey) ?? 0) <= 1) {
+      nextCounts.delete(dateKey);
+    }
+  }
+
+  return meetingDateCountsFingerprint(nextCounts) ===
+    meetingDateCountsFingerprint(currentCounts)
+    ? currentCounts
+    : nextCounts;
 }
 
 async function seedMeetingPageForImmediateOpen(page: Page): Promise<void> {

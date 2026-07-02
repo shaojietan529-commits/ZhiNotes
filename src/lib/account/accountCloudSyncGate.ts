@@ -67,6 +67,15 @@ export async function checkAccountCloudSyncGate(
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }
+  if (session.stale && session.authenticated) {
+    return {
+      status: "error",
+      authenticated: true,
+      reason: "account-check-failed",
+      retryable: true,
+      boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
+    };
+  }
   if (!session.authenticated) {
     return {
       status: "signed-out",

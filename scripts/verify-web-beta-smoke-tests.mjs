@@ -6620,6 +6620,22 @@ function run() {
       "Meeting calendar must publish true per-day counts alongside the capped render list.",
     ],
     [
+      "upsertMeetingPageInList(",
+      "Meeting local create/import updates must preserve the in-memory meeting page before slower metadata refreshes.",
+    ],
+    [
+      "mergeMeetingDateCountsForLocalUpsert(",
+      "Meeting local create/import updates must update per-day counts immediately so the calendar does not look empty after import.",
+    ],
+    [
+      "setMeetingCountByDate((current) =>",
+      "Meeting local create/import updates must adjust day counts without waiting for background metadata reload.",
+    ],
+    [
+      "meetingsRef.current = nextMeetings;",
+      "Meeting local create/import updates must keep the foreground meeting ref current before background work resumes.",
+    ],
+    [
       "const [loadingMoreMeetingDateKey, setLoadingMoreMeetingDateKey]",
       "Meeting calendar must show an in-progress state while a high-volume day is being refilled.",
     ],
@@ -7951,6 +7967,12 @@ function run() {
     'session.status === "unconfigured" && session.authenticated',
     "Account cloud sync gate must keep a stale authenticated account visible during transient unconfigured responses."
   );
+  assertIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    "session.stale && session.authenticated",
+    "Account cloud sync gate must treat stale signed-in UI fallback as retryable instead of ready-to-upload."
+  );
   if (
     !(
       accountCloudSyncGate.indexOf(
@@ -8042,6 +8064,10 @@ function run() {
     [
       "window.localStorage.removeItem",
       "Account session helper must clear the cross-tab stale authenticated fallback on explicit signed-out state.",
+    ],
+    [
+      "explicit logout clears this fallback",
+      "Account session helper must preserve the account label through transient missing-session checks without storing tokens.",
     ],
   ]) {
     assertIncludes(files.accountClientSession, accountClientSession, snippet, message);

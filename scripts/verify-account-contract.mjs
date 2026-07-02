@@ -215,7 +215,11 @@ check(
     accountClientSession.includes("window.localStorage.setItem") &&
     accountClientSession.includes("window.localStorage.removeItem") &&
     accountClientSession.includes("staleReason") &&
-    accountClientSession.includes("clearStoredAuthenticatedAccount"),
+    accountClientSession.includes("clearStoredAuthenticatedAccount") &&
+    accountClientSession.includes(
+      'result.status === "ok" && !result.authenticated'
+    ) &&
+    accountClientSession.includes("explicit logout clears this fallback"),
   "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和跨标签页最近登录账号降级保护"
 );
 check(
@@ -257,6 +261,7 @@ check(
     accountCloudSyncGate.includes(
       'session.status === "unconfigured" && session.authenticated'
     ) &&
+    accountCloudSyncGate.includes("session.stale && session.authenticated") &&
     accountCloudSyncGate.includes("authenticated: session.authenticated") &&
     accountCloudSyncGate.includes("reads_page_body_text: false") &&
     accountCloudSyncGate.includes("reads_database_row_values: false") &&
@@ -1373,6 +1378,10 @@ check(
     meetingScheduleShell.includes("meetingDateCountsFingerprint(countsByDate)") &&
     meetingScheduleShell.includes("fingerprintRef.current === nextFingerprint") &&
     meetingScheduleShell.includes("setMeetingCountByDate(countsByDate)") &&
+    meetingScheduleShell.includes("upsertMeetingPageInList(") &&
+    meetingScheduleShell.includes("mergeMeetingDateCountsForLocalUpsert(") &&
+    meetingScheduleShell.includes("setMeetingCountByDate((current) =>") &&
+    meetingScheduleShell.includes("meetingsRef.current = nextMeetings;") &&
     meetingScheduleShell.includes("const [loadingMoreMeetingDateKey, setLoadingMoreMeetingDateKey]") &&
     meetingScheduleShell.includes("function selectMeetingPagesForCalendarRender(") &&
     meetingScheduleShell.includes("addUpcomingMeetingEntryCandidate(") &&
