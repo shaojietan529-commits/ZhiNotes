@@ -12,6 +12,7 @@ import {
 import type { BlockComment, Page, PageComment, PageVersion } from "@/lib/utils/types";
 
 export const SYNC_LOG_STATUS_EVENT = "zhinote:sync-log-status";
+export const SYNC_LOG_MANUAL_REVIEW_FAILURE_THRESHOLD = 3;
 
 export function emitSyncLogStatusEvent(): void {
   if (typeof window === "undefined") return;
@@ -23,6 +24,7 @@ export interface SyncLogSummary {
   pending: number;
   failed: number;
   inFlight: number;
+  manualReview: number;
   lastChangeAt: string | null;
   tables: Array<{
     tableName: string;
@@ -30,6 +32,7 @@ export interface SyncLogSummary {
     pending: number;
     failed: number;
     inFlight: number;
+    manualReview: number;
     lastChangeAt: string | null;
   }>;
 }
@@ -4868,13 +4871,16 @@ export async function getSyncLogSummary(): Promise<SyncLogSummary> {
        SUM(CASE WHEN synced = 0 THEN 1 ELSE 0 END) as pending,
        SUM(CASE WHEN synced = 0 AND status = 'failed' THEN 1 ELSE 0 END) as failed,
        SUM(CASE WHEN synced = 0 AND status = 'in_flight' THEN 1 ELSE 0 END) as inFlight,
+       SUM(CASE WHEN synced = 0 AND status = 'failed' AND attempt_count >= ? THEN 1 ELSE 0 END) as manualReview,
        MAX(timestamp) as lastChangeAt
-     FROM sync_log`
+     FROM sync_log`,
+    [SYNC_LOG_MANUAL_REVIEW_FAILURE_THRESHOLD]
   ) as unknown as Array<{
     total: number | null;
     pending: number | null;
     failed: number | null;
     inFlight: number | null;
+    manualReview: number | null;
     lastChangeAt: string | null;
   }>;
   const tableRows = db.query(
@@ -4884,16 +4890,19 @@ export async function getSyncLogSummary(): Promise<SyncLogSummary> {
        SUM(CASE WHEN synced = 0 THEN 1 ELSE 0 END) as pending,
        SUM(CASE WHEN synced = 0 AND status = 'failed' THEN 1 ELSE 0 END) as failed,
        SUM(CASE WHEN synced = 0 AND status = 'in_flight' THEN 1 ELSE 0 END) as inFlight,
+       SUM(CASE WHEN synced = 0 AND status = 'failed' AND attempt_count >= ? THEN 1 ELSE 0 END) as manualReview,
        MAX(timestamp) as lastChangeAt
      FROM sync_log
      GROUP BY table_name
-     ORDER BY pending DESC, lastChangeAt DESC`
+     ORDER BY pending DESC, lastChangeAt DESC`,
+    [SYNC_LOG_MANUAL_REVIEW_FAILURE_THRESHOLD]
   ) as unknown as Array<{
     tableName: string;
     total: number | null;
     pending: number | null;
     failed: number | null;
     inFlight: number | null;
+    manualReview: number | null;
     lastChangeAt: string | null;
   }>;
   const summary = summaryRows[0];
@@ -4903,6 +4912,7 @@ export async function getSyncLogSummary(): Promise<SyncLogSummary> {
     pending: Number(summary?.pending ?? 0),
     failed: Number(summary?.failed ?? 0),
     inFlight: Number(summary?.inFlight ?? 0),
+    manualReview: Number(summary?.manualReview ?? 0),
     lastChangeAt: summary?.lastChangeAt ?? null,
     tables: tableRows.map((row) => ({
       tableName: row.tableName,
@@ -4910,6 +4920,7 @@ export async function getSyncLogSummary(): Promise<SyncLogSummary> {
       pending: Number(row.pending ?? 0),
       failed: Number(row.failed ?? 0),
       inFlight: Number(row.inFlight ?? 0),
+      manualReview: Number(row.manualReview ?? 0),
       lastChangeAt: row.lastChangeAt ?? null,
     })),
   };

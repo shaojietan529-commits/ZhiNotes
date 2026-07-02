@@ -110,6 +110,7 @@ const files = {
   pageCloudSync: "src/hooks/usePageCloudSync.ts",
   databaseCloudSync: "src/hooks/useDatabaseCloudSync.ts",
   accountCloudSyncCoordinator: "src/hooks/useAccountCloudSyncCoordinator.ts",
+  globalSyncLogStatusHook: "src/hooks/useGlobalSyncLogStatus.ts",
   settingsCloudSyncStatusHook: "src/hooks/useSettingsCloudSyncStatus.ts",
   settingsSyncStatus: "src/lib/sync/settingsSyncStatus.ts",
   knowledgeCloudSyncStatusHook: "src/hooks/useKnowledgeCloudSyncStatus.ts",
@@ -553,6 +554,9 @@ function run() {
   const databaseCloudSync = readProjectFile(files.databaseCloudSync);
   const accountCloudSyncCoordinator = readProjectFile(
     files.accountCloudSyncCoordinator
+  );
+  const globalSyncLogStatusHook = readProjectFile(
+    files.globalSyncLogStatusHook
   );
   const settingsCloudSyncStatusHook = readProjectFile(
     files.settingsCloudSyncStatusHook
@@ -8032,6 +8036,12 @@ function run() {
   assertIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
+    "useGlobalSyncLogStatus",
+    "Account cloud sync coordinator must include a global sync_log backstop before claiming all local queues are safely synced."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
     "COORDINATOR_PENDING_DRAIN_DELAY_MS",
     "Account cloud sync coordinator must coalesce pending queue drain triggers instead of adding immediate duplicate loops."
   );
@@ -8063,6 +8073,18 @@ function run() {
     [
       "knowledgeVisibleSyncWork",
       "Account cloud sync coordinator must keep knowledge queues visible even when they only contain failed/manual-review rows.",
+    ],
+    [
+      "globalSyncLogVisibleSyncWork",
+      "Account cloud sync coordinator must keep newly added sync_log table queues visible even before a dedicated domain hook exists.",
+    ],
+    [
+      "globalSyncLogExtraPendingTotal",
+      "Account cloud sync coordinator must add uncovered sync_log pending rows to the global pending total.",
+    ],
+    [
+      "globalSyncLogExtraManualReviewTotal",
+      "Account cloud sync coordinator must add uncovered sync_log manual-review rows to the global manual-review total.",
     ],
     [
       "pageSync.pendingStatus.manualReviewCount > 0",
@@ -8170,6 +8192,24 @@ function run() {
     knowledgeCloudSyncStatusHook,
     "KNOWLEDGE_SYNC_STATUS_EVENT",
     "Knowledge sync status hook must refresh promptly after comment/version/link queue metadata changes."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "getSyncLogSummary",
+    "Global sync_log status hook must read the local pending queue summary for newly added modules."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "SYNC_LOG_STATUS_EVENT",
+    "Global sync_log status hook must refresh promptly after any local sync_log metadata change."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "reads_sync_log_payloads: false",
+    "Global sync_log status hook must stay metadata-only and never read sync_log payloads."
   );
   assertIncludes(
     files.knowledgeSyncStatus,

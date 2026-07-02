@@ -156,8 +156,16 @@ function getAccountSyncCenterTarget(accountSync: {
   databasePendingTotal: number;
   settingsPendingTotal: number;
   knowledgePendingTotal: number;
+  globalSyncLogExtraPendingTotal: number;
+  globalSyncLogExtraFailedTotal: number;
+  globalSyncLogExtraManualReviewTotal: number;
 }) {
-  if (accountSync.failedTotal > 0 || accountSync.manualReviewTotal > 0) {
+  if (
+    accountSync.failedTotal > 0 ||
+    accountSync.manualReviewTotal > 0 ||
+    accountSync.globalSyncLogExtraFailedTotal > 0 ||
+    accountSync.globalSyncLogExtraManualReviewTotal > 0
+  ) {
     return "/modules/sync#sync-upload-safety-panel";
   }
   if (accountSync.pagePendingTotal > 0) {
@@ -171,6 +179,9 @@ function getAccountSyncCenterTarget(accountSync: {
   }
   if (accountSync.settingsPendingTotal > 0) {
     return "/modules/sync#account-module-settings-pending-plan";
+  }
+  if (accountSync.globalSyncLogExtraPendingTotal > 0) {
+    return "/modules/sync#sync-upload-safety-panel";
   }
   return "/modules/sync#sync-upload-safety-panel";
 }
@@ -529,7 +540,10 @@ export default function Sidebar() {
     accountSync.pagePendingTotal > 0 ||
     accountSync.databasePendingTotal > 0 ||
     accountSync.settingsPendingTotal > 0 ||
-    accountSync.knowledgePendingTotal > 0;
+    accountSync.knowledgePendingTotal > 0 ||
+    accountSync.globalSyncLogExtraPendingTotal > 0 ||
+    accountSync.globalSyncLogExtraFailedTotal > 0 ||
+    accountSync.globalSyncLogExtraManualReviewTotal > 0;
   const accountSyncCenterTarget = getAccountSyncCenterTarget(accountSync);
   const accountSyncActionLabel = accountSyncNeedsSyncCenter
     ? "查看队列"
@@ -1170,6 +1184,15 @@ export default function Sidebar() {
               data-database-pending-total={accountSync.databasePendingTotal}
               data-settings-pending-total={accountSync.settingsPendingTotal}
               data-knowledge-pending-total={accountSync.knowledgePendingTotal}
+              data-global-sync-log-extra-pending-total={
+                accountSync.globalSyncLogExtraPendingTotal
+              }
+              data-global-sync-log-extra-failed-total={
+                accountSync.globalSyncLogExtraFailedTotal
+              }
+              data-global-sync-log-extra-manual-review-total={
+                accountSync.globalSyncLogExtraManualReviewTotal
+              }
               data-local-use-status={accountSync.localUseReadiness.status}
               data-local-input-can-continue={
                 accountSync.localUseReadiness.localInputCanContinue

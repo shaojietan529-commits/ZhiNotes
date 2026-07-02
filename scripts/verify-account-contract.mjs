@@ -93,6 +93,7 @@ const sidebarShell = read("src/components/sidebar/Sidebar.tsx");
 const accountCloudSyncCoordinator = read(
   "src/hooks/useAccountCloudSyncCoordinator.ts"
 );
+const globalSyncLogStatusHook = read("src/hooks/useGlobalSyncLogStatus.ts");
 const accountLocalUseReadiness = read(
   "src/lib/sync/accountLocalUseReadiness.ts"
 );
@@ -2501,16 +2502,20 @@ check(
     accountCloudSyncCoordinator.includes("useDatabaseCloudSync") &&
     accountCloudSyncCoordinator.includes("useSettingsCloudSyncStatus") &&
     accountCloudSyncCoordinator.includes("useKnowledgeCloudSyncStatus") &&
+    accountCloudSyncCoordinator.includes("useGlobalSyncLogStatus") &&
     accountCloudSyncCoordinator.includes("COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
     accountCloudSyncCoordinator.includes("Promise.allSettled") &&
     accountCloudSyncCoordinator.includes("pendingTotal") &&
     accountCloudSyncCoordinator.includes("settingsPendingTotal") &&
     accountCloudSyncCoordinator.includes("knowledgePendingTotal") &&
+    accountCloudSyncCoordinator.includes("globalSyncLogExtraPendingTotal") &&
+    accountCloudSyncCoordinator.includes("globalSyncLogExtraManualReviewTotal") &&
     accountCloudSyncCoordinator.includes("manualReviewTotal") &&
     accountCloudSyncCoordinator.includes("pageVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("databaseVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("settingsVisibleSyncWork") &&
 	    accountCloudSyncCoordinator.includes("knowledgeVisibleSyncWork") &&
+    accountCloudSyncCoordinator.includes("globalSyncLogVisibleSyncWork") &&
 	    accountCloudSyncCoordinator.includes("autoRetryableSyncWorkTotal") &&
 	    accountCloudSyncCoordinator.includes("retryableFailedTotal") &&
 	    accountCloudSyncCoordinator.includes("enabledDomainCount") &&
@@ -2520,7 +2525,15 @@ check(
     accountCloudSyncCoordinator.includes("账号云同步正在检查") &&
     accountCloudSyncCoordinator.includes("账号云同步暂不可确认，稍后重试；本地输入已保留") &&
     accountCloudSyncCoordinator.includes("syncNow"),
-  "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
+  "账号级云同步协调器应统一页面/数据库/设置/知识库附属/全域 sync_log 同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
+);
+check(
+  globalSyncLogStatusHook.includes("getSyncLogSummary") &&
+    globalSyncLogStatusHook.includes("SYNC_LOG_STATUS_EVENT") &&
+    globalSyncLogStatusHook.includes("reads_sync_log_payloads: false") &&
+    globalSyncLogStatusHook.includes("uploads_workspace_data: false") &&
+    globalSyncLogStatusHook.includes("mutates_sync_log: false"),
+  "全域 sync_log 状态 hook 必须只读本地队列元数据，并监听 content-free sync_log 状态事件"
 );
 check(
   accountLocalUseReadiness.includes("localInputCanContinue: true") &&

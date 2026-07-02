@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo } from "react";
 import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
+import { useGlobalSyncLogStatus } from "@/hooks/useGlobalSyncLogStatus";
 import { useKnowledgeCloudSyncStatus } from "@/hooks/useKnowledgeCloudSyncStatus";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
 import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus";
@@ -41,6 +42,7 @@ function formatLastSyncTime(value: string | null) {
 export function useAccountCloudSyncCoordinator() {
   const pageSync = usePageCloudSync();
   const databaseSync = useDatabaseCloudSync();
+  const globalSyncLog = useGlobalSyncLogStatus();
   const settingsSync = useSettingsCloudSyncStatus();
   const knowledgeSync = useKnowledgeCloudSyncStatus();
 
@@ -81,21 +83,46 @@ export function useAccountCloudSyncCoordinator() {
     databaseSync.pendingStatus.syncLogPending;
   const settingsPendingTotal = settingsSync.status.totalPending;
   const knowledgePendingTotal = knowledgeSync.status.totalPending;
+  const globalSyncLogCoveredPendingTotal =
+    databaseSync.pendingStatus.syncLogPending +
+    settingsPendingTotal +
+    knowledgePendingTotal;
+  const globalSyncLogExtraPendingTotal = Math.max(
+    globalSyncLog.status.pending - globalSyncLogCoveredPendingTotal,
+    0
+  );
+  const globalSyncLogCoveredFailedTotal =
+    settingsSync.status.failed + knowledgeSync.status.failed;
+  const globalSyncLogExtraFailedTotal = Math.max(
+    globalSyncLog.status.failed - globalSyncLogCoveredFailedTotal,
+    0
+  );
+  const globalSyncLogCoveredManualReviewTotal =
+    settingsSync.status.manualReviewCount +
+    knowledgeSync.status.manualReviewCount;
+  const globalSyncLogExtraManualReviewTotal = Math.max(
+    globalSyncLog.status.manualReviewCount -
+      globalSyncLogCoveredManualReviewTotal,
+    0
+  );
   const pendingTotal =
     pagePendingTotal +
     databasePendingTotal +
     settingsPendingTotal +
-    knowledgePendingTotal;
+    knowledgePendingTotal +
+    globalSyncLogExtraPendingTotal;
   const failedTotal =
     pageSync.pendingStatus.failed +
     databaseSync.pendingStatus.failed +
     settingsSync.status.failed +
-    knowledgeSync.status.failed;
+    knowledgeSync.status.failed +
+    globalSyncLogExtraFailedTotal;
   const manualReviewTotal =
     pageSync.pendingStatus.manualReviewCount +
     databaseSync.pendingStatus.manualReviewCount +
     settingsSync.status.manualReviewCount +
-    knowledgeSync.status.manualReviewCount;
+    knowledgeSync.status.manualReviewCount +
+    globalSyncLogExtraManualReviewTotal;
   const retryableFailedTotal = Math.max(failedTotal - manualReviewTotal, 0);
   const pageAutoRetryablePendingTotal =
     Math.max(
@@ -140,6 +167,10 @@ export function useAccountCloudSyncCoordinator() {
     knowledgePendingTotal > 0 ||
     knowledgeSync.status.failed > 0 ||
     knowledgeSync.status.manualReviewCount > 0;
+  const globalSyncLogVisibleSyncWork =
+    globalSyncLogExtraPendingTotal > 0 ||
+    globalSyncLogExtraFailedTotal > 0 ||
+    globalSyncLogExtraManualReviewTotal > 0;
   const enabledDomainCount =
     (pageSync.pendingStatus.enabled ||
     pageSync.state !== "disabled" ||
@@ -152,7 +183,8 @@ export function useAccountCloudSyncCoordinator() {
       ? 1
       : 0) +
     (settingsVisibleSyncWork ? 1 : 0) +
-    (knowledgeVisibleSyncWork ? 1 : 0);
+    (knowledgeVisibleSyncWork ? 1 : 0) +
+    (globalSyncLogVisibleSyncWork ? 1 : 0);
   const lastSyncAt =
     [pageSync.lastSyncAt, databaseSync.lastSyncAt]
       .filter((value): value is string => Boolean(value))
@@ -193,6 +225,9 @@ export function useAccountCloudSyncCoordinator() {
       knowledgePendingTotal > 0
         ? `知识库附属 ${knowledgePendingTotal}（评论/版本/链接待云端回放）`
         : null,
+      globalSyncLogExtraPendingTotal > 0
+        ? `其他本地队列 ${globalSyncLogExtraPendingTotal}（同步中心处理）`
+        : null,
       lastSyncAt ? `最近同步 ${formatLastSyncTime(lastSyncAt)}` : null,
     ].filter(Boolean);
     if (state === "checking") {
@@ -220,6 +255,7 @@ export function useAccountCloudSyncCoordinator() {
     return `账号云同步已完成${details.length ? `：${details.join("，")}` : ""}`;
   }, [
     databasePendingTotal,
+    globalSyncLogExtraPendingTotal,
     knowledgePendingTotal,
     lastSyncAt,
     manualReviewTotal,
@@ -275,6 +311,9 @@ export function useAccountCloudSyncCoordinator() {
     databasePendingTotal,
     settingsPendingTotal,
     knowledgePendingTotal,
+    globalSyncLogExtraPendingTotal,
+    globalSyncLogExtraFailedTotal,
+    globalSyncLogExtraManualReviewTotal,
     pendingTotal,
     failedTotal,
     manualReviewTotal,
@@ -285,6 +324,7 @@ export function useAccountCloudSyncCoordinator() {
     localUseReadiness,
     knowledgeSync,
     settingsSync,
+    globalSyncLog,
     syncNow,
   };
 }
