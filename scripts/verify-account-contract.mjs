@@ -932,6 +932,10 @@ check(
     dailyNotesShell.includes("function pruneDailyCalendarDateKeySet(") &&
     dailyNotesShell.includes("function pruneDailyCalendarDateLimitMap(") &&
     dailyNotesShell.includes("rebuildPageDateKeyIndex") &&
+    dailyNotesShell.includes("const DAILY_DATE_INDEX_BACKFILL_BATCH = 96") &&
+    dailyNotesShell.includes("const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 1") &&
+    dailyNotesShell.includes("DAILY_DATE_INDEX_BACKFILL_RESUME_DELAY_MS") &&
+    dailyNotesShell.includes("scheduleDailyDateIndexBackfillResume()") &&
     dailyNotesShell.includes("includeUnindexedFallback: false") &&
     dailyNotesShell.includes("includeUnindexedFallback: true") &&
     dailyNotesShell.includes('source: "local-fallback-metadata"') &&

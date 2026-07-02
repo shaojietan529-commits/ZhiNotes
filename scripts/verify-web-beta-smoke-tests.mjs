@@ -5458,6 +5458,22 @@ function run() {
       "Daily capped-day controls must expose an explicit backfill action.",
     ],
     [
+      "const DAILY_DATE_INDEX_BACKFILL_BATCH = 96",
+      "Daily broad date-index backfill must stay small enough to avoid blocking calendar use after large imports.",
+    ],
+    [
+      "const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 1",
+      "Daily broad date-index backfill must process one bounded slice per scheduler turn.",
+    ],
+    [
+      "DAILY_DATE_INDEX_BACKFILL_RESUME_DELAY_MS",
+      "Daily broad date-index backfill must resume through a delayed background scheduler.",
+    ],
+    [
+      "scheduleDailyDateIndexBackfillResume()",
+      "Daily broad date-index backfill must schedule remaining work instead of looping through large batches on first load.",
+    ],
+    [
       "pruneDailyCalendarDateKeySet(current, calendarDateKeys)",
       "Daily calendar must prune expanded date state to the visible month grid.",
     ],

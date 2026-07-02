@@ -163,8 +163,9 @@ const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900;
 const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 450;
 const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 1400;
-const DAILY_DATE_INDEX_BACKFILL_BATCH = 240;
-const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 4;
+const DAILY_DATE_INDEX_BACKFILL_BATCH = 96;
+const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 1;
+const DAILY_DATE_INDEX_BACKFILL_RESUME_DELAY_MS = 1800;
 const DAILY_CLOUD_CACHE_PREFIX = "zhinote.daily.cloudMetadata.";
 const DAILY_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
 const DAILY_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -2512,15 +2513,19 @@ async function ensureDailyDateIndexBackfilled(): Promise<void> {
       }
       await waitForDailyBackfillIdle();
     }
-    window.setTimeout(() => {
-      void ensureDailyDateIndexBackfilled();
-    }, 1500);
+    scheduleDailyDateIndexBackfillResume();
   } catch {
     // Keep the calendar usable from cloud metadata even if this browser cache
     // cannot rebuild its optional date index yet.
   } finally {
     dailyDateIndexBackfillRunning = false;
   }
+}
+
+function scheduleDailyDateIndexBackfillResume(): void {
+  window.setTimeout(() => {
+    void ensureDailyDateIndexBackfilled();
+  }, DAILY_DATE_INDEX_BACKFILL_RESUME_DELAY_MS);
 }
 
 function isDailyDateIndexBackfillDone(): boolean {

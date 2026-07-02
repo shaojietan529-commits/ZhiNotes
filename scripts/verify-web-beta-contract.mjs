@@ -5709,6 +5709,22 @@ function run() {
       "Daily calendar must explain capped high-volume day rendering to the user.",
     ],
     [
+      "const DAILY_DATE_INDEX_BACKFILL_BATCH = 96",
+      "Daily broad date-index backfill must stay small enough to avoid blocking calendar use after large imports.",
+    ],
+    [
+      "const DAILY_DATE_INDEX_BACKFILL_MAX_PASSES = 1",
+      "Daily broad date-index backfill must process one bounded slice per scheduler turn.",
+    ],
+    [
+      "DAILY_DATE_INDEX_BACKFILL_RESUME_DELAY_MS",
+      "Daily broad date-index backfill must resume through a delayed background scheduler.",
+    ],
+    [
+      "scheduleDailyDateIndexBackfillResume()",
+      "Daily broad date-index backfill must schedule remaining work instead of looping through large batches on first load.",
+    ],
+    [
       "includeUnindexedFallback: false",
       "Daily first-paint local metadata query must skip expensive unindexed Notion-import fallback.",
     ],
