@@ -2823,6 +2823,9 @@ check(
     sidebar.includes("getAccountSyncDomainBreakdown") &&
     sidebar.includes("getAccountSyncDomainBreakdownItems") &&
     sidebar.includes("getAccountSyncDomainChipClass") &&
+    sidebar.includes("getAccountLocalUseBadgeLabel") &&
+    sidebar.includes("getAccountLocalUseBadgeClass") &&
+    sidebar.includes("getAccountCacheSafetyBadgeLabel") &&
     sidebar.includes("accountSyncDomainBreakdownItems") &&
     sidebar.includes("accountSyncDomainBreakdown") &&
     sidebar.includes("getAccountSyncToneClass") &&
@@ -2830,13 +2833,21 @@ check(
     sidebar.includes("重试中") &&
     sidebar.includes("accountSync.localUseReadiness.label") &&
     sidebar.includes('data-testid="account-cloud-sync-inline-summary"') &&
+    sidebar.includes('data-testid="account-local-use-readiness-badge"') &&
     sidebar.includes('data-testid="account-cloud-sync-domain-breakdown"') &&
     sidebar.includes("data-sync-inline-summary={accountSyncInlineSummary}") &&
     sidebar.includes("data-sync-domain-breakdown={accountSyncDomainBreakdown}") &&
+    sidebar.includes(
+      "data-local-use-next-action={accountSync.localUseReadiness.nextAction}"
+    ) &&
     sidebar.includes("data-sync-domain-breakdown-count={") &&
     sidebar.includes("data-sync-domain={item.id}") &&
     sidebar.includes("data-sync-domain-count={item.count}") &&
     sidebar.includes("队列分布：") &&
+    sidebar.includes("本地可写") &&
+    sidebar.includes("云端就绪") &&
+    sidebar.includes("先处理队列") &&
+    sidebar.includes("先别重建缓存") &&
     sidebar.includes("页面 ${accountSync.pagePendingTotal}") &&
     sidebar.includes("数据库 ${accountSync.databasePendingTotal}") &&
     sidebar.includes("设置 ${accountSync.settingsPendingTotal}") &&

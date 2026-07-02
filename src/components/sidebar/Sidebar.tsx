@@ -306,6 +306,49 @@ function getAccountSyncDomainChipClass(
   return "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300";
 }
 
+function getAccountLocalUseBadgeLabel(readiness: AccountLocalUseReadiness) {
+  switch (readiness.status) {
+    case "ready":
+      return "云端就绪";
+    case "needs-review":
+      return "先处理队列";
+    case "local-only":
+      return "本地模式";
+    case "checking":
+      return "检查中可写";
+    case "syncing":
+      return "同步中可写";
+    case "pending-upload":
+    case "signed-out":
+    case "cloud-uncertain":
+    default:
+      return "本地可写";
+  }
+}
+
+function getAccountLocalUseBadgeClass(readiness: AccountLocalUseReadiness) {
+  if (readiness.status === "ready") {
+    return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+  }
+  if (readiness.status === "needs-review") {
+    return "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300";
+  }
+  if (readiness.status === "local-only") {
+    return "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300";
+  }
+  return "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+}
+
+function getAccountCacheSafetyBadgeLabel(readiness: AccountLocalUseReadiness) {
+  if (readiness.cloudHandoffReady) {
+    return "可云端交接";
+  }
+  if (readiness.cacheRebuildBlocked) {
+    return "先别重建缓存";
+  }
+  return "本地缓存安全";
+}
+
 function getAccountSyncInlineSummary(accountSync: {
   state: AccountCloudSyncCoordinatorState;
   pendingTotal: number;
@@ -671,6 +714,12 @@ export default function Sidebar() {
     getAccountSyncDomainBreakdown(accountSync);
   const accountSyncDomainBreakdownItems =
     getAccountSyncDomainBreakdownItems(accountSync);
+  const accountLocalUseBadgeLabel = getAccountLocalUseBadgeLabel(
+    accountSync.localUseReadiness
+  );
+  const accountCacheSafetyBadgeLabel = getAccountCacheSafetyBadgeLabel(
+    accountSync.localUseReadiness
+  );
   const accountSyncInlineSummary = getAccountSyncInlineSummary(accountSync);
   const accountSyncNeedsSyncCenter =
     accountSync.failedTotal > 0 ||
@@ -1448,6 +1497,41 @@ export default function Sidebar() {
             {accountSyncInlineSummary}
           </p>
         )}
+        <div
+          data-testid="account-local-use-readiness-badge"
+          data-local-use-status={accountSync.localUseReadiness.status}
+          data-local-input-can-continue={
+            accountSync.localUseReadiness.localInputCanContinue
+          }
+          data-cloud-handoff-ready={
+            accountSync.localUseReadiness.cloudHandoffReady
+          }
+          data-cache-rebuild-blocked={
+            accountSync.localUseReadiness.cacheRebuildBlocked
+          }
+          data-local-use-next-action={accountSync.localUseReadiness.nextAction}
+          className="mt-1 flex flex-wrap gap-1 px-3"
+          title={`${accountSync.localUseReadiness.detail} ${accountSync.localUseReadiness.nextAction}`}
+        >
+          <span
+            className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] leading-3 ${getAccountLocalUseBadgeClass(
+              accountSync.localUseReadiness
+            )}`}
+          >
+            {accountLocalUseBadgeLabel}
+          </span>
+          <span
+            className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] leading-3 ${
+              accountSync.localUseReadiness.cloudHandoffReady
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : accountSync.localUseReadiness.cacheRebuildBlocked
+                  ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                  : "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+            }`}
+          >
+            {accountCacheSafetyBadgeLabel}
+          </span>
+        </div>
         {accountSyncDomainBreakdownItems.length > 0 && (
           <div
             data-testid="account-cloud-sync-domain-breakdown"

@@ -22951,6 +22951,18 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "getAccountLocalUseBadgeLabel",
+      "Sidebar cloud-sync control must show whether local input can continue or cloud handoff is ready.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "getAccountCacheSafetyBadgeLabel",
+      "Sidebar cloud-sync control must show whether cache rebuild is blocked while queues remain.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "云端待确认，本地已保留",
       "Sidebar cloud-sync retry state must visibly reassure that local input is retained instead of looking like sign-out.",
     ],
@@ -22981,8 +22993,20 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      'data-testid="account-local-use-readiness-badge"',
+      "Sidebar local-use readiness badge must be visible and testable.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "data-sync-inline-summary={accountSyncInlineSummary}",
       "Sidebar cloud-sync inline summary must expose the rendered safety message for smoke checks.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "data-local-use-next-action={accountSync.localUseReadiness.nextAction}",
+      "Sidebar local-use readiness badge must expose the recommended next action for smoke checks.",
     ],
     [
       files.sidebar,

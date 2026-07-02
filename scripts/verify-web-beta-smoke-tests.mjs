@@ -8771,8 +8771,32 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
+    "getAccountLocalUseBadgeLabel",
+    "Sidebar cloud-sync control must show whether local input can continue or cloud handoff is ready."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "getAccountCacheSafetyBadgeLabel",
+    "Sidebar cloud-sync control must show whether cache rebuild is blocked while queues remain."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
     'data-testid="account-cloud-sync-domain-breakdown"',
     "Sidebar cloud-sync per-domain pending breakdown must be visible and testable."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    'data-testid="account-local-use-readiness-badge"',
+    "Sidebar local-use readiness badge must be visible and testable."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "data-local-use-next-action={accountSync.localUseReadiness.nextAction}",
+    "Sidebar local-use readiness badge must expose the recommended next action for smoke checks."
   );
   assertIncludes(
     files.sidebar,
