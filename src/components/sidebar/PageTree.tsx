@@ -339,11 +339,16 @@ function PageTreeItem({
           ))}
           {hiddenChildCount > 0 && (
             <li
+              data-testid="sidebar-page-tree-child-windowing-status"
+              data-visible-child-pages={visibleChildren.length}
+              data-child-page-count={children.length}
+              data-hidden-child-count={hiddenChildCount}
+              data-local-first-windowing="true"
               className="flex items-center justify-between gap-2 px-2 py-1 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500"
               style={{ paddingLeft: `${(level + 1) * 16 + 32}px` }}
             >
               <span className="min-w-0 truncate">
-                已折叠 {hiddenChildCount} 个子页面
+                先显示 {visibleChildren.length}/{children.length} 个子页面，已折叠 {hiddenChildCount} 个子页面
               </span>
               <button
                 type="button"
@@ -372,6 +377,7 @@ export default function PageTree() {
   const openPage = useLocalFirstPageNavigation();
   const { pages, upsertPages } = usePages();
   const treePages = useDeferredValue(pages);
+  const dbReady = useWorkspaceStore((s) => s.dbReady);
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
   const pagesById = useWorkspaceStore((s) => s.pagesById);
   const [rootVisibleLimit, setRootVisibleLimit] = useState(
@@ -568,8 +574,15 @@ export default function PageTree() {
 
   if (pages.length === 0) {
     return (
-      <p className="px-3 py-4 text-xs text-zinc-400 text-center">
-        还没有页面，先创建一个页面。
+      <p
+        data-testid="sidebar-page-tree-empty-state"
+        data-local-cache-ready={String(dbReady)}
+        data-local-first-windowing="true"
+        className="px-3 py-4 text-center text-xs text-zinc-400"
+      >
+        {dbReady
+          ? "还没有页面，先创建一个页面。"
+          : "正在准备本地缓存，页面会先从热缓存显示。"}
       </p>
     );
   }
@@ -603,9 +616,16 @@ export default function PageTree() {
       </ul>
 
       {hiddenRootCount > 0 && (
-        <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+        <div
+          data-testid="sidebar-page-tree-windowing-status"
+          data-visible-root-pages={visibleRootPages.length}
+          data-root-page-count={rootPages.length}
+          data-hidden-root-count={hiddenRootCount}
+          data-local-first-windowing="true"
+          className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500"
+        >
           <span className="min-w-0 truncate">
-            已折叠 {hiddenRootCount} 个旧页面
+            先显示 {visibleRootPages.length}/{rootPages.length} 个页面，已折叠 {hiddenRootCount} 个旧页面
           </span>
           <button
             type="button"

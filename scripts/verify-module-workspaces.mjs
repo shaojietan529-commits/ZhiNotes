@@ -652,6 +652,22 @@ check(
     pageTreeSource.includes("visibleChildren") &&
     pageTreeSource.includes("hiddenRootCount") &&
     pageTreeSource.includes("hiddenChildCount") &&
+    pageTreeSource.includes('data-testid="sidebar-page-tree-empty-state"') &&
+    pageTreeSource.includes('data-testid="sidebar-page-tree-windowing-status"') &&
+    pageTreeSource.includes(
+      'data-testid="sidebar-page-tree-child-windowing-status"'
+    ) &&
+    pageTreeSource.includes('data-local-cache-ready={String(dbReady)}') &&
+    pageTreeSource.includes('data-local-first-windowing="true"') &&
+    pageTreeSource.includes("data-visible-root-pages={visibleRootPages.length}") &&
+    pageTreeSource.includes("data-root-page-count={rootPages.length}") &&
+    pageTreeSource.includes("data-hidden-root-count={hiddenRootCount}") &&
+    pageTreeSource.includes("data-visible-child-pages={visibleChildren.length}") &&
+    pageTreeSource.includes("data-child-page-count={children.length}") &&
+    pageTreeSource.includes("data-hidden-child-count={hiddenChildCount}") &&
+    pageTreeSource.includes("正在准备本地缓存，页面会先从热缓存显示。") &&
+    pageTreeSource.includes("先显示 {visibleRootPages.length}/{rootPages.length} 个页面") &&
+    pageTreeSource.includes("先显示 {visibleChildren.length}/{children.length} 个子页面") &&
     pageTreeSource.includes("getTopLevelPageId") &&
     pageTreeSource.includes("getCurrentPagePathIds") &&
     pageTreeSource.includes("page.id === currentPageId") &&
