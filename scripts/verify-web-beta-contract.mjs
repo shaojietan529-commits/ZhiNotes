@@ -5295,6 +5295,10 @@ function run() {
       "Daily + creation must show a top-level opening banner so slow route transitions do not look like a dead click.",
     ],
     [
+      'data-testid="daily-opening-draft-toast"',
+      "Daily + creation must show a viewport-fixed opening toast so scrolled calendar users still see immediate feedback.",
+    ],
+    [
       "没有跳转？打开页面",
       "Daily full-page create mode must offer a visible fallback button if route navigation is slow.",
     ],
@@ -6064,6 +6068,12 @@ function run() {
     "data-testid={`daily-opening-note-${key}`}",
     "Daily calendar must show an immediate opening chip after + is clicked."
   );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'data-testid="daily-opening-draft-toast"',
+    "Daily calendar must show a viewport-fixed opening toast after + is clicked from a scrolled month."
+  );
   for (const [snippet, message] of [
     [
       "quickCreateMeetingForDate",
@@ -6320,6 +6330,10 @@ function run() {
     [
       'data-testid="meeting-opening-draft-banner"',
       "Meeting creation and import must show a top-level opening banner while the peek modal is preparing.",
+    ],
+    [
+      'data-testid="meeting-opening-draft-toast"',
+      "Meeting creation must show a viewport-fixed opening toast so scrolled calendar users still see immediate feedback.",
     ],
     [
       "openingMeetingId === entry.page.id",

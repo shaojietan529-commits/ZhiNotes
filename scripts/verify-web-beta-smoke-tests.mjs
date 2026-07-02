@@ -8810,6 +8810,12 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    'data-testid="daily-opening-draft-toast"',
+    "Daily create must show a viewport-fixed opening toast when the user clicks + from a scrolled calendar."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "没有跳转？打开页面",
     "Daily full-page create mode must give the user a fallback open-page action."
   );
@@ -9004,6 +9010,10 @@ function run() {
     [
       'data-testid="meeting-opening-draft-banner"',
       "Meeting creation and import must show a top-level opening banner while the peek modal is preparing.",
+    ],
+    [
+      'data-testid="meeting-opening-draft-toast"',
+      "Meeting creation must show a viewport-fixed opening toast when the user clicks + from a scrolled calendar.",
     ],
     [
       "openingMeetingId === entry.page.id",

@@ -2403,6 +2403,13 @@ export default function DailyNotesShell() {
           }
         />
       )}
+      {openingDraft && (
+        <DailyOpeningDraftToast
+          dateKey={openingDraft.dateKey}
+          mode={dailyCreateOpenMode}
+          onOpenFull={() => openDailyNoteFullPageById(openingDraft.pageId)}
+        />
+      )}
     </div>
   );
 }
@@ -3454,6 +3461,40 @@ function DailyOpeningDraftBanner({
       >
         {actionLabel}
       </button>
+    </div>
+  );
+}
+
+function DailyOpeningDraftToast({
+  dateKey,
+  mode,
+  onOpenFull,
+}: {
+  dateKey: string;
+  mode: DailyCreateOpenMode;
+  onOpenFull: () => void;
+}) {
+  return (
+    <div className="pointer-events-none fixed bottom-5 right-5 z-40 max-w-sm px-4">
+      <div
+        data-testid="daily-opening-draft-toast"
+        data-open-mode={mode}
+        className="pointer-events-auto rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 shadow-lg dark:border-amber-900/70 dark:bg-amber-950 dark:text-amber-200"
+      >
+        <div className="font-medium">{dateKey} 的每日纪要已在本机创建。</div>
+        <div className="mt-1 text-amber-600 dark:text-amber-400">
+          {mode === "peek"
+            ? "弹窗正在准备，后台继续保存并同步。"
+            : "正在进入完整页面，后台继续保存并同步。"}
+        </div>
+        <button
+          type="button"
+          onClick={onOpenFull}
+          className="mt-2 rounded border border-amber-300 px-2 py-1 font-medium transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/50"
+        >
+          打开完整页面
+        </button>
+      </div>
     </div>
   );
 }

@@ -3228,6 +3228,12 @@ export default function MeetingScheduleShell() {
           }
         />
       )}
+      {openingDraft && (
+        <MeetingOpeningDraftToast
+          dateKey={openingDraft.dateKey}
+          onOpenFull={() => openMeetingFullPageById(openingDraft.pageId)}
+        />
+      )}
     </div>
   );
 }
@@ -4466,6 +4472,35 @@ function MeetingOpeningDraftBanner({
       >
         打开完整页面
       </button>
+    </div>
+  );
+}
+
+function MeetingOpeningDraftToast({
+  dateKey,
+  onOpenFull,
+}: {
+  dateKey: string;
+  onOpenFull: () => void;
+}) {
+  return (
+    <div className="pointer-events-none fixed bottom-5 right-5 z-40 max-w-sm px-4">
+      <div
+        data-testid="meeting-opening-draft-toast"
+        className="pointer-events-auto rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 shadow-lg dark:border-amber-900/70 dark:bg-amber-950 dark:text-amber-200"
+      >
+        <div className="font-medium">{dateKey} 的会议页面已在本机创建。</div>
+        <div className="mt-1 text-amber-600 dark:text-amber-400">
+          弹窗正在准备，日历和云端同步会在后台继续。
+        </div>
+        <button
+          type="button"
+          onClick={onOpenFull}
+          className="mt-2 rounded border border-amber-300 px-2 py-1 font-medium transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/50"
+        >
+          打开完整页面
+        </button>
+      </div>
     </div>
   );
 }
