@@ -11880,6 +11880,42 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      "SYNC_LOG_SNAPSHOT_REFRESH_DEBOUNCE_MS = 250",
+      "Sync UI global sync_log snapshot must refresh quickly without polling aggressively.",
+    ],
+    [
+      "refreshSyncLogSnapshot",
+      "Sync UI must refresh global sync_log summary and samples while the page stays open.",
+    ],
+    [
+      "getSyncLogSummary(),\n          getPendingSyncLogEntries(25)",
+      "Sync UI global queue refresh must read metadata-only sync_log summary and sample rows together.",
+    ],
+    [
+      "SETTINGS_SYNC_STATUS_EVENT",
+      "Sync UI global queue refresh must respond to settings sync_log status changes.",
+    ],
+    [
+      "KNOWLEDGE_SYNC_STATUS_EVENT",
+      "Sync UI global queue refresh must respond to comments, versions, and wiki-link sync_log status changes.",
+    ],
+    [
+      "window.addEventListener(PAGE_SYNC_STATUS_EVENT, scheduleSyncLogSnapshotRefresh)",
+      "Sync UI global queue refresh must respond to page pending queue changes.",
+    ],
+    [
+      "window.addEventListener(\n      DATABASE_SYNC_STATUS_EVENT,\n      scheduleSyncLogSnapshotRefresh",
+      "Sync UI global queue refresh must respond to database pending queue changes.",
+    ],
+    [
+      "window.addEventListener(\"storage\", handleSyncLogStorageRefresh)",
+      "Sync UI global queue refresh must listen for filtered cross-tab queue changes.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "SYNC_DASHBOARD_PENDING_REFRESH_MS = 5000",
       "Sync UI pending panels must keep fast feedback while uploads are active.",
     ],

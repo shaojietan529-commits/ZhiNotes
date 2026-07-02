@@ -547,6 +547,8 @@ import {
   type SyncReplayTestPlan,
   type SyncReplayTestStatus,
 } from "@/lib/sync/syncReplayTestPlan";
+import { SETTINGS_SYNC_STATUS_EVENT } from "@/lib/sync/settingsSyncStatus";
+import { KNOWLEDGE_SYNC_STATUS_EVENT } from "@/lib/sync/knowledgeSyncStatus";
 import {
   buildRestoreRollbackPlan,
   type RestoreRollbackPlan,
@@ -587,6 +589,7 @@ const PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync.";
 const DATABASE_SYNC_STORAGE_KEY_PREFIX = "zhinote.databasesync.";
 const SYNC_DASHBOARD_PENDING_REFRESH_MS = 5000;
 const SYNC_DASHBOARD_IDLE_REFRESH_MS = 30 * 1000;
+const SYNC_LOG_SNAPSHOT_REFRESH_DEBOUNCE_MS = 250;
 
 const loadWorkspaceBackupModule = () => import("@/lib/export/workspaceBackup");
 type SyncQueueAction =
@@ -1680,6 +1683,89 @@ function SyncDashboard() {
 
     return () => {
       mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    let refreshTimer: number | undefined;
+    let refreshInFlight = false;
+    let refreshAgain = false;
+
+    async function refreshSyncLogSnapshot() {
+      if (refreshInFlight) {
+        refreshAgain = true;
+        return;
+      }
+      refreshInFlight = true;
+      try {
+        const [nextSyncSummary, nextSyncEntries] = await Promise.all([
+          getSyncLogSummary(),
+          getPendingSyncLogEntries(25),
+        ]);
+        if (!mounted) return;
+        setSyncSummary(nextSyncSummary);
+        setSyncEntries(nextSyncEntries);
+      } catch (err) {
+        console.error("[Zhinote] Failed to refresh sync log snapshot:", err);
+      } finally {
+        refreshInFlight = false;
+        if (refreshAgain && mounted) {
+          refreshAgain = false;
+          scheduleSyncLogSnapshotRefresh();
+        }
+      }
+    }
+
+    function scheduleSyncLogSnapshotRefresh() {
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(
+        () => void refreshSyncLogSnapshot(),
+        SYNC_LOG_SNAPSHOT_REFRESH_DEBOUNCE_MS
+      );
+    }
+
+    function handleSyncLogStorageRefresh(event: StorageEvent) {
+      if (isPageSyncStorageEvent(event) || isDatabaseSyncStorageEvent(event)) {
+        scheduleSyncLogSnapshotRefresh();
+      }
+    }
+
+    window.addEventListener(PAGE_SYNC_STATUS_EVENT, scheduleSyncLogSnapshotRefresh);
+    window.addEventListener(
+      DATABASE_SYNC_STATUS_EVENT,
+      scheduleSyncLogSnapshotRefresh
+    );
+    window.addEventListener(
+      SETTINGS_SYNC_STATUS_EVENT,
+      scheduleSyncLogSnapshotRefresh
+    );
+    window.addEventListener(
+      KNOWLEDGE_SYNC_STATUS_EVENT,
+      scheduleSyncLogSnapshotRefresh
+    );
+    window.addEventListener("storage", handleSyncLogStorageRefresh);
+
+    return () => {
+      mounted = false;
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      window.removeEventListener(
+        PAGE_SYNC_STATUS_EVENT,
+        scheduleSyncLogSnapshotRefresh
+      );
+      window.removeEventListener(
+        DATABASE_SYNC_STATUS_EVENT,
+        scheduleSyncLogSnapshotRefresh
+      );
+      window.removeEventListener(
+        SETTINGS_SYNC_STATUS_EVENT,
+        scheduleSyncLogSnapshotRefresh
+      );
+      window.removeEventListener(
+        KNOWLEDGE_SYNC_STATUS_EVENT,
+        scheduleSyncLogSnapshotRefresh
+      );
+      window.removeEventListener("storage", handleSyncLogStorageRefresh);
     };
   }, []);
 
