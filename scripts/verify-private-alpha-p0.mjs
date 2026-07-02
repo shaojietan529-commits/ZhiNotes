@@ -35,6 +35,27 @@ const verificationCommands = [
       "Check local-only reversible database button action runner boundaries.",
   },
   {
+    id: "verify-editor",
+    command: "npm run verify:editor",
+    args: ["run", "verify:editor"],
+    purpose:
+      "Check Notion-style editor shortcuts, slash commands, child-page creation, and local-only export commands.",
+  },
+  {
+    id: "verify-file-preview",
+    command: "npm run verify:file-preview",
+    args: ["run", "verify:file-preview"],
+    purpose:
+      "Check file preview/import readiness gates and local-only format workflow boundaries.",
+  },
+  {
+    id: "verify-zhihui-glossary",
+    command: "npm run verify:zhihui-glossary",
+    args: ["run", "verify:zhihui-glossary"],
+    purpose:
+      "Check ZhiHui glossary privacy boundaries and sync-page read path.",
+  },
+  {
     id: "verify-web-beta-smoke",
     command: "npm run verify:web-beta:smoke",
     args: ["run", "verify:web-beta:smoke"],
@@ -153,6 +174,7 @@ function printReceipt(startedAt, results, status) {
       "account session does not collapse on transient failures",
       "module workspace roots stay routable and extensible",
       "database views, import/export, and local-only button actions stay inside safe local boundaries",
+      "editor shortcuts, page creation, file preview, and ZhiHui glossary privacy contracts stay intact",
       "Daily and ZhiHui local-first smoke contracts stay intact",
       "core account, sync, calendar, portfolio, and page route shells respond before deeper data hydration",
     ],
