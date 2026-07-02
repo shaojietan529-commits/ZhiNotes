@@ -9386,6 +9386,34 @@ function run() {
       "Sync UI must render the workspace settings cloud restore button.",
     ],
     [
+      'data-testid="sync-sidebar-readiness-mirror"',
+      "Sync UI must mirror the sidebar local-use/cloud-handoff/cache-rebuild status in the sync center.",
+    ],
+    [
+      "getSidebarReadinessMirrorLabel",
+      "Sync UI must derive a single sidebar-compatible readiness label instead of duplicating ad hoc copy.",
+    ],
+    [
+      "data-sidebar-readiness-next-action={readiness.nextAction}",
+      "Sync UI must expose the same recommended next action as the sidebar readiness badge.",
+    ],
+    [
+      "左侧状态",
+      "Sync UI must label the mirrored sidebar state in Chinese.",
+    ],
+    [
+      "本地可写",
+      "Sync UI must explicitly show when local input can continue.",
+    ],
+    [
+      "先别重建缓存",
+      "Sync UI must warn against cache rebuild while pending work remains.",
+    ],
+    [
+      "可云端交接",
+      "Sync UI must explicitly show when cloud handoff is ready.",
+    ],
+    [
       'data-testid="sync-upload-safety-panel"',
       "Sync UI must expose a stable upload safety overview test hook.",
     ],

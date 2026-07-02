@@ -8887,6 +8887,48 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    'data-testid="sync-sidebar-readiness-mirror"',
+    "Sync UI must mirror the sidebar local-use/cloud-handoff/cache-rebuild status in the sync center."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "getSidebarReadinessMirrorLabel",
+    "Sync UI must derive a single sidebar-compatible readiness label."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-sidebar-readiness-next-action={readiness.nextAction}",
+    "Sync UI must expose the sidebar readiness next action in the sync center."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "左侧状态",
+    "Sync UI must visibly label the mirrored sidebar state."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "本地可写",
+    "Sync UI must explicitly show when local input can continue."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "先别重建缓存",
+    "Sync UI must warn against cache rebuild while pending work remains."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "可云端交接",
+    "Sync UI must explicitly show when cloud handoff is ready."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "上传安全总览",
     "Sync UI must show a plain-language upload safety summary."
   );

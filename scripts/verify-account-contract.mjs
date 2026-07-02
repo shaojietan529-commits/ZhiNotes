@@ -2534,6 +2534,16 @@ check(
     syncDashboardShell.includes("可以继续写") &&
     syncDashboardShell.includes("补传待上传") &&
     syncDashboardShell.includes("查看详细队列") &&
+    syncDashboardShell.includes("getSidebarReadinessMirrorLabel") &&
+    syncDashboardShell.includes("getSidebarReadinessMirrorDetail") &&
+    syncDashboardShell.includes('data-testid="sync-sidebar-readiness-mirror"') &&
+    syncDashboardShell.includes(
+      "data-sidebar-readiness-next-action={readiness.nextAction}"
+    ) &&
+    syncDashboardShell.includes("左侧状态") &&
+    syncDashboardShell.includes("本地可写") &&
+    syncDashboardShell.includes("先别重建缓存") &&
+    syncDashboardShell.includes("可云端交接") &&
     syncDashboardShell.includes("优先查看的数据域") &&
     syncDashboardShell.includes("云端交接：") &&
     syncDashboardShell.includes("不读取正文、数据库值或文件内容") &&

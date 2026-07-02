@@ -19696,6 +19696,30 @@ function localUseReadinessClass(status: AccountLocalUseReadiness["status"]) {
   return "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
 }
 
+function getSidebarReadinessMirrorLabel(
+  readiness: AccountLocalUseReadiness
+) {
+  if (readiness.cloudHandoffReady) return "可云端交接";
+  if (readiness.cacheRebuildBlocked) return "先别重建缓存";
+  if (readiness.localInputCanContinue) return "本地可写";
+  return "先暂停输入";
+}
+
+function getSidebarReadinessMirrorDetail(
+  readiness: AccountLocalUseReadiness
+) {
+  if (readiness.cloudHandoffReady) {
+    return "左侧栏可显示为云端就绪，换设备前仍建议确认账号页。";
+  }
+  if (readiness.cacheRebuildBlocked) {
+    return "左侧栏提示本地可写，但 pending 清零前不要重建缓存。";
+  }
+  if (readiness.localInputCanContinue) {
+    return "左侧栏提示本地可写，云端失败只影响后台补传。";
+  }
+  return "左侧栏提示先暂停，优先处理失败或人工复核队列。";
+}
+
 function developmentStabilityStatusClass(
   status: DevelopmentStabilitySurfaceStatus
 ) {
@@ -19728,6 +19752,10 @@ function SyncOperationalStatusStrip({
   onOpenAccount: () => void;
 }) {
   const actionableTotal = pendingTotal + failedTotal + manualReviewTotal;
+  const sidebarReadinessMirrorLabel =
+    getSidebarReadinessMirrorLabel(readiness);
+  const sidebarReadinessMirrorDetail =
+    getSidebarReadinessMirrorDetail(readiness);
   const visibleDomains = pendingDomainRows
     .filter(
       (row) =>
@@ -19774,6 +19802,34 @@ function SyncOperationalStatusStrip({
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             {readiness.detail} {readiness.nextAction}
           </p>
+          <div
+            data-testid="sync-sidebar-readiness-mirror"
+            data-local-use-status={readiness.status}
+            data-local-input-can-continue={String(
+              readiness.localInputCanContinue
+            )}
+            data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
+            data-cache-rebuild-blocked={String(
+              readiness.cacheRebuildBlocked
+            )}
+            data-sidebar-readiness-label={sidebarReadinessMirrorLabel}
+            data-sidebar-readiness-next-action={readiness.nextAction}
+            className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+          >
+            <span className="font-medium text-zinc-700 dark:text-zinc-200">
+              左侧状态
+            </span>
+            <span
+              className={`rounded-md px-2 py-1 text-[10px] font-medium ${localUseReadinessClass(
+                readiness.status
+              )}`}
+            >
+              {sidebarReadinessMirrorLabel}
+            </span>
+            <span className="min-w-0 flex-1">
+              {sidebarReadinessMirrorDetail}
+            </span>
+          </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <button
