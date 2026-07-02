@@ -6154,6 +6154,30 @@ function run() {
     "pendingOptimisticDailyHotCacheWritesRef.current.clear();",
     "Daily optimistic hot-cache write queue must be cancelled on unmount."
   );
+  for (const [snippet, message] of [
+    [
+      "DAILY_FOREGROUND_QUIET_WINDOW_MS = 1600",
+      "Daily calendar must keep a bounded foreground quiet window for create/open interactions.",
+    ],
+    [
+      "const foregroundQuietUntilRef = useRef(0)",
+      "Daily calendar must track foreground activity so local index refreshes do not interrupt page opening.",
+    ],
+    [
+      "getDailyForegroundRefreshDelay",
+      "Daily calendar refresh scheduling must consult the foreground quiet window.",
+    ],
+    [
+      "foregroundDelay + DAILY_LOCAL_METADATA_REFRESH_DELAY_MS",
+      "Daily calendar page-revision refreshes must wait behind foreground note opens.",
+    ],
+    [
+      "foregroundDelay + DAILY_CLOUD_METADATA_RECHECK_DELAY_MS",
+      "Daily calendar cloud rechecks must wait behind foreground note opens.",
+    ],
+  ]) {
+    assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
@@ -9131,6 +9155,18 @@ function run() {
     dailyNotesShell,
     "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
     "Daily + creation must defer local cache persistence until after the page is already opening."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "markDailyForegroundInteraction();",
+    "Daily + creation must mark the calendar foreground-active before local optimistic writes trigger metadata refreshes."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "markDailyForegroundInteraction();\n      warmDailyPeekOpen();",
+    "Daily existing-note opens must mark the calendar foreground-active before local route priming triggers metadata refreshes."
   );
   assertIncludes(
     files.dailyNotesShell,

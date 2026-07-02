@@ -942,6 +942,14 @@ check(
     dailyNotesShell.includes("DAILY_LOCAL_METADATA_REFRESH_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_CLOUD_METADATA_RECHECK_DELAY_MS") &&
+    dailyNotesShell.includes("DAILY_FOREGROUND_QUIET_WINDOW_MS = 1600") &&
+    dailyNotesShell.includes("DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400") &&
+    dailyNotesShell.includes("const foregroundQuietUntilRef = useRef(0)") &&
+    dailyNotesShell.includes("markDailyForegroundInteraction") &&
+    dailyNotesShell.includes("getDailyForegroundRefreshDelay") &&
+    dailyNotesShell.includes("foregroundDelay + DAILY_LOCAL_METADATA_REFRESH_DELAY_MS") &&
+    dailyNotesShell.includes("foregroundDelay + DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
+    dailyNotesShell.includes("foregroundDelay + DAILY_CLOUD_METADATA_RECHECK_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
     dailyNotesShell.includes("const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900") &&
@@ -953,7 +961,7 @@ check(
     dailyNotesShell.includes("cancelCloudRecheck?.()") &&
     dailyNotesShell.includes("let cloudRecheckTimer: number | null = null") &&
     dailyNotesShell.includes("cloudRecheckTimer = window.setTimeout(() => {") &&
-    dailyNotesShell.includes("}, DAILY_CLOUD_METADATA_RECHECK_DELAY_MS)") &&
+    dailyNotesShell.includes("}, foregroundDelay + DAILY_CLOUD_METADATA_RECHECK_DELAY_MS)") &&
     dailyNotesShell.includes("window.clearTimeout(cloudRecheckTimer)") &&
     dailyNotesShell.indexOf("includeUnindexedFallback: false") <
       dailyNotesShell.indexOf("const fallbackMetadata = await listDailyPageMetadataForCalendar") &&
@@ -991,6 +999,8 @@ check(
 check(
   dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
     dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
+    dailyNotesShell.includes("markDailyForegroundInteraction();") &&
+    dailyNotesShell.includes("markDailyForegroundInteraction();\n      warmDailyPeekOpen();") &&
     dailyNotesShell.indexOf("rememberPendingPageDraft(optimisticNote)") <
       dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
     dailyNotesShell.indexOf("upsertPages([optimisticNote])") <

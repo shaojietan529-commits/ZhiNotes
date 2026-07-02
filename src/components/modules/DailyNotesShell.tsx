@@ -161,6 +161,8 @@ const DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 1800;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900;
+const DAILY_FOREGROUND_QUIET_WINDOW_MS = 1600;
+const DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400;
 const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 450;
 const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 1400;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 96;
@@ -304,6 +306,7 @@ export default function DailyNotesShell() {
   const dailyHighlightTimerRef = useRef<number | null>(null);
   const observedPageRevisionRef = useRef<string | null>(null);
   const creatingDateKeyRef = useRef<string | null>(null);
+  const foregroundQuietUntilRef = useRef(0);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const pendingOptimisticDailyHotCacheWritesRef = useRef(
     new Map<string, () => void>()
@@ -317,6 +320,22 @@ export default function DailyNotesShell() {
     () => metadataRecentLimitForHotCachePreferences(hotCachePreferences),
     [hotCachePreferences]
   );
+
+  const markDailyForegroundInteraction = useCallback(
+    (durationMs: number = DAILY_FOREGROUND_QUIET_WINDOW_MS) => {
+      foregroundQuietUntilRef.current = Math.max(
+        foregroundQuietUntilRef.current,
+        getLocalPerformanceNow() + durationMs
+      );
+    },
+    []
+  );
+
+  const getDailyForegroundRefreshDelay = useCallback(() => {
+    const remaining = foregroundQuietUntilRef.current - getLocalPerformanceNow();
+    if (remaining <= 0) return 0;
+    return Math.min(remaining, DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS);
+  }, []);
 
   useEffect(() => {
     notesRef.current = notes;
@@ -1127,15 +1146,16 @@ export default function DailyNotesShell() {
     }
     if (observedPageRevisionRef.current === pageRevision) return;
     observedPageRevisionRef.current = pageRevision;
+    const foregroundDelay = getDailyForegroundRefreshDelay();
     const timer = window.setTimeout(() => {
       void load({
         includeCloud: false,
         interruptCloud: false,
         preserveVisibleNotes: true,
       });
-    }, 120);
+    }, foregroundDelay + DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [dbReady, pageRevision, load]);
+  }, [dbReady, pageRevision, load, getDailyForegroundRefreshDelay]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -1147,26 +1167,27 @@ export default function DailyNotesShell() {
       if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
       if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
+      const foregroundDelay = getDailyForegroundRefreshDelay();
       localReloadTimer = window.setTimeout(() => {
         void load({
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleNotes: true,
         });
-      }, DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
+      }, foregroundDelay + DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
       fallbackReloadTimer = window.setTimeout(() => {
         void load({
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleNotes: true,
         });
-      }, DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS);
+      }, foregroundDelay + DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS);
       cloudRecheckTimer = window.setTimeout(() => {
         void load({
           includeCloud: true,
           preserveVisibleNotes: true,
         });
-      }, DAILY_CLOUD_METADATA_RECHECK_DELAY_MS);
+      }, foregroundDelay + DAILY_CLOUD_METADATA_RECHECK_DELAY_MS);
     };
 
     const unsubscribe = subscribePagesUpdated((message) => {
@@ -1198,7 +1219,7 @@ export default function DailyNotesShell() {
       if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
       unsubscribe();
     };
-  }, [dbReady, load, rootId, viewMonth]);
+  }, [dbReady, load, rootId, viewMonth, getDailyForegroundRefreshDelay]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const todayKey = toDateKey(new Date());
@@ -1445,6 +1466,7 @@ export default function DailyNotesShell() {
       const createStartedAtIso = new Date().toISOString();
       loadRequestRef.current += 1;
       creatingDateKeyRef.current = dateKey;
+      markDailyForegroundInteraction();
       setCreatingDateKey(dateKey);
       const releaseCreatingDate = () => {
         if (creatingDateKeyRef.current === dateKey) {
@@ -1658,6 +1680,7 @@ export default function DailyNotesShell() {
       openPage,
       scheduleOptimisticDailyHotCacheWrite,
       warmDailyCreateOpenPath,
+      markDailyForegroundInteraction,
     ]
   );
 
@@ -1691,6 +1714,7 @@ export default function DailyNotesShell() {
         source === "daily-create" && note.content_text === ""
           ? toDailyNoteSeed(note, note)
           : toDailyNoteMetadataSeed(note, note);
+      markDailyForegroundInteraction();
       warmDailyPeekOpen();
       upsertPages([initialSeed]);
       rememberPendingPageDraft(initialSeed);
@@ -1702,7 +1726,7 @@ export default function DailyNotesShell() {
         // the metadata needed for immediate first paint.
       }
     },
-    [router, upsertPages, warmDailyPeekOpen]
+    [markDailyForegroundInteraction, router, upsertPages, warmDailyPeekOpen]
   );
 
   const openDailyNoteFullPage = useCallback(

@@ -2697,6 +2697,26 @@ function run() {
       "Daily hot cache must record optimistic local creates before cloud upload.",
     ],
     [
+      "DAILY_FOREGROUND_QUIET_WINDOW_MS = 1600",
+      "Daily calendar must keep a bounded foreground quiet window for create/open interactions.",
+    ],
+    [
+      "const foregroundQuietUntilRef = useRef(0)",
+      "Daily calendar must track foreground activity so local index refreshes do not interrupt page opening.",
+    ],
+    [
+      "getDailyForegroundRefreshDelay",
+      "Daily calendar refresh scheduling must consult the foreground quiet window.",
+    ],
+    [
+      "foregroundDelay + DAILY_LOCAL_METADATA_REFRESH_DELAY_MS",
+      "Daily calendar page-revision refreshes must wait behind foreground note opens.",
+    ],
+    [
+      "foregroundDelay + DAILY_CLOUD_METADATA_RECHECK_DELAY_MS",
+      "Daily calendar cloud rechecks must wait behind foreground note opens.",
+    ],
+    [
       "已先显示本机热缓存",
       "Daily notes must surface the local hot cache first-paint path.",
     ],
@@ -6282,6 +6302,18 @@ function run() {
     dailyNotesShell,
     'data-testid="daily-opening-draft-toast"',
     "Daily calendar must show a viewport-fixed opening toast after + is clicked from a scrolled month."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "markDailyForegroundInteraction();",
+    "Daily + creation must mark the calendar foreground-active before local optimistic writes trigger metadata refreshes."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "markDailyForegroundInteraction();\n      warmDailyPeekOpen();",
+    "Daily existing-note opens must mark the calendar foreground-active before local route priming triggers metadata refreshes."
   );
   assertSourceOrderedSnippets(
     files.dailyNotesShell,
