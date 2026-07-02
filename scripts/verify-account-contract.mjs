@@ -2627,8 +2627,15 @@ check(
 check(
   localQueries.includes("emitSettingsSyncStatusEvent") &&
     localQueries.includes("isSettingsSyncTableName(tableName)") &&
-    localQueries.includes("if (marked > 0) emitSettingsSyncStatusEvent()"),
+    localQueries.includes("if (marked > 0) {") &&
+    localQueries.includes("emitSettingsSyncStatusEvent();"),
   "settings 写入和 ack/失败状态变化后应发出不含内容的刷新事件，让侧边栏同步计数及时更新"
+);
+check(
+  localQueries.includes('SYNC_LOG_STATUS_EVENT = "zhinote:sync-log-status"') &&
+    localQueries.includes("export function emitSyncLogStatusEvent") &&
+    localQueries.includes("emitSyncLogStatusEvent();"),
+  "sync_log 新增、ack、失败和重试状态变化后应发出不含内容的全域刷新事件，让同步中心全域队列计数及时更新"
 );
 check(
   localQueries.includes("emitKnowledgeSyncStatusEvent") &&

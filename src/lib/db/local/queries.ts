@@ -11,6 +11,13 @@ import {
 } from "@/lib/sync/knowledgeSyncStatus";
 import type { BlockComment, Page, PageComment, PageVersion } from "@/lib/utils/types";
 
+export const SYNC_LOG_STATUS_EVENT = "zhinote:sync-log-status";
+
+export function emitSyncLogStatusEvent(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(SYNC_LOG_STATUS_EVENT));
+}
+
 export interface SyncLogSummary {
   total: number;
   pending: number;
@@ -514,6 +521,7 @@ function recordSyncChange(
   if (isKnowledgeSyncTableName(tableName)) {
     emitKnowledgeSyncStatusEvent();
   }
+  emitSyncLogStatusEvent();
 }
 
 function buildSyncChangePayloadHash(
@@ -4084,6 +4092,7 @@ export async function markDatabaseSyncLogEntriesSynced(
     );
     marked += chunk.length;
   }
+  if (marked > 0) emitSyncLogStatusEvent();
   return marked;
 }
 
@@ -4137,7 +4146,10 @@ export async function markWorkspaceSettingSyncLogEntriesSynced(
     );
     marked += Number(beforeRows[0]?.count ?? 0);
   }
-  if (marked > 0) emitSettingsSyncStatusEvent();
+  if (marked > 0) {
+    emitSettingsSyncStatusEvent();
+    emitSyncLogStatusEvent();
+  }
   return marked;
 }
 
@@ -4221,7 +4233,10 @@ async function markWorkspaceSettingSyncLogEntriesStatus(
     }
     marked += Number(beforeRows[0]?.count ?? 0);
   }
-  if (marked > 0) emitSettingsSyncStatusEvent();
+  if (marked > 0) {
+    emitSettingsSyncStatusEvent();
+    emitSyncLogStatusEvent();
+  }
   return marked;
 }
 
@@ -4353,7 +4368,10 @@ async function markNamedSettingSyncLogEntriesSynced(
     );
     marked += Number(beforeRows[0]?.count ?? 0);
   }
-  if (marked > 0) emitSettingsSyncStatusEvent();
+  if (marked > 0) {
+    emitSettingsSyncStatusEvent();
+    emitSyncLogStatusEvent();
+  }
   return marked;
 }
 
@@ -4417,7 +4435,10 @@ async function markNamedSettingSyncLogEntriesStatus(
     }
     marked += Number(beforeRows[0]?.count ?? 0);
   }
-  if (marked > 0) emitSettingsSyncStatusEvent();
+  if (marked > 0) {
+    emitSettingsSyncStatusEvent();
+    emitSyncLogStatusEvent();
+  }
   return marked;
 }
 
@@ -4792,6 +4813,7 @@ async function markSyncLogEntriesAttempted(ids: number[]): Promise<number> {
     );
     marked += chunk.length;
   }
+  if (marked > 0) emitSyncLogStatusEvent();
   return marked;
 }
 
@@ -4824,6 +4846,7 @@ async function markSyncLogEntriesFailed(
     );
     marked += chunk.length;
   }
+  if (marked > 0) emitSyncLogStatusEvent();
   return marked;
 }
 

@@ -45,6 +45,7 @@ import {
   markWorkspaceSettingSyncLogEntriesAttempted,
   markWorkspaceSettingSyncLogEntriesFailed,
   markWorkspaceSettingSyncLogEntriesSynced,
+  SYNC_LOG_STATUS_EVENT,
   upsertWorkspaceSetting,
   type AccountSettingRecord,
   type ModuleSettingRecord,
@@ -1744,6 +1745,7 @@ function SyncDashboard() {
       KNOWLEDGE_SYNC_STATUS_EVENT,
       scheduleSyncLogSnapshotRefresh
     );
+    window.addEventListener(SYNC_LOG_STATUS_EVENT, scheduleSyncLogSnapshotRefresh);
     window.addEventListener("storage", handleSyncLogStorageRefresh);
 
     return () => {
@@ -1763,6 +1765,10 @@ function SyncDashboard() {
       );
       window.removeEventListener(
         KNOWLEDGE_SYNC_STATUS_EVENT,
+        scheduleSyncLogSnapshotRefresh
+      );
+      window.removeEventListener(
+        SYNC_LOG_STATUS_EVENT,
         scheduleSyncLogSnapshotRefresh
       );
       window.removeEventListener("storage", handleSyncLogStorageRefresh);

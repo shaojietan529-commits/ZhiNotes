@@ -8201,6 +8201,22 @@ function run() {
     "emitSettingsSyncStatusEvent",
     "Local setting queue mutations must emit a content-free status event for the account sync coordinator."
   );
+  for (const [snippet, message] of [
+    [
+      'SYNC_LOG_STATUS_EVENT = "zhinote:sync-log-status"',
+      "Local sync_log mutations must expose one content-free global status event.",
+    ],
+    [
+      "export function emitSyncLogStatusEvent",
+      "Local sync_log mutations must expose a reusable event emitter.",
+    ],
+    [
+      "emitSyncLogStatusEvent();",
+      "Local sync_log insert/status changes must notify open sync dashboards without reading payloads.",
+    ],
+  ]) {
+    assertIncludes(files.localQueries, localQueries, snippet, message);
+  }
   assertIncludes(
     files.localQueries,
     localQueries,
@@ -11898,6 +11914,10 @@ function run() {
     [
       "KNOWLEDGE_SYNC_STATUS_EVENT",
       "Sync UI global queue refresh must respond to comments, versions, and wiki-link sync_log status changes.",
+    ],
+    [
+      "SYNC_LOG_STATUS_EVENT",
+      "Sync UI global queue refresh must respond to the generic local sync_log status event.",
     ],
     [
       "window.addEventListener(PAGE_SYNC_STATUS_EVENT, scheduleSyncLogSnapshotRefresh)",
