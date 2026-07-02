@@ -8,7 +8,8 @@ import type { Page } from "@/lib/utils/types";
 
 const MEETING_HOT_CACHE_PREFIX = "zhinote.meeting.hotCacheSnapshot.";
 const MEETING_HOT_CACHE_INDEX_KEY = "zhinote.meeting.hotCacheSnapshot.index.v1";
-const MEETING_HOT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const MEETING_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
+const MEETING_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const MEETING_HOT_CACHE_MAX_PAGES = 500;
 const MEETING_HOT_CACHE_OVERLAP_MAX_SNAPSHOTS = 6;
 const MEETING_HOT_CACHE_INDEX_MAX_ENTRIES = 120;
@@ -56,6 +57,7 @@ export interface MeetingHotCacheSnapshot {
   start_date: string;
   end_date: string;
   cached_at: string;
+  stale?: boolean;
   privacy_boundary: string;
   boundary: {
     reads_page_body_text: false;
@@ -122,10 +124,8 @@ export function readMeetingHotCacheSnapshot(
     if (!isValidMeetingHotCacheSnapshot(parsed, startDate, endDate)) {
       return null;
     }
-    if (Date.now() - Date.parse(parsed.cached_at) > MEETING_HOT_CACHE_TTL_MS) {
-      return null;
-    }
-    return parsed;
+    if (isExpiredMeetingHotCacheSnapshot(parsed)) return null;
+    return withMeetingHotCacheSnapshotFreshness(parsed);
   } catch {
     return null;
   }
@@ -154,7 +154,7 @@ export function readMeetingHotCacheSnapshotsForRange(
       if (!rangesOverlap(parsed.start_date, parsed.end_date, startDate, endDate)) {
         continue;
       }
-      snapshots.push(parsed);
+      snapshots.push(withMeetingHotCacheSnapshotFreshness(parsed));
     }
 
     return snapshots
@@ -259,7 +259,7 @@ function shouldWriteMeetingHotCacheSnapshot(
 ): boolean {
   const current = readMeetingHotCacheSnapshotForWrite(key);
   if (!current) return true;
-  if (isExpiredMeetingHotCacheSnapshot(current)) return true;
+  if (isStaleMeetingHotCacheSnapshot(current)) return true;
   return (
     buildMeetingHotCacheSnapshotSignature(current) !==
     buildMeetingHotCacheSnapshotSignature(snapshot)
@@ -293,7 +293,7 @@ function stableMeetingHotCacheSnapshotValue(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
   const result: Record<string, unknown> = {};
   for (const key of Object.keys(value).sort()) {
-    if (key === "cached_at") continue;
+    if (key === "cached_at" || key === "stale") continue;
     const nextValue = (value as Record<string, unknown>)[key];
     if (typeof nextValue !== "undefined") {
       result[key] = stableMeetingHotCacheSnapshotValue(nextValue);
@@ -499,13 +499,27 @@ function isMeetingHotCacheSnapshotIndexEntry(
 function isExpiredMeetingHotCacheSnapshot(
   value: MeetingHotCacheSnapshot
 ): boolean {
-  return Date.now() - Date.parse(value.cached_at) > MEETING_HOT_CACHE_TTL_MS;
+  return Date.now() - Date.parse(value.cached_at) > MEETING_HOT_CACHE_STALE_MS;
+}
+
+function isStaleMeetingHotCacheSnapshot(value: MeetingHotCacheSnapshot): boolean {
+  const ageMs = Date.now() - Date.parse(value.cached_at);
+  return ageMs > MEETING_HOT_CACHE_FRESH_MS;
 }
 
 function isExpiredMeetingHotCacheEntry(
   value: Pick<MeetingHotCacheSnapshotIndexEntry, "cached_at">
 ): boolean {
-  return Date.now() - Date.parse(value.cached_at) > MEETING_HOT_CACHE_TTL_MS;
+  return Date.now() - Date.parse(value.cached_at) > MEETING_HOT_CACHE_STALE_MS;
+}
+
+function withMeetingHotCacheSnapshotFreshness(
+  snapshot: MeetingHotCacheSnapshot
+): MeetingHotCacheSnapshot {
+  return {
+    ...snapshot,
+    stale: isStaleMeetingHotCacheSnapshot(snapshot),
+  };
 }
 
 function rangesOverlap(

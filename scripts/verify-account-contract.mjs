@@ -1174,6 +1174,7 @@ check(
 const meetingScheduleShell = read(
   "src/components/modules/MeetingScheduleShell.tsx"
 );
+const meetingHotCacheSnapshot = read("src/lib/sync/meetingHotCacheSnapshot.ts");
 const meetingScheduleOpensCreatedPageRoute =
   meetingScheduleShell.includes("const pageRoute = `/page/${result.page.id}`") ||
   meetingScheduleShell.includes("const pageRoute = `/page/${page.id}`") ||
@@ -1255,6 +1256,21 @@ check(
     meetingScheduleShell.indexOf("publishMeetings([], cachedCloud.pages)") <
       meetingScheduleShell.indexOf("getModuleRootId(\"meeting-schedule\")"),
   "MeetingScheduleShell 首屏应先读本地/热缓存会议目录，云端当前窗口 metadata 必须延后到空闲校正；recent metadata 窗口按热缓存偏好有界扩大，全局 metadata 同步只能空闲后台预热；本地刷新也应记录流畅度快照"
+);
+check(
+  meetingHotCacheSnapshot.includes("MEETING_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000") &&
+    meetingHotCacheSnapshot.includes("MEETING_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000") &&
+    meetingHotCacheSnapshot.includes("stale?: boolean") &&
+    meetingHotCacheSnapshot.includes("withMeetingHotCacheSnapshotFreshness") &&
+    meetingHotCacheSnapshot.includes("isStaleMeetingHotCacheSnapshot(current)") &&
+    meetingHotCacheSnapshot.includes('key === "cached_at" || key === "stale"'),
+  "Meeting hot cache 应区分 24h 新鲜窗口和 7 天旧缓存兜底窗口；旧缓存只能作为 /schedule 首屏 metadata 占位，后台必须继续校正"
+);
+check(
+  meetingScheduleShell.includes("staleHotCachePages") &&
+    meetingScheduleShell.includes("staleHotCacheCount") &&
+    meetingScheduleShell.includes("较早的浏览器热缓存已先显示"),
+  "MeetingScheduleShell 使用旧热缓存首屏兜底时必须明确提示后台仍在校正，避免用户把旧会议 metadata 当成最终同步结果"
 );
 check(
   meetingScheduleShell.includes("MEETING_CLOUD_CACHE_PREFIX") &&

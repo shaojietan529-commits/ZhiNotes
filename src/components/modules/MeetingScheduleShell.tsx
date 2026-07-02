@@ -510,6 +510,13 @@ export default function MeetingScheduleShell() {
         snapshot.pages.map(meetingHotCacheSnapshotPageToPage)
       ),
     ];
+    const staleHotCachePages =
+      (cachedHotSnapshot?.stale ? cachedHotSnapshot.pages.length : 0) +
+      overlappingHotSnapshots.reduce(
+        (count, snapshot) =>
+          count + (snapshot.stale ? snapshot.pages.length : 0),
+        0
+      );
     const cachedCloudPages = cachedCloud?.ok ? cachedCloud.pages : [];
     const mergedMeetings = mergeMeetingPages(
       cachedHotPages,
@@ -548,6 +555,8 @@ export default function MeetingScheduleShell() {
       message:
         cachedCloudPages.length > 0
           ? "浏览器缓存的云端会议目录已先显示，本地索引和云端刷新继续后台补齐。"
+          : staleHotCachePages > 0
+            ? "较早的浏览器热缓存已先显示，本地索引和云端目录继续后台校正。"
           : "浏览器热缓存已先显示，本地索引和云端目录继续后台校正。",
     });
     if (cachedCloudPages.length > 0) {
@@ -850,6 +859,13 @@ export default function MeetingScheduleShell() {
       overlappingHotSnapshots.find((snapshot) => snapshot.root_id)?.root_id ??
       null;
     const cachedHotCount = cachedHotPages.length;
+    const staleHotCacheCount =
+      (cachedHotSnapshot?.stale ? cachedHotSnapshot.pages.length : 0) +
+      overlappingHotSnapshots.reduce(
+        (count, snapshot) =>
+          count + (snapshot.stale ? snapshot.pages.length : 0),
+        0
+      );
 
     const publishRootId = (nextRootId: string | null) => {
       if (loadRequestRef.current !== requestId) return;
@@ -955,7 +971,9 @@ export default function MeetingScheduleShell() {
         cloudLoading: includeCloud,
         backgroundActive: true,
         message:
-          "浏览器热缓存已先显示，后台继续读取本地索引和云端会议目录。",
+          staleHotCacheCount > 0
+            ? "较早的浏览器热缓存已先显示，后台继续读取本地索引和云端会议目录。"
+            : "浏览器热缓存已先显示，后台继续读取本地索引和云端会议目录。",
       });
     }
 

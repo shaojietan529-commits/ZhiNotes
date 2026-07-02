@@ -5201,6 +5201,36 @@ function run() {
     "window.localStorage.setItem",
     "Meeting hot cache snapshot must stay a local browser cache."
   );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "MEETING_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",
+    "Meeting hot cache must keep a fresh window for unchanged-write skipping."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "MEETING_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000",
+    "Meeting hot cache must keep a bounded stale metadata fallback for hard refresh first paint."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "withMeetingHotCacheSnapshotFreshness",
+    "Meeting hot cache reads must mark stale metadata so the UI can explain background correction."
+  );
+  assertIncludes(
+    files.meetingHotCacheSnapshot,
+    meetingHotCacheSnapshot,
+    "isStaleMeetingHotCacheSnapshot(current)",
+    "Meeting hot cache writes must refresh stale-but-usable snapshots after metadata reloads."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "较早的浏览器热缓存已先显示",
+    "Meeting schedule must explain when stale local hot cache supplied first paint."
+  );
   for (const forbiddenMeetingSnapshotSnippet of [
     "page.content_text",
     "page.content_yjs",
