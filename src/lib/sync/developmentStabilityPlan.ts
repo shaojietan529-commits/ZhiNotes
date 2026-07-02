@@ -16,6 +16,18 @@ export interface DevelopmentStabilitySurface {
   route_smoke_protected: boolean;
 }
 
+export interface DevelopmentStabilityOperatingMode {
+  status: "stable-use-active";
+  label: "稳定使用模式";
+  user_can_continue_work: true;
+  production_interruptions_should_be_batched: true;
+  experimental_changes_go_to_staging_first: true;
+  local_input_remains_available: true;
+  safe_to_use_routes: string[];
+  blocked_without_owner_gate: string[];
+  next_action: string;
+}
+
 export interface DevelopmentStabilityPlan {
   format: "zhinote-development-stability-plan";
   format_version: 1;
@@ -51,7 +63,10 @@ export interface DevelopmentStabilityPlan {
     failed_total: number;
     manual_review_total: number;
     cache_rebuild_blocked: boolean;
+    stable_use_routes: number;
+    owner_gated_actions: number;
   };
+  stable_use_operating_mode: DevelopmentStabilityOperatingMode;
   stable_use_entrypoints: DevelopmentStabilitySurface[];
   guarded_entrypoints: DevelopmentStabilitySurface[];
   experimental_surfaces: DevelopmentStabilitySurface[];
@@ -187,6 +202,7 @@ export function buildDevelopmentStabilityPlan(input: {
   manualReviewTotal: number;
 }): DevelopmentStabilityPlan {
   const guardedEntryPoints = buildGuardedEntryPoints(input.localUseReadiness);
+  const operatingMode = buildStableUseOperatingMode(input.localUseReadiness);
   const routeSmokeProtectedEntryPoints = STABLE_USE_ENTRYPOINTS.filter(
     (entry) => entry.route_smoke_protected
   ).length;
@@ -217,7 +233,10 @@ export function buildDevelopmentStabilityPlan(input: {
       failed_total: Math.max(0, input.failedTotal),
       manual_review_total: Math.max(0, input.manualReviewTotal),
       cache_rebuild_blocked: input.localUseReadiness.cacheRebuildBlocked,
+      stable_use_routes: operatingMode.safe_to_use_routes.length,
+      owner_gated_actions: operatingMode.blocked_without_owner_gate.length,
     },
+    stable_use_operating_mode: operatingMode,
     stable_use_entrypoints: STABLE_USE_ENTRYPOINTS,
     guarded_entrypoints: guardedEntryPoints,
     experimental_surfaces: EXPERIMENTAL_SURFACES,
@@ -260,6 +279,24 @@ function experimentalSurface(
     guarantees: [],
     next_action: "等待 owner gate、预检收据和明确确认后再进入稳定版本。",
     route_smoke_protected: false,
+  };
+}
+
+function buildStableUseOperatingMode(
+  readiness: AccountLocalUseReadiness
+): DevelopmentStabilityOperatingMode {
+  return {
+    status: "stable-use-active",
+    label: "稳定使用模式",
+    user_can_continue_work: true,
+    production_interruptions_should_be_batched: true,
+    experimental_changes_go_to_staging_first: true,
+    local_input_remains_available: true,
+    safe_to_use_routes: STABLE_USE_ENTRYPOINTS.map((entry) => entry.route),
+    blocked_without_owner_gate: HIGH_RISK_ACTIONS_GATED,
+    next_action: readiness.localInputCanContinue
+      ? "继续使用稳定入口；实验功能先在本地或 staging 验证，线上变更成批进入。"
+      : "先处理失败或人工复核队列，再恢复稳定使用入口。",
   };
 }
 

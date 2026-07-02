@@ -2570,6 +2570,28 @@ check(
       "data-local-app-can-continue={String(plan.local_app_can_continue_now)}"
     ) &&
     syncDashboardShell.includes(
+      "const operatingMode = plan.stable_use_operating_mode;"
+    ) &&
+    syncDashboardShell.includes(
+      'data-testid="development-stability-operating-mode"'
+    ) &&
+    syncDashboardShell.includes(
+      "data-user-can-continue-work={String(operatingMode.user_can_continue_work)}"
+    ) &&
+    syncDashboardShell.includes(
+      "data-production-interruptions-should-be-batched={String("
+    ) &&
+    syncDashboardShell.includes(
+      "data-experimental-changes-go-to-staging-first={String("
+    ) &&
+    syncDashboardShell.includes(
+      "data-safe-route-count={operatingMode.safe_to_use_routes.length}"
+    ) &&
+    syncDashboardShell.includes("稳定使用模式") &&
+    syncDashboardShell.includes("继续使用当前入口") &&
+    syncDashboardShell.includes("实验改动先本地 / staging") &&
+    syncDashboardShell.includes("线上变更成批进入") &&
+    syncDashboardShell.includes(
       "data-route-smoke-protected-entrypoints="
     ) &&
     syncDashboardShell.includes(
@@ -2596,6 +2618,13 @@ check(
       'development_channel: "private-alpha-stable-use"'
     ) &&
     developmentStabilityPlan.includes("stable_use_entrypoints") &&
+    developmentStabilityPlan.includes("stable_use_operating_mode") &&
+    developmentStabilityPlan.includes("DevelopmentStabilityOperatingMode") &&
+    developmentStabilityPlan.includes("production_interruptions_should_be_batched") &&
+    developmentStabilityPlan.includes("experimental_changes_go_to_staging_first") &&
+    developmentStabilityPlan.includes("local_input_remains_available") &&
+    developmentStabilityPlan.includes("safe_to_use_routes") &&
+    developmentStabilityPlan.includes("blocked_without_owner_gate") &&
     developmentStabilityPlan.includes("stable_use_guarantees") &&
     developmentStabilityPlan.includes("guarded_entrypoints") &&
     developmentStabilityPlan.includes("experimental_surfaces") &&

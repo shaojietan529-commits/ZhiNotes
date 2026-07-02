@@ -115,6 +115,7 @@ const files = {
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
   cloudSyncControlPlane: "src/lib/sync/cloudSyncControlPlane.ts",
+  developmentStabilityPlan: "src/lib/sync/developmentStabilityPlan.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   syncAckRetryLedgerContract:
     "src/lib/sync/syncAckRetryLedgerContract.ts",
@@ -613,6 +614,9 @@ function run() {
   const cloudSyncControlPlane = readProjectFile(
     files.cloudSyncControlPlane
   );
+  const developmentStabilityPlan = readProjectFile(
+    files.developmentStabilityPlan
+  );
   const syncUploadDrainReceipt = readProjectFile(
     files.syncUploadDrainReceipt
   );
@@ -932,6 +936,7 @@ function run() {
     [files.cloudMasterReconcile, cloudMasterReconcile],
     [files.localFirstCloudInputPlan, localFirstCloudInputPlan],
     [files.cloudSyncControlPlane, cloudSyncControlPlane],
+    [files.developmentStabilityPlan, developmentStabilityPlan],
     [files.syncAckRetryLedgerContract, syncAckRetryLedgerContract],
     [files.syncAckLedgerReplayPreflight, syncAckLedgerReplayPreflight],
     [files.syncAckLedgerReplayProof, syncAckLedgerReplayProof],
@@ -11361,6 +11366,67 @@ function run() {
     [
       "onWarmup={() => void handleRunHotCacheWarmup()}",
       "Cloud sync control plane UI must route to the existing hot-cache warmup action.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "DevelopmentStabilityOperatingMode",
+      "Development stability plan must define the stable-use operating mode contract.",
+    ],
+    [
+      "stable_use_operating_mode",
+      "Development stability plan must expose the stable-use operating mode.",
+    ],
+    [
+      "production_interruptions_should_be_batched",
+      "Development stability plan must batch production interruptions during active use.",
+    ],
+    [
+      "experimental_changes_go_to_staging_first",
+      "Development stability plan must keep experimental changes out of the stable use path first.",
+    ],
+    [
+      "local_input_remains_available",
+      "Development stability plan must preserve local input availability during sync issues.",
+    ],
+    [
+      "blocked_without_owner_gate",
+      "Development stability plan must keep high-risk actions owner gated.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.developmentStabilityPlan,
+      developmentStabilityPlan,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      'data-testid="development-stability-operating-mode"',
+      "SyncShell must render the stable-use operating mode.",
+    ],
+    [
+      "data-user-can-continue-work={String(operatingMode.user_can_continue_work)}",
+      "Stable-use operating mode must expose whether the user can keep working.",
+    ],
+    [
+      "data-production-interruptions-should-be-batched={String(",
+      "Stable-use operating mode must expose batched production interruption policy.",
+    ],
+    [
+      "data-experimental-changes-go-to-staging-first={String(",
+      "Stable-use operating mode must expose staging-first experimental policy.",
+    ],
+    [
+      "实验改动先本地 / staging",
+      "Stable-use operating mode must make staging-first behavior visible in Chinese.",
+    ],
+    [
+      "线上变更成批进入",
+      "Stable-use operating mode must make batched production changes visible in Chinese.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);

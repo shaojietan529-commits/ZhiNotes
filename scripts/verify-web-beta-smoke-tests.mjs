@@ -174,6 +174,7 @@ const files = {
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
+  developmentStabilityPlan: "src/lib/sync/developmentStabilityPlan.ts",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
   blockComments: "src/components/shared/BlockComments.tsx",
@@ -640,6 +641,9 @@ function run() {
   const quickSearch = readProjectFile(files.quickSearch);
   const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const syncShell = readProjectFile(files.syncShell);
+  const developmentStabilityPlan = readProjectFile(
+    files.developmentStabilityPlan
+  );
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const pageShell = readProjectFile(files.pageShell);
   const blockComments = readProjectFile(files.blockComments);
@@ -13364,6 +13368,41 @@ function run() {
       snippet,
       "Module route warmup must preload high-frequency module shells without reading content rows."
     );
+  }
+  for (const [sourceLabel, source, snippets] of [
+    [
+      files.developmentStabilityPlan,
+      developmentStabilityPlan,
+      [
+        "DevelopmentStabilityOperatingMode",
+        "stable_use_operating_mode",
+        "production_interruptions_should_be_batched",
+        "experimental_changes_go_to_staging_first",
+        "local_input_remains_available",
+        "blocked_without_owner_gate",
+      ],
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      [
+        'data-testid="development-stability-operating-mode"',
+        "data-user-can-continue-work={String(operatingMode.user_can_continue_work)}",
+        "data-production-interruptions-should-be-batched={String(",
+        "data-experimental-changes-go-to-staging-first={String(",
+        "实验改动先本地 / staging",
+        "线上变更成批进入",
+      ],
+    ],
+  ]) {
+    for (const snippet of snippets) {
+      assertIncludes(
+        sourceLabel,
+        source,
+        snippet,
+        "Sync center must keep the stable-use operating mode visible while development continues."
+      );
+    }
   }
   for (const [sourceLabel, source, snippets] of [
     [

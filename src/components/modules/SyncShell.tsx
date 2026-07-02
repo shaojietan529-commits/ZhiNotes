@@ -20013,6 +20013,7 @@ function DevelopmentStabilityPlanPanel({
         : "仍需确认",
     },
   ];
+  const operatingMode = plan.stable_use_operating_mode;
   const visibleStableEntrypoints = plan.stable_use_entrypoints;
   const guardedEntrypoints = plan.guarded_entrypoints.slice(0, 3);
   const experimentalSurfaces = plan.experimental_surfaces.slice(0, 3);
@@ -20029,6 +20030,16 @@ function DevelopmentStabilityPlanPanel({
       }
       data-stable-use-guarantees={plan.summary.stable_use_guarantees}
       data-cache-rebuild-blocked={String(plan.summary.cache_rebuild_blocked)}
+      data-user-can-continue-work={String(operatingMode.user_can_continue_work)}
+      data-production-interruptions-should-be-batched={String(
+        operatingMode.production_interruptions_should_be_batched
+      )}
+      data-experimental-changes-go-to-staging-first={String(
+        operatingMode.experimental_changes_go_to_staging_first
+      )}
+      data-local-input-remains-available={String(
+        operatingMode.local_input_remains_available
+      )}
       className="space-y-3"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -20047,6 +20058,47 @@ function DevelopmentStabilityPlanPanel({
         </div>
         <div className="rounded-md border border-zinc-100 bg-white px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
           本地继续使用：{plan.local_app_can_continue_now ? "可以" : "先暂停"}
+        </div>
+      </div>
+      <div
+        aria-label="稳定使用模式"
+        data-testid="development-stability-operating-mode"
+        data-mode-status={operatingMode.status}
+        data-user-can-continue-work={String(
+          operatingMode.user_can_continue_work
+        )}
+        data-production-interruptions-should-be-batched={String(
+          operatingMode.production_interruptions_should_be_batched
+        )}
+        data-experimental-changes-go-to-staging-first={String(
+          operatingMode.experimental_changes_go_to_staging_first
+        )}
+        data-safe-route-count={operatingMode.safe_to_use_routes.length}
+        data-owner-gated-action-count={
+          operatingMode.blocked_without_owner_gate.length
+        }
+        className="rounded-md border border-emerald-100 bg-emerald-50/80 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/30"
+      >
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
+              {operatingMode.label}
+            </div>
+            <p className="mt-1 text-[11px] leading-4 text-emerald-700 dark:text-emerald-300">
+              {operatingMode.next_action}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[10px] text-emerald-800 dark:text-emerald-200">
+            <span className="rounded bg-white/70 px-2 py-1 dark:bg-emerald-950">
+              继续使用当前入口
+            </span>
+            <span className="rounded bg-white/70 px-2 py-1 dark:bg-emerald-950">
+              实验改动先本地 / staging
+            </span>
+            <span className="rounded bg-white/70 px-2 py-1 dark:bg-emerald-950">
+              线上变更成批进入
+            </span>
+          </div>
         </div>
       </div>
       <div className="grid gap-2 md:grid-cols-6">
