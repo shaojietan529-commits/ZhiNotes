@@ -6427,6 +6427,21 @@ function SyncDashboard() {
           ))}
         </section>
 
+        <SyncOperationalStatusStrip
+          readiness={syncLocalUseReadiness}
+          pendingTotal={syncLocalUseQueueSnapshot.pendingTotal}
+          failedTotal={syncLocalUseQueueSnapshot.failedTotal}
+          manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
+          pendingDomainRows={pendingDomainRows}
+          onDrainAll={() => void handleDrainAllPendingPush()}
+          onOpenSyncLog={() =>
+            document
+              .getElementById("sync-log-visibility-section")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+          onOpenAccount={() => router.push("/account")}
+        />
+
         <CloudMasterReconcilePanel
           report={cloudMasterReconcile}
           onExport={handleExportCloudMasterReconcile}
@@ -10791,7 +10806,11 @@ function SyncDashboard() {
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section
+          id="sync-log-visibility-section"
+          data-testid="sync-log-visibility-section"
+          className="grid scroll-mt-6 gap-4 lg:grid-cols-2"
+        >
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -19687,6 +19706,216 @@ function developmentStabilityStatusClass(
     return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
   }
   return "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+}
+
+function SyncOperationalStatusStrip({
+  readiness,
+  pendingTotal,
+  failedTotal,
+  manualReviewTotal,
+  pendingDomainRows,
+  onDrainAll,
+  onOpenSyncLog,
+  onOpenAccount,
+}: {
+  readiness: AccountLocalUseReadiness;
+  pendingTotal: number;
+  failedTotal: number;
+  manualReviewTotal: number;
+  pendingDomainRows: PendingDomainRow[];
+  onDrainAll: () => void;
+  onOpenSyncLog: () => void;
+  onOpenAccount: () => void;
+}) {
+  const actionableTotal = pendingTotal + failedTotal + manualReviewTotal;
+  const visibleDomains = pendingDomainRows
+    .filter(
+      (row) =>
+        row.pending > 0 ||
+        row.failed > 0 ||
+        row.manualReview > 0 ||
+        row.inFlight > 0
+    )
+    .sort((a, b) => {
+      const bScore = b.manualReview * 1000 + b.failed * 100 + b.pending;
+      const aScore = a.manualReview * 1000 + a.failed * 100 + a.pending;
+      if (bScore !== aScore) return bScore - aScore;
+      return b.total - a.total;
+    })
+    .slice(0, 3);
+
+  return (
+    <section
+      id="sync-operational-status-strip"
+      data-testid="sync-operational-status-strip"
+      data-local-use-status={readiness.status}
+      data-local-input-can-continue={String(readiness.localInputCanContinue)}
+      data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
+      data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+              当前使用安全
+            </p>
+            <span
+              className={`rounded-md px-2 py-1 text-[10px] font-medium ${localUseReadinessClass(
+                readiness.status
+              )}`}
+            >
+              {readiness.localInputCanContinue ? "可以继续写" : "先暂停"}
+            </span>
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-zinc-950 dark:text-zinc-50">
+            {readiness.label}
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            {readiness.detail} {readiness.nextAction}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onDrainAll}
+            disabled={actionableTotal === 0}
+            className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            补传待上传
+          </button>
+          <button
+            type="button"
+            onClick={onOpenSyncLog}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            查看详细队列
+          </button>
+          <button
+            type="button"
+            onClick={onOpenAccount}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            打开账号页
+          </button>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <SyncOperationalMetric
+          label="待上传"
+          value={pendingTotal}
+          detail="本地已保留"
+          tone={pendingTotal > 0 ? "pending" : "ready"}
+        />
+        <SyncOperationalMetric
+          label="失败"
+          value={failedTotal}
+          detail="可重试或排查"
+          tone={failedTotal > 0 ? "blocked" : "ready"}
+        />
+        <SyncOperationalMetric
+          label="人工处理"
+          value={manualReviewTotal}
+          detail="确认后再处理"
+          tone={manualReviewTotal > 0 ? "blocked" : "ready"}
+        />
+        <SyncOperationalMetric
+          label="缓存重建"
+          value={readiness.cacheRebuildBlocked ? "先禁止" : "可按流程"}
+          detail={
+            readiness.cacheRebuildBlocked
+              ? "避免覆盖未上传内容"
+              : "仍需确认"
+          }
+          tone={readiness.cacheRebuildBlocked ? "pending" : "ready"}
+        />
+      </div>
+      <div className="mt-4 rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              优先查看的数据域
+            </p>
+            <p className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+              只按 sync_log 元数据排序，不读取正文、数据库值或文件内容。
+            </p>
+          </div>
+          <p className="text-[11px] leading-4 text-zinc-400">
+            云端交接：{readiness.cloudHandoffReady ? "已就绪" : "等待队列清零"}
+          </p>
+        </div>
+        {visibleDomains.length > 0 ? (
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            {visibleDomains.map((row) => (
+              <div
+                key={row.id}
+                className="rounded-md border border-zinc-100 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs font-medium text-zinc-800 dark:text-zinc-100">
+                    {row.label}
+                  </span>
+                  <span className="text-[11px] text-zinc-400">
+                    {row.pending} pending
+                  </span>
+                </div>
+                <div className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+                  {row.failed > 0 ? `${row.failed} 失败` : "无失败"}
+                  {row.manualReview > 0
+                    ? ` · ${row.manualReview} 人工`
+                    : ""}
+                  {row.inFlight > 0 ? ` · ${row.inFlight} 上传中` : ""}
+                </div>
+                <div className="mt-1 truncate font-mono text-[10px] text-zinc-400">
+                  {row.lastChangeAt
+                    ? formatDate(row.lastChangeAt)
+                    : row.tableNames[0] || "暂无时间戳"}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-md border border-zinc-100 bg-white px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+            当前没有需要处理的 pending、failed 或 manual review 数据域。
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SyncOperationalMetric({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  tone: "ready" | "pending" | "blocked";
+}) {
+  const className =
+    tone === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : tone === "pending"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <div className="rounded-md border border-zinc-100 px-3 py-2 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-zinc-400">{label}</div>
+        <span className={`rounded px-1.5 py-0.5 text-[10px] ${className}`}>
+          {tone === "ready" ? "正常" : tone === "pending" ? "等待" : "处理"}
+        </span>
+      </div>
+      <div className="mt-2 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] leading-4 text-zinc-400">{detail}</div>
+    </div>
+  );
 }
 
 function DevelopmentStabilityPlanPanel({

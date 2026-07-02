@@ -2496,6 +2496,33 @@ check(
   "同步中心应在上传安全总览前展示本地可继续使用、云端交接和缓存重建阻断状态，并保持 metadata-only 边界"
 );
 check(
+  syncDashboardShell.includes("SyncOperationalStatusStrip") &&
+    syncDashboardShell.includes('id="sync-operational-status-strip"') &&
+    syncDashboardShell.includes(
+      'data-testid="sync-operational-status-strip"'
+    ) &&
+    syncDashboardShell.includes(
+      'id="sync-log-visibility-section"'
+    ) &&
+    syncDashboardShell.includes(
+      'data-testid="sync-log-visibility-section"'
+    ) &&
+    syncDashboardShell.includes("当前使用安全") &&
+    syncDashboardShell.includes("可以继续写") &&
+    syncDashboardShell.includes("补传待上传") &&
+    syncDashboardShell.includes("查看详细队列") &&
+    syncDashboardShell.includes("优先查看的数据域") &&
+    syncDashboardShell.includes("云端交接：") &&
+    syncDashboardShell.includes("不读取正文、数据库值或文件内容") &&
+    syncDashboardShell.includes(
+      "data-local-input-can-continue={String(readiness.localInputCanContinue)}"
+    ) &&
+    syncDashboardShell.includes(
+      "data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}"
+    ),
+  "同步中心顶部应提供 P0 使用安全状态条：一眼显示能否继续写、待上传/失败/人工处理、缓存重建阻断和详细队列入口"
+);
+check(
   syncDashboardShell.includes("DevelopmentStabilityPlanPanel") &&
     syncDashboardShell.includes("buildDevelopmentStabilityPlan") &&
     syncDashboardShell.includes("syncLocalUseQueueSnapshot") &&
