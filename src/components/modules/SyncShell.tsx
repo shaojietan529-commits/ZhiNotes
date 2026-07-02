@@ -653,6 +653,7 @@ type PendingDomainRow = {
   pending: number;
   failed: number;
   inFlight: number;
+  manualReview: number;
   total: number;
   lastChangeAt: string | null;
   tableNames: string[];
@@ -2085,9 +2086,18 @@ function SyncDashboard() {
         pageStatus: pagePendingStatus,
         databaseStatus: databasePendingStatus,
         totalSyncPending: syncSummary?.pending ?? 0,
+        totalSyncFailed: syncSummary?.failed ?? 0,
+        totalSyncManualReview: syncSummary?.manualReview ?? 0,
         workspaceIdentity,
       }),
-    [databasePendingStatus, pagePendingStatus, syncSummary?.pending, workspaceIdentity]
+    [
+      databasePendingStatus,
+      pagePendingStatus,
+      syncSummary?.failed,
+      syncSummary?.manualReview,
+      syncSummary?.pending,
+      workspaceIdentity,
+    ]
   );
   const syncLocalUseQueueSnapshot = useMemo(() => {
     const pageWaiting = pagePendingStatus.pending + pagePendingStatus.queued;
@@ -2103,9 +2113,11 @@ function SyncDashboard() {
       pagePendingStatus.failed + databasePendingStatus.failed,
       syncSummary?.failed ?? 0
     );
-    const manualReviewTotal =
+    const manualReviewTotal = Math.max(
       pagePendingStatus.manualReviewCount +
-      databasePendingStatus.manualReviewCount;
+        databasePendingStatus.manualReviewCount,
+      syncSummary?.manualReview ?? 0
+    );
     const enabledDomainCount =
       (pagePendingStatus.enabled ? 1 : 0) +
       (databasePendingStatus.enabled ? 1 : 0);
@@ -4510,6 +4522,8 @@ function SyncDashboard() {
           pageStatus: pagePendingStatus,
           databaseStatus: databasePendingStatus,
           totalSyncPending: syncSummary?.pending ?? 0,
+          totalSyncFailed: syncSummary?.failed ?? 0,
+          totalSyncManualReview: syncSummary?.manualReview ?? 0,
         })
       );
     } catch (err) {
@@ -10803,6 +10817,8 @@ function SyncDashboard() {
                 pageStatus={pagePendingStatus}
                 databaseStatus={databasePendingStatus}
                 totalSyncPending={syncSummary?.pending ?? 0}
+                totalSyncFailed={syncSummary?.failed ?? 0}
+                totalSyncManualReview={syncSummary?.manualReview ?? 0}
                 busyQueueAction={busyQueueAction}
                 onExportHandoffReadiness={
                   handleExportSyncHandoffReadinessReceipt
@@ -10928,8 +10944,17 @@ function SyncDashboard() {
                         <div className="text-[11px] text-zinc-400">
                           pending / {row.total} total
                         </div>
-                        {(row.failed > 0 || row.inFlight > 0) && (
+                        {(row.failed > 0 ||
+                          row.inFlight > 0 ||
+                          row.manualReview > 0) && (
                           <div className="mt-1 text-[11px] text-amber-500 dark:text-amber-300">
+                            {row.manualReview > 0
+                              ? `${row.manualReview} 人工`
+                              : ""}
+                            {row.manualReview > 0 &&
+                            (row.failed > 0 || row.inFlight > 0)
+                              ? " · "
+                              : ""}
                             {row.failed > 0 ? `${row.failed} 失败` : ""}
                             {row.failed > 0 && row.inFlight > 0 ? " · " : ""}
                             {row.inFlight > 0 ? `${row.inFlight} 进行中` : ""}
@@ -10970,8 +10995,17 @@ function SyncDashboard() {
                       </div>
                       <div className="text-right text-zinc-500 dark:text-zinc-400">
                         <div>{table.pending} 待处理</div>
-                        {(table.failed > 0 || table.inFlight > 0) && (
+                        {(table.failed > 0 ||
+                          table.inFlight > 0 ||
+                          table.manualReview > 0) && (
                           <div className="text-amber-500 dark:text-amber-300">
+                            {table.manualReview > 0
+                              ? `${table.manualReview} 人工`
+                              : ""}
+                            {table.manualReview > 0 &&
+                            (table.failed > 0 || table.inFlight > 0)
+                              ? " · "
+                              : ""}
                             {table.failed > 0 ? `${table.failed} 失败` : ""}
                             {table.failed > 0 && table.inFlight > 0 ? " · " : ""}
                             {table.inFlight > 0 ? `${table.inFlight} 进行中` : ""}
@@ -19923,6 +19957,8 @@ function SyncUploadSafetyPanel({
   pageStatus,
   databaseStatus,
   totalSyncPending,
+  totalSyncFailed,
+  totalSyncManualReview,
   busyQueueAction,
   onExportHandoffReadiness,
   onExportManualReview,
@@ -19937,6 +19973,8 @@ function SyncUploadSafetyPanel({
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
   totalSyncPending: number;
+  totalSyncFailed: number;
+  totalSyncManualReview: number;
   busyQueueAction: SyncQueueAction | null;
   onExportHandoffReadiness: () => void;
   onExportManualReview: () => void;
@@ -19953,9 +19991,14 @@ function SyncUploadSafetyPanel({
     databaseStatus.pending +
     databaseStatus.queued +
     databaseStatus.syncLogPending;
-  const failed = pageStatus.failed + databaseStatus.failed;
-  const manualReviewCount =
-    pageStatus.manualReviewCount + databaseStatus.manualReviewCount;
+  const failed = Math.max(
+    pageStatus.failed + databaseStatus.failed,
+    totalSyncFailed
+  );
+  const manualReviewCount = Math.max(
+    pageStatus.manualReviewCount + databaseStatus.manualReviewCount,
+    totalSyncManualReview
+  );
   const pageHealth = getSyncQueueHealth({
     domain: "页面",
     enabled: pageStatus.enabled,
@@ -20049,7 +20092,7 @@ function SyncUploadSafetyPanel({
     {
       label: "全域 sync_log",
       value: `${totalSyncPending} 条`,
-      detail: "只统计表名、row id 和时间戳",
+      detail: `${totalSyncFailed} 失败 / ${totalSyncManualReview} 人工；只统计表名、row id 和时间戳`,
     },
     {
       label: "失败回执",
@@ -20062,7 +20105,7 @@ function SyncUploadSafetyPanel({
     {
       label: "人工处理",
       value: `${manualReviewCount} 条`,
-      detail: `页面最高失败 ${pageStatus.maxFailureCount} 次，数据库最高失败 ${databaseStatus.maxFailureCount} 次。`,
+      detail: `页面最高失败 ${pageStatus.maxFailureCount} 次，数据库最高失败 ${databaseStatus.maxFailureCount} 次；sync_log 人工 ${totalSyncManualReview} 条。`,
     },
     {
       label: "队列健康",
@@ -25208,6 +25251,7 @@ function buildPendingDomainRows(
         pending: sumPendingTables(matchingTables, "pending"),
         failed: sumPendingTables(matchingTables, "failed"),
         inFlight: sumPendingTables(matchingTables, "inFlight"),
+        manualReview: sumPendingTables(matchingTables, "manualReview"),
         total: sumPendingTables(matchingTables, "total"),
         lastChangeAt: latestPendingDomainChange(matchingTables),
         tableNames: matchingTables.map((table) => table.tableName),
@@ -25226,6 +25270,7 @@ function buildPendingDomainRows(
       pending: sumPendingTables(unmatchedTables, "pending"),
       failed: sumPendingTables(unmatchedTables, "failed"),
       inFlight: sumPendingTables(unmatchedTables, "inFlight"),
+      manualReview: sumPendingTables(unmatchedTables, "manualReview"),
       total: sumPendingTables(unmatchedTables, "total"),
       lastChangeAt: latestPendingDomainChange(unmatchedTables),
       tableNames: unmatchedTables.map((table) => table.tableName),
@@ -25255,7 +25300,7 @@ function isPendingDomainTable(
 
 function sumPendingTables(
   tables: SyncLogSummary["tables"],
-  key: "pending" | "failed" | "inFlight" | "total"
+  key: "pending" | "failed" | "inFlight" | "manualReview" | "total"
 ) {
   return tables.reduce((total, table) => total + table[key], 0);
 }

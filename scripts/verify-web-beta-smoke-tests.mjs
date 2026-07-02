@@ -3115,6 +3115,18 @@ function run() {
     "Cloud upload reliability report must keep failure reasons visible."
   );
   assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "input.syncSummary?.failed ?? 0",
+    "Cloud upload reliability report must include full-domain sync_log failed rows."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "input.syncSummary?.manualReview ?? 0",
+    "Cloud upload reliability report must include full-domain sync_log manual-review rows."
+  );
+  assertIncludes(
     files.syncUploadDrainReceipt,
     syncUploadDrainReceipt,
     'format: "zhinote-sync-upload-drain-receipt"',
@@ -11637,6 +11649,12 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "totalSyncManualReview: syncSummary?.manualReview ?? 0",
+    "Sync UI manual review packets must include full-domain sync_log manual-review counts."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "manual-review-packet",
     "Sync UI must track manual review packet export as its own busy state."
   );
@@ -11663,6 +11681,18 @@ function run() {
     syncShell,
     "buildSyncHandoffReadinessReceipt",
     "Sync UI must build handoff readiness receipts from queue metadata."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "totalSyncFailed: syncSummary?.failed ?? 0",
+    "Sync UI handoff readiness must include full-domain sync_log failed counts."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "totalSyncManualReview: syncSummary?.manualReview ?? 0",
+    "Sync UI handoff readiness must include full-domain sync_log manual-review counts."
   );
   assertIncludes(
     files.syncShell,
@@ -11773,6 +11803,12 @@ function run() {
     "Handoff readiness receipt must block cross-device handoff while pending queues exist."
   );
   assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "input.totalSyncManualReview ?? 0",
+    "Handoff readiness receipt must fold full-domain sync_log manual-review counts into owner gates."
+  );
+  assertIncludes(
     files.syncManualReviewPacket,
     syncManualReviewPacket,
     'format: "zhinote-sync-manual-review-packet"',
@@ -11825,6 +11861,18 @@ function run() {
     syncManualReviewPacket,
     "manual_review_sample_ids_or_keys",
     "Manual review packet must surface metadata-only repeated failure samples."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "sync_log_manual_review_count",
+    "Manual review packet must include full-domain sync_log manual-review counts."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "sync_log_failed_count",
+    "Manual review packet must include full-domain sync_log failed counts."
   );
   assertIncludes(
     files.syncManualReviewPacket,

@@ -12,6 +12,8 @@ export interface SyncManualReviewPacketInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
   totalSyncPending: number;
+  totalSyncFailed?: number;
+  totalSyncManualReview?: number;
   generatedAt?: string;
 }
 
@@ -73,9 +75,11 @@ export interface SyncManualReviewPacket {
     manual_review_required: boolean;
     page_manual_review_count: number;
     database_manual_review_count: number;
+    sync_log_manual_review_count: number;
     total_manual_review_count: number;
     page_failed_count: number;
     database_failed_count: number;
+    sync_log_failed_count: number;
     total_failed_count: number;
     page_max_failure_count: number;
     database_max_failure_count: number;
@@ -94,9 +98,16 @@ export function buildSyncManualReviewPacket(
   const generatedAt = input.generatedAt ?? new Date().toISOString();
   const pageDomain = buildPageDomain(input.pageStatus);
   const databaseDomain = buildDatabaseDomain(input.databaseStatus);
-  const totalManualReviewCount =
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount;
-  const totalFailedCount = input.pageStatus.failed + input.databaseStatus.failed;
+  const syncLogManualReviewCount = input.totalSyncManualReview ?? 0;
+  const syncLogFailedCount = input.totalSyncFailed ?? 0;
+  const totalManualReviewCount = Math.max(
+    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    syncLogManualReviewCount
+  );
+  const totalFailedCount = Math.max(
+    input.pageStatus.failed + input.databaseStatus.failed,
+    syncLogFailedCount
+  );
   const status = getPacketStatus({
     pageDomain,
     databaseDomain,
@@ -109,6 +120,8 @@ export function buildSyncManualReviewPacket(
     page: pageDomain,
     database: databaseDomain,
     total_sync_log_pending: input.totalSyncPending,
+    sync_log_failed_count: syncLogFailedCount,
+    sync_log_manual_review_count: syncLogManualReviewCount,
   });
 
   return {
@@ -147,9 +160,11 @@ export function buildSyncManualReviewPacket(
       manual_review_required: totalManualReviewCount > 0,
       page_manual_review_count: input.pageStatus.manualReviewCount,
       database_manual_review_count: input.databaseStatus.manualReviewCount,
+      sync_log_manual_review_count: syncLogManualReviewCount,
       total_manual_review_count: totalManualReviewCount,
       page_failed_count: input.pageStatus.failed,
       database_failed_count: input.databaseStatus.failed,
+      sync_log_failed_count: syncLogFailedCount,
       total_failed_count: totalFailedCount,
       page_max_failure_count: input.pageStatus.maxFailureCount,
       database_max_failure_count: input.databaseStatus.maxFailureCount,

@@ -100,9 +100,14 @@ export function buildCloudUploadReliabilityReport(
   const syncLogPendingRows = input.syncSummary?.pending ?? 0;
   const totalWaitingRows =
     pageWaitingRows + databaseWaitingRows + syncLogPendingRows;
-  const failedRows = input.pageStatus.failed + input.databaseStatus.failed;
-  const manualReviewRows =
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount;
+  const failedRows = Math.max(
+    input.pageStatus.failed + input.databaseStatus.failed,
+    input.syncSummary?.failed ?? 0
+  );
+  const manualReviewRows = Math.max(
+    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.syncSummary?.manualReview ?? 0
+  );
   const oldestPendingQueuedAt = getOldestTimestamp([
     input.pageStatus.oldestPendingQueuedAt,
     input.databaseStatus.oldestPendingQueuedAt,

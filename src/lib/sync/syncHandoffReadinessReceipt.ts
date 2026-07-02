@@ -20,6 +20,8 @@ export interface SyncHandoffReadinessReceiptInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
   totalSyncPending: number;
+  totalSyncFailed?: number;
+  totalSyncManualReview?: number;
   workspaceIdentity: LocalWorkspaceIdentity | null;
   generatedAt?: string;
 }
@@ -108,9 +110,14 @@ export function buildSyncHandoffReadinessReceipt(
     input.databaseStatus.pending +
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
-  const failedRows = input.pageStatus.failed + input.databaseStatus.failed;
-  const manualReviewRows =
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount;
+  const failedRows = Math.max(
+    input.pageStatus.failed + input.databaseStatus.failed,
+    input.totalSyncFailed ?? 0
+  );
+  const manualReviewRows = Math.max(
+    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.totalSyncManualReview ?? 0
+  );
   const oldestPendingQueuedAt = getOldestTimestamp([
     input.pageStatus.oldestPendingQueuedAt,
     input.databaseStatus.oldestPendingQueuedAt,

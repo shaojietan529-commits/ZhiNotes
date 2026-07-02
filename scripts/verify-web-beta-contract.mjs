@@ -9215,6 +9215,14 @@ function run() {
       "Upload safety overview must include full-domain sync_log pending rows.",
     ],
     [
+      "totalSyncFailed",
+      "Upload safety overview must include full-domain sync_log failed rows.",
+    ],
+    [
+      "totalSyncManualReview",
+      "Upload safety overview must include full-domain sync_log manual-review rows.",
+    ],
+    [
       "需处理失败",
       "Upload safety overview must surface failed page or database uploads.",
     ],
@@ -9499,6 +9507,14 @@ function run() {
       "Sync UI must aggregate pending sync rows by full cloud-master data domain.",
     ],
     [
+      'manualReview: sumPendingTables(matchingTables, "manualReview")',
+      "Full-domain pending distribution must aggregate manual-review rows by domain.",
+    ],
+    [
+      'key: "pending" | "failed" | "inFlight" | "manualReview" | "total"',
+      "Full-domain pending distribution must preserve manual-review totals in table aggregation.",
+    ],
+    [
       "全域 pending 变更分布",
       "Sync UI must render a full-domain pending distribution panel.",
     ],
@@ -9567,6 +9583,10 @@ function run() {
       "Sync UI must build manual review packets from queue metadata.",
     ],
     [
+      "totalSyncManualReview: syncSummary?.manualReview ?? 0",
+      "Sync UI manual review packets must include full-domain sync_log manual-review counts.",
+    ],
+    [
       "manual-review-packet",
       "Sync UI must track manual review packet export as its own busy state.",
     ],
@@ -9585,6 +9605,14 @@ function run() {
     [
       "buildSyncHandoffReadinessReceipt",
       "Sync UI must build handoff readiness receipts from queue metadata.",
+    ],
+    [
+      "totalSyncFailed: syncSummary?.failed ?? 0",
+      "Sync UI handoff readiness must include full-domain sync_log failed counts.",
+    ],
+    [
+      "totalSyncManualReview: syncSummary?.manualReview ?? 0",
+      "Sync UI handoff readiness must include full-domain sync_log manual-review counts.",
     ],
     [
       "handoff-readiness",
@@ -9800,6 +9828,18 @@ function run() {
       "Handoff readiness receipt must block repeated failures that need owner review.",
     ],
     [
+      "totalSyncFailed?: number",
+      "Handoff readiness receipt input must accept full-domain sync_log failed counts.",
+    ],
+    [
+      "totalSyncManualReview?: number",
+      "Handoff readiness receipt input must accept full-domain sync_log manual-review counts.",
+    ],
+    [
+      "input.totalSyncManualReview ?? 0",
+      "Handoff readiness receipt must fold full-domain sync_log manual-review counts into owner gates.",
+    ],
+    [
       "owner_actions",
       "Handoff readiness receipt must include owner-facing next actions.",
     ],
@@ -9916,6 +9956,14 @@ function run() {
     [
       "can_retry_before_owner_review",
       "Manual review packet must tell whether retry is safe before owner review.",
+    ],
+    [
+      "sync_log_manual_review_count",
+      "Manual review packet must include full-domain sync_log manual-review counts.",
+    ],
+    [
+      "sync_log_failed_count",
+      "Manual review packet must include full-domain sync_log failed counts.",
     ],
     [
       "cache_rebuild_should_wait",
@@ -10828,6 +10876,14 @@ function run() {
     [
       "failure-reasons-visible",
       "Cloud upload reliability report must keep failure reasons visible.",
+    ],
+    [
+      "input.syncSummary?.failed ?? 0",
+      "Cloud upload reliability report must include full-domain sync_log failed rows.",
+    ],
+    [
+      "input.syncSummary?.manualReview ?? 0",
+      "Cloud upload reliability report must include full-domain sync_log manual-review rows.",
     ],
     [
       "STALE_PENDING_MS",
