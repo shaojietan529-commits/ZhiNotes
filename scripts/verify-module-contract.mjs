@@ -331,11 +331,19 @@ function run() {
   }
   for (const snippet of [
     "STABLE_USE_MODULE_REGISTRY",
+    "DEVELOPMENT_STABILITY_PLAN",
     "assertStableUseModuleRoutesCovered",
+    "assertDevelopmentStabilityRoutesCovered",
     "extractStableUseModuleRoutes",
+    "extractDevelopmentStabilityRoutes",
+    "extractStableEntrypointsArray",
+    "normalizeSmokePath",
     'usageTier: "stable-use"',
+    "STABLE_USE_ENTRYPOINTS",
+    "Development stability routes missing from route smoke",
     "Stable-use module routes missing from route smoke",
     "/modules/notes",
+    "/page/zhinote-route-prefetch",
   ]) {
     assertIncludes(
       files.routeSmoke,

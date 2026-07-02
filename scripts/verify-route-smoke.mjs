@@ -78,12 +78,14 @@ const ROUTES = [
   },
 ];
 const STABLE_USE_MODULE_REGISTRY = "src/lib/modules/registry.ts";
+const DEVELOPMENT_STABILITY_PLAN = "src/lib/sync/developmentStabilityPlan.ts";
 const START_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const LOG_LIMIT = 16_000;
 
 async function main() {
   assertStableUseModuleRoutesCovered();
+  assertDevelopmentStabilityRoutesCovered();
   const existingServer = await findExistingDevServer();
   const port = existingServer?.port ?? (await findFreePort());
   const baseUrl = existingServer?.baseUrl ?? `http://${HOST}:${port}`;
@@ -132,7 +134,7 @@ async function main() {
           port,
           routes: results,
           privacyBoundary:
-            "This check requests only public route shells from a local Next.js server, reusing an already-running local dev server when available or starting a temporary one otherwise. It does not read browser storage, page bodies, database rows, file bytes, cookies, credentials, or cloud data.",
+            "This check requests only public route shells from a local Next.js server, reusing an already-running local dev server when available or starting a temporary one otherwise. It reads local module registry and development-stability route metadata only; it does not read browser storage, page bodies, database rows, file bytes, cookies, credentials, or cloud data.",
         },
         null,
         2
@@ -188,6 +190,25 @@ function assertStableUseModuleRoutesCovered() {
   }
 }
 
+function assertDevelopmentStabilityRoutesCovered() {
+  const planSource = readFileSync(
+    path.join(process.cwd(), DEVELOPMENT_STABILITY_PLAN),
+    "utf8"
+  );
+  const stableEntrypoints = extractDevelopmentStabilityRoutes(planSource);
+  const smokedRoutes = new Set(ROUTES.map((route) => route.path));
+  const missingRoutes = stableEntrypoints.filter(
+    (entrypoint) => !smokedRoutes.has(entrypoint.smokePath)
+  );
+  if (missingRoutes.length > 0) {
+    throw new Error(
+      `Development stability routes missing from route smoke: ${missingRoutes
+        .map((entrypoint) => `${entrypoint.id}:${entrypoint.route}`)
+        .join(", ")}`
+    );
+  }
+}
+
 function extractStableUseModuleRoutes(registrySource) {
   const moduleArray = extractPlatformModulesArray(registrySource);
   return [
@@ -203,6 +224,36 @@ function extractStableUseModuleRoutes(registrySource) {
       };
     })
     .filter((module) => module.stableUse && module.route);
+}
+
+function extractDevelopmentStabilityRoutes(planSource) {
+  const stableEntrypointsArray = extractStableEntrypointsArray(planSource);
+  return [
+    ...stableEntrypointsArray.matchAll(
+      /stableSurface\(\s*"([^"]+)"\s*,\s*"[^"]+"\s*,\s*"([^"]+)"/g
+    ),
+  ].map((match) => ({
+    id: match[1],
+    route: match[2],
+    smokePath: normalizeSmokePath(match[2]),
+  }));
+}
+
+function extractStableEntrypointsArray(planSource) {
+  const match = planSource.match(
+    /const STABLE_USE_ENTRYPOINTS: DevelopmentStabilitySurface\[] = \[([\s\S]*?)\];\n\nconst EXPERIMENTAL_SURFACES/
+  );
+  if (!match) {
+    throw new Error(
+      "Unable to locate STABLE_USE_ENTRYPOINTS array in development stability plan."
+    );
+  }
+  return match[1];
+}
+
+function normalizeSmokePath(route) {
+  if (route === "/page/[pageId]") return "/page/zhinote-route-prefetch";
+  return route;
 }
 
 function extractPlatformModulesArray(registrySource) {
