@@ -22771,6 +22771,12 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      'data-testid="sidebar-sync-status"',
+      "Sidebar must expose an always-visible sync status signal beside the account label.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "accountSyncShortLabel",
       "Sidebar cloud-sync control must show a human-readable sync status label.",
     ],
@@ -22785,6 +22791,12 @@ function run() {
       sidebar,
       "accountSyncNeedsSyncCenter",
       "Sidebar cloud-sync control must route pending or complex sync states to the Sync module instead of only refreshing local status.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "accountSyncShouldOpenSyncCenter",
+      "Sidebar cloud-sync control must also route disabled, signed-out, or uncertain cloud states to Sync status instead of hiding them.",
     ],
     [
       files.sidebar,
@@ -22855,8 +22867,14 @@ function run() {
     [
       files.sidebar,
       sidebar,
-      'accountSyncActionLabel = accountSyncNeedsSyncCenter\n    ? "查看队列"',
+      'const accountSyncActionLabel = accountSyncShouldOpenSyncCenter',
       "Sidebar cloud-sync control must label queue-review states as queue review instead of generic quick sync.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      '? "查看队列"',
+      "Sidebar cloud-sync control must keep queue-review states labeled as queue review.",
     ],
     [
       files.sidebar,

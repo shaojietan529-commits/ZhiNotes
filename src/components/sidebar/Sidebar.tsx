@@ -587,8 +587,15 @@ export default function Sidebar() {
     accountSync.globalSyncLogExtraFailedTotal > 0 ||
     accountSync.globalSyncLogExtraManualReviewTotal > 0;
   const accountSyncCenterTarget = getAccountSyncCenterTarget(accountSync);
-  const accountSyncActionLabel = accountSyncNeedsSyncCenter
-    ? "查看队列"
+  const accountSyncShouldOpenSyncCenter =
+    accountSyncNeedsSyncCenter ||
+    accountSync.state === "disabled" ||
+    accountSync.state === "signed-out" ||
+    accountSync.state === "error";
+  const accountSyncActionLabel = accountSyncShouldOpenSyncCenter
+    ? accountSyncNeedsSyncCenter
+      ? "查看队列"
+      : "查看同步"
     : "快速同步";
   const accountSyncAriaLabel = `${accountSyncShortLabel}，${accountSyncActionLabel}：${accountSyncTitle.replace(
     /\n/g,
@@ -603,7 +610,7 @@ export default function Sidebar() {
     ? `${accountSessionFallback.reason}；本地输入可继续保存，同步会稍后重试。`
     : "";
   const handleAccountSyncButtonClick = useCallback(() => {
-    if (accountSyncNeedsSyncCenter) {
+    if (accountSyncShouldOpenSyncCenter) {
       openModuleRoute(accountSyncCenterTarget);
       return;
     }
@@ -611,7 +618,7 @@ export default function Sidebar() {
   }, [
     accountSync,
     accountSyncCenterTarget,
-    accountSyncNeedsSyncCenter,
+    accountSyncShouldOpenSyncCenter,
     openModuleRoute,
   ]);
 
@@ -1218,7 +1225,43 @@ export default function Sidebar() {
             <span className="shrink-0 text-base">👤</span>
             <span className="min-w-0 flex-1 truncate">{accountLabel}</span>
           </Link>
-          {accountSync.enabledDomainCount > 0 && (
+          <span
+            data-testid="sidebar-sync-status"
+            data-sync-state={accountSync.state}
+            data-sync-pending={accountSync.pendingTotal}
+            data-sync-pending-total={accountSync.pendingTotal}
+            data-sync-failed={accountSync.failedTotal}
+            data-sync-manual-review={accountSync.manualReviewTotal}
+            data-page-pending-total={accountSync.pagePendingTotal}
+            data-database-pending-total={accountSync.databasePendingTotal}
+            data-settings-pending-total={accountSync.settingsPendingTotal}
+            data-knowledge-pending-total={accountSync.knowledgePendingTotal}
+            data-global-sync-log-extra-pending-total={
+              accountSync.globalSyncLogExtraPendingTotal
+            }
+            data-global-sync-log-extra-failed-total={
+              accountSync.globalSyncLogExtraFailedTotal
+            }
+            data-global-sync-log-extra-manual-review-total={
+              accountSync.globalSyncLogExtraManualReviewTotal
+            }
+            data-local-use-status={accountSync.localUseReadiness.status}
+            data-local-input-can-continue={
+              accountSync.localUseReadiness.localInputCanContinue
+            }
+            data-cloud-handoff-ready={
+              accountSync.localUseReadiness.cloudHandoffReady
+            }
+            data-cache-rebuild-blocked={
+              accountSync.localUseReadiness.cacheRebuildBlocked
+            }
+            data-sync-action={
+              accountSyncShouldOpenSyncCenter ? "open-sync-center" : "quick-sync"
+            }
+            data-sync-target={accountSyncCenterTarget}
+            data-sync-domain-breakdown={accountSyncDomainBreakdown}
+            className="contents"
+          >
             <button
               type="button"
               data-testid="account-cloud-sync-coordinator"
@@ -1250,18 +1293,18 @@ export default function Sidebar() {
                 accountSync.localUseReadiness.cacheRebuildBlocked
               }
               data-sync-action={
-                accountSyncNeedsSyncCenter ? "open-sync-center" : "quick-sync"
+                accountSyncShouldOpenSyncCenter ? "open-sync-center" : "quick-sync"
               }
               data-sync-target={accountSyncCenterTarget}
               data-sync-domain-breakdown={accountSyncDomainBreakdown}
               aria-label={accountSyncAriaLabel}
               onPointerEnter={() => {
-                if (accountSyncNeedsSyncCenter) {
+                if (accountSyncShouldOpenSyncCenter) {
                   warmModuleRoute(accountSyncCenterTarget);
                 }
               }}
               onFocus={() => {
-                if (accountSyncNeedsSyncCenter) {
+                if (accountSyncShouldOpenSyncCenter) {
                   warmModuleRoute(accountSyncCenterTarget);
                 }
               }}
@@ -1277,7 +1320,7 @@ export default function Sidebar() {
                 </span>
               )}
             </button>
-          )}
+          </span>
         </div>
         {accountSync.enabledDomainCount > 0 && accountSyncInlineSummary && (
           <p

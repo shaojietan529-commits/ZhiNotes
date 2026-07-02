@@ -2810,6 +2810,7 @@ check(
   sidebar.includes("pageSyncPendingTotal") &&
     sidebar.includes("databaseSyncPendingTotal") &&
     sidebar.includes("useAccountCloudSyncCoordinator") &&
+    sidebar.includes('data-testid="sidebar-sync-status"') &&
     sidebar.includes('data-testid="account-cloud-sync-coordinator"') &&
     sidebar.includes("accountSyncShortLabel") &&
     sidebar.includes("accountSyncAriaLabel") &&
@@ -2835,6 +2836,11 @@ check(
     sidebar.includes("accountSync.localUseReadiness.label}${breakdownSuffix}") &&
     sidebar.includes("账号或网络暂不可确认，已保留本地输入，稍后重试") &&
     sidebar.includes("accountSyncNeedsSyncCenter") &&
+    sidebar.includes("accountSyncShouldOpenSyncCenter") &&
+    sidebar.includes('accountSync.state === "disabled"') &&
+    sidebar.includes('accountSync.state === "signed-out"') &&
+    sidebar.includes('accountSync.state === "error"') &&
+    sidebar.includes('"查看同步"') &&
     sidebar.includes("accountSync.pagePendingTotal > 0") &&
     sidebar.includes("accountSync.databasePendingTotal > 0") &&
     sidebar.includes("getAccountSyncCenterTarget") &&
@@ -2847,15 +2853,26 @@ check(
     sidebar.includes("/modules/sync#database-pending-upload-queue") &&
     sidebar.includes("/modules/sync#knowledge-replay-batch-plan") &&
     sidebar.includes("/modules/sync#account-module-settings-pending-plan") &&
-    sidebar.includes('accountSyncActionLabel = accountSyncNeedsSyncCenter\n    ? "查看队列"') &&
+    sidebar.includes(
+      "const accountSyncActionLabel = accountSyncShouldOpenSyncCenter"
+    ) &&
     sidebar.includes("openModuleRoute(accountSyncCenterTarget)") &&
     sidebar.includes("warmModuleRoute(accountSyncCenterTarget)") &&
     sidebar.includes("data-sync-state={accountSync.state}") &&
+    sidebar.includes("data-sync-pending={accountSync.pendingTotal}") &&
     sidebar.includes("data-pending-total={accountSync.pendingTotal}") &&
     sidebar.includes("data-failed-total={accountSync.failedTotal}") &&
+    sidebar.includes("data-sync-failed={accountSync.failedTotal}") &&
     sidebar.includes("data-manual-review-total={accountSync.manualReviewTotal}") &&
-    sidebar.includes("data-settings-pending-total={accountSync.settingsPendingTotal}") &&
-    sidebar.includes("data-knowledge-pending-total={accountSync.knowledgePendingTotal}") &&
+    sidebar.includes(
+      "data-sync-manual-review={accountSync.manualReviewTotal}"
+    ) &&
+    sidebar.includes(
+      "data-settings-pending-total={accountSync.settingsPendingTotal}"
+    ) &&
+    sidebar.includes(
+      "data-knowledge-pending-total={accountSync.knowledgePendingTotal}"
+    ) &&
     sidebar.includes("accountSync.localUseReadiness") &&
     sidebar.includes("data-local-use-status={accountSync.localUseReadiness.status}") &&
     sidebar.includes("data-local-input-can-continue=") &&

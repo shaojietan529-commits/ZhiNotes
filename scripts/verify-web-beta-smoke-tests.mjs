@@ -8753,8 +8753,26 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
-    'accountSyncActionLabel = accountSyncNeedsSyncCenter\n    ? "查看队列"',
+    'data-testid="sidebar-sync-status"',
+    "Sidebar must expose an always-visible sync status signal beside the account label."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "accountSyncShouldOpenSyncCenter",
+    "Sidebar cloud-sync control must route disabled, signed-out, or uncertain cloud states to Sync status instead of hiding them."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    'const accountSyncActionLabel = accountSyncShouldOpenSyncCenter',
     "Sidebar cloud-sync control must label queue-review states as queue review instead of generic quick sync."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    '? "查看队列"',
+    "Sidebar cloud-sync control must keep queue-review states labeled as queue review."
   );
   assertIncludes(
     files.syncShell,
