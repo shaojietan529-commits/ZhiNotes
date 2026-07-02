@@ -1063,9 +1063,11 @@ for (const token of [
   'openPage(pageId, { source: "daily-open" })',
   "rememberPendingPageDraft(optimisticNote)",
   "upsertPages([optimisticNote])",
-  "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+  "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
+  "pendingOptimisticDailyHotCacheWritesRef.current.get(cacheKey)?.();",
+  "pendingOptimisticDailyHotCacheWritesRef.current.clear();",
   "cachedHotSnapshot,\n        startDate,\n        endDate",
-  "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)",
+  "const currentNotes = collectVisibleDailyNotesForHotCache(notesByDate);",
   "writeOptimisticDailyHotCache",
   "applyRemotePages([pageToRemoteRecord(note)])",
   "queueCloudPagePush(record)",
@@ -1091,10 +1093,10 @@ check(
     shells.daily.indexOf("setPeekInitialPage(optimisticNote)") <
       shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&
     shells.daily.indexOf('openPage(optimisticNote, { source: "daily-create" })') <
-      shells.daily.indexOf("writeOptimisticDailyHotCache") &&
+      shells.daily.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") &&
     shells.daily.indexOf("setPeekPageId(optimisticNote.id)") <
-      shells.daily.indexOf("writeOptimisticDailyHotCache") &&
-    shells.daily.indexOf("writeOptimisticDailyHotCache") <
+      shells.daily.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") &&
+    shells.daily.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") <
       shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     shells.daily.includes("window.setTimeout(() =>") &&
     shells.daily.includes("current === dateKey ? null : current") &&

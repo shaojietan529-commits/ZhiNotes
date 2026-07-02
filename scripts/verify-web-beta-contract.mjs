@@ -2669,16 +2669,24 @@ function run() {
       "Daily notes must reuse the early cloud metadata promise instead of issuing a second cloud request.",
     ],
     [
-      "writeOptimisticDailyHotCache",
-      "Daily + creation must update the local hot cache before background persistence.",
+      "scheduleOptimisticDailyHotCacheWrite",
+      "Daily + creation must queue optimistic hot-cache writes after the local draft is visible.",
     ],
     [
-      "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+      "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
       "Daily + creation must defer hot-cache writes so the click can paint the new page immediately.",
     ],
     [
-      "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)",
+      "const currentNotes = collectVisibleDailyNotesForHotCache(notesByDate);",
       "Daily + creation must not pass the full imported note set into optimistic hot-cache writes.",
+    ],
+    [
+      "pendingOptimisticDailyHotCacheWritesRef.current.get(cacheKey)?.();",
+      "Daily optimistic hot-cache writes must coalesce per note so repeated create/save updates do not stack storage writes.",
+    ],
+    [
+      "pendingOptimisticDailyHotCacheWritesRef.current.clear();",
+      "Daily optimistic hot-cache write queue must be cancelled on unmount.",
     ],
     [
       "source: \"optimistic-local\"",
@@ -5429,7 +5437,7 @@ function run() {
       "Daily + creation must defer local cache persistence until after the page is already opening.",
     ],
     [
-      "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+      "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
       "Daily + creation must defer hot-cache writes behind the immediate peek open path.",
     ],
     [
@@ -6160,7 +6168,7 @@ function run() {
       "setOpeningNoteId(optimisticNote.id);",
       "setPeekPageId(optimisticNote.id);",
       "recordLocalPerformanceSnapshot({",
-      "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+      "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
       "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
     ],
     "Daily + creation must show the local peek/opening shell before hot-cache and local-index background work."

@@ -6031,8 +6031,20 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "writeOptimisticDailyHotCache",
-    "Daily + creation must update the local hot cache before background persistence."
+    "scheduleOptimisticDailyHotCacheWrite",
+    "Daily + creation must queue optimistic hot-cache writes after the local draft is visible."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "pendingOptimisticDailyHotCacheWritesRef.current.get(cacheKey)?.();",
+    "Daily optimistic hot-cache writes must coalesce per note so repeated create/save updates do not stack storage writes."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "pendingOptimisticDailyHotCacheWritesRef.current.clear();",
+    "Daily optimistic hot-cache write queue must be cancelled on unmount."
   );
   assertIncludes(
     files.dailyNotesShell,
@@ -6061,7 +6073,7 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)",
+    "const currentNotes = collectVisibleDailyNotesForHotCache(notesByDate);",
     "Daily + creation must not pass the full imported note set into optimistic hot-cache writes."
   );
   assertIncludes(
@@ -8845,7 +8857,7 @@ function run() {
       "setOpeningNoteId(optimisticNote.id);",
       "setPeekPageId(optimisticNote.id);",
       "recordLocalPerformanceSnapshot({",
-      "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+      "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
       "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
     ],
     "Daily + creation must show the local peek/opening shell before hot-cache and local-index background work."
@@ -8880,7 +8892,7 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({",
+    "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
     "Daily + creation must defer hot-cache writes so the click can paint the new page immediately."
   );
   assertIncludes(

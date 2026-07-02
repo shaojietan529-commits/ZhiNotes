@@ -980,11 +980,11 @@ check(
     dailyNotesShell.indexOf("rememberPendingPageDraft(optimisticNote)") <
       dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
     dailyNotesShell.indexOf("upsertPages([optimisticNote])") <
-      dailyNotesShell.indexOf("writeOptimisticDailyHotCache") &&
+      dailyNotesShell.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") &&
     dailyNotesShell.includes(
-      "currentNotes: collectVisibleDailyNotesForHotCache(notesByDate)"
+      "const currentNotes = collectVisibleDailyNotesForHotCache(notesByDate);"
     ) &&
-    dailyNotesShell.indexOf("writeOptimisticDailyHotCache") <
+    dailyNotesShell.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") <
       dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     dailyNotesShell.includes(
       "warmDailyCreateOpenPath();\n        setOpeningDraft({ pageId: optimisticNote.id, dateKey });"
@@ -999,9 +999,10 @@ check(
     dailyNotesShell.includes("useLocalFirstPageNavigation") &&
     dailyNotesShell.includes("const pageRoute = `/page/${optimisticNote.id}`") &&
     dailyNotesShell.includes("router.prefetch(pageRoute)") &&
-    dailyNotesShell.includes(
-      "scheduleDailyIdleTask(() => {\n        writeOptimisticDailyHotCache({"
-    ) &&
+    dailyNotesShell.includes("scheduleOptimisticDailyHotCacheWrite(optimisticNote") &&
+    dailyNotesShell.includes("scheduleOptimisticDailyHotCacheWrite(noteForSave") &&
+    dailyNotesShell.includes("pendingOptimisticDailyHotCacheWritesRef.current.get(cacheKey)?.();") &&
+    dailyNotesShell.includes("pendingOptimisticDailyHotCacheWritesRef.current.clear();") &&
     dailyNotesShell.includes("setPeekInitialPage(optimisticNote);") &&
     dailyNotesShell.includes("setPeekPageId(optimisticNote.id);") &&
     dailyNotesShell.includes('openPage(optimisticNote, { source: "daily-create" })') &&

@@ -304,6 +304,9 @@ export default function DailyNotesShell() {
   const observedPageRevisionRef = useRef<string | null>(null);
   const creatingDateKeyRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
+  const pendingOptimisticDailyHotCacheWritesRef = useRef(
+    new Map<string, () => void>()
+  );
   const { viewMonth, setViewMonth } =
     useCalendarViewMonthPreference("daily");
   const [hotCachePreferences, setHotCachePreferences] = useState(
@@ -1350,6 +1353,10 @@ export default function DailyNotesShell() {
 
   useEffect(
     () => () => {
+      for (const cancelWrite of pendingOptimisticDailyHotCacheWritesRef.current.values()) {
+        cancelWrite();
+      }
+      pendingOptimisticDailyHotCacheWritesRef.current.clear();
       if (dailyHighlightTimerRef.current) {
         window.clearTimeout(dailyHighlightTimerRef.current);
       }
@@ -1368,6 +1375,36 @@ export default function DailyNotesShell() {
   const calendarLoadStatusView = useMemo(
     () => buildDailyCalendarLoadStatusView(calendarLoadStatus),
     [calendarLoadStatus]
+  );
+
+  const scheduleOptimisticDailyHotCacheWrite = useCallback(
+    (note: DailyNote, rootHint: string | null, timeoutMs = 220) => {
+      const cacheKey = note.id || `${rootHint ?? "rootless"}:${note.updated_at}`;
+      pendingOptimisticDailyHotCacheWritesRef.current.get(cacheKey)?.();
+      const currentNotes = collectVisibleDailyNotesForHotCache(notesByDate);
+      const targetViewMonth = viewMonth;
+      let cancel: (() => void) | null = null;
+      cancel = scheduleDailyIdleTask(() => {
+        if (
+          pendingOptimisticDailyHotCacheWritesRef.current.get(cacheKey) ===
+          cancel
+        ) {
+          pendingOptimisticDailyHotCacheWritesRef.current.delete(cacheKey);
+        }
+        try {
+          writeOptimisticDailyHotCache({
+            note,
+            currentNotes,
+            viewMonth: targetViewMonth,
+            rootId: rootHint,
+          });
+        } catch (error) {
+          console.warn("Daily optimistic hot cache write failed", error);
+        }
+      }, timeoutMs);
+      pendingOptimisticDailyHotCacheWritesRef.current.set(cacheKey, cancel);
+    },
+    [notesByDate, viewMonth]
   );
 
   useEffect(() => {
@@ -1513,14 +1550,7 @@ export default function DailyNotesShell() {
         },
       });
       revealDailyNoteOnCalendar(optimisticNote);
-      scheduleDailyIdleTask(() => {
-        writeOptimisticDailyHotCache({
-          note: optimisticNote,
-          currentNotes: collectVisibleDailyNotesForHotCache(notesByDate),
-          viewMonth,
-          rootId: initialRootId,
-        });
-      }, 220);
+      scheduleOptimisticDailyHotCacheWrite(optimisticNote, initialRootId, 220);
       scheduleDailyIdleTask(() => {
         void seedDailyNoteForImmediateOpen(optimisticNote);
       }, 320);
@@ -1582,6 +1612,7 @@ export default function DailyNotesShell() {
             upsertPages([noteForSave]);
             rememberPageRouteHandoff(noteForSave, "daily-create");
             revealDailyNoteOnCalendar(noteForSave);
+            scheduleOptimisticDailyHotCacheWrite(noteForSave, dailyRootId, 160);
             const persistStatus = await persistOptimisticDailyNote(
               dailyRootId,
               noteForSave,
@@ -1608,7 +1639,6 @@ export default function DailyNotesShell() {
       }, 420);
     },
     [
-      notesByDate,
       rootId,
       router,
       upsertPages,
@@ -1616,6 +1646,7 @@ export default function DailyNotesShell() {
       viewMonth,
       dailyCreateOpenMode,
       openPage,
+      scheduleOptimisticDailyHotCacheWrite,
       warmDailyCreateOpenPath,
     ]
   );
