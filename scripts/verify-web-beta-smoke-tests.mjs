@@ -1221,6 +1221,30 @@ function run() {
   assertIncludes(
     files.routeSmokeVerifier,
     routeSmokeVerifier,
+    'path: "/modules"',
+    "Route smoke verifier must cover the module hub route."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    'path: "/modules/databases"',
+    "Route smoke verifier must cover the database module route."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    'path: "/knowledge-base"',
+    "Route smoke verifier must cover the knowledge base route."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    'path: "/industry-chain"',
+    "Route smoke verifier must cover the industry chain route."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
     'path: "/portfolio"',
     "Route smoke verifier must cover the portfolio board route."
   );

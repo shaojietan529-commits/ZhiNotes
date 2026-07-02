@@ -34,6 +34,30 @@ const ROUTES = [
     expectedText: "modules/sync",
   },
   {
+    path: "/modules",
+    label: "module hub shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
+    path: "/modules/databases",
+    label: "database module shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
+    path: "/knowledge-base",
+    label: "knowledge base shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
+    path: "/industry-chain",
+    label: "industry chain shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
     path: "/portfolio",
     label: "portfolio board",
     expectedStatus: 200,

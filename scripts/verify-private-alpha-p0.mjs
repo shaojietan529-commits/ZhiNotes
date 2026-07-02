@@ -74,7 +74,7 @@ const verificationCommands = [
     command: "npm run verify:route-smoke",
     args: ["run", "verify:route-smoke"],
     purpose:
-      "Request local public route shells only for Daily, ZhiHui, account, sync center, portfolio, and page routes.",
+      "Request local public route shells only for Daily, ZhiHui, account, sync center, module hub, database, knowledge base, industry chain, portfolio, and page routes.",
   },
 ];
 
@@ -184,7 +184,7 @@ function printReceipt(startedAt, results, status) {
       "database views, import/export, and local-only button actions stay inside safe local boundaries",
       "editor shortcuts, page creation, file preview, and ZhiHui glossary privacy contracts stay intact",
       "Daily and ZhiHui local-first smoke contracts stay intact",
-      "core account, sync, calendar, portfolio, and page route shells respond before deeper data hydration",
+      "core account, sync, module, database, knowledge, industry, calendar, portfolio, and page route shells respond before deeper data hydration",
     ],
     summary: {
       commands: results.length,
