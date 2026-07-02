@@ -3025,8 +3025,8 @@ function run() {
       "Meeting schedule must use preference-aware recent metadata limits instead of a fixed window.",
     ],
     [
-      "writeOptimisticMeetingHotCache",
-      "Meeting schedule must update the hot cache as soon as a local meeting draft is created.",
+      "scheduleOptimisticMeetingHotCacheWrite",
+      "Meeting schedule must defer optimistic hot-cache writes until after the local meeting draft is visible.",
     ],
     [
       "type MeetingCalendarLoadOptions",
@@ -3269,9 +3269,10 @@ function run() {
       "setPeekInitialPage(optimisticPage);",
       "setPeekPageId(optimisticPage.id);",
       "recordLocalPerformanceSnapshot({",
-      "writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);",
+      "revealMeetingOnCalendar(optimisticPage);",
+      "scheduleOptimisticMeetingHotCacheWrite(",
     ],
-    "Meeting + creation must show the local peek/opening shell before hot-cache and cloud queue background work."
+    "Meeting + creation must show the local peek/opening shell and calendar entry before hot-cache and cloud queue background work."
   );
   assertSourceOrderedSnippets(
     files.meetingScheduleShell,

@@ -1477,6 +1477,15 @@ check(
     !shells.schedule.includes("void refresh()"),
   "MeetingScheduleShell 创建、导入和状态更新后必须局部更新日历与热缓存，不能触发全局页面刷新"
 );
+check(
+  shells.schedule.includes("const scheduleOptimisticMeetingHotCacheWrite = useCallback") &&
+    shells.schedule.includes("scheduleMeetingIdleTask(() => {") &&
+    shells.schedule.includes("writeOptimisticMeetingHotCache(page, rootHint);") &&
+    shells.schedule.includes("revealMeetingOnCalendar(optimisticPage);\n      scheduleOptimisticMeetingHotCacheWrite(") &&
+    shells.schedule.includes("scheduleOptimisticMeetingHotCacheWrite(\n              finalPage") &&
+    !shells.schedule.includes("writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);"),
+  "MeetingScheduleShell 点击 + 或导入会议时必须先显示日历/弹窗，再浏览器空闲写热缓存，避免大批量纪要缓存写入阻塞交互"
+);
 
 // 4. Sidebar promotes the primary workspaces, demotes the rest to 备选模块, and lets
 // owner reorder the primary sidebar items locally.

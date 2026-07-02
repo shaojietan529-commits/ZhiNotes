@@ -6224,9 +6224,10 @@ function run() {
       "setPeekInitialPage(optimisticPage);",
       "setPeekPageId(optimisticPage.id);",
       "recordLocalPerformanceSnapshot({",
-      "writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);",
+      "revealMeetingOnCalendar(optimisticPage);",
+      "scheduleOptimisticMeetingHotCacheWrite(",
     ],
-    "Meeting + creation must show the local peek/opening shell before hot-cache and cloud queue background work."
+    "Meeting + creation must show the local peek/opening shell and calendar entry before hot-cache and cloud queue background work."
   );
   assertOrderedSnippets(
     files.meetingScheduleShell,
@@ -6348,8 +6349,8 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "writeOptimisticMeetingHotCache",
-    "Meeting schedule must update the hot cache as soon as a local meeting draft is created."
+    "scheduleOptimisticMeetingHotCacheWrite",
+    "Meeting schedule must defer optimistic hot-cache writes until after the local meeting draft is visible."
   );
   for (const [snippet, message] of [
     [

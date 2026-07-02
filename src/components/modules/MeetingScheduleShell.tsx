@@ -1337,6 +1337,19 @@ export default function MeetingScheduleShell() {
     [deletedTombstoneRef, viewMonth]
   );
 
+  const scheduleOptimisticMeetingHotCacheWrite = useCallback(
+    (page: Page, rootHint: string | null, timeoutMs = 180) => {
+      scheduleMeetingIdleTask(() => {
+        try {
+          writeOptimisticMeetingHotCache(page, rootHint);
+        } catch (error) {
+          console.warn("Meeting optimistic hot cache write failed", error);
+        }
+      }, timeoutMs);
+    },
+    [writeOptimisticMeetingHotCache]
+  );
+
   // 会议纪要 only lists meetings that are actually done: the recording
   // succeeded or the meeting is marked 已完成 (which is when the note/纪要 has
   // been produced). Pending/upcoming meetings stay out of this list — they
@@ -1775,8 +1788,12 @@ export default function MeetingScheduleShell() {
           queued_recording_requested: options.enqueueRecording ? 1 : 0,
         },
       });
-      writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);
       revealMeetingOnCalendar(optimisticPage);
+      scheduleOptimisticMeetingHotCacheWrite(
+        optimisticPage,
+        optimisticRootId,
+        220
+      );
       {
         const optimisticVisibleMeetings = mergeMeetingPages(
           [optimisticPage],
@@ -1816,8 +1833,12 @@ export default function MeetingScheduleShell() {
             upsertPages([finalPage]);
             rememberPendingPageDraft(finalPage);
             rememberPageRouteHandoff(finalPage, "meeting-create");
-            writeOptimisticMeetingHotCache(finalPage, resolvedRootId);
             revealMeetingOnCalendar(finalPage);
+            scheduleOptimisticMeetingHotCacheWrite(
+              finalPage,
+              resolvedRootId,
+              160
+            );
             await persistOptimisticMeetingPage(
               resolvedRootId,
               finalPage,
@@ -1864,8 +1885,12 @@ export default function MeetingScheduleShell() {
               upsertPages([finalPage]);
               rememberPendingPageDraft(finalPage);
               rememberPageRouteHandoff(finalPage, "meeting-create");
-              writeOptimisticMeetingHotCache(finalPage, resolvedRootId);
               revealMeetingOnCalendar(finalPage);
+              scheduleOptimisticMeetingHotCacheWrite(
+                finalPage,
+                resolvedRootId,
+                160
+              );
               await persistOptimisticMeetingPage(
                 resolvedRootId,
                 finalPage,
@@ -1894,8 +1919,8 @@ export default function MeetingScheduleShell() {
       deletedTombstoneRef,
       publishCalendarStatus,
       warmMeetingPeekOpen,
-      writeOptimisticMeetingHotCache,
       revealMeetingOnCalendar,
+      scheduleOptimisticMeetingHotCacheWrite,
     ]
   );
 
@@ -2186,8 +2211,8 @@ export default function MeetingScheduleShell() {
               await pushMeetingPageCloudSnapshot(rootId, updatedPage);
               upsertMeetingInView(updatedPage);
               upsertPages([updatedPage]);
-              writeOptimisticMeetingHotCache(updatedPage, rootId);
               revealMeetingOnCalendar(updatedPage);
+              scheduleOptimisticMeetingHotCacheWrite(updatedPage, rootId, 160);
             }
             fixed++;
           }
@@ -2220,10 +2245,10 @@ export default function MeetingScheduleShell() {
     load,
     revealMeetingOnCalendar,
     rootId,
+    scheduleOptimisticMeetingHotCacheWrite,
     todayKey,
     upsertMeetingInView,
     upsertPages,
-    writeOptimisticMeetingHotCache,
   ]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
@@ -2339,8 +2364,8 @@ export default function MeetingScheduleShell() {
         setSelectedMeeting(toMeetingEntry(updatedPage));
         upsertMeetingInView(updatedPage);
         upsertPages([updatedPage]);
-        writeOptimisticMeetingHotCache(updatedPage, rootId);
         revealMeetingOnCalendar(updatedPage);
+        scheduleOptimisticMeetingHotCacheWrite(updatedPage, rootId, 160);
       }
       await load({
         includeCloud: false,
@@ -2353,9 +2378,9 @@ export default function MeetingScheduleShell() {
       load,
       revealMeetingOnCalendar,
       rootId,
+      scheduleOptimisticMeetingHotCacheWrite,
       upsertMeetingInView,
       upsertPages,
-      writeOptimisticMeetingHotCache,
     ]
   );
 
