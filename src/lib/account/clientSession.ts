@@ -64,10 +64,14 @@ export async function fetchAccountSession(
   if (!options.force) {
     const storedUnconfigured = readStoredUnconfiguredAccountSession(now);
     if (storedUnconfigured) {
-      cachedAccountSession = storedUnconfigured;
+      const fallbackSession = withStoredAuthenticatedFallback(
+        storedUnconfigured,
+        now
+      );
+      cachedAccountSession = fallbackSession;
       cachedAccountSessionAt = now;
       accountSessionRetryAfter = now + ACCOUNT_SESSION_RETRY_BACKOFF_MS;
-      return storedUnconfigured;
+      return fallbackSession;
     }
   }
   if (accountSessionInFlight) {
@@ -92,7 +96,7 @@ export async function fetchAccountSession(
   } else if (result.status === "ok" && !result.authenticated) {
     clearStoredAuthenticatedAccount();
   }
-  if (result.status === "unconfigured" && !result.stale) {
+  if (result.status === "unconfigured") {
     storeUnconfiguredAccountSession(Date.now());
   } else if (result.status === "ok") {
     clearStoredUnconfiguredAccountSession();

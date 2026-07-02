@@ -4427,6 +4427,18 @@ function run() {
       "Account session checks must consult the tab cache before retrying a disabled account backend.",
     ],
     [
+      "const fallbackSession = withStoredAuthenticatedFallback(",
+      "Account session checks must still apply the stale authenticated fallback when the disabled-backend tab cache is hit.",
+    ],
+    [
+      "cachedAccountSession = fallbackSession",
+      "Account session checks must cache the fallback-preserved account state, not the raw disabled-backend marker.",
+    ],
+    [
+      "return fallbackSession",
+      "Account session checks must return the fallback-preserved account state from disabled-backend tab cache hits.",
+    ],
+    [
       "storeUnconfiguredAccountSession(Date.now())",
       "Account session checks must remember 501 account backend responses without storing account identity.",
     ],

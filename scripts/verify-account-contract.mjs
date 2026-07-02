@@ -204,6 +204,9 @@ check(
     accountClientSession.includes("getLastAuthenticatedAccount") &&
     accountClientSession.includes("rememberLastAuthenticatedAccount") &&
     accountClientSession.includes("withStoredAuthenticatedFallback") &&
+    accountClientSession.includes("const fallbackSession = withStoredAuthenticatedFallback(") &&
+    accountClientSession.includes("cachedAccountSession = fallbackSession") &&
+    accountClientSession.includes("return fallbackSession") &&
     accountClientSession.includes("readStoredAuthenticatedAccountFromStorage") &&
     accountClientSession.includes("window.localStorage.setItem") &&
     accountClientSession.includes("window.localStorage.removeItem") &&
@@ -215,6 +218,9 @@ check(
   accountClientSession.includes("if (!res.ok) {\n      return {\n        status: \"error\"") &&
     accountClientSession.includes(
       "const result = withStoredAuthenticatedFallback(\n    await accountSessionInFlight,"
+    ) &&
+    accountClientSession.includes(
+      'if (result.status === "unconfigured") {\n    storeUnconfiguredAccountSession(Date.now());'
     ) &&
     accountClientSession.includes(
       '} else if (result.status === "ok" && !result.authenticated) {\n    clearStoredAuthenticatedAccount();\n  }'
