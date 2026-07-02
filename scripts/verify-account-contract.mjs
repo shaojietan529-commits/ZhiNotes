@@ -82,6 +82,29 @@ check(
     !meGetTransientFailureHandler.includes("response.cookies.delete"),
   "me route GET 云端临时失败只能返回 502 可重试错误，不能清除登录 cookie 或把用户踢出"
 );
+const meGetSessionUnconfirmedHandler = me.slice(
+  me.indexOf("if (!account) {"),
+  me.indexOf("const response = NextResponse.json({\n      authenticated: true")
+);
+check(
+  meGetSessionUnconfirmedHandler.includes('reason: "session-unconfirmed"') &&
+    meGetSessionUnconfirmedHandler.includes("retryable: true") &&
+    !meGetSessionUnconfirmedHandler.includes("cookies.delete") &&
+    !meGetSessionUnconfirmedHandler.includes("response.cookies.delete"),
+  "me route GET 云端 session 暂时查不到时必须保留 cookie，交给前端 stale fallback，而不是自动登出"
+);
+const mePatchSessionUnconfirmedHandler = me.slice(
+  me.indexOf("export async function PATCH"),
+  me.indexOf("const nextAccount = await updateAccountDisplayName")
+);
+check(
+  mePatchSessionUnconfirmedHandler.includes(
+    "登录状态暂时无法确认，请稍后重试或重新登录。"
+  ) &&
+    !mePatchSessionUnconfirmedHandler.includes("cookies.delete") &&
+    !mePatchSessionUnconfirmedHandler.includes("response.cookies.delete"),
+  "me route PATCH 云端 session 暂时查不到时只能返回可恢复错误，不能清除登录 cookie"
+);
 
 // 3. Login page: unconfigured state, no auto-send
 const shell = read("src/components/modules/AccountShell.tsx");

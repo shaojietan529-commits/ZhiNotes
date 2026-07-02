@@ -178,6 +178,7 @@ const files = {
   accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
   accountClientSession: "src/lib/account/clientSession.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
+  accountMeRoute: "src/app/api/account/me/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
@@ -716,6 +717,7 @@ function run() {
   const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
   const accountClientSession = readProjectFile(files.accountClientSession);
   const accountShell = readProjectFile(files.accountShell);
+  const accountMeRoute = readProjectFile(files.accountMeRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
   const pageBodyHydrationStatus = readProjectFile(
@@ -4551,6 +4553,42 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.accountClientSession, accountClientSession, snippet, message);
+  }
+  assertSourceIncludes(
+    files.accountMeRoute,
+    accountMeRoute,
+    'reason: "session-unconfirmed"',
+    "Account /me GET must distinguish temporary session uncertainty from explicit logout."
+  );
+  assertSourceIncludes(
+    files.accountMeRoute,
+    accountMeRoute,
+    "retryable: true",
+    "Account /me GET must mark missing-session checks as retryable so the UI can keep stale signed-in fallback visible."
+  );
+  const accountMeGetSessionUnconfirmedHandler = accountMeRoute.slice(
+    accountMeRoute.indexOf("if (!account) {"),
+    accountMeRoute.indexOf("const response = NextResponse.json({\n      authenticated: true")
+  );
+  const accountMePatchSessionUnconfirmedHandler = accountMeRoute.slice(
+    accountMeRoute.indexOf("export async function PATCH"),
+    accountMeRoute.indexOf("const nextAccount = await updateAccountDisplayName")
+  );
+  if (
+    accountMeGetSessionUnconfirmedHandler.includes("cookies.delete") ||
+    accountMeGetSessionUnconfirmedHandler.includes("response.cookies.delete")
+  ) {
+    fail(
+      "Account /me GET must preserve the session cookie when cloud session lookup is temporarily unconfirmed."
+    );
+  }
+  if (
+    accountMePatchSessionUnconfirmedHandler.includes("cookies.delete") ||
+    accountMePatchSessionUnconfirmedHandler.includes("response.cookies.delete")
+  ) {
+    fail(
+      "Account /me PATCH must not clear the session cookie on a retryable missing-session check."
+    );
   }
   assertSourceIncludes(
     files.accountShell,

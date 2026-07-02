@@ -35,12 +35,12 @@ export async function GET(request: Request) {
   try {
     const account = await getSessionAccount(config, token);
     if (!account) {
-      const response = NextResponse.json({
+      return NextResponse.json({
         authenticated: false,
         account: null,
+        reason: "session-unconfirmed",
+        retryable: true,
       });
-      response.cookies.delete(SESSION_COOKIE_NAME);
-      return response;
     }
     const response = NextResponse.json({
       authenticated: true,
@@ -103,9 +103,10 @@ export async function PATCH(request: Request) {
   try {
     const account = await getSessionAccount(config, token);
     if (!account) {
-      const response = NextResponse.json({ error: "登录已过期，请重新登录。" }, { status: 401 });
-      response.cookies.delete(SESSION_COOKIE_NAME);
-      return response;
+      return NextResponse.json(
+        { error: "登录状态暂时无法确认，请稍后重试或重新登录。" },
+        { status: 401 }
+      );
     }
 
     const nextAccount = await updateAccountDisplayName(
