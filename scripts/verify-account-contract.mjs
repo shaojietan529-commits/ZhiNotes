@@ -223,6 +223,15 @@ check(
   "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和跨标签页最近登录账号降级保护"
 );
 check(
+  accountClientSession.includes(
+    "const ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS = 90 * 24 * 60 * 60 * 1000"
+  ) &&
+    accountClientSession.includes(
+      "do not make a valid long-lived login look signed out after one day"
+    ),
+  "最近登录账号兜底应匹配 90 天登录期，接口短暂失败不能在一天后显示成掉线"
+);
+check(
   accountClientSession.includes("if (!res.ok) {\n      return {\n        status: \"error\"") &&
     accountClientSession.includes(
       "const result = withStoredAuthenticatedFallback(\n    await accountSessionInFlight,"

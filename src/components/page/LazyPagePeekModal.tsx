@@ -121,9 +121,13 @@ function LocalFirstPeekLoadingShell({
     };
     refreshLocalSeed();
     queueMicrotask(refreshLocalSeed);
-    const retryTimers = LAZY_PEEK_LOCAL_SEED_RETRY_DELAYS_MS.map((delay) =>
-      window.setTimeout(refreshLocalSeed, delay)
-    );
+    const retryTimer = window.setTimeout(refreshLocalSeed, 120);
+    const retryTimers = [
+      retryTimer,
+      ...LAZY_PEEK_LOCAL_SEED_RETRY_DELAYS_MS.map((delay) =>
+        window.setTimeout(refreshLocalSeed, delay)
+      ),
+    ];
     return () => {
       cancelled = true;
       retryTimers.forEach((timer) => window.clearTimeout(timer));

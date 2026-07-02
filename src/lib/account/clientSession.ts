@@ -8,7 +8,9 @@ const ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY =
   "zhinote:account-session-unconfigured:v1";
 export const ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY =
   "zhinote:account-session-last-authenticated:v1";
-const ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS = 24 * 60 * 60 * 1000;
+// Match the 90-day httpOnly session cookie so transient account API failures
+// do not make a valid long-lived login look signed out after one day.
+const ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
 export type AccountSessionStatus = "ok" | "unconfigured" | "error";
 
