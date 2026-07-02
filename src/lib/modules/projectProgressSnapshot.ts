@@ -1,6 +1,11 @@
 import type { ModuleHealthReport } from "@/lib/modules/moduleHealth";
 import type { ModuleManifestReport } from "@/lib/modules/moduleManifest";
 import type { ModuleRoadmapReport } from "@/lib/modules/moduleRoadmap";
+import {
+  getDevelopmentExperimentalRoutes,
+  getDevelopmentOwnerGatedActions,
+  getDevelopmentStableUseRoutes,
+} from "@/lib/sync/developmentStabilityPlan";
 
 export type ProjectProgressStatus =
   | "ready-local"
@@ -47,10 +52,17 @@ export interface ProjectStableUseStatus {
   status: "can-use-now" | "use-with-care" | "blocked";
   label: string;
   detail: string;
+  development_channel: "private-alpha-stable-use";
   user_can_keep_working: boolean;
   local_input_priority: "local-first";
+  production_interruptions_should_be_batched: true;
+  experimental_changes_go_to_staging_first: true;
   web_beta_can_launch_now: false;
   cloud_sync_can_start_now: false;
+  stable_route_source: "sync-center-development-stability-plan";
+  stable_route_count: number;
+  experimental_route_count: number;
+  owner_gated_action_count: number;
   protected_boundaries: string[];
   stable_entrypoints: string[];
   next_safe_action: string;
@@ -202,19 +214,23 @@ function buildStableUseStatus(
         ? "use-with-care"
         : "blocked";
   const stableEntryPoints = [
-    "/daily",
-    "/schedule",
-    "/modules",
-    "/modules/sync",
+    ...getDevelopmentStableUseRoutes(),
     "/modules/notes",
-    "/modules/databases",
-  ].filter((route) =>
-    route === "/daily" ||
-    route === "/schedule" ||
-    route === "/modules" ||
-    route === "/modules/sync" ||
-    input.manifest.modules.some((module) => module.route === route)
+  ].filter((route, index, routes) =>
+    routes.indexOf(route) === index &&
+    (route === "/daily" ||
+      route === "/schedule" ||
+      route === "/knowledge-base" ||
+      route === "/industry-chain" ||
+      route === "/portfolio" ||
+      route === "/account" ||
+      route === "/page/[pageId]" ||
+      route === "/modules" ||
+      route === "/modules/sync" ||
+      input.manifest.modules.some((module) => module.route === route))
   );
+  const experimentalRoutes = getDevelopmentExperimentalRoutes();
+  const ownerGatedActions = getDevelopmentOwnerGatedActions();
 
   return {
     status,
@@ -229,13 +245,22 @@ function buildStableUseStatus(
         ? "本地输入优先保存；Web Beta、云同步、AI 和高风险写回仍保持 owner-gated，不会自动启用。"
         : status === "use-with-care"
           ? "本地模块可以继续试用，但请先处理 owner gate、权限、云同步和恢复证明，再作为正式 Web 版本使用。"
-          : "缺少稳定核心模块或可打开入口前，不应承载真实投研工作。",
+        : "缺少稳定核心模块或可打开入口前，不应承载真实投研工作。",
+    development_channel: "private-alpha-stable-use",
     user_can_keep_working: status !== "blocked",
     local_input_priority: "local-first",
+    production_interruptions_should_be_batched: true,
+    experimental_changes_go_to_staging_first: true,
     web_beta_can_launch_now: false,
     cloud_sync_can_start_now: false,
+    stable_route_source: "sync-center-development-stability-plan",
+    stable_route_count: stableEntryPoints.length,
+    experimental_route_count: experimentalRoutes.length,
+    owner_gated_action_count: ownerGatedActions.length,
     protected_boundaries: [
       "本地输入先保存到本地缓存和 pending queue",
+      "实验改动先在本地或 staging 验证",
+      "线上变更成批进入稳定版本",
       "Web Beta 发布需要 owner review",
       "云同步启用需要明确确认",
       "AI、外部资产、批量恢复和写回默认禁用",

@@ -848,14 +848,26 @@ check(
   "ModuleDashboard 只应读取轻量页面/数据库数量，创建后本地乐观更新，不能为了模块中心首屏或 starter 扫全量页面/数据库列表"
 );
 check(
-  moduleDashboardSource.includes("ProjectStableUsePanel") &&
+    moduleDashboardSource.includes("ProjectStableUsePanel") &&
     moduleDashboardSource.includes('data-testid="project-stable-use-status"') &&
+    moduleDashboardSource.includes("data-development-channel") &&
     moduleDashboardSource.includes("data-user-can-keep-working") &&
+    moduleDashboardSource.includes(
+      "data-production-interruptions-should-be-batched"
+    ) &&
+    moduleDashboardSource.includes(
+      "data-experimental-changes-go-to-staging-first"
+    ) &&
     moduleDashboardSource.includes("data-web-beta-can-launch-now") &&
     moduleDashboardSource.includes("data-cloud-sync-can-start-now") &&
+    moduleDashboardSource.includes("data-stable-route-source") &&
+    moduleDashboardSource.includes("data-owner-gated-action-count") &&
     moduleDashboardSource.includes("稳定使用状态") &&
-    moduleDashboardSource.includes("输入策略：本地优先"),
-  "ModuleDashboard 应显示稳定使用状态，明确本地可继续使用、Web Beta 未上线、云同步需确认"
+    moduleDashboardSource.includes("输入策略：本地优先") &&
+    moduleDashboardSource.includes("实验改动先本地 / staging") &&
+    moduleDashboardSource.includes("线上变更成批进入") &&
+    moduleDashboardSource.includes("高风险动作需确认"),
+  "ModuleDashboard 应显示稳定使用状态，明确本地可继续使用、Web Beta 未上线、云同步需确认、实验先 staging、线上变更成批进入"
 );
 check(
     usePagesHook.includes("const cloudPages = cloud.pages.map(remoteMetadataToPage)") &&

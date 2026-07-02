@@ -195,6 +195,18 @@ const HIGH_RISK_ACTIONS_GATED = [
   "ai_execution",
 ];
 
+export function getDevelopmentStableUseRoutes(): string[] {
+  return STABLE_USE_ENTRYPOINTS.map((entry) => entry.route);
+}
+
+export function getDevelopmentExperimentalRoutes(): string[] {
+  return EXPERIMENTAL_SURFACES.map((surface) => surface.route);
+}
+
+export function getDevelopmentOwnerGatedActions(): string[] {
+  return [...HIGH_RISK_ACTIONS_GATED];
+}
+
 export function buildDevelopmentStabilityPlan(input: {
   localUseReadiness: AccountLocalUseReadiness;
   pendingTotal: number;

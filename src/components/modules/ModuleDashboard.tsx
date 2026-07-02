@@ -1130,9 +1130,20 @@ function ProjectStableUsePanel({
     <section
       data-testid="project-stable-use-status"
       data-stable-use-status={stableUse.status}
+      data-development-channel={stableUse.development_channel}
       data-user-can-keep-working={stableUse.user_can_keep_working}
+      data-production-interruptions-should-be-batched={
+        stableUse.production_interruptions_should_be_batched
+      }
+      data-experimental-changes-go-to-staging-first={
+        stableUse.experimental_changes_go_to_staging_first
+      }
       data-web-beta-can-launch-now={stableUse.web_beta_can_launch_now}
       data-cloud-sync-can-start-now={stableUse.cloud_sync_can_start_now}
+      data-stable-route-source={stableUse.stable_route_source}
+      data-stable-route-count={stableUse.stable_route_count}
+      data-experimental-route-count={stableUse.experimental_route_count}
+      data-owner-gated-action-count={stableUse.owner_gated_action_count}
       className={`mt-4 rounded-lg border px-4 py-3 ${toneClass}`}
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1155,11 +1166,25 @@ function ProjectStableUsePanel({
           <span className="rounded-md bg-white/70 px-2 py-1 dark:bg-black/20">
             云同步：需确认
           </span>
+          <span className="rounded-md bg-white/70 px-2 py-1 dark:bg-black/20">
+            实验改动先本地 / staging
+          </span>
+          <span className="rounded-md bg-white/70 px-2 py-1 dark:bg-black/20">
+            线上变更成批进入
+          </span>
+          <span className="rounded-md bg-white/70 px-2 py-1 dark:bg-black/20">
+            高风险动作需确认
+          </span>
         </div>
       </div>
       <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-md bg-white/60 px-3 py-2 text-xs dark:bg-black/20">
-          <div className="font-semibold">当前可用入口</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">当前可用入口</span>
+            <span className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-[10px] dark:bg-black/20">
+              {stableUse.stable_route_count} 条
+            </span>
+          </div>
           <div className="mt-2 flex flex-wrap gap-1">
             {stableUse.stable_entrypoints.map((entrypoint) => (
               <span
@@ -1172,7 +1197,12 @@ function ProjectStableUsePanel({
           </div>
         </div>
         <div className="rounded-md bg-white/60 px-3 py-2 text-xs dark:bg-black/20">
-          <div className="font-semibold">保护边界</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">保护边界</span>
+            <span className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-[10px] dark:bg-black/20">
+              {stableUse.owner_gated_action_count} 个 gate
+            </span>
+          </div>
           <ul className="mt-2 space-y-1 leading-5 opacity-80">
             {stableUse.protected_boundaries.slice(0, 4).map((boundary) => (
               <li key={boundary}>{boundary}</li>
