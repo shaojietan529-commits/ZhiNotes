@@ -72,6 +72,13 @@ interface SidebarPrimaryCustomization {
   label?: string;
 }
 
+interface AccountSyncDomainBreakdownItem {
+  id: string;
+  label: string;
+  count: number;
+  tone: "pending" | "warning" | "danger";
+}
+
 const DEFAULT_PRIMARY_ITEMS: SidebarPrimaryItem[] = [
   ...MODULE_WORKSPACE_LIST.map((workspace) => ({
     id: workspace.key,
@@ -230,6 +237,73 @@ function getAccountSyncDomainBreakdown(accountSync: {
     accountSync.failedTotal > 0 ? `失败 ${accountSync.failedTotal}` : null,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" / ") : "";
+}
+
+function getAccountSyncDomainBreakdownItems(accountSync: {
+  pagePendingTotal: number;
+  databasePendingTotal: number;
+  settingsPendingTotal: number;
+  knowledgePendingTotal: number;
+  globalSyncLogExtraPendingTotal: number;
+  failedTotal: number;
+  manualReviewTotal: number;
+}): AccountSyncDomainBreakdownItem[] {
+  return [
+    {
+      id: "pages",
+      label: "页面",
+      count: accountSync.pagePendingTotal,
+      tone: "pending" as const,
+    },
+    {
+      id: "databases",
+      label: "数据库",
+      count: accountSync.databasePendingTotal,
+      tone: "pending" as const,
+    },
+    {
+      id: "settings",
+      label: "设置",
+      count: accountSync.settingsPendingTotal,
+      tone: "pending" as const,
+    },
+    {
+      id: "knowledge",
+      label: "知识库",
+      count: accountSync.knowledgePendingTotal,
+      tone: "pending" as const,
+    },
+    {
+      id: "other",
+      label: "其他",
+      count: accountSync.globalSyncLogExtraPendingTotal,
+      tone: "warning" as const,
+    },
+    {
+      id: "manual-review",
+      label: "需确认",
+      count: accountSync.manualReviewTotal,
+      tone: "danger" as const,
+    },
+    {
+      id: "failed",
+      label: "失败",
+      count: accountSync.failedTotal,
+      tone: "danger" as const,
+    },
+  ].filter((item) => item.count > 0);
+}
+
+function getAccountSyncDomainChipClass(
+  tone: AccountSyncDomainBreakdownItem["tone"]
+) {
+  if (tone === "danger") {
+    return "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300";
+  }
+  if (tone === "warning") {
+    return "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  }
+  return "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300";
 }
 
 function getAccountSyncInlineSummary(accountSync: {
@@ -595,6 +669,8 @@ export default function Sidebar() {
   const accountSyncToneClass = getAccountSyncToneClass(accountSync.state);
   const accountSyncDomainBreakdown =
     getAccountSyncDomainBreakdown(accountSync);
+  const accountSyncDomainBreakdownItems =
+    getAccountSyncDomainBreakdownItems(accountSync);
   const accountSyncInlineSummary = getAccountSyncInlineSummary(accountSync);
   const accountSyncNeedsSyncCenter =
     accountSync.failedTotal > 0 ||
@@ -1281,6 +1357,9 @@ export default function Sidebar() {
             data-sync-visible-label={accountSyncButtonLabel}
             data-sync-target={accountSyncCenterTarget}
             data-sync-domain-breakdown={accountSyncDomainBreakdown}
+            data-sync-domain-breakdown-count={
+              accountSyncDomainBreakdownItems.length
+            }
             className="contents"
           >
             <button
@@ -1319,6 +1398,9 @@ export default function Sidebar() {
               data-sync-visible-label={accountSyncButtonLabel}
               data-sync-target={accountSyncCenterTarget}
               data-sync-domain-breakdown={accountSyncDomainBreakdown}
+              data-sync-domain-breakdown-count={
+                accountSyncDomainBreakdownItems.length
+              }
               aria-label={accountSyncAriaLabel}
               onPointerEnter={() => {
                 if (accountSyncShouldOpenSyncCenter) {
@@ -1365,6 +1447,31 @@ export default function Sidebar() {
           >
             {accountSyncInlineSummary}
           </p>
+        )}
+        {accountSyncDomainBreakdownItems.length > 0 && (
+          <div
+            data-testid="account-cloud-sync-domain-breakdown"
+            data-sync-domain-breakdown={accountSyncDomainBreakdown}
+            data-sync-domain-breakdown-count={
+              accountSyncDomainBreakdownItems.length
+            }
+            className="mt-1 flex flex-wrap gap-1 px-3"
+            title={accountSyncButtonTitle}
+          >
+            {accountSyncDomainBreakdownItems.map((item) => (
+              <span
+                key={item.id}
+                data-sync-domain={item.id}
+                data-sync-domain-count={item.count}
+                className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] leading-3 ${getAccountSyncDomainChipClass(
+                  item.tone
+                )}`}
+              >
+                <span>{item.label}</span>
+                <span className="font-semibold tabular-nums">{item.count}</span>
+              </span>
+            ))}
+          </div>
         )}
         {accountSessionFallback.active && (
           <p

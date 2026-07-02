@@ -22939,6 +22939,18 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "getAccountSyncDomainBreakdownItems",
+      "Sidebar cloud-sync control must prepare a visible per-domain pending breakdown, not only a tooltip string.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "getAccountSyncDomainChipClass",
+      "Sidebar cloud-sync domain breakdown must visually distinguish pending, warning, and danger states.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "云端待确认，本地已保留",
       "Sidebar cloud-sync retry state must visibly reassure that local input is retained instead of looking like sign-out.",
     ],
@@ -22963,8 +22975,26 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      'data-testid="account-cloud-sync-domain-breakdown"',
+      "Sidebar cloud-sync per-domain pending breakdown must be visible and testable.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "data-sync-inline-summary={accountSyncInlineSummary}",
       "Sidebar cloud-sync inline summary must expose the rendered safety message for smoke checks.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "data-sync-domain={item.id}",
+      "Sidebar cloud-sync per-domain breakdown must expose each domain id for smoke checks.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "data-sync-domain-count={item.count}",
+      "Sidebar cloud-sync per-domain breakdown must expose each domain count for smoke checks.",
     ],
     [
       files.sidebar,

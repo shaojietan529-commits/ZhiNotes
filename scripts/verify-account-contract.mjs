@@ -2821,14 +2821,21 @@ check(
     sidebar.includes("accountSyncInlineSummary") &&
     sidebar.includes("getAccountSyncInlineSummary") &&
     sidebar.includes("getAccountSyncDomainBreakdown") &&
+    sidebar.includes("getAccountSyncDomainBreakdownItems") &&
+    sidebar.includes("getAccountSyncDomainChipClass") &&
+    sidebar.includes("accountSyncDomainBreakdownItems") &&
     sidebar.includes("accountSyncDomainBreakdown") &&
     sidebar.includes("getAccountSyncToneClass") &&
     sidebar.includes("检查中") &&
     sidebar.includes("重试中") &&
     sidebar.includes("accountSync.localUseReadiness.label") &&
     sidebar.includes('data-testid="account-cloud-sync-inline-summary"') &&
+    sidebar.includes('data-testid="account-cloud-sync-domain-breakdown"') &&
     sidebar.includes("data-sync-inline-summary={accountSyncInlineSummary}") &&
     sidebar.includes("data-sync-domain-breakdown={accountSyncDomainBreakdown}") &&
+    sidebar.includes("data-sync-domain-breakdown-count={") &&
+    sidebar.includes("data-sync-domain={item.id}") &&
+    sidebar.includes("data-sync-domain-count={item.count}") &&
     sidebar.includes("队列分布：") &&
     sidebar.includes("页面 ${accountSync.pagePendingTotal}") &&
     sidebar.includes("数据库 ${accountSync.databasePendingTotal}") &&

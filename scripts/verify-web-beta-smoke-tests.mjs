@@ -8765,6 +8765,30 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
+    "getAccountSyncDomainBreakdownItems",
+    "Sidebar cloud-sync control must prepare a visible per-domain pending breakdown, not only a tooltip string."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    'data-testid="account-cloud-sync-domain-breakdown"',
+    "Sidebar cloud-sync per-domain pending breakdown must be visible and testable."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "data-sync-domain={item.id}",
+    "Sidebar cloud-sync per-domain breakdown must expose each domain id for smoke checks."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "data-sync-domain-count={item.count}",
+    "Sidebar cloud-sync per-domain breakdown must expose each domain count for smoke checks."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
     '"待登录"',
     "Sidebar cloud-sync control must show signed-out pending work as waiting for login, not as lost work."
   );
