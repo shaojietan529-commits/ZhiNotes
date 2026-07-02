@@ -47,6 +47,10 @@ const PAGE_CLOUD_HYDRATION_IDLE_MS = 700;
 const PAGE_LOCAL_BODY_HYDRATION_IDLE_MS = 220;
 const PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_DELAY_MS = 24;
 const PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_IDLE_MS = 80;
+const PAGE_FOREGROUND_QUIET_WINDOW_MS = 1600;
+const PAGE_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400;
+const PAGE_REVISION_REFRESH_DELAY_MS = 120;
+const PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS = 900;
 const MAX_REMOTE_COVER_CHARS = 300 * 1024;
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
@@ -131,6 +135,26 @@ export function usePage(
   const pageRevision = usePageRecordRevision(pageId);
   const loadRequestRef = useRef(0);
   const visiblePageRef = useRef<Page | null>(initialLocalFirstPageSeed);
+  const foregroundPageIdRef = useRef<string | null>(pageId);
+  const foregroundQuietUntilRef = useRef(0);
+
+  const markPageForegroundInteraction = useCallback(
+    (durationMs: number = PAGE_FOREGROUND_QUIET_WINDOW_MS) => {
+      foregroundPageIdRef.current = pageId;
+      foregroundQuietUntilRef.current = Math.max(
+        foregroundQuietUntilRef.current,
+        getPageForegroundNow() + durationMs
+      );
+    },
+    [pageId]
+  );
+
+  const getPageForegroundRefreshDelay = useCallback(() => {
+    if (foregroundPageIdRef.current !== pageId) return 0;
+    const remaining = foregroundQuietUntilRef.current - getPageForegroundNow();
+    if (remaining <= 0) return 0;
+    return Math.min(remaining, PAGE_FOREGROUND_REFRESH_MAX_DELAY_MS);
+  }, [pageId]);
 
   const load = useCallback(async () => {
     const requestId = ++loadRequestRef.current;
@@ -278,14 +302,25 @@ export function usePage(
 
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(() => {
+    let refreshTimer: number | null = null;
+    const runLoad = () => {
       if (!cancelled) void load();
-    });
+    };
+    const foregroundDelay = getPageForegroundRefreshDelay();
+    if (foregroundDelay > 0) {
+      refreshTimer = window.setTimeout(
+        runLoad,
+        foregroundDelay + PAGE_REVISION_REFRESH_DELAY_MS
+      );
+    } else {
+      queueMicrotask(runLoad);
+    }
     return () => {
       cancelled = true;
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
       loadRequestRef.current += 1;
     };
-  }, [load, pageRevision]);
+  }, [load, pageRevision, getPageForegroundRefreshDelay]);
 
   useEffect(() => {
     if (!enabled || !pageId || !dbReady) return;
@@ -294,12 +329,13 @@ export function usePage(
     const scheduleLocalReload = () => {
       if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      const foregroundDelay = getPageForegroundRefreshDelay();
       localReloadTimer = window.setTimeout(() => {
         void load();
-      }, 120);
+      }, foregroundDelay + PAGE_REVISION_REFRESH_DELAY_MS);
       fallbackReloadTimer = window.setTimeout(() => {
         void load();
-      }, 900);
+      }, foregroundDelay + PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS);
     };
     const unsubscribe = subscribePagesUpdated((message) => {
       const matchedPayload = message.pages?.find((item) => item.id === pageId);
@@ -322,7 +358,14 @@ export function usePage(
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
       unsubscribe();
     };
-  }, [enabled, pageId, dbReady, load, upsertPages]);
+  }, [
+    enabled,
+    pageId,
+    dbReady,
+    load,
+    upsertPages,
+    getPageForegroundRefreshDelay,
+  ]);
 
   const update = useCallback(
     async (updates: PageUpdates) => {
@@ -344,6 +387,7 @@ export function usePage(
       };
       const record = pageToRemoteRecord(optimistic);
 
+      markPageForegroundInteraction();
       visiblePageRef.current = optimistic;
       setPage(optimistic);
       upsertPages([optimistic]);
@@ -361,7 +405,7 @@ export function usePage(
       queueOptimisticPageLocalCachePersist(record, upsertPages);
       return optimistic;
     },
-    [pageId, page, upsertPages, surface]
+    [pageId, page, upsertPages, surface, markPageForegroundInteraction]
   );
 
   const remove = useCallback(async () => {
@@ -410,6 +454,11 @@ function readLocalFirstPageSeed(pageId: string): Page | null {
     readPageRouteHandoff(pageId) ??
     null
   );
+}
+
+function getPageForegroundNow(): number {
+  if (typeof performance !== "undefined") return performance.now();
+  return Date.now();
 }
 
 async function deletePageWithCloud(id: string): Promise<void> {

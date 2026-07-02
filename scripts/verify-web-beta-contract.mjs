@@ -3474,6 +3474,30 @@ function run() {
       "usePage must track the latest load request so stale page hydration cannot overwrite the current route.",
     ],
     [
+      "const foregroundQuietUntilRef = useRef(0);",
+      "usePage must track a foreground quiet window so local editing is not interrupted by background reloads.",
+    ],
+    [
+      "const foregroundPageIdRef = useRef<string | null>(pageId);",
+      "usePage foreground quiet windows must be scoped to the current page id so switching pages stays fast.",
+    ],
+    [
+      "PAGE_FOREGROUND_QUIET_WINDOW_MS = 1600",
+      "usePage must keep the current-page foreground quiet window explicit and bounded.",
+    ],
+    [
+      "foregroundDelay + PAGE_REVISION_REFRESH_DELAY_MS",
+      "usePage revision refreshes must wait for the foreground quiet window after local edits.",
+    ],
+    [
+      "foregroundDelay + PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS",
+      "usePage cross-tab fallback refreshes must wait for the foreground quiet window after local edits.",
+    ],
+    [
+      "if (foregroundPageIdRef.current !== pageId) return 0;",
+      "usePage must not apply a previous page's foreground quiet window to a newly opened page.",
+    ],
+    [
       "const requestId = ++loadRequestRef.current;",
       "usePage must give each load attempt a monotonic request id.",
     ],
@@ -4931,6 +4955,12 @@ function run() {
     usePage,
     'emitPageSnapshotsUpdated("cloud-push", [optimistic])',
     "Page edits must broadcast lightweight metadata immediately after local optimistic updates."
+  );
+  assertSourceIncludes(
+    files.usePage,
+    usePage,
+    "markPageForegroundInteraction();",
+    "Page edits must mark the current page as foreground-active before local optimistic writes trigger revision refreshes."
   );
   assertSourceIncludes(
     files.usePage,

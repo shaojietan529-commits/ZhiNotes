@@ -1439,6 +1439,17 @@ check(
     usePageHook.includes("const [loading, setLoading] = useState(() => {") &&
     usePageHook.includes("const loadRequestRef = useRef(0);") &&
     usePageHook.includes("const visiblePageRef = useRef<Page | null>(initialLocalFirstPageSeed)") &&
+    usePageHook.includes("const foregroundPageIdRef = useRef<string | null>(pageId);") &&
+    usePageHook.includes("const foregroundQuietUntilRef = useRef(0);") &&
+    usePageHook.includes("PAGE_FOREGROUND_QUIET_WINDOW_MS = 1600") &&
+    usePageHook.includes("PAGE_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400") &&
+    usePageHook.includes("PAGE_REVISION_REFRESH_DELAY_MS = 120") &&
+    usePageHook.includes("PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS = 900") &&
+    usePageHook.includes("foregroundPageIdRef.current = pageId") &&
+    usePageHook.includes("if (foregroundPageIdRef.current !== pageId) return 0;") &&
+    usePageHook.includes("getPageForegroundRefreshDelay") &&
+    usePageHook.includes("foregroundDelay + PAGE_REVISION_REFRESH_DELAY_MS") &&
+    usePageHook.includes("foregroundDelay + PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS") &&
     usePageHook.includes("visiblePageRef.current?.id === pageId") &&
     usePageHook.includes("const requestId = ++loadRequestRef.current;") &&
     usePageHook.includes("if (!isCurrentLoad()) return;") &&
@@ -1493,6 +1504,7 @@ check(
     usePageHook.includes("pageToRemoteRecord(optimistic)") &&
     usePageHook.includes("MAX_REMOTE_COVER_CHARS = 300 * 1024") &&
     usePageHook.includes("page.cover_url.length > MAX_REMOTE_COVER_CHARS") &&
+    usePageHook.includes("markPageForegroundInteraction();") &&
     usePageHook.includes("setPage(optimistic)") &&
     usePageHook.includes("upsertPages([optimistic])") &&
     usePageHook.includes('emitPageSnapshotsUpdated("cloud-push", [optimistic])') &&
