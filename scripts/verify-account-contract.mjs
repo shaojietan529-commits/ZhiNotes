@@ -2877,7 +2877,12 @@ check(
     sidebar.includes("accountSyncShortLabel") &&
     sidebar.includes("getAccountSyncButtonLabel") &&
     sidebar.includes("accountSyncButtonLabel") &&
-    sidebar.includes('"待登录"') &&
+    sidebar.includes("getAccountSyncIcon(accountSync)") &&
+    sidebar.includes('localUseReadiness.status === "pending-upload"') &&
+    sidebar.includes('return accountSync.pendingTotal > 0 ? "⬆️" : "🔑"') &&
+    sidebar.includes('localUseReadiness.status === "signed-out"') &&
+    sidebar.includes('localUseReadiness.status === "cloud-uncertain"') &&
+    sidebar.includes('"登录同步"') &&
     sidebar.includes('"待重试"') &&
     sidebar.includes("accountSyncAriaLabel") &&
     sidebar.includes("accountSyncInlineSummary") &&

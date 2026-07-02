@@ -119,18 +119,30 @@ function getAccountSyncShortLabel(state: AccountCloudSyncCoordinatorState) {
 function getAccountSyncButtonLabel(accountSync: {
   state: AccountCloudSyncCoordinatorState;
   pendingTotal: number;
+  localUseReadiness: AccountLocalUseReadiness;
 }) {
-  if (accountSync.state === "signed-out" && accountSync.pendingTotal > 0) {
-    return "待登录";
+  if (accountSync.localUseReadiness.status === "signed-out") {
+    return accountSync.pendingTotal > 0 ? "本地可写" : "登录同步";
   }
-  if (accountSync.state === "error" && accountSync.pendingTotal > 0) {
-    return "待重试";
+  if (accountSync.localUseReadiness.status === "cloud-uncertain") {
+    return "本地可写";
   }
+  if (accountSync.localUseReadiness.status === "pending-upload") return "待上传";
+  if (accountSync.state === "error" && accountSync.pendingTotal > 0) return "待重试";
   return getAccountSyncShortLabel(accountSync.state);
 }
 
-function getAccountSyncIcon(state: AccountCloudSyncCoordinatorState) {
-  switch (state) {
+function getAccountSyncIcon(accountSync: {
+  state: AccountCloudSyncCoordinatorState;
+  pendingTotal: number;
+  localUseReadiness: AccountLocalUseReadiness;
+}) {
+  if (accountSync.localUseReadiness.status === "pending-upload") return "⬆️";
+  if (accountSync.localUseReadiness.status === "cloud-uncertain") return "☁️";
+  if (accountSync.localUseReadiness.status === "signed-out") {
+    return accountSync.pendingTotal > 0 ? "⬆️" : "🔑";
+  }
+  switch (accountSync.state) {
     case "checking":
     case "syncing":
       return "⏳";
@@ -708,7 +720,7 @@ export default function Sidebar() {
   const accountSyncTitle = `${accountSync.localUseReadiness.label}\n${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}\n${accountLocalUseTitle}`;
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
   const accountSyncButtonLabel = getAccountSyncButtonLabel(accountSync);
-  const accountSyncIcon = getAccountSyncIcon(accountSync.state);
+  const accountSyncIcon = getAccountSyncIcon(accountSync);
   const accountSyncToneClass = getAccountSyncToneClass(accountSync.state);
   const accountSyncDomainBreakdown =
     getAccountSyncDomainBreakdown(accountSync);

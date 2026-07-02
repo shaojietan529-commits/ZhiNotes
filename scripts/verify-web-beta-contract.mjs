@@ -22950,8 +22950,44 @@ function run() {
     [
       files.sidebar,
       sidebar,
-      '"待登录"',
-      "Sidebar cloud-sync control must show signed-out pending work as waiting for login, not as lost work.",
+      'localUseReadiness.status === "signed-out"',
+      "Sidebar cloud-sync control must derive signed-out visible state from local-use readiness.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      '"登录同步"',
+      "Sidebar cloud-sync control must show signed-out no-pending state as an action, not as an apparent forced logout.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'localUseReadiness.status === "cloud-uncertain"',
+      "Sidebar cloud-sync control must treat temporary cloud uncertainty as local-usable state.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "本地可写",
+      "Sidebar cloud-sync control must show pending signed-out or cloud-uncertain work as local-writable.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "getAccountSyncIcon(accountSync)",
+      "Sidebar cloud-sync icon must derive from local-use readiness, not only raw signed-out state.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'localUseReadiness.status === "pending-upload"',
+      "Sidebar cloud-sync icon must treat pending upload as upload work, not account lockout.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'return accountSync.pendingTotal > 0 ? "⬆️" : "🔑"',
+      "Sidebar signed-out icon must show upload work while pending exists and only show login key when there is no local queue.",
     ],
     [
       files.sidebar,
