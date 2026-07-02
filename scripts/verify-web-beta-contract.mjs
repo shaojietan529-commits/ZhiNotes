@@ -6621,6 +6621,10 @@ function run() {
       "Meeting creation must mark the optimistic page as opening immediately.",
     ],
     [
+      "loadRequestRef.current += 1;\n      markMeetingForegroundInteraction();",
+      "Meeting creation/import must invalidate older background calendar loads before publishing the optimistic meeting.",
+    ],
+    [
       "const clearFailedLocalMeetingCreate = () =>",
       "Meeting creation must recover if the local optimistic draft path throws.",
     ],

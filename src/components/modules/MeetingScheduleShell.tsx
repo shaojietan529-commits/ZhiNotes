@@ -1611,6 +1611,9 @@ export default function MeetingScheduleShell() {
     ): CreateMeetingResult => {
       const createStartedAt = getLocalPerformanceNow();
       const createStartedAtIso = new Date().toISOString();
+      // Prevent an older background calendar load from replacing the new
+      // optimistic meeting before it has reached the local cache / cloud queue.
+      loadRequestRef.current += 1;
       markMeetingForegroundInteraction();
       const optimisticRootId = rootId ?? getModuleRootIdSync("meeting-schedule");
       const topic = draft.topic.trim() || "未命名会议";
