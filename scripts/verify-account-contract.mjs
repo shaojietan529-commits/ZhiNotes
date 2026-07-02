@@ -96,6 +96,9 @@ const accountCloudSyncCoordinator = read(
 const accountLocalUseReadiness = read(
   "src/lib/sync/accountLocalUseReadiness.ts"
 );
+const developmentStabilityPlan = read(
+  "src/lib/sync/developmentStabilityPlan.ts"
+);
 const settingsCloudSyncStatusHook = read(
   "src/hooks/useSettingsCloudSyncStatus.ts"
 );
@@ -2432,6 +2435,62 @@ check(
     syncDashboardShell.includes("补传全部本地输入") &&
     syncDashboardShell.includes("不读取页面正文、数据库行值、文件 bytes"),
   "同步中心应在上传安全总览前展示本地可继续使用、云端交接和缓存重建阻断状态，并保持 metadata-only 边界"
+);
+check(
+  syncDashboardShell.includes("DevelopmentStabilityPlanPanel") &&
+    syncDashboardShell.includes("buildDevelopmentStabilityPlan") &&
+    syncDashboardShell.includes("syncLocalUseQueueSnapshot") &&
+    syncDashboardShell.includes('id="development-stability-plan-panel"') &&
+    syncDashboardShell.includes(
+      'data-testid="development-stability-plan-panel"'
+    ) &&
+    syncDashboardShell.includes(
+      "data-development-channel={plan.development_channel}"
+    ) &&
+    syncDashboardShell.includes(
+      "data-local-app-can-continue={String(plan.local_app_can_continue_now)}"
+    ) &&
+    syncDashboardShell.includes(
+      "data-route-smoke-protected-entrypoints="
+    ) &&
+    syncDashboardShell.includes("开发期稳定使用计划") &&
+    syncDashboardShell.includes("Private Alpha 稳定使用区") &&
+    syncDashboardShell.includes("稳定入口") &&
+    syncDashboardShell.includes("实验区") &&
+    syncDashboardShell.includes("pending / failed / manual review 计数") &&
+    syncDashboardShell.includes("不读取页面正文、数据库行值、文件 names、文件 bytes"),
+  "同步中心应展示开发期稳定使用计划，把稳定入口、实验区、高风险 gate 和本地可继续状态放在一个 metadata-only 卡片里"
+);
+check(
+  developmentStabilityPlan.includes(
+    'format: "zhinote-development-stability-plan"'
+  ) &&
+    developmentStabilityPlan.includes(
+      'development_channel: "private-alpha-stable-use"'
+    ) &&
+    developmentStabilityPlan.includes("stable_use_entrypoints") &&
+    developmentStabilityPlan.includes("guarded_entrypoints") &&
+    developmentStabilityPlan.includes("experimental_surfaces") &&
+    developmentStabilityPlan.includes("route_smoke_protected_entrypoints") &&
+    developmentStabilityPlan.includes("high_risk_actions_gated") &&
+    developmentStabilityPlan.includes("enable_sync_push") &&
+    developmentStabilityPlan.includes("cache_rebuild_from_cloud") &&
+    developmentStabilityPlan.includes("bulk_import_apply") &&
+    developmentStabilityPlan.includes("ai_execution") &&
+    developmentStabilityPlan.includes("reads_page_body_text: false") &&
+    developmentStabilityPlan.includes("reads_database_row_values: false") &&
+    developmentStabilityPlan.includes("reads_file_names: false") &&
+    developmentStabilityPlan.includes("reads_file_bytes: false") &&
+    developmentStabilityPlan.includes("uploads_workspace_data: false") &&
+    developmentStabilityPlan.includes("clears_local_cache: false") &&
+    developmentStabilityPlan.includes("enables_sync: false") &&
+    developmentStabilityPlan.includes("enables_ai: false") &&
+    developmentStabilityPlan.includes("/daily") &&
+    developmentStabilityPlan.includes("/schedule") &&
+    developmentStabilityPlan.includes("/modules/databases") &&
+    developmentStabilityPlan.includes("/knowledge-base") &&
+    developmentStabilityPlan.includes("/industry-chain"),
+  "开发期稳定使用计划必须只读 route catalog 和同步队列计数，并明确稳定入口、实验入口和高风险动作 gate"
 );
 
 const sidebar = read("src/components/sidebar/Sidebar.tsx");

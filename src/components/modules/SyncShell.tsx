@@ -377,6 +377,11 @@ import {
   type AccountCloudSyncReadinessState,
 } from "@/lib/sync/accountLocalUseReadiness";
 import {
+  buildDevelopmentStabilityPlan,
+  type DevelopmentStabilityPlan,
+  type DevelopmentStabilitySurfaceStatus,
+} from "@/lib/sync/developmentStabilityPlan";
+import {
   buildSyncUploadDrainReceipt,
   type SyncUploadDrainReceipt,
   type SyncUploadDrainResultSnapshot,
@@ -1992,7 +1997,7 @@ function SyncDashboard() {
       }),
     [databasePendingStatus, pagePendingStatus, syncSummary?.pending, workspaceIdentity]
   );
-  const syncLocalUseReadiness = useMemo(() => {
+  const syncLocalUseQueueSnapshot = useMemo(() => {
     const pageWaiting = pagePendingStatus.pending + pagePendingStatus.queued;
     const databaseWaiting =
       databasePendingStatus.pending +
@@ -2012,24 +2017,47 @@ function SyncDashboard() {
     const enabledDomainCount =
       (pagePendingStatus.enabled ? 1 : 0) +
       (databasePendingStatus.enabled ? 1 : 0);
+    return {
+      pendingTotal,
+      failedTotal,
+      manualReviewTotal,
+      enabledDomainCount,
+    };
+  }, [databasePendingStatus, pagePendingStatus, syncSummary]);
+  const syncLocalUseReadiness = useMemo(() => {
     const state: AccountCloudSyncReadinessState =
-      failedTotal > 0 || manualReviewTotal > 0
+      syncLocalUseQueueSnapshot.failedTotal > 0 ||
+      syncLocalUseQueueSnapshot.manualReviewTotal > 0
         ? "attention"
-        : pendingTotal > 0
+        : syncLocalUseQueueSnapshot.pendingTotal > 0
           ? "queued"
-          : enabledDomainCount === 0
+          : syncLocalUseQueueSnapshot.enabledDomainCount === 0
             ? "disabled"
             : "synced";
 
     return buildAccountLocalUseReadiness({
       state,
-      pendingTotal,
-      failedTotal,
-      manualReviewTotal,
-      retryableFailedTotal: Math.max(0, failedTotal - manualReviewTotal),
-      enabledDomainCount,
+      pendingTotal: syncLocalUseQueueSnapshot.pendingTotal,
+      failedTotal: syncLocalUseQueueSnapshot.failedTotal,
+      manualReviewTotal: syncLocalUseQueueSnapshot.manualReviewTotal,
+      retryableFailedTotal: Math.max(
+        0,
+        syncLocalUseQueueSnapshot.failedTotal -
+          syncLocalUseQueueSnapshot.manualReviewTotal
+      ),
+      enabledDomainCount: syncLocalUseQueueSnapshot.enabledDomainCount,
     });
-  }, [databasePendingStatus, pagePendingStatus, syncSummary]);
+  }, [syncLocalUseQueueSnapshot]);
+  const developmentStabilityPlan = useMemo(
+    () =>
+      buildDevelopmentStabilityPlan({
+        localUseReadiness: syncLocalUseReadiness,
+        pendingTotal: syncLocalUseQueueSnapshot.pendingTotal,
+        failedTotal: syncLocalUseQueueSnapshot.failedTotal,
+        manualReviewTotal: syncLocalUseQueueSnapshot.manualReviewTotal,
+      }),
+    [syncLocalUseQueueSnapshot, syncLocalUseReadiness]
+  );
   const syncPayloadPreview = useMemo(
     () =>
       buildSyncPayloadPreview({
@@ -10667,29 +10695,16 @@ function SyncDashboard() {
             <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
               <SyncLocalUseReadinessPanel
                 readiness={syncLocalUseReadiness}
-                pendingTotal={Math.max(
-                  pagePendingStatus.pending +
-                    pagePendingStatus.queued +
-                    databasePendingStatus.pending +
-                    databasePendingStatus.queued +
-                    databasePendingStatus.syncLogPending,
-                  syncSummary?.pending ?? 0
-                )}
-                failedTotal={Math.max(
-                  pagePendingStatus.failed + databasePendingStatus.failed,
-                  syncSummary?.failed ?? 0
-                )}
-                manualReviewTotal={
-                  pagePendingStatus.manualReviewCount +
-                  databasePendingStatus.manualReviewCount
-                }
-                enabledDomainCount={
-                  (pagePendingStatus.enabled ? 1 : 0) +
-                  (databasePendingStatus.enabled ? 1 : 0)
-                }
+                pendingTotal={syncLocalUseQueueSnapshot.pendingTotal}
+                failedTotal={syncLocalUseQueueSnapshot.failedTotal}
+                manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
+                enabledDomainCount={syncLocalUseQueueSnapshot.enabledDomainCount}
                 onDrainAll={() => void handleDrainAllPendingPush()}
                 onOpenAccount={() => router.push("/account")}
               />
+            </div>
+            <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+              <DevelopmentStabilityPlanPanel plan={developmentStabilityPlan} />
             </div>
             <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
               <SyncUploadSafetyPanel
@@ -19521,6 +19536,179 @@ function localUseReadinessClass(status: AccountLocalUseReadiness["status"]) {
     return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
   }
   return "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+}
+
+function developmentStabilityStatusClass(
+  status: DevelopmentStabilitySurfaceStatus
+) {
+  if (status === "stable-use") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  if (status === "guarded") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  return "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
+}
+
+function DevelopmentStabilityPlanPanel({
+  plan,
+}: {
+  plan: DevelopmentStabilityPlan;
+}) {
+  const facts = [
+    {
+      label: "稳定使用区",
+      value: String(plan.summary.stable_use_entrypoints),
+      detail: "高频入口",
+    },
+    {
+      label: "route smoke",
+      value: String(plan.summary.route_smoke_protected_entrypoints),
+      detail: "本地壳检查",
+    },
+    {
+      label: "实验开发区",
+      value: String(plan.summary.experimental_surfaces),
+      detail: "owner gate",
+    },
+    {
+      label: "高风险动作",
+      value: String(plan.summary.high_risk_actions_gated),
+      detail: "默认 gated",
+    },
+    {
+      label: "缓存重建",
+      value: plan.summary.cache_rebuild_blocked ? "先禁止" : "可按流程",
+      detail: plan.summary.cache_rebuild_blocked
+        ? "等待队列清零"
+        : "仍需确认",
+    },
+  ];
+  const visibleStableEntrypoints = plan.stable_use_entrypoints.slice(0, 8);
+  const guardedEntrypoints = plan.guarded_entrypoints.slice(0, 3);
+  const experimentalSurfaces = plan.experimental_surfaces.slice(0, 3);
+
+  return (
+    <div
+      id="development-stability-plan-panel"
+      data-testid="development-stability-plan-panel"
+      data-development-channel={plan.development_channel}
+      data-local-app-can-continue={String(plan.local_app_can_continue_now)}
+      data-stable-entrypoints={plan.summary.stable_use_entrypoints}
+      data-route-smoke-protected-entrypoints={
+        plan.summary.route_smoke_protected_entrypoints
+      }
+      data-cache-rebuild-blocked={String(plan.summary.cache_rebuild_blocked)}
+      className="space-y-3"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              开发期稳定使用计划
+            </h3>
+            <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+              Private Alpha 稳定使用区
+            </span>
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            {plan.stable_version_policy}
+          </p>
+        </div>
+        <div className="rounded-md border border-zinc-100 bg-white px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+          本地继续使用：{plan.local_app_can_continue_now ? "可以" : "先暂停"}
+        </div>
+      </div>
+      <div className="grid gap-2 md:grid-cols-5">
+        {facts.map((fact) => (
+          <div
+            key={fact.label}
+            className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+          >
+            <div className="text-[11px] text-zinc-400">{fact.label}</div>
+            <div className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {fact.value}
+            </div>
+            <div className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+              {fact.detail}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-3 lg:grid-cols-3">
+        <DevelopmentStabilitySurfaceList
+          title="稳定入口"
+          items={visibleStableEntrypoints}
+        />
+        <DevelopmentStabilitySurfaceList
+          title="当前门控"
+          items={guardedEntrypoints}
+          emptyText="暂无同步阻断"
+        />
+        <DevelopmentStabilitySurfaceList
+          title="实验区"
+          items={experimentalSurfaces}
+        />
+      </div>
+      <p className="rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        下一步：{plan.next_action}
+        <br />
+        边界：只读取 route catalog 和 pending / failed / manual review 计数；不读取页面正文、数据库行值、文件 names、文件 bytes，不上传、不清缓存、不启用同步或 AI。
+      </p>
+    </div>
+  );
+}
+
+function DevelopmentStabilitySurfaceList({
+  title,
+  items,
+  emptyText = "暂无",
+}: {
+  title: string;
+  items: DevelopmentStabilityPlan["stable_use_entrypoints"];
+  emptyText?: string;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+        {title}
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+          {emptyText}
+        </p>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {items.map((item) => (
+            <div key={item.id} className="rounded-md bg-zinc-50 p-2 dark:bg-zinc-900">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-zinc-800 dark:text-zinc-100">
+                  {item.title}
+                </span>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] ${developmentStabilityStatusClass(
+                    item.status
+                  )}`}
+                >
+                  {item.status === "stable-use"
+                    ? "稳定"
+                    : item.status === "guarded"
+                      ? "门控"
+                      : "实验"}
+                </span>
+              </div>
+              <div className="mt-1 font-mono text-[10px] text-zinc-400">
+                {item.route}
+              </div>
+              <p className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+                {item.reason}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SyncLocalUseReadinessPanel({
