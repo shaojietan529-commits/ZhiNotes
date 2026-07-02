@@ -35,57 +35,11 @@ const SIDEBAR_PAGE_TREE_CHILD_LIMIT = 40;
 const SIDEBAR_PAGE_TREE_IDLE_EXPAND_DELAY_MS = 900;
 const EMPTY_PAGE_TREE_CHILDREN: Page[] = [];
 
-function isInHiddenModuleSubtree(
+function shouldSkipSidebarTreePage(
   page: Page,
-  pagesById: Map<string, Page>,
-  moduleRootIds: Set<string>,
-  cache: Map<string, boolean>,
-  visiting: Set<string> = new Set()
-): boolean {
-  const cached = cache.get(page.id);
-  if (cached !== undefined) return cached;
-  if (visiting.has(page.id)) {
-    cache.set(page.id, false);
-    return false;
-  }
-  if (moduleRootIds.has(page.id)) {
-    cache.set(page.id, true);
-    return true;
-  }
-  if (!page.parent_id) {
-    cache.set(page.id, false);
-    return false;
-  }
-
-  const parent = pagesById.get(page.parent_id);
-  const nextVisiting = new Set(visiting);
-  nextVisiting.add(page.id);
-  const hidden = parent
-    ? isInHiddenModuleSubtree(
-        parent,
-        pagesById,
-        moduleRootIds,
-        cache,
-        nextVisiting
-      )
-    : false;
-  cache.set(page.id, hidden);
-  return hidden;
-}
-
-function collectHiddenModuleSubtreeIds(
-  pages: Page[],
-  pagesById: Map<string, Page>,
   moduleRootIds: Set<string>
-): Set<string> {
-  const cache = new Map<string, boolean>();
-  const hiddenIds = new Set<string>();
-  for (const page of pages) {
-    if (isInHiddenModuleSubtree(page, pagesById, moduleRootIds, cache)) {
-      hiddenIds.add(page.id);
-    }
-  }
-  return hiddenIds;
+): boolean {
+  return moduleRootIds.has(page.id);
 }
 
 function scheduleSidebarPageTreeIdleTask(
@@ -452,14 +406,13 @@ export default function PageTree() {
     };
   }, []);
 
-  const hiddenModuleSubtreeIds = useMemo(
-    () => collectHiddenModuleSubtreeIds(treePages, pagesById, moduleRootIds),
-    [moduleRootIds, pagesById, treePages]
-  );
   const childrenByParent = useMemo(() => {
     const grouped = new Map<string | null, Page[]>();
     for (const page of treePages) {
-      if (hiddenModuleSubtreeIds.has(page.id)) continue;
+      // Skip module roots at the index boundary. Their descendants stay grouped
+      // under the skipped root id, so they are unreachable without recursively
+      // scanning every imported page on each sidebar refresh.
+      if (shouldSkipSidebarTreePage(page, moduleRootIds)) continue;
       const list = grouped.get(page.parent_id) ?? [];
       list.push(page);
       grouped.set(page.parent_id, list);
@@ -468,7 +421,7 @@ export default function PageTree() {
       list.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     }
     return grouped;
-  }, [hiddenModuleSubtreeIds, treePages]);
+  }, [moduleRootIds, treePages]);
   const rootPages = useMemo(
     () =>
       (childrenByParent.get(null) ?? []).filter(

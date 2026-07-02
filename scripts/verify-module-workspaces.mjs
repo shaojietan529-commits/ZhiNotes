@@ -660,10 +660,9 @@ check(
     pageTreeSource.includes("children.slice(0, childVisibleLimit)") &&
     pageTreeSource.includes("visibleChildren.map((child)") &&
     pageTreeSource.includes("已折叠 {hiddenChildCount} 个子页面") &&
-    pageTreeSource.includes("isInHiddenModuleSubtree") &&
-    pageTreeSource.includes("collectHiddenModuleSubtreeIds") &&
-    pageTreeSource.includes("hiddenModuleSubtreeIds.has(page.id)") &&
-    pageTreeSource.includes("visiting.has(page.id)") &&
+    pageTreeSource.includes("shouldSkipSidebarTreePage") &&
+    pageTreeSource.includes("moduleRootIds.has(page.id)") &&
+    pageTreeSource.includes("unreachable without recursively") &&
     pageTreeSource.includes("useDeferredValue(pages)") &&
     pageTreeSource.includes("childVisibleLimit") &&
     pageTreeSource.includes("setRootVisibleLimit") &&
@@ -675,6 +674,9 @@ check(
     !pageTreeSource.includes("{children.map((child)") &&
     !pageTreeSource.includes("new Map(allPages.map") &&
     !pageTreeSource.includes("allPages={pages}") &&
+    !pageTreeSource.includes("collectHiddenModuleSubtreeIds") &&
+    !pageTreeSource.includes("isInHiddenModuleSubtree") &&
+    !pageTreeSource.includes("visiting.has(page.id)") &&
     !pageTreeSource.includes("function getSiblings") &&
     !pageTreeSource.includes("onChanged={() => refresh()}") &&
     !pageTreeSource.includes("await refresh()"),
@@ -1525,14 +1527,17 @@ check(
 // 5. Page tree hides module roots
 const pageTree = read("src/components/sidebar/PageTree.tsx");
 check(
-  pageTree.includes("getModuleRootIdsSync") &&
+    pageTree.includes("getModuleRootIdsSync") &&
     pageTree.includes("MODULE_ROOT_IDS_EVENT") &&
     pageTree.includes("setModuleRootIds(new Set(getModuleRootIdsSync()))") &&
     pageTree.includes('event.key?.startsWith("zhinote.moduleRoot.")') &&
-    pageTree.includes("collectHiddenModuleSubtreeIds") &&
-    pageTree.includes("hiddenModuleSubtreeIds.has(page.id)") &&
+    pageTree.includes("shouldSkipSidebarTreePage") &&
+    pageTree.includes("moduleRootIds.has(page.id)") &&
+    pageTree.includes("unreachable without recursively") &&
+    !pageTree.includes("collectHiddenModuleSubtreeIds") &&
+    !pageTree.includes("isInHiddenModuleSubtree") &&
     !pageTree.includes("useMemo(() => new Set(getModuleRootIdsSync()), [])"),
-  "PageTree 必须隐藏模块根页面及其子树，并在云端认领 root id 后无需刷新即可更新"
+  "PageTree 必须隐藏模块根页面及其子树，且不能为此递归扫描所有导入页面；云端认领 root id 后无需刷新即可更新"
 );
 
 if (errors.length > 0) {

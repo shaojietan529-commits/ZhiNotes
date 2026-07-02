@@ -24221,20 +24221,20 @@ function run() {
     [
       files.pageTree,
       pageTree,
-      "collectHiddenModuleSubtreeIds",
-      "Sidebar page tree must skip hidden module subtrees before grouping and sorting pages.",
+      "shouldSkipSidebarTreePage",
+      "Sidebar page tree must skip module roots at the index boundary so hidden module descendants stay unreachable without recursive full-page scans.",
     ],
     [
       files.pageTree,
       pageTree,
-      "hiddenModuleSubtreeIds.has(page.id)",
-      "Sidebar page tree must exclude hidden module descendants from the parent index.",
+      "moduleRootIds.has(page.id)",
+      "Sidebar page tree must identify hidden module root pages directly.",
     ],
     [
       files.pageTree,
       pageTree,
-      "visiting.has(page.id)",
-      "Sidebar hidden module subtree detection must guard against cyclic parent chains.",
+      "unreachable without recursively",
+      "Sidebar page tree must document that skipping module roots keeps descendants hidden without scanning every imported page.",
     ],
     [
       files.pageTree,
@@ -24800,6 +24800,9 @@ function run() {
   for (const forbiddenPageTreeSnippet of [
     "new Map(allPages.map",
     "allPages={pages}",
+    "collectHiddenModuleSubtreeIds",
+    "isInHiddenModuleSubtree",
+    "visiting.has(page.id)",
     "function getSiblings",
   ]) {
     assertSourceExcludes(

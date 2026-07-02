@@ -14361,9 +14361,9 @@ function run() {
     "currentPathIds.has(page.id)",
     "page.id === currentPageId",
     "已折叠 {hiddenChildCount} 个子页面",
-    "collectHiddenModuleSubtreeIds",
-    "hiddenModuleSubtreeIds.has(page.id)",
-    "visiting.has(page.id)",
+    "shouldSkipSidebarTreePage",
+    "moduleRootIds.has(page.id)",
+    "unreachable without recursively",
     "useDeferredValue(pages)",
     "childVisibleLimit",
     "setRootVisibleLimit",
@@ -14385,6 +14385,9 @@ function run() {
   for (const forbiddenPageTreeSnippet of [
     "new Map(allPages.map",
     "allPages={pages}",
+    "collectHiddenModuleSubtreeIds",
+    "isInHiddenModuleSubtree",
+    "visiting.has(page.id)",
     "function getSiblings",
   ]) {
     if (pageTree.includes(forbiddenPageTreeSnippet)) {
