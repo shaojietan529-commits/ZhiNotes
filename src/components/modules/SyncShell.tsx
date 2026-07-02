@@ -19706,6 +19706,11 @@ function DevelopmentStabilityPlanPanel({
       detail: "本地壳检查",
     },
     {
+      label: "交互保障",
+      value: String(plan.summary.stable_use_guarantees),
+      detail: "稳定入口约束",
+    },
+    {
       label: "实验开发区",
       value: String(plan.summary.experimental_surfaces),
       detail: "owner gate",
@@ -19723,7 +19728,7 @@ function DevelopmentStabilityPlanPanel({
         : "仍需确认",
     },
   ];
-  const visibleStableEntrypoints = plan.stable_use_entrypoints.slice(0, 8);
+  const visibleStableEntrypoints = plan.stable_use_entrypoints;
   const guardedEntrypoints = plan.guarded_entrypoints.slice(0, 3);
   const experimentalSurfaces = plan.experimental_surfaces.slice(0, 3);
 
@@ -19737,6 +19742,7 @@ function DevelopmentStabilityPlanPanel({
       data-route-smoke-protected-entrypoints={
         plan.summary.route_smoke_protected_entrypoints
       }
+      data-stable-use-guarantees={plan.summary.stable_use_guarantees}
       data-cache-rebuild-blocked={String(plan.summary.cache_rebuild_blocked)}
       className="space-y-3"
     >
@@ -19758,7 +19764,7 @@ function DevelopmentStabilityPlanPanel({
           本地继续使用：{plan.local_app_can_continue_now ? "可以" : "先暂停"}
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-5">
+      <div className="grid gap-2 md:grid-cols-6">
         {facts.map((fact) => (
           <div
             key={fact.label}
@@ -19842,6 +19848,13 @@ function DevelopmentStabilitySurfaceList({
               <p className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
                 {item.reason}
               </p>
+              {item.guarantees.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-[10px] leading-4 text-zinc-500 dark:text-zinc-400">
+                  {item.guarantees.slice(0, 3).map((guarantee) => (
+                    <li key={guarantee}>- {guarantee}</li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ))}
         </div>

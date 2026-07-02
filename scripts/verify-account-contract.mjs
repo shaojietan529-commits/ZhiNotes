@@ -2503,10 +2503,18 @@ check(
     syncDashboardShell.includes(
       "data-route-smoke-protected-entrypoints="
     ) &&
+    syncDashboardShell.includes(
+      "data-stable-use-guarantees={plan.summary.stable_use_guarantees}"
+    ) &&
     syncDashboardShell.includes("开发期稳定使用计划") &&
     syncDashboardShell.includes("Private Alpha 稳定使用区") &&
+    syncDashboardShell.includes("交互保障") &&
+    syncDashboardShell.includes(
+      "const visibleStableEntrypoints = plan.stable_use_entrypoints;"
+    ) &&
     syncDashboardShell.includes("稳定入口") &&
     syncDashboardShell.includes("实验区") &&
+    syncDashboardShell.includes("item.guarantees.slice(0, 3)") &&
     syncDashboardShell.includes("pending / failed / manual review 计数") &&
     syncDashboardShell.includes("不读取页面正文、数据库行值、文件 names、文件 bytes"),
   "同步中心应展示开发期稳定使用计划，把稳定入口、实验区、高风险 gate 和本地可继续状态放在一个 metadata-only 卡片里"
@@ -2519,6 +2527,7 @@ check(
       'development_channel: "private-alpha-stable-use"'
     ) &&
     developmentStabilityPlan.includes("stable_use_entrypoints") &&
+    developmentStabilityPlan.includes("stable_use_guarantees") &&
     developmentStabilityPlan.includes("guarded_entrypoints") &&
     developmentStabilityPlan.includes("experimental_surfaces") &&
     developmentStabilityPlan.includes("route_smoke_protected_entrypoints") &&
@@ -2535,6 +2544,10 @@ check(
     developmentStabilityPlan.includes("clears_local_cache: false") &&
     developmentStabilityPlan.includes("enables_sync: false") &&
     developmentStabilityPlan.includes("enables_ai: false") &&
+    developmentStabilityPlan.includes("接口临时失败不等于登出") &&
+    developmentStabilityPlan.includes("会议导入后即时进入日历") &&
+    developmentStabilityPlan.includes("pending / failed / manual review 可见") &&
+    developmentStabilityPlan.includes("页面壳先显示本地 handoff") &&
     developmentStabilityPlan.includes("/daily") &&
     developmentStabilityPlan.includes("/schedule") &&
     developmentStabilityPlan.includes("/modules/databases") &&
