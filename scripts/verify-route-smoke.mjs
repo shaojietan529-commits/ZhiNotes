@@ -22,6 +22,18 @@ const ROUTES = [
     expectedText: "ZhiHui",
   },
   {
+    path: "/account",
+    label: "account shell",
+    expectedStatus: 200,
+    expectedText: "account",
+  },
+  {
+    path: "/modules/sync",
+    label: "sync center shell",
+    expectedStatus: 200,
+    expectedText: "modules/sync",
+  },
+  {
     path: "/portfolio",
     label: "portfolio board",
     expectedStatus: 200,

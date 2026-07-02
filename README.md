@@ -1683,9 +1683,10 @@ The first cloud phase is a private alpha, not full sync:
 - `npm run verify:private-alpha` runs the fast P0 stable-use gate for small
   daily development updates: account/session stability, modular workspace roots,
   Daily/ZhiHui local-first smoke contracts, and localhost-only route shell
-  checks. It prints a local receipt, does not deploy, connect cloud services,
-  upload workspace data, enable sync, enable AI, or read private page bodies,
-  database values, file names, file bytes, holdings, trading plans, or secrets.
+  checks for account, sync center, calendar, portfolio, and page entrypoints. It
+  prints a local receipt, does not deploy, connect cloud services, upload
+  workspace data, enable sync, enable AI, or read private page bodies, database
+  values, file names, file bytes, holdings, trading plans, or secrets.
 - `npm run verify:web-beta:full` runs the local Web Beta verification bundle:
   account gates, module workspace gates, Web Beta contract checks, smoke checks,
   cloud manifest domain checks, metadata-only manifest request validator checks,

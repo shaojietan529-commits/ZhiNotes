@@ -32,7 +32,7 @@ const verificationCommands = [
     command: "npm run verify:route-smoke",
     args: ["run", "verify:route-smoke"],
     purpose:
-      "Request local public route shells only for Daily, ZhiHui, portfolio, and page routes.",
+      "Request local public route shells only for Daily, ZhiHui, account, sync center, portfolio, and page routes.",
   },
 ];
 
@@ -139,7 +139,7 @@ function printReceipt(startedAt, results, status) {
       "account session does not collapse on transient failures",
       "module workspace roots stay routable and extensible",
       "Daily and ZhiHui local-first smoke contracts stay intact",
-      "core route shells respond before deeper data hydration",
+      "core account, sync, calendar, portfolio, and page route shells respond before deeper data hydration",
     ],
     summary: {
       commands: results.length,

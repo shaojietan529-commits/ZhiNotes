@@ -1209,6 +1209,18 @@ function run() {
   assertIncludes(
     files.routeSmokeVerifier,
     routeSmokeVerifier,
+    'path: "/account"',
+    "Route smoke verifier must cover the account route."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
+    'path: "/modules/sync"',
+    "Route smoke verifier must cover the sync center route."
+  );
+  assertIncludes(
+    files.routeSmokeVerifier,
+    routeSmokeVerifier,
     'path: "/portfolio"',
     "Route smoke verifier must cover the portfolio board route."
   );

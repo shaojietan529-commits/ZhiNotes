@@ -17412,6 +17412,14 @@ function run() {
       "Route smoke verifier must cover the meeting calendar route.",
     ],
     [
+      'path: "/account"',
+      "Route smoke verifier must cover the account route.",
+    ],
+    [
+      'path: "/modules/sync"',
+      "Route smoke verifier must cover the sync center route.",
+    ],
+    [
       'path: "/portfolio"',
       "Route smoke verifier must cover the portfolio board route.",
     ],
