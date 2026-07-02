@@ -21,6 +21,13 @@ const verificationCommands = [
       "Check modular workspace roots and sidebar-safe module entrypoints.",
   },
   {
+    id: "verify-modules",
+    command: "npm run verify:modules",
+    args: ["run", "verify:modules"],
+    purpose:
+      "Check module registry contracts, module center stable-use status, starter boundaries, and project progress snapshot.",
+  },
+  {
     id: "verify-database",
     command: "npm run verify:database",
     args: ["run", "verify:database"],
@@ -173,6 +180,7 @@ function printReceipt(startedAt, results, status) {
     p0_coverage: [
       "account session does not collapse on transient failures",
       "module workspace roots stay routable and extensible",
+      "module center stable-use status and registry-backed module contracts stay visible",
       "database views, import/export, and local-only button actions stay inside safe local boundaries",
       "editor shortcuts, page creation, file preview, and ZhiHui glossary privacy contracts stay intact",
       "Daily and ZhiHui local-first smoke contracts stay intact",
