@@ -422,6 +422,9 @@ export default function MeetingScheduleShell() {
   const observedPageRevisionRef = useRef<string | null>(null);
   const pageShellWarmupRef = useRef<Promise<unknown> | null>(null);
   const completedMeetingDailyLinkKeyRef = useRef("");
+  const pendingOptimisticHotCacheWritesRef = useRef(
+    new Map<string, () => void>()
+  );
   const [hotCachePreferences, setHotCachePreferences] = useState(
     DEFAULT_HOT_CACHE_PREFERENCES
   );
@@ -756,6 +759,10 @@ export default function MeetingScheduleShell() {
 
   useEffect(
     () => () => {
+      for (const cancelWrite of pendingOptimisticHotCacheWritesRef.current.values()) {
+        cancelWrite();
+      }
+      pendingOptimisticHotCacheWritesRef.current.clear();
       if (highlightTimerRef.current) {
         window.clearTimeout(highlightTimerRef.current);
       }
@@ -1339,13 +1346,22 @@ export default function MeetingScheduleShell() {
 
   const scheduleOptimisticMeetingHotCacheWrite = useCallback(
     (page: Page, rootHint: string | null, timeoutMs = 180) => {
-      scheduleMeetingIdleTask(() => {
+      const cacheKey = page.id || `${rootHint ?? "rootless"}:${page.updated_at}`;
+      pendingOptimisticHotCacheWritesRef.current.get(cacheKey)?.();
+      let cancel: (() => void) | null = null;
+      cancel = scheduleMeetingIdleTask(() => {
+        if (
+          pendingOptimisticHotCacheWritesRef.current.get(cacheKey) === cancel
+        ) {
+          pendingOptimisticHotCacheWritesRef.current.delete(cacheKey);
+        }
         try {
           writeOptimisticMeetingHotCache(page, rootHint);
         } catch (error) {
           console.warn("Meeting optimistic hot cache write failed", error);
         }
       }, timeoutMs);
+      pendingOptimisticHotCacheWritesRef.current.set(cacheKey, cancel);
     },
     [writeOptimisticMeetingHotCache]
   );

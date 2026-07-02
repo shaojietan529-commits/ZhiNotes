@@ -3274,6 +3274,18 @@ function run() {
     ],
     "Meeting + creation must show the local peek/opening shell and calendar entry before hot-cache and cloud queue background work."
   );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "pendingOptimisticHotCacheWritesRef.current.get(cacheKey)?.();",
+    "Meeting optimistic hot-cache writes must coalesce per page so repeated create/save/queue updates do not stack storage writes."
+  );
+  assertSourceIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "pendingOptimisticHotCacheWritesRef.current.clear();",
+    "Meeting optimistic hot-cache write queue must be cancelled on unmount."
+  );
   assertSourceOrderedSnippets(
     files.meetingScheduleShell,
     meetingScheduleShell,

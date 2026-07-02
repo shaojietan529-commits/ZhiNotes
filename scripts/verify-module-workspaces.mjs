@@ -1479,6 +1479,11 @@ check(
 );
 check(
   shells.schedule.includes("const scheduleOptimisticMeetingHotCacheWrite = useCallback") &&
+    shells.schedule.includes("pendingOptimisticHotCacheWritesRef") &&
+    shells.schedule.includes("pendingOptimisticHotCacheWritesRef.current.get(cacheKey)?.();") &&
+    shells.schedule.includes("pendingOptimisticHotCacheWritesRef.current.set(cacheKey, cancel);") &&
+    shells.schedule.includes("pendingOptimisticHotCacheWritesRef.current.delete(cacheKey);") &&
+    shells.schedule.includes("pendingOptimisticHotCacheWritesRef.current.clear();") &&
     shells.schedule.includes("scheduleMeetingIdleTask(() => {") &&
     shells.schedule.includes("writeOptimisticMeetingHotCache(page, rootHint);") &&
     shells.schedule.includes("revealMeetingOnCalendar(optimisticPage);\n      scheduleOptimisticMeetingHotCacheWrite(") &&
