@@ -72,6 +72,16 @@ check(
   me.includes("normalizeDisplayName"),
   "me route 修改用户名前必须做长度和空值校验"
 );
+const meGetTransientFailureHandler = me.slice(
+  me.indexOf("  } catch {"),
+  me.indexOf("export async function PATCH")
+);
+check(
+  meGetTransientFailureHandler.includes("{ status: 502 }") &&
+    !meGetTransientFailureHandler.includes("cookies.delete") &&
+    !meGetTransientFailureHandler.includes("response.cookies.delete"),
+  "me route GET 云端临时失败只能返回 502 可重试错误，不能清除登录 cookie 或把用户踢出"
+);
 
 // 3. Login page: unconfigured state, no auto-send
 const shell = read("src/components/modules/AccountShell.tsx");
@@ -197,6 +207,22 @@ check(
     accountClientSession.includes("staleReason") &&
     accountClientSession.includes("clearStoredAuthenticatedAccount"),
   "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和跨标签页最近登录账号降级保护"
+);
+check(
+  accountClientSession.includes("if (!res.ok) {\n      return {\n        status: \"error\"") &&
+    accountClientSession.includes(
+      "const result = withStoredAuthenticatedFallback(\n    await accountSessionInFlight,"
+    ) &&
+    accountClientSession.includes(
+      '} else if (result.status === "ok" && !result.authenticated) {\n    clearStoredAuthenticatedAccount();\n  }'
+    ) &&
+    !accountClientSession.includes(
+      'result.status === "error" && !result.authenticated'
+    ) &&
+    !accountClientSession.includes(
+      'result.status === "unconfigured" && !result.authenticated'
+    ),
+  "账号状态客户端必须把非 2xx/网络错误视为临时错误，并先套用最近登录账号兜底；只有 ok 且明确未登录时才清最近登录兜底"
 );
 check(
   shell.includes("rememberLastAuthenticatedAccount(nextAccount)") &&
