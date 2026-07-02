@@ -87,6 +87,8 @@ export interface CloudNativeFluidityReport {
     page_failed_rows: number;
     database_failed_rows: number;
     sync_log_pending_rows: number;
+    sync_log_failed_rows: number;
+    sync_log_manual_review_rows: number;
     hot_cache_ready_jobs: number;
     hot_cache_route_targets: number;
     hot_cache_index_rows: number;
@@ -121,7 +123,14 @@ export function buildCloudNativeFluidityReport(
     input.databaseStatus.pending +
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
-  const failedRows = input.pageStatus.failed + input.databaseStatus.failed;
+  const failedRows = Math.max(
+    input.pageStatus.failed + input.databaseStatus.failed,
+    input.syncSummary?.failed ?? 0
+  );
+  const manualReviewRows = Math.max(
+    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.syncSummary?.manualReview ?? 0
+  );
   const totalPendingRows =
     pagePendingRows + databasePendingRows + (input.syncSummary?.pending ?? 0);
   const hotCacheIndexRows = input.hotCacheLocalIndexSummary?.summary.rows ?? 0;
@@ -185,9 +194,14 @@ export function buildCloudNativeFluidityReport(
     {
       id: "pending-queue-visible",
       title: "待上传队列可见且受保护",
-      status: totalPendingRows === 0 ? "pass" : "warn",
+      status:
+        totalPendingRows === 0 && failedRows === 0 && manualReviewRows === 0
+          ? "pass"
+          : "warn",
       evidence:
-        failedRows > 0
+        manualReviewRows > 0
+          ? `当前共有 ${manualReviewRows} 条记录需要人工处理；这些异常未清空前不能切换到云端主库。`
+          : failedRows > 0
           ? `当前共有 ${failedRows} 条待上传记录带失败回执；最近失败：${input.pageStatus.lastFailureMessage ?? input.databaseStatus.lastFailureMessage ?? "未记录原因"}。`
           : totalPendingRows === 0
           ? "当前没有待上传队列，云端和本地更容易对齐。"
@@ -195,7 +209,11 @@ export function buildCloudNativeFluidityReport(
       target: "输入先写本地，再进入 pending queue，云端确认前不能丢。",
       next_action:
         totalPendingRows === 0
-          ? "可以继续做云端 manifest 对账和缓存重建预检。"
+          ? manualReviewRows > 0 || failedRows > 0
+            ? "先处理失败回执和人工处理项，再继续做云端 manifest 对账和缓存重建预检。"
+            : "可以继续做云端 manifest 对账和缓存重建预检。"
+          : manualReviewRows > 0
+            ? "先导出处理包并处理人工处理项；不要在人工处理未确认前重建缓存。"
           : failedRows > 0
             ? "先查看失败回执并等待后台重试；不要在失败 pending 未确认前重建缓存。"
           : "先让后台同步补传；pending 未清零前不要重建本地缓存。",
@@ -332,6 +350,8 @@ export function buildCloudNativeFluidityReport(
     syncLogPendingRows: input.syncSummary?.pending ?? 0,
     pageFailedRows: input.pageStatus.failed,
     databaseFailedRows: input.databaseStatus.failed,
+    syncLogFailedRows: input.syncSummary?.failed ?? 0,
+    syncLogManualReviewRows: input.syncSummary?.manualReview ?? 0,
     hotCacheIndexRows,
     hotCacheRouteTargets,
     performanceSamples: input.performanceSnapshots.length,
@@ -376,6 +396,8 @@ export function buildCloudNativeFluidityReport(
       page_failed_rows: input.pageStatus.failed,
       database_failed_rows: input.databaseStatus.failed,
       sync_log_pending_rows: input.syncSummary?.pending ?? 0,
+      sync_log_failed_rows: input.syncSummary?.failed ?? 0,
+      sync_log_manual_review_rows: input.syncSummary?.manualReview ?? 0,
       hot_cache_ready_jobs: hotCacheReadyJobs,
       hot_cache_route_targets: hotCacheRouteTargets,
       hot_cache_index_rows: hotCacheIndexRows,
@@ -424,6 +446,8 @@ function buildWebBetaSyncGate(input: {
   syncLogPendingRows: number;
   pageFailedRows: number;
   databaseFailedRows: number;
+  syncLogFailedRows: number;
+  syncLogManualReviewRows: number;
   hotCacheIndexRows: number;
   hotCacheRouteTargets: number;
   performanceSamples: number;
@@ -432,7 +456,10 @@ function buildWebBetaSyncGate(input: {
   averagePageBodyHydrationMs: number | null;
   cacheRebuildBlockers: number;
 }): CloudNativeFluidityWebBetaSyncGate {
-  const failedRows = input.pageFailedRows + input.databaseFailedRows;
+  const failedRows = Math.max(
+    input.pageFailedRows + input.databaseFailedRows,
+    input.syncLogFailedRows
+  );
   const pendingRows =
     input.pagePendingRows + input.databasePendingRows + input.syncLogPendingRows;
   const gateBlockers = input.gates
@@ -446,6 +473,11 @@ function buildWebBetaSyncGate(input: {
     ...(failedRows > 0
       ? [
           `仍有 ${failedRows} 条页面/数据库失败回执，真实云端主库启用前必须先确认重试或人工处理。`,
+        ]
+      : []),
+    ...(input.syncLogManualReviewRows > 0
+      ? [
+          `仍有 ${input.syncLogManualReviewRows} 条全域 sync_log 人工处理项，Web Beta 前必须先处理。`,
         ]
       : []),
     ...(input.cacheRebuildBlockers > 0
@@ -480,7 +512,7 @@ function buildWebBetaSyncGate(input: {
     evidence: [
       `页面 pending ${input.pagePendingRows} / failed ${input.pageFailedRows}`,
       `数据库 pending ${input.databasePendingRows} / failed ${input.databaseFailedRows}`,
-      `sync_log pending ${input.syncLogPendingRows}`,
+      `sync_log pending ${input.syncLogPendingRows} / failed ${input.syncLogFailedRows} / manual ${input.syncLogManualReviewRows}`,
       `热缓存索引 ${input.hotCacheIndexRows} 行 / ${input.hotCacheRouteTargets} 个可预热入口`,
       `本机耗时样本 ${input.performanceSamples} 条，首屏 ${formatGateMs(input.averageLocalFirstMs)}，页面打开 ${formatGateMs(input.averagePageOpenMs)}，正文补齐 ${formatGateMs(input.averagePageBodyHydrationMs)}`,
     ],

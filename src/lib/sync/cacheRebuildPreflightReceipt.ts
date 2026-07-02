@@ -10,6 +10,7 @@ export type CacheRebuildPreflightStatus =
   | "blocked-cloud-workspace"
   | "blocked-disabled"
   | "blocked-pending"
+  | "blocked-sync-review"
   | "blocked-manifest-mismatch";
 
 export type CacheRebuildPreflightGateStatus = "pass" | "warn" | "block";
@@ -18,6 +19,8 @@ export interface CacheRebuildPreflightReceiptInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
   totalSyncPending: number;
+  totalSyncFailed?: number;
+  totalSyncManualReview?: number;
   cloudMasterReconcile: CloudMasterReconcileReport;
   localMetadataManifest: LocalMetadataManifestReport;
   coreManifestReceipt: CoreManifestCompareReceipt | null;
@@ -67,6 +70,8 @@ export interface CacheRebuildPreflightReceipt {
     database_in_memory_queued_rows: number;
     database_sync_log_pending_rows: number;
     total_sync_log_pending_rows: number;
+    total_sync_log_failed_rows: number;
+    total_sync_log_manual_review_rows: number;
     blockers: number;
     warnings: number;
     local_manifest_hash: string;
@@ -81,6 +86,7 @@ export interface CacheRebuildPreflightReceipt {
     ready_preflight_required_before_rebuild: true;
     cloud_manifest_is_source_of_truth: true;
     local_pending_edits_block_rebuild: true;
+    local_failed_or_manual_review_blocks_rebuild: true;
   };
   next_action: string;
 }
@@ -98,6 +104,15 @@ export function buildCacheRebuildPreflightReceipt(
     pagePendingRows > 0 ||
     databasePendingRows > 0 ||
     input.totalSyncPending > 0;
+  const failedRows = Math.max(
+    input.pageStatus.failed + input.databaseStatus.failed,
+    input.totalSyncFailed ?? 0
+  );
+  const manualReviewRows = Math.max(
+    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.totalSyncManualReview ?? 0
+  );
+  const hasSyncReview = failedRows > 0 || manualReviewRows > 0;
   const cloudWorkspaceLinked =
     input.cloudMasterReconcile.summary.cloud_workspace_linked;
   const coreManifestStatus = input.coreManifestReceipt?.status ?? "not-run";
@@ -137,6 +152,15 @@ export function buildCacheRebuildPreflightReceipt(
         : "待上传队列为空，可以继续检查 manifest 对账结果。",
     },
     {
+      id: "sync-review-clear",
+      title: "失败和人工处理队列已清空",
+      status: hasSyncReview ? "block" : "pass",
+      evidence: `失败 ${failedRows} 条；人工处理 ${manualReviewRows} 条；全局 sync_log failed ${input.totalSyncFailed ?? 0} 条，manual review ${input.totalSyncManualReview ?? 0} 条。`,
+      next_action: hasSyncReview
+        ? "先补传失败队列或导出处理包；失败/人工处理未清空前不要重建本地缓存。"
+        : "没有失败或人工处理队列，可以继续检查 manifest 对账结果。",
+    },
+    {
       id: "core-manifest-compared",
       title: "核心域云端 manifest 已对账",
       status: input.coreManifestReceipt
@@ -170,6 +194,7 @@ export function buildCacheRebuildPreflightReceipt(
     pageSyncEnabled: input.pageStatus.enabled,
     databaseSyncEnabled: input.databaseStatus.enabled,
     hasPending,
+    hasSyncReview,
     coreManifestReceipt: input.coreManifestReceipt,
   });
   const hashInput = {
@@ -181,6 +206,8 @@ export function buildCacheRebuildPreflightReceipt(
     page_pending_rows: pagePendingRows,
     database_pending_rows: databasePendingRows,
     total_sync_log_pending_rows: input.totalSyncPending,
+    total_sync_log_failed_rows: input.totalSyncFailed ?? 0,
+    total_sync_log_manual_review_rows: input.totalSyncManualReview ?? 0,
     local_manifest_hash: input.localMetadataManifest.summary.manifest_hash,
     core_manifest_receipt_id: input.coreManifestReceipt?.receipt_id ?? null,
     core_manifest_status: coreManifestStatus,
@@ -227,6 +254,8 @@ export function buildCacheRebuildPreflightReceipt(
       database_in_memory_queued_rows: input.databaseStatus.queued,
       database_sync_log_pending_rows: input.databaseStatus.syncLogPending,
       total_sync_log_pending_rows: input.totalSyncPending,
+      total_sync_log_failed_rows: input.totalSyncFailed ?? 0,
+      total_sync_log_manual_review_rows: input.totalSyncManualReview ?? 0,
       blockers,
       warnings,
       local_manifest_hash: input.localMetadataManifest.summary.manifest_hash,
@@ -241,6 +270,7 @@ export function buildCacheRebuildPreflightReceipt(
       ready_preflight_required_before_rebuild: true,
       cloud_manifest_is_source_of_truth: true,
       local_pending_edits_block_rebuild: true,
+      local_failed_or_manual_review_blocks_rebuild: true,
     },
     next_action: getNextAction(status),
   };
@@ -251,6 +281,7 @@ function getPreflightStatus(input: {
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
   hasPending: boolean;
+  hasSyncReview: boolean;
   coreManifestReceipt: CoreManifestCompareReceipt | null;
 }): CacheRebuildPreflightStatus {
   if (!input.cloudWorkspaceLinked) return "blocked-cloud-workspace";
@@ -258,6 +289,7 @@ function getPreflightStatus(input: {
     return "blocked-disabled";
   }
   if (input.hasPending) return "blocked-pending";
+  if (input.hasSyncReview) return "blocked-sync-review";
   if (!input.coreManifestReceipt) return "needs-manifest-check";
   if (input.coreManifestReceipt.status !== "matched") {
     return "blocked-manifest-mismatch";
@@ -277,6 +309,8 @@ function getNextAction(status: CacheRebuildPreflightStatus): string {
       return "先开启页面/数据库同步，并确认隐私边界。";
     case "blocked-pending":
       return "先补传或处理本地 pending 变更；未上传输入不能被缓存重建隐藏。";
+    case "blocked-sync-review":
+      return "先处理失败回执或人工处理队列；这些异常未清空前不能重建本机缓存。";
     case "blocked-manifest-mismatch":
       return "先处理核心 manifest mismatch/blocked/needs-sync；对账不一致时不能重建。";
   }

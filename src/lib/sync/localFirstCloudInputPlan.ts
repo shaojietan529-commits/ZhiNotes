@@ -120,10 +120,14 @@ export function buildLocalFirstCloudInputPlan(
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
   const syncLogPendingRows = input.syncSummary?.pending ?? 0;
-  const failedRows = input.pageStatus.failed + input.databaseStatus.failed;
-  const manualReviewRows =
-    input.pageStatus.manualReviewCount +
-    input.databaseStatus.manualReviewCount;
+  const failedRows = Math.max(
+    input.pageStatus.failed + input.databaseStatus.failed,
+    input.syncSummary?.failed ?? 0
+  );
+  const manualReviewRows = Math.max(
+    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.syncSummary?.manualReview ?? 0
+  );
   const totalWaitingRows =
     pageWaitingRows + databaseWaitingRows + syncLogPendingRows;
   const cloudDomainsEnabled =

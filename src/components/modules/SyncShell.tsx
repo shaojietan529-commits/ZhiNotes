@@ -1986,6 +1986,8 @@ function SyncDashboard() {
         pageStatus: pagePendingStatus,
         databaseStatus: databasePendingStatus,
         totalSyncPending: syncSummary?.pending ?? 0,
+        totalSyncFailed: syncSummary?.failed ?? 0,
+        totalSyncManualReview: syncSummary?.manualReview ?? 0,
         cloudMasterReconcile,
         localMetadataManifest,
         coreManifestReceipt: coreManifestCompareReport?.receipt ?? null,
@@ -1996,6 +1998,8 @@ function SyncDashboard() {
       databasePendingStatus,
       localMetadataManifest,
       pagePendingStatus,
+      syncSummary?.failed,
+      syncSummary?.manualReview,
       syncSummary?.pending,
     ]
   );
@@ -2265,9 +2269,18 @@ function SyncDashboard() {
         syncPushApiGuard,
         syncPullApiGuard,
         totalSyncPending: syncSummary?.pending ?? 0,
+        totalSyncFailed: syncSummary?.failed ?? 0,
+        totalSyncManualReview: syncSummary?.manualReview ?? 0,
         workspaceIdentity,
       }),
-    [syncPushApiGuard, syncPullApiGuard, syncSummary?.pending, workspaceIdentity]
+    [
+      syncPushApiGuard,
+      syncPullApiGuard,
+      syncSummary?.failed,
+      syncSummary?.manualReview,
+      syncSummary?.pending,
+      workspaceIdentity,
+    ]
   );
   const commentVersionReplayApiGuard = useMemo(
     () => buildCommentVersionReplayApiDisabledResponse(),
@@ -21124,6 +21137,7 @@ function formatCacheRebuildPreflightStatus(
     "blocked-cloud-workspace": "未连云端",
     "blocked-disabled": "同步关闭",
     "blocked-pending": "有 pending",
+    "blocked-sync-review": "需处理异常",
     "blocked-manifest-mismatch": "对账不一致",
   };
   return labels[status];

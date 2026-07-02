@@ -31,6 +31,8 @@ export interface SyncAckRetryLedgerContractInput {
   syncPushApiGuard: SyncPushApiDisabledResponse;
   syncPullApiGuard: SyncPullApiDisabledResponse;
   totalSyncPending: number;
+  totalSyncFailed?: number;
+  totalSyncManualReview?: number;
   workspaceIdentity: LocalWorkspaceIdentity | null;
 }
 
@@ -88,6 +90,8 @@ export interface SyncAckRetryLedgerContract {
   enablement_gates: SyncAckRetryLedgerGate[];
   summary: {
     total_sync_pending: number;
+    total_sync_failed: number;
+    total_sync_manual_review: number;
     push_route_enabled: false;
     pull_route_enabled: false;
     cloud_workspace_linked: boolean;
@@ -113,6 +117,8 @@ export function buildSyncAckRetryLedgerContract({
   syncPushApiGuard,
   syncPullApiGuard,
   totalSyncPending,
+  totalSyncFailed = 0,
+  totalSyncManualReview = 0,
   workspaceIdentity,
 }: SyncAckRetryLedgerContractInput): SyncAckRetryLedgerContract {
   const enablementGates = buildEnablementGates({
@@ -180,12 +186,18 @@ export function buildSyncAckRetryLedgerContract({
     enablement_gates: enablementGates,
     summary: {
       total_sync_pending: totalSyncPending,
+      total_sync_failed: totalSyncFailed,
+      total_sync_manual_review: totalSyncManualReview,
       push_route_enabled: false,
       pull_route_enabled: false,
       cloud_workspace_linked: Boolean(workspaceIdentity?.cloud_workspace_id),
       ledger_tables: 5,
       blocked_gates: blockedGates,
-      manual_review_required: blockedGates > 0 || totalSyncPending > 0,
+      manual_review_required:
+        blockedGates > 0 ||
+        totalSyncPending > 0 ||
+        totalSyncFailed > 0 ||
+        totalSyncManualReview > 0,
       next_action:
         "Create durable server ledger tables, prove idempotent replay in a disposable workspace, and get owner confirmation before enabling sync push or marking any local sync_log row as synced.",
     },

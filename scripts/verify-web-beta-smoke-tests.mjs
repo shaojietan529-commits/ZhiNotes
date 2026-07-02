@@ -2730,6 +2730,18 @@ function run() {
   assertIncludes(
     files.cloudNativeFluidityReport,
     cloudNativeFluidityReport,
+    "input.syncSummary?.manualReview ?? 0",
+    "Cloud-native fluidity report must include full-domain sync_log manual-review rows."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "sync_log_manual_review_rows",
+    "Cloud-native fluidity report must summarize full-domain manual-review rows."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
     "DATABASE_ROW_OPEN_TARGET_MS",
     "Smoke verifier must keep a database row page-open timing target in the cloud-native report."
   );
@@ -2829,6 +2841,10 @@ function run() {
     [
       "pending-queue-preserved",
       "Local-first cloud input plan must protect the pending queue.",
+    ],
+    [
+      "input.syncSummary?.manualReview ?? 0",
+      "Local-first cloud input plan must include full-domain sync_log manual-review rows.",
     ],
     [
       "云端已确认",
@@ -3214,6 +3230,14 @@ function run() {
     [
       "requires_count_match: true",
       "Sync ack/retry ledger contract must require count matching.",
+    ],
+    [
+      "total_sync_failed",
+      "Sync ack/retry ledger contract must summarize full-domain failed counts.",
+    ],
+    [
+      "total_sync_manual_review",
+      "Sync ack/retry ledger contract must summarize full-domain manual-review counts.",
     ],
     [
       "max_attempts_before_dead_letter: 3",
@@ -11465,6 +11489,12 @@ function run() {
     cacheRebuildPreflightReceipt,
     "local_pending_edits_block_rebuild: true",
     "Cache rebuild preflight receipt must block rebuild while local pending edits exist."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "local_failed_or_manual_review_blocks_rebuild: true",
+    "Cache rebuild preflight receipt must block rebuild while failed or manual-review rows exist."
   );
   assertIncludes(
     files.syncShell,

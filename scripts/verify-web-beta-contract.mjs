@@ -10064,8 +10064,24 @@ function run() {
       "Cache rebuild preflight receipt must block rebuild while local pending edits exist.",
     ],
     [
+      "local_failed_or_manual_review_blocks_rebuild: true",
+      "Cache rebuild preflight receipt must block rebuild while failed or manual-review rows exist.",
+    ],
+    [
       "blocked-pending",
       "Cache rebuild preflight receipt must expose a blocked-pending status.",
+    ],
+    [
+      "blocked-sync-review",
+      "Cache rebuild preflight receipt must expose a blocked-sync-review status.",
+    ],
+    [
+      "sync-review-clear",
+      "Cache rebuild preflight receipt must require failed/manual-review rows to clear.",
+    ],
+    [
+      "total_sync_log_manual_review_rows",
+      "Cache rebuild preflight receipt must include full-domain sync_log manual-review counts.",
     ],
     [
       "blocked-manifest-mismatch",
@@ -10588,6 +10604,18 @@ function run() {
       "Cloud-native fluidity report must check pending queue visibility.",
     ],
     [
+      "input.syncSummary?.failed ?? 0",
+      "Cloud-native fluidity report must include full-domain sync_log failed rows.",
+    ],
+    [
+      "input.syncSummary?.manualReview ?? 0",
+      "Cloud-native fluidity report must include full-domain sync_log manual-review rows.",
+    ],
+    [
+      "sync_log_manual_review_rows",
+      "Cloud-native fluidity report must summarize full-domain manual-review rows.",
+    ],
+    [
       "web_beta_sync_gate",
       "Cloud-native fluidity report must expose a Web Beta sync gate.",
     ],
@@ -10751,6 +10779,14 @@ function run() {
     [
       "manual-review-empty",
       "Local-first cloud input plan must block on manual review rows.",
+    ],
+    [
+      "input.syncSummary?.failed ?? 0",
+      "Local-first cloud input plan must include full-domain sync_log failed rows.",
+    ],
+    [
+      "input.syncSummary?.manualReview ?? 0",
+      "Local-first cloud input plan must include full-domain sync_log manual-review rows.",
     ],
     [
       "generic-push-api-disabled",
@@ -10945,6 +10981,14 @@ function run() {
     [
       "reads_failure_counts: true",
       "Cloud sync control plane must read failure counts.",
+    ],
+    [
+      "input.syncSummary?.failed ?? 0",
+      "Cloud sync control plane must include full-domain sync_log failed rows.",
+    ],
+    [
+      "input.syncSummary?.manualReview ?? 0",
+      "Cloud sync control plane must include full-domain sync_log manual-review rows.",
     ],
     [
       "reads_failure_messages: true",
@@ -11203,6 +11247,18 @@ function run() {
     [
       "reads_pending_counts: true",
       "Sync ack/retry ledger contract must read pending counts.",
+    ],
+    [
+      "total_sync_failed",
+      "Sync ack/retry ledger contract must summarize full-domain failed counts.",
+    ],
+    [
+      "total_sync_manual_review",
+      "Sync ack/retry ledger contract must summarize full-domain manual-review counts.",
+    ],
+    [
+      "totalSyncManualReview > 0",
+      "Sync ack/retry ledger contract must require manual review when full-domain manual-review rows exist.",
     ],
     [
       "reads_workspace_link_metadata: true",
