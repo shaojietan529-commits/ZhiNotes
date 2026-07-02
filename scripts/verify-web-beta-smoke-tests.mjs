@@ -5808,6 +5808,30 @@ function run() {
     "applyPeekMetadataSnapshot",
     "PagePeekModal must keep fallback metadata, title, and properties in sync."
   );
+  for (const [snippet, message] of [
+    [
+      "PEEK_LOCAL_SEED_RETRY_DELAYS_MS = [80, 240, 600]",
+      "PagePeekModal must retry local seed reads briefly when parent state and pending draft writes race.",
+    ],
+    [
+      "const refreshLocalPeekSeed = () => {",
+      "PagePeekModal must actively refresh local-first metadata after the modal has already mounted.",
+    ],
+    [
+      "queueMicrotask(refreshLocalPeekSeed)",
+      "PagePeekModal must re-check local seeds immediately after the first render.",
+    ],
+    [
+      "PEEK_LOCAL_SEED_RETRY_DELAYS_MS.map",
+      "PagePeekModal local seed retries must stay bounded instead of polling indefinitely.",
+    ],
+    [
+      "isSwitchingPeekPage",
+      "PagePeekModal must keep the recovery shell during page switches so stale titles do not flash.",
+    ],
+  ]) {
+    assertIncludes(files.pagePeekModal, pagePeekModal, snippet, message);
+  }
   assertIncludes(
     files.pagePeekModal,
     pagePeekModal,

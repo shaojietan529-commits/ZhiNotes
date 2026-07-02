@@ -56,6 +56,7 @@ const PEEK_METADATA_ONLY_CONTENT_IDLE_TIMEOUT_MS = 700;
 const PEEK_LARGE_BODY_HTML_CHARS = 180 * 1024;
 const PEEK_LARGE_BODY_EDITOR_DELAY_MS = 260;
 const PEEK_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600;
+const PEEK_LOCAL_SEED_RETRY_DELAYS_MS = [80, 240, 600];
 const PEEK_TITLE_SAVE_DEBOUNCE_MS = 420;
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
@@ -126,6 +127,7 @@ export default function PagePeekModal({
   const [bodyHydrationStatus, setBodyHydrationStatus] = useState(() =>
     getPageBodyHydrationStatus(pageId)
   );
+  const [renderedPeekPageId, setRenderedPeekPageId] = useState(pageId);
   const previousPageIdRef = useRef(pageId);
   const peekOpenStartedAtRef = useRef(getLocalPerformanceNow());
   const peekOpenStartedAtIsoRef = useRef(new Date().toISOString());
@@ -133,6 +135,7 @@ export default function PagePeekModal({
   const readyNotifiedPageIdRef = useRef<string | null>(null);
   const titleSaveTimerRef = useRef<number | null>(null);
   const pendingTitleRef = useRef<string | null>(null);
+  const isSwitchingPeekPage = renderedPeekPageId !== pageId;
   const currentLoadedPage = page?.id === pageId ? page : null;
   const currentFallbackPage = fallbackPage?.id === pageId ? fallbackPage : null;
   const currentInitialPage = initialPage?.id === pageId ? initialPage : null;
@@ -201,13 +204,16 @@ export default function PagePeekModal({
       setEditorLoadRequested(false);
       setMountedEditorPageId(null);
       setChildPagesReadyPageId(null);
+      setRenderedPeekPageId(pageId);
     });
   }, [initialPage, pageId]);
 
   useEffect(() => {
-    const nextInitial = getInitialPeekPage(pageId, initialPage);
-    if (!nextInitial) return;
-    queueMicrotask(() => {
+    let cancelled = false;
+    const refreshLocalPeekSeed = () => {
+      if (cancelled) return;
+      const nextInitial = getInitialPeekPage(pageId, initialPage);
+      if (!nextInitial) return;
       applyPeekMetadataSnapshot(
         nextInitial,
         setFallbackPage,
@@ -215,7 +221,16 @@ export default function PagePeekModal({
         setProperties
       );
       setMetadataLoading(false);
-    });
+    };
+    refreshLocalPeekSeed();
+    queueMicrotask(refreshLocalPeekSeed);
+    const retryTimers = PEEK_LOCAL_SEED_RETRY_DELAYS_MS.map((delay) =>
+      window.setTimeout(refreshLocalPeekSeed, delay)
+    );
+    return () => {
+      cancelled = true;
+      retryTimers.forEach((timer) => window.clearTimeout(timer));
+    };
   }, [initialPage, pageId]);
 
   useEffect(() => {
@@ -529,7 +544,8 @@ export default function PagePeekModal({
         </header>
 
         <div className="flex-1 overflow-y-auto px-10 py-6">
-          {(loading || metadataLoading) && !effectivePage ? (
+          {(loading || metadataLoading || isSwitchingPeekPage) &&
+          !effectivePage ? (
             <PeekMetadataRecoveryShell
               pageId={pageId}
               initialPage={initialPage}
