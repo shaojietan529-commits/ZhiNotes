@@ -3272,14 +3272,14 @@ function run() {
     meetingScheduleShell,
     [
       "upsertMeetingInView(optimisticPage);",
-      "upsertPages([optimisticPage]);",
       "setOpeningDraft({",
       "setOpeningMeetingId(optimisticPage.id);",
       "rememberPendingPageDraft(optimisticPage);",
       "rememberPageRouteHandoff(optimisticPage, \"meeting-create\");",
-      "warmMeetingPeekOpen();",
       "setPeekInitialPage(optimisticPage);",
       "setPeekPageId(optimisticPage.id);",
+      "warmMeetingPeekOpen();",
+      "scheduleMeetingIdleTask(() => {\n          try {\n            upsertPages([optimisticPage]);",
       "recordLocalPerformanceSnapshot({",
       "revealMeetingOnCalendar(optimisticPage);",
       "scheduleOptimisticMeetingHotCacheWrite(",
@@ -3302,12 +3302,13 @@ function run() {
     files.meetingScheduleShell,
     meetingScheduleShell,
     [
-      "page = prepareMeetingPageOpen(page, \"meeting-create\");",
       "setPeekInitialPage(page);",
       "setOpeningMeetingId(page.id);",
       "setPeekPageId(page.id);",
+      "scheduleMeetingIdleTask(() => {\n        const seededPage = prepareMeetingPageOpen(page, \"meeting-create\");",
+      "setPeekInitialPage((current) =>",
     ],
-    "Meeting manual/import created pages must seed local metadata before showing the peek target."
+    "Meeting manual/import created pages must show the peek target before idle-seeding fuller local metadata."
   );
   assertSourceExcludes(
     files.meetingScheduleShell,
@@ -21926,6 +21927,21 @@ function run() {
     "void refresh()",
     "Meeting calendar background persistence must not trigger global page refreshes."
   );
+  for (const snippet of [
+    "MEETING_FOREGROUND_QUIET_WINDOW_MS",
+    "foregroundQuietUntilRef",
+    "markMeetingForegroundInteraction();",
+    "foregroundDelay + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS",
+    "foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS",
+    "setPeekInitialPage(page);\n      setOpeningMeetingId(page.id);\n      setPeekPageId(page.id);\n      scheduleMeetingIdleTask(() => {",
+  ]) {
+    assertSourceIncludes(
+      files.meetingScheduleShell,
+      meetingScheduleShell,
+      snippet,
+      "Meeting calendar foreground create/open interactions must paint the peek shell before local/cloud metadata refresh work resumes."
+    );
+  }
   for (const [sourceLabel, source, snippet, message] of [
     [
       files.databaseShell,

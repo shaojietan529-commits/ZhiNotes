@@ -6335,14 +6335,14 @@ function run() {
     meetingScheduleShell,
     [
       "upsertMeetingInView(optimisticPage);",
-      "upsertPages([optimisticPage]);",
       "setOpeningDraft({",
       "setOpeningMeetingId(optimisticPage.id);",
       "rememberPendingPageDraft(optimisticPage);",
       "rememberPageRouteHandoff(optimisticPage, \"meeting-create\");",
-      "warmMeetingPeekOpen();",
       "setPeekInitialPage(optimisticPage);",
       "setPeekPageId(optimisticPage.id);",
+      "warmMeetingPeekOpen();",
+      "scheduleMeetingIdleTask(() => {\n          try {\n            upsertPages([optimisticPage]);",
       "recordLocalPerformanceSnapshot({",
       "revealMeetingOnCalendar(optimisticPage);",
       "scheduleOptimisticMeetingHotCacheWrite(",
@@ -6365,12 +6365,13 @@ function run() {
     files.meetingScheduleShell,
     meetingScheduleShell,
     [
-      "page = prepareMeetingPageOpen(page, \"meeting-create\");",
       "setPeekInitialPage(page);",
       "setOpeningMeetingId(page.id);",
       "setPeekPageId(page.id);",
+      "scheduleMeetingIdleTask(() => {\n        const seededPage = prepareMeetingPageOpen(page, \"meeting-create\");",
+      "setPeekInitialPage((current) =>",
     ],
-    "Meeting manual/import created pages must seed local metadata before showing the peek target."
+    "Meeting manual/import created pages must show the peek target before idle-seeding fuller local metadata."
   );
   assertIncludes(
     files.meetingScheduleShell,

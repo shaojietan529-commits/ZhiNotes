@@ -1224,9 +1224,20 @@ check(
     meetingScheduleShell.includes("MEETING_LOCAL_METADATA_REFRESH_DELAY_MS") &&
     meetingScheduleShell.includes("MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
     meetingScheduleShell.includes("MEETING_CLOUD_METADATA_RECHECK_DELAY_MS") &&
+    meetingScheduleShell.includes("MEETING_FOREGROUND_QUIET_WINDOW_MS") &&
+    meetingScheduleShell.includes("foregroundQuietUntilRef") &&
+    meetingScheduleShell.includes("markMeetingForegroundInteraction();") &&
+    meetingScheduleShell.includes(
+      "getMeetingForegroundRefreshDelay() + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS"
+    ) &&
+    meetingScheduleShell.includes(
+      "foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS"
+    ) &&
     meetingScheduleShell.includes("let cloudRecheckTimer: number | null = null") &&
     meetingScheduleShell.includes("cloudRecheckTimer = window.setTimeout(() => {") &&
-    meetingScheduleShell.includes("}, MEETING_CLOUD_METADATA_RECHECK_DELAY_MS)") &&
+    meetingScheduleShell.includes(
+      "}, foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS)"
+    ) &&
     meetingScheduleShell.includes("window.clearTimeout(cloudRecheckTimer)") &&
     meetingScheduleShell.includes("return queueMeetingCloudRecords(records)") &&
     meetingScheduleShell.includes("function queueMeetingCloudRecords") &&
@@ -1251,7 +1262,7 @@ check(
     !meetingScheduleShell.includes("await load();") &&
     !meetingScheduleShell.includes("void load().catch(() => undefined);") &&
     !meetingScheduleShell.includes("}, [dbReady, load, pageRevision]);"),
-  "MeetingScheduleShell 新导入和本地 revision 刷新应保留乐观结果，并只做本地 metadata 刷新；会议保存必须加入统一云端上传队列，不能在后台直接等待云端 push"
+  "MeetingScheduleShell 新导入和本地 revision 刷新应保留乐观结果，并只做本地 metadata 刷新；会议保存必须加入统一云端上传队列，前台打开窗口内刷新应后移，不能在后台直接等待云端 push"
 );
 check(
   meetingScheduleShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&
@@ -1321,10 +1332,11 @@ check(
     !meetingScheduleShell.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
     !meetingScheduleShell.includes("warmMeetingPageContent(") &&
     meetingScheduleShell.includes("const openMeetingDetail = useCallback") &&
-    meetingScheduleShell.indexOf("prepareMeetingPageOpen(page, \"meeting-create\")") <
-      meetingScheduleShell.indexOf("setPeekPageId(page.id)") &&
+    meetingScheduleShell.indexOf("setPeekPageId(page.id)") <
+      meetingScheduleShell.indexOf("prepareMeetingPageOpen(page, \"meeting-create\")") &&
+    meetingScheduleShell.includes("setPeekInitialPage((current) =>") &&
     meetingScheduleShell.includes("后台会继续保存到账号云端"),
-  "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后弹出同页会议页面并后台同步；完整页入口仍走本地优先，正文必须等 peek/full page 打开后按需补齐"
+  "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后先弹出同页会议页面再空闲补 seed 并后台同步；完整页入口仍走本地优先，正文必须等 peek/full page 打开后按需补齐"
 );
 check(
     meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&

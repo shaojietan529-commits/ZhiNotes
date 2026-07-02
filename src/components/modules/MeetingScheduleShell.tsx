@@ -145,6 +145,8 @@ const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
 const MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS = 2000;
 const MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 3400;
+const MEETING_FOREGROUND_QUIET_WINDOW_MS = 1800;
+const MEETING_FOREGROUND_REFRESH_MAX_DELAY_MS = 2600;
 const MEETING_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
@@ -417,6 +419,7 @@ export default function MeetingScheduleShell() {
   const metadataWarmupScheduledRef = useRef(false);
   const loadRequestRef = useRef(0);
   const meetingsRef = useRef<Page[]>([]);
+  const foregroundQuietUntilRef = useRef(0);
   const hotCacheBootstrapKeyRef = useRef("");
   const meetingCalendarRenderFingerprintRef = useRef("");
   const observedPageRevisionRef = useRef<string | null>(null);
@@ -436,6 +439,26 @@ export default function MeetingScheduleShell() {
   useEffect(() => {
     meetingsRef.current = meetings;
   }, [meetings]);
+
+  const markMeetingForegroundInteraction = useCallback(
+    (durationMs = MEETING_FOREGROUND_QUIET_WINDOW_MS) => {
+      foregroundQuietUntilRef.current = Math.max(
+        foregroundQuietUntilRef.current,
+        getLocalPerformanceNow() + durationMs
+      );
+    },
+    []
+  );
+
+  const getMeetingForegroundRefreshDelay = useCallback(() => {
+    const remainingMs =
+      foregroundQuietUntilRef.current - getLocalPerformanceNow();
+    if (remainingMs <= 0) return 0;
+    return Math.min(
+      MEETING_FOREGROUND_REFRESH_MAX_DELAY_MS,
+      Math.ceil(remainingMs)
+    );
+  }, []);
 
   const publishCalendarStatus = useCallback(
     (
@@ -1172,15 +1195,17 @@ export default function MeetingScheduleShell() {
     }
     if (observedPageRevisionRef.current === pageRevision) return;
     observedPageRevisionRef.current = pageRevision;
+    const refreshDelay =
+      getMeetingForegroundRefreshDelay() + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS;
     const timer = window.setTimeout(() => {
       void load({
         includeCloud: false,
         interruptCloud: false,
         preserveVisibleMeetings: true,
       });
-    }, 120);
+    }, refreshDelay);
     return () => window.clearTimeout(timer);
-  }, [dbReady, pageRevision, load]);
+  }, [dbReady, getMeetingForegroundRefreshDelay, pageRevision, load]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -1192,26 +1217,27 @@ export default function MeetingScheduleShell() {
       if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
       if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
       if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
+      const foregroundDelay = getMeetingForegroundRefreshDelay();
       localReloadTimer = window.setTimeout(() => {
         void load({
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleMeetings: true,
         });
-      }, MEETING_LOCAL_METADATA_REFRESH_DELAY_MS);
+      }, foregroundDelay + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS);
       fallbackReloadTimer = window.setTimeout(() => {
         void load({
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleMeetings: true,
         });
-      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
+      }, foregroundDelay + MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
       cloudRecheckTimer = window.setTimeout(() => {
         void load({
           includeCloud: true,
           preserveVisibleMeetings: true,
         });
-      }, MEETING_CLOUD_METADATA_RECHECK_DELAY_MS);
+      }, foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS);
     };
 
     const unsubscribe = subscribePagesUpdated((message) => {
@@ -1246,7 +1272,14 @@ export default function MeetingScheduleShell() {
       if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
       unsubscribe();
     };
-  }, [dbReady, deletedTombstoneRef, load, rootId, viewMonth]);
+  }, [
+    dbReady,
+    deletedTombstoneRef,
+    getMeetingForegroundRefreshDelay,
+    load,
+    rootId,
+    viewMonth,
+  ]);
 
   // Receive meeting text captured by the ZhiNote Chrome extension. The
   // extension's content script grabs the text on a logged-in meeting page
@@ -1566,6 +1599,7 @@ export default function MeetingScheduleShell() {
     ): CreateMeetingResult => {
       const createStartedAt = getLocalPerformanceNow();
       const createStartedAtIso = new Date().toISOString();
+      markMeetingForegroundInteraction();
       const optimisticRootId = rootId ?? getModuleRootIdSync("meeting-schedule");
       const topic = draft.topic.trim() || "未命名会议";
       const organizer = draft.organizer.trim();
@@ -1768,7 +1802,6 @@ export default function MeetingScheduleShell() {
       };
       try {
         upsertMeetingInView(optimisticPage);
-        upsertPages([optimisticPage]);
         setOpeningDraft({
           pageId: optimisticPage.id,
           dateKey: toMeetingEntry(optimisticPage).dateKey || draft.date,
@@ -1776,11 +1809,18 @@ export default function MeetingScheduleShell() {
         setOpeningMeetingId(optimisticPage.id);
         rememberPendingPageDraft(optimisticPage);
         rememberPageRouteHandoff(optimisticPage, "meeting-create");
-        warmMeetingPeekOpen();
         setSelectedMeeting(null);
         setRunNowMessage("");
         setPeekInitialPage(optimisticPage);
         setPeekPageId(optimisticPage.id);
+        warmMeetingPeekOpen();
+        scheduleMeetingIdleTask(() => {
+          try {
+            upsertPages([optimisticPage]);
+          } catch (error) {
+            console.warn("Meeting optimistic store seed failed", error);
+          }
+        }, 80);
       } catch (error) {
         clearFailedLocalMeetingCreate();
         const message =
@@ -1936,6 +1976,7 @@ export default function MeetingScheduleShell() {
       upsertMeetingInView,
       upsertPages,
       deletedTombstoneRef,
+      markMeetingForegroundInteraction,
       publishCalendarStatus,
       warmMeetingPeekOpen,
       revealMeetingOnCalendar,
@@ -1976,14 +2017,20 @@ export default function MeetingScheduleShell() {
 
   const openCreatedMeetingPage = useCallback(
     (page: Page) => {
-      page = prepareMeetingPageOpen(page, "meeting-create");
+      markMeetingForegroundInteraction();
       setSelectedMeeting(null);
       setRunNowMessage("");
       setPeekInitialPage(page);
       setOpeningMeetingId(page.id);
       setPeekPageId(page.id);
+      scheduleMeetingIdleTask(() => {
+        const seededPage = prepareMeetingPageOpen(page, "meeting-create");
+        setPeekInitialPage((current) =>
+          current?.id === page.id ? seededPage : current
+        );
+      }, 120);
     },
-    [prepareMeetingPageOpen]
+    [markMeetingForegroundInteraction, prepareMeetingPageOpen]
   );
 
   const handlePeekReady = useCallback((pageId: string) => {
@@ -2405,10 +2452,11 @@ export default function MeetingScheduleShell() {
 
   const openMeetingFullPage = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
+      markMeetingForegroundInteraction(1200);
       page = prepareMeetingPageOpen(page, source);
       openPage(page, { source });
     },
-    [openPage, prepareMeetingPageOpen]
+    [markMeetingForegroundInteraction, openPage, prepareMeetingPageOpen]
   );
 
   const openMeetingDetail = useCallback(
