@@ -21,6 +21,20 @@ const verificationCommands = [
       "Check modular workspace roots and sidebar-safe module entrypoints.",
   },
   {
+    id: "verify-database",
+    command: "npm run verify:database",
+    args: ["run", "verify:database"],
+    purpose:
+      "Check database views, import/export, local-first workbench, and destructive-action confirmations.",
+  },
+  {
+    id: "verify-button-actions",
+    command: "npm run verify:button-actions",
+    args: ["run", "verify:button-actions"],
+    purpose:
+      "Check local-only reversible database button action runner boundaries.",
+  },
+  {
     id: "verify-web-beta-smoke",
     command: "npm run verify:web-beta:smoke",
     args: ["run", "verify:web-beta:smoke"],
@@ -138,6 +152,7 @@ function printReceipt(startedAt, results, status) {
     p0_coverage: [
       "account session does not collapse on transient failures",
       "module workspace roots stay routable and extensible",
+      "database views, import/export, and local-only button actions stay inside safe local boundaries",
       "Daily and ZhiHui local-first smoke contracts stay intact",
       "core account, sync, calendar, portfolio, and page route shells respond before deeper data hydration",
     ],
