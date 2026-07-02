@@ -18,6 +18,7 @@ const files = {
   projectProgressSnapshot: "src/lib/modules/projectProgressSnapshot.ts",
   projectFields: "src/lib/modules/researchProjectFields.ts",
   researchTemplateStarters: "src/lib/modules/researchTemplateStarters.ts",
+  routeSmoke: "scripts/verify-route-smoke.mjs",
   dashboard: "src/components/modules/ModuleDashboard.tsx",
   notesShell: "src/components/modules/NotesShell.tsx",
   companyResearchShell: "src/components/modules/CompanyResearchShell.tsx",
@@ -265,6 +266,7 @@ function run() {
   const researchTemplateStarters = readProjectFile(
     files.researchTemplateStarters
   );
+  const routeSmoke = readProjectFile(files.routeSmoke);
   const dashboard = readProjectFile(files.dashboard);
   const notesShell = readProjectFile(files.notesShell);
   const companyResearchShell = readProjectFile(files.companyResearchShell);
@@ -326,6 +328,21 @@ function run() {
         `Module ${moduleId} must declare stable-use tier and development boundary.`
       );
     }
+  }
+  for (const snippet of [
+    "STABLE_USE_MODULE_REGISTRY",
+    "assertStableUseModuleRoutesCovered",
+    "extractStableUseModuleRoutes",
+    'usageTier: "stable-use"',
+    "Stable-use module routes missing from route smoke",
+    "/modules/notes",
+  ]) {
+    assertIncludes(
+      files.routeSmoke,
+      routeSmoke,
+      snippet,
+      "Route smoke must derive stable-use module route coverage from the shared module registry."
+    );
   }
   const duplicateIds = moduleIds.filter(
     (id, index) => moduleIds.indexOf(id) !== index

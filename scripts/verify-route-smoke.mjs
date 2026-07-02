@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
@@ -40,6 +41,12 @@ const ROUTES = [
     expectedText: "ZhiNote",
   },
   {
+    path: "/modules/notes",
+    label: "notes module shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
     path: "/modules/databases",
     label: "database module shell",
     expectedStatus: 200,
@@ -70,11 +77,13 @@ const ROUTES = [
     expectedText: "页面",
   },
 ];
+const STABLE_USE_MODULE_REGISTRY = "src/lib/modules/registry.ts";
 const START_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const LOG_LIMIT = 16_000;
 
 async function main() {
+  assertStableUseModuleRoutesCovered();
   const existingServer = await findExistingDevServer();
   const port = existingServer?.port ?? (await findFreePort());
   const baseUrl = existingServer?.baseUrl ?? `http://${HOST}:${port}`;
@@ -158,6 +167,52 @@ async function findExistingDevServer() {
     // No reusable local app server; the smoke test will start its own.
   }
   return null;
+}
+
+function assertStableUseModuleRoutesCovered() {
+  const registrySource = readFileSync(
+    path.join(process.cwd(), STABLE_USE_MODULE_REGISTRY),
+    "utf8"
+  );
+  const stableModuleRoutes = extractStableUseModuleRoutes(registrySource);
+  const smokedRoutes = new Set(ROUTES.map((route) => route.path));
+  const missingRoutes = stableModuleRoutes.filter(
+    (module) => !smokedRoutes.has(module.route)
+  );
+  if (missingRoutes.length > 0) {
+    throw new Error(
+      `Stable-use module routes missing from route smoke: ${missingRoutes
+        .map((module) => `${module.id}:${module.route}`)
+        .join(", ")}`
+    );
+  }
+}
+
+function extractStableUseModuleRoutes(registrySource) {
+  const moduleArray = extractPlatformModulesArray(registrySource);
+  return [
+    ...moduleArray.matchAll(/\{\s*id:\s*"([^"]+)"[\s\S]*?\n\s*\},/g),
+  ]
+    .map((match) => {
+      const block = match[0];
+      const route = block.match(/route:\s*"([^"]+)"/)?.[1] ?? null;
+      return {
+        id: match[1],
+        route,
+        stableUse: block.includes('usageTier: "stable-use"'),
+      };
+    })
+    .filter((module) => module.stableUse && module.route);
+}
+
+function extractPlatformModulesArray(registrySource) {
+  const match = registrySource.match(
+    /export const PLATFORM_MODULES: PlatformModule\[] = \[([\s\S]*?)\];\n\nexport function/
+  );
+  if (!match) {
+    throw new Error("Unable to locate PLATFORM_MODULES array in module registry.");
+  }
+  return match[1];
 }
 
 function startNextDev(port) {
