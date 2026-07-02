@@ -186,15 +186,55 @@ function getAccountSyncCenterTarget(accountSync: {
   return "/modules/sync#sync-upload-safety-panel";
 }
 
+function getAccountSyncDomainBreakdown(accountSync: {
+  pagePendingTotal: number;
+  databasePendingTotal: number;
+  settingsPendingTotal: number;
+  knowledgePendingTotal: number;
+  globalSyncLogExtraPendingTotal: number;
+  failedTotal: number;
+  manualReviewTotal: number;
+}) {
+  const parts = [
+    accountSync.pagePendingTotal > 0
+      ? `页面 ${accountSync.pagePendingTotal}`
+      : null,
+    accountSync.databasePendingTotal > 0
+      ? `数据库 ${accountSync.databasePendingTotal}`
+      : null,
+    accountSync.settingsPendingTotal > 0
+      ? `设置 ${accountSync.settingsPendingTotal}`
+      : null,
+    accountSync.knowledgePendingTotal > 0
+      ? `知识库 ${accountSync.knowledgePendingTotal}`
+      : null,
+    accountSync.globalSyncLogExtraPendingTotal > 0
+      ? `其他 ${accountSync.globalSyncLogExtraPendingTotal}`
+      : null,
+    accountSync.manualReviewTotal > 0
+      ? `需确认 ${accountSync.manualReviewTotal}`
+      : null,
+    accountSync.failedTotal > 0 ? `失败 ${accountSync.failedTotal}` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" / ") : "";
+}
+
 function getAccountSyncInlineSummary(accountSync: {
   state: AccountCloudSyncCoordinatorState;
   pendingTotal: number;
   failedTotal: number;
   manualReviewTotal: number;
+  pagePendingTotal: number;
+  databasePendingTotal: number;
+  settingsPendingTotal: number;
+  knowledgePendingTotal: number;
+  globalSyncLogExtraPendingTotal: number;
   localUseReadiness: AccountLocalUseReadiness;
 }) {
+  const breakdown = getAccountSyncDomainBreakdown(accountSync);
+  const breakdownSuffix = breakdown ? `（${breakdown}）` : "";
   if (accountSync.state === "queued") {
-    return `${accountSync.localUseReadiness.label} · ${accountSync.pendingTotal} 项待上传`;
+    return `${accountSync.localUseReadiness.label} · ${accountSync.pendingTotal} 项待上传${breakdownSuffix}`;
   }
   if (accountSync.state === "attention") {
     const parts = [
@@ -205,7 +245,7 @@ function getAccountSyncInlineSummary(accountSync: {
     ].filter(Boolean);
     return `${accountSync.localUseReadiness.label} · ${
       parts.length ? parts.join(" · ") : "同步需处理"
-    }`;
+    }${breakdownSuffix}`;
   }
   if (accountSync.state === "error") {
     return `${accountSync.localUseReadiness.label}，云端待确认，本地已保留`;
@@ -533,6 +573,8 @@ export default function Sidebar() {
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
   const accountSyncIcon = getAccountSyncIcon(accountSync.state);
   const accountSyncToneClass = getAccountSyncToneClass(accountSync.state);
+  const accountSyncDomainBreakdown =
+    getAccountSyncDomainBreakdown(accountSync);
   const accountSyncInlineSummary = getAccountSyncInlineSummary(accountSync);
   const accountSyncNeedsSyncCenter =
     accountSync.failedTotal > 0 ||
@@ -552,7 +594,11 @@ export default function Sidebar() {
     /\n/g,
     "；"
   )}`;
-  const accountSyncButtonTitle = `${accountSyncTitle}\n点击：${accountSyncActionLabel}`;
+  const accountSyncButtonTitle = `${accountSyncTitle}${
+    accountSyncDomainBreakdown
+      ? `\n队列分布：${accountSyncDomainBreakdown}`
+      : ""
+  }\n点击：${accountSyncActionLabel}`;
   const accountSessionFallbackTitle = accountSessionFallback.active
     ? `${accountSessionFallback.reason}；本地输入可继续保存，同步会稍后重试。`
     : "";
@@ -1207,6 +1253,7 @@ export default function Sidebar() {
                 accountSyncNeedsSyncCenter ? "open-sync-center" : "quick-sync"
               }
               data-sync-target={accountSyncCenterTarget}
+              data-sync-domain-breakdown={accountSyncDomainBreakdown}
               aria-label={accountSyncAriaLabel}
               onPointerEnter={() => {
                 if (accountSyncNeedsSyncCenter) {
@@ -1247,6 +1294,7 @@ export default function Sidebar() {
               accountSync.localUseReadiness.cacheRebuildBlocked
             }
             data-sync-inline-summary={accountSyncInlineSummary}
+            data-sync-domain-breakdown={accountSyncDomainBreakdown}
             className="mt-0.5 truncate px-3 text-[10px] leading-4 text-zinc-500 dark:text-zinc-400"
             title={accountSyncButtonTitle}
           >

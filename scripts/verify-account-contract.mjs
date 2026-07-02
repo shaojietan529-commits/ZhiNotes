@@ -2779,12 +2779,21 @@ check(
     sidebar.includes("accountSyncAriaLabel") &&
     sidebar.includes("accountSyncInlineSummary") &&
     sidebar.includes("getAccountSyncInlineSummary") &&
+    sidebar.includes("getAccountSyncDomainBreakdown") &&
+    sidebar.includes("accountSyncDomainBreakdown") &&
     sidebar.includes("getAccountSyncToneClass") &&
     sidebar.includes("检查中") &&
     sidebar.includes("重试中") &&
     sidebar.includes("accountSync.localUseReadiness.label") &&
     sidebar.includes('data-testid="account-cloud-sync-inline-summary"') &&
     sidebar.includes("data-sync-inline-summary={accountSyncInlineSummary}") &&
+    sidebar.includes("data-sync-domain-breakdown={accountSyncDomainBreakdown}") &&
+    sidebar.includes("队列分布：") &&
+    sidebar.includes("页面 ${accountSync.pagePendingTotal}") &&
+    sidebar.includes("数据库 ${accountSync.databasePendingTotal}") &&
+    sidebar.includes("设置 ${accountSync.settingsPendingTotal}") &&
+    sidebar.includes("知识库 ${accountSync.knowledgePendingTotal}") &&
+    sidebar.includes("其他 ${accountSync.globalSyncLogExtraPendingTotal}") &&
     sidebar.includes("账号或网络暂不可确认，已保留本地输入，稍后重试") &&
     sidebar.includes("accountSyncNeedsSyncCenter") &&
     sidebar.includes("accountSync.pagePendingTotal > 0") &&
