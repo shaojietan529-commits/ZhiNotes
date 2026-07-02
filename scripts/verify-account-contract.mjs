@@ -2794,6 +2794,9 @@ check(
     sidebar.includes("设置 ${accountSync.settingsPendingTotal}") &&
     sidebar.includes("知识库 ${accountSync.knowledgePendingTotal}") &&
     sidebar.includes("其他 ${accountSync.globalSyncLogExtraPendingTotal}") &&
+    sidebar.includes("云端待确认，本地已保留${breakdownSuffix}") &&
+    sidebar.includes("登录后继续上传本地队列${breakdownSuffix}") &&
+    sidebar.includes("accountSync.localUseReadiness.label}${breakdownSuffix}") &&
     sidebar.includes("账号或网络暂不可确认，已保留本地输入，稍后重试") &&
     sidebar.includes("accountSyncNeedsSyncCenter") &&
     sidebar.includes("accountSync.pagePendingTotal > 0") &&

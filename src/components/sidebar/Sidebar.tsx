@@ -248,16 +248,16 @@ function getAccountSyncInlineSummary(accountSync: {
     }${breakdownSuffix}`;
   }
   if (accountSync.state === "error") {
-    return `${accountSync.localUseReadiness.label}，云端待确认，本地已保留`;
+    return `${accountSync.localUseReadiness.label}，云端待确认，本地已保留${breakdownSuffix}`;
   }
   if (accountSync.state === "signed-out") {
-    return `${accountSync.localUseReadiness.label}，登录后继续上传本地队列`;
+    return `${accountSync.localUseReadiness.label}，登录后继续上传本地队列${breakdownSuffix}`;
   }
   if (accountSync.state === "syncing") {
-    return accountSync.localUseReadiness.label;
+    return `${accountSync.localUseReadiness.label}${breakdownSuffix}`;
   }
   if (accountSync.state === "checking") {
-    return accountSync.localUseReadiness.label;
+    return `${accountSync.localUseReadiness.label}${breakdownSuffix}`;
   }
   return null;
 }
