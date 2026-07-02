@@ -9052,6 +9052,42 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "getDailyCreateButtonState(",
+    "Daily + controls must expose a structured create state so clicking + never looks idle while a local draft is opening."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "data-create-state={todayCreateButtonState}",
+    "The today + control must publish its current create/open state for immediate UI diagnostics."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "data-create-state={createButtonState}",
+    "Each calendar-cell + control must publish its current create/open state for immediate UI diagnostics."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "data-local-draft-created=",
+    "Daily + controls must expose when the local draft already exists before background sync finishes."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "aria-busy=",
+    "Daily + controls must tell assistive tools when local draft creation or opening is in progress."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "getDailyCreateButtonTitle(",
+    "Daily + controls must explain whether the button is idle, creating, already opened locally, or blocked by another create."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "const addNoteOnMouseDown = useCallback",
     "Daily + creation must start on mouse-down so the user sees the new page shell before a delayed click path."
   );

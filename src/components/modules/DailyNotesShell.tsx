@@ -133,6 +133,12 @@ type OpeningDailyDraft = {
   dateKey: string;
 };
 
+type DailyCreateButtonState =
+  | "idle"
+  | "creating"
+  | "local-draft-opened"
+  | "blocked-by-other-create";
+
 type DailyCalendarLoadOptions = {
   includeCloud?: boolean;
   interruptCloud?: boolean;
@@ -205,6 +211,36 @@ function formatDailyCloudMetadataFailureMessage(message?: string | null) {
     return DAILY_CLOUD_METADATA_FAILURE_MESSAGE;
   }
   return `${DAILY_CLOUD_METADATA_FAILURE_MESSAGE} 原因：${detail}`;
+}
+
+function getDailyCreateButtonState(
+  dateKey: string,
+  creatingDateKey: string | null,
+  openingDraft: OpeningDailyDraft | null
+): DailyCreateButtonState {
+  if (openingDraft?.dateKey === dateKey) return "local-draft-opened";
+  if (creatingDateKey === dateKey) return "creating";
+  if (creatingDateKey) return "blocked-by-other-create";
+  return "idle";
+}
+
+function getDailyCreateButtonTitle(
+  dateKey: string,
+  state: DailyCreateButtonState,
+  openMode: DailyCreateOpenMode
+) {
+  if (state === "local-draft-opened") {
+    return `${dateKey} 的本地草稿已创建，正在${
+      openMode === "peek" ? "打开弹窗" : "进入完整页面"
+    }。`;
+  }
+  if (state === "creating") {
+    return `${dateKey} 的每日纪要正在本机创建，当前页面仍可继续浏览。`;
+  }
+  if (state === "blocked-by-other-create") {
+    return "另一篇每日纪要正在本机创建，完成后即可继续新增。";
+  }
+  return "在这天新增纪要";
 }
 
 function readDailyCreateOpenModeFastCache(): DailyCreateOpenMode {
@@ -2030,6 +2066,11 @@ export default function DailyNotesShell() {
         ? "正在从热缓存、本地索引和云端目录加载每日纪要…"
         : cloudNotice ?? calendarLoadStatusView.detail
       : null;
+  const todayCreateButtonState = getDailyCreateButtonState(
+    todayKey,
+    creatingDateKey,
+    openingDraft
+  );
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -2096,6 +2137,16 @@ export default function DailyNotesShell() {
               </div>
               <button
                 type="button"
+                aria-label={`在 ${todayKey} 新增每日纪要`}
+                aria-busy={
+                  todayCreateButtonState === "creating" ||
+                  todayCreateButtonState === "local-draft-opened"
+                }
+                data-create-state={todayCreateButtonState}
+                data-create-open-mode={dailyCreateOpenMode}
+                data-local-draft-created={
+                  todayCreateButtonState === "local-draft-opened"
+                }
                 disabled={creatingDateKey !== null}
                 onPointerEnter={warmDailyCreateOpenPath}
                 onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}
@@ -2103,6 +2154,11 @@ export default function DailyNotesShell() {
                 onFocus={warmDailyCreateOpenPath}
                 onClick={() => void addNote(todayKey)}
                 className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                title={getDailyCreateButtonTitle(
+                  todayKey,
+                  todayCreateButtonState,
+                  dailyCreateOpenMode
+                )}
               >
                 {creatingDateKey === todayKey ? "创建中…" : "+ 今天新增"}
               </button>
@@ -2182,6 +2238,11 @@ export default function DailyNotesShell() {
               const isDropTarget = draggedNoteId !== null && dragOverDateKey === key;
               const isHighlighted = highlightedDailyDateKey === key;
               const isOpeningDraft = openingDraft?.dateKey === key;
+              const createButtonState = getDailyCreateButtonState(
+                key,
+                creatingDateKey,
+                openingDraft
+              );
               const isLoadingMore = loadingMoreDateKey === key;
               const isDateHydrated =
                 hydratedDateKeys.has(key) ||
@@ -2242,7 +2303,16 @@ export default function DailyNotesShell() {
                     <button
                       type="button"
                       aria-label={`在 ${key} 新增每日纪要`}
+                      aria-busy={
+                        createButtonState === "creating" ||
+                        createButtonState === "local-draft-opened"
+                      }
                       data-testid={`daily-add-note-${key}`}
+                      data-create-state={createButtonState}
+                      data-create-open-mode={dailyCreateOpenMode}
+                      data-local-draft-created={
+                        createButtonState === "local-draft-opened"
+                      }
                       disabled={creatingDateKey !== null}
                       onPointerEnter={warmDailyCreateOpenPath}
                       onPointerDown={(event) => addNoteOnPointerDown(event, key)}
@@ -2250,7 +2320,11 @@ export default function DailyNotesShell() {
                       onFocus={warmDailyCreateOpenPath}
                       onClick={() => void addNote(key)}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                      title="在这天新增纪要"
+                      title={getDailyCreateButtonTitle(
+                        key,
+                        createButtonState,
+                        dailyCreateOpenMode
+                      )}
                     >
                       {creatingDateKey === key || isOpeningDraft ? "…" : "+"}
                     </button>
