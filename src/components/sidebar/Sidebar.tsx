@@ -24,6 +24,7 @@ import { ZhiNoteLogo, ZhiNoteMark } from "@/components/brand/ZhiNoteLogo";
 import {
   useAccountCloudSyncCoordinator,
   type AccountCloudSyncCoordinatorState,
+  type AccountLocalUseReadiness,
 } from "@/hooks/useAccountCloudSyncCoordinator";
 import { useHotCacheRouteWarmup } from "@/hooks/useHotCacheRouteWarmup";
 import {
@@ -179,9 +180,10 @@ function getAccountSyncInlineSummary(accountSync: {
   pendingTotal: number;
   failedTotal: number;
   manualReviewTotal: number;
+  localUseReadiness: AccountLocalUseReadiness;
 }) {
   if (accountSync.state === "queued") {
-    return `${accountSync.pendingTotal} 项待上传，本地已保留`;
+    return `${accountSync.localUseReadiness.label} · ${accountSync.pendingTotal} 项待上传`;
   }
   if (accountSync.state === "attention") {
     const parts = [
@@ -190,19 +192,21 @@ function getAccountSyncInlineSummary(accountSync: {
         ? `${accountSync.manualReviewTotal} 项需确认`
         : null,
     ].filter(Boolean);
-    return `${parts.length ? parts.join(" · ") : "同步需处理"}，打开同步中心`;
+    return `${accountSync.localUseReadiness.label} · ${
+      parts.length ? parts.join(" · ") : "同步需处理"
+    }`;
   }
   if (accountSync.state === "error") {
-    return "云端待确认，本地已保留";
+    return `${accountSync.localUseReadiness.label}，云端待确认，本地已保留`;
   }
   if (accountSync.state === "signed-out") {
-    return "登录后继续上传本地队列";
+    return `${accountSync.localUseReadiness.label}，登录后继续上传本地队列`;
   }
   if (accountSync.state === "syncing") {
-    return "正在补传本地队列";
+    return accountSync.localUseReadiness.label;
   }
   if (accountSync.state === "checking") {
-    return "正在确认云端状态";
+    return accountSync.localUseReadiness.label;
   }
   return null;
 }
@@ -498,7 +502,8 @@ export default function Sidebar() {
               : databaseSync.state === "disabled"
               ? "数据库同步未开启"
               : "数据库同步：账号或网络暂不可确认，已保留本地输入，稍后重试";
-  const accountSyncTitle = `${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}`;
+  const accountLocalUseTitle = `${accountSync.localUseReadiness.label}：${accountSync.localUseReadiness.detail}\n下一步：${accountSync.localUseReadiness.nextAction}`;
+  const accountSyncTitle = `${accountSync.localUseReadiness.label}\n${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}\n${accountLocalUseTitle}`;
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
   const accountSyncIcon = getAccountSyncIcon(accountSync.state);
   const accountSyncToneClass = getAccountSyncToneClass(accountSync.state);
@@ -1125,6 +1130,16 @@ export default function Sidebar() {
               data-database-pending-total={accountSync.databasePendingTotal}
               data-settings-pending-total={accountSync.settingsPendingTotal}
               data-knowledge-pending-total={accountSync.knowledgePendingTotal}
+              data-local-use-status={accountSync.localUseReadiness.status}
+              data-local-input-can-continue={
+                accountSync.localUseReadiness.localInputCanContinue
+              }
+              data-cloud-handoff-ready={
+                accountSync.localUseReadiness.cloudHandoffReady
+              }
+              data-cache-rebuild-blocked={
+                accountSync.localUseReadiness.cacheRebuildBlocked
+              }
               data-sync-action={
                 accountSyncNeedsSyncCenter ? "open-sync-center" : "quick-sync"
               }
@@ -1158,6 +1173,16 @@ export default function Sidebar() {
           <p
             data-testid="account-cloud-sync-inline-summary"
             data-sync-state={accountSync.state}
+            data-local-use-status={accountSync.localUseReadiness.status}
+            data-local-input-can-continue={
+              accountSync.localUseReadiness.localInputCanContinue
+            }
+            data-cloud-handoff-ready={
+              accountSync.localUseReadiness.cloudHandoffReady
+            }
+            data-cache-rebuild-blocked={
+              accountSync.localUseReadiness.cacheRebuildBlocked
+            }
             data-sync-inline-summary={accountSyncInlineSummary}
             className="mt-0.5 truncate px-3 text-[10px] leading-4 text-zinc-500 dark:text-zinc-400"
             title={accountSyncButtonTitle}

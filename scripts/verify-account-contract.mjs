@@ -2421,12 +2421,24 @@ check(
 	    accountCloudSyncCoordinator.includes("autoRetryableSyncWorkTotal") &&
 	    accountCloudSyncCoordinator.includes("retryableFailedTotal") &&
 	    accountCloudSyncCoordinator.includes("enabledDomainCount") &&
+    accountCloudSyncCoordinator.includes("buildAccountLocalUseReadiness") &&
+    accountCloudSyncCoordinator.includes("localInputCanContinue: true") &&
+    accountCloudSyncCoordinator.includes("cloudHandoffReady") &&
+    accountCloudSyncCoordinator.includes("cacheRebuildBlocked") &&
+    accountCloudSyncCoordinator.includes("reads_page_body_text: false") &&
+    accountCloudSyncCoordinator.includes("reads_database_row_values: false") &&
+    accountCloudSyncCoordinator.includes("uploads_workspace_data: false") &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
     accountCloudSyncCoordinator.includes("账号云同步正在检查") &&
     accountCloudSyncCoordinator.includes("账号云同步暂不可确认，稍后重试；本地输入已保留") &&
+    accountCloudSyncCoordinator.includes("可继续写作，先处理同步队列") &&
+    accountCloudSyncCoordinator.includes("可继续写作，等待上传") &&
+    accountCloudSyncCoordinator.includes("可继续写作，云端暂不可确认") &&
+    accountCloudSyncCoordinator.includes("可继续写作，云端交接已就绪") &&
+    accountCloudSyncCoordinator.includes("清零前不要重建本地缓存或做云端交接") &&
     accountCloudSyncCoordinator.includes("syncNow"),
-  "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
+  "账号级云同步协调器应统一页面/数据库/设置/知识库附属同步状态，区分初始化检查、可继续本地输入、缓存重建阻断和已同步，并提供合并 quick sync 入口"
 );
 check(
   accountCloudSyncCoordinator.includes("pageSync.pendingStatus.failed > 0") &&
@@ -2557,8 +2569,7 @@ check(
     sidebar.includes("getAccountSyncToneClass") &&
     sidebar.includes("检查中") &&
     sidebar.includes("重试中") &&
-    sidebar.includes("云端待确认，本地已保留") &&
-    sidebar.includes("登录后继续上传本地队列") &&
+    sidebar.includes("accountSync.localUseReadiness.label") &&
     sidebar.includes('data-testid="account-cloud-sync-inline-summary"') &&
     sidebar.includes("data-sync-inline-summary={accountSyncInlineSummary}") &&
     sidebar.includes("账号或网络暂不可确认，已保留本地输入，稍后重试") &&
@@ -2584,6 +2595,12 @@ check(
     sidebar.includes("data-manual-review-total={accountSync.manualReviewTotal}") &&
     sidebar.includes("data-settings-pending-total={accountSync.settingsPendingTotal}") &&
     sidebar.includes("data-knowledge-pending-total={accountSync.knowledgePendingTotal}") &&
+    sidebar.includes("accountSync.localUseReadiness") &&
+    sidebar.includes("data-local-use-status={accountSync.localUseReadiness.status}") &&
+    sidebar.includes("data-local-input-can-continue=") &&
+    sidebar.includes("data-cloud-handoff-ready=") &&
+    sidebar.includes("data-cache-rebuild-blocked=") &&
+    sidebar.includes("accountLocalUseTitle") &&
     sidebar.includes('pageSync.pendingStatus.enabled') &&
     sidebar.includes('databaseSync.pendingStatus.enabled') &&
     sidebar.includes("页面同步：已开启，等待后台检查") &&
@@ -2598,7 +2615,7 @@ check(
     syncDashboardShell.includes('data-testid="page-pending-upload-queue"') &&
     syncDashboardShell.includes('id="database-pending-upload-queue"') &&
     syncDashboardShell.includes('data-testid="database-pending-upload-queue"'),
-  "Sidebar 账号行应显示账号级云同步状态、各域 pending/失败/人工处理计数，让本地未上传输入在全局可见"
+  "Sidebar 账号行应显示账号级云同步状态、各域 pending/失败/人工处理计数和本地可继续使用判定，让本地未上传输入在全局可见"
 );
 
 if (errors.length > 0) {
