@@ -271,8 +271,11 @@ for (const token of [
   "data-load-phase={view.phase}",
   "data-load-step={step.id}",
   'publishCalendarStatus("cloud-checking"',
+  'publishCalendarStatus("local-fallback"',
   'publishLoadStatus("cloud-ready"',
   'publishCalendarStatus("optimistic-draft"',
+  "includeUnindexedFallback: false",
+  "includeUnindexedFallback: true",
 ]) {
   check(
     shells.schedule.includes(token),
@@ -289,11 +292,16 @@ check(
     meetingCalendarLoadStatus.includes('"visible-background"') &&
     meetingCalendarLoadStatus.includes('"visible-stable"') &&
     meetingCalendarLoadStatus.includes('"empty-stable"') &&
+    meetingCalendarLoadStatus.includes('"local-fallback"') &&
+    meetingCalendarLoadStatus.includes('"index-backfill"') &&
     meetingCalendarLoadStatus.includes("首屏") &&
     meetingCalendarLoadStatus.includes("visibleMeetings") &&
     meetingCalendarLoadStatus.includes("visibleDays") &&
     meetingCalendarLoadStatus.includes("热缓存") &&
     meetingCalendarLoadStatus.includes("本地索引") &&
+    meetingCalendarLoadStatus.includes("本地补齐") &&
+    meetingCalendarLoadStatus.includes("后台补齐") &&
+    meetingCalendarLoadStatus.includes("日期索引校正中") &&
     meetingCalendarLoadStatus.includes("云端校正") &&
     meetingCalendarLoadStatus.includes("Meeting calendar load status is metadata-only") &&
     meetingCalendarLoadStatus.includes("does not read meeting body text") &&
@@ -1576,8 +1584,9 @@ check(
     shells.schedule.includes("fingerprintRef.current === nextFingerprint") &&
     shells.schedule.includes("MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
     shells.schedule.includes("MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
-    shells.schedule.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n      });") &&
-    shells.schedule.includes("cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
+    shells.schedule.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n        includeUnindexedFallback: false,\n      });") &&
+    shells.schedule.includes("cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);") &&
+    shells.schedule.includes("cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
     !shells.schedule.includes("localPagesForMerge = await listPages(id)") &&
     !shells.schedule.includes("localPagesForMerge = await listPageMetadata(id)") &&
     !shells.schedule.includes("import { listPages"),

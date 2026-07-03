@@ -5114,12 +5114,24 @@ function run() {
       "Meeting calendar must make cloud metadata correction visible.",
     ],
     [
+      'publishCalendarStatus("local-fallback"',
+      "Meeting calendar must make background unindexed metadata fill visible.",
+    ],
+    [
       'publishLoadStatus("cloud-ready"',
       "Meeting calendar must make successful cloud metadata correction visible.",
     ],
     [
       'publishCalendarStatus("optimistic-draft"',
       "Meeting calendar must make local-first meeting creation visible.",
+    ],
+    [
+      "includeUnindexedFallback: false",
+      "Meeting calendar first paint must skip expensive unindexed fallback scans.",
+    ],
+    [
+      "includeUnindexedFallback: true",
+      "Meeting calendar must run unindexed fallback metadata fill as a delayed background pass.",
     ],
     [
       "cancelOpeningMeetingDraft",
@@ -5196,6 +5208,26 @@ function run() {
     [
       "本地索引",
       "Meeting calendar status must distinguish local index readiness.",
+    ],
+    [
+      "本地补齐",
+      "Meeting calendar status must distinguish local fallback metadata fill.",
+    ],
+    [
+      "后台补齐",
+      "Meeting calendar status must expose background fill progress.",
+    ],
+    [
+      "日期索引校正中",
+      "Meeting calendar status must distinguish index backfill after fallback metadata.",
+    ],
+    [
+      '"local-fallback"',
+      "Meeting calendar status must expose a local fallback phase id.",
+    ],
+    [
+      '"index-backfill"',
+      "Meeting calendar status must expose an index backfill phase id.",
     ],
     [
       "云端校正",
@@ -6975,7 +7007,7 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n        });",
+    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });",
     "Meeting schedule delayed recheck must run cloud-enabled metadata loading while preserving already-rendered meetings."
   );
   for (const [snippet, message] of [
@@ -6988,11 +7020,15 @@ function run() {
       "Meeting schedule initial cloud correction must have a bounded idle timeout.",
     ],
     [
-      "void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n      });",
+      "void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n        includeUnindexedFallback: false,\n      });",
       "Meeting schedule first dbReady load must render local/cache metadata before starting cloud correction.",
     ],
     [
-      "cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);",
+      "cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);",
+      "Meeting schedule initial fallback metadata fill must run as a delayed idle task.",
+    ],
+    [
+      "cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);",
       "Meeting schedule initial cloud metadata correction must run as a delayed idle task.",
     ],
     [

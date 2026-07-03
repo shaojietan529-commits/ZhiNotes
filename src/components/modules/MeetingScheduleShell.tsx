@@ -278,6 +278,7 @@ type MeetingCalendarLoadOptions = {
   includeCloud?: boolean;
   interruptCloud?: boolean;
   preserveVisibleMeetings?: boolean;
+  includeUnindexedFallback?: boolean;
 };
 
 interface QueueResult {
@@ -855,6 +856,7 @@ export default function MeetingScheduleShell() {
   const load = useCallback(async (opts?: MeetingCalendarLoadOptions) => {
     const includeCloud = opts?.includeCloud !== false;
     const interruptCloud = opts?.interruptCloud ?? includeCloud;
+    const includeUnindexedFallback = opts?.includeUnindexedFallback ?? false;
     const preserveVisibleMeetings =
       opts?.preserveVisibleMeetings ?? (!includeCloud && !interruptCloud);
     const requestId =
@@ -907,7 +909,9 @@ export default function MeetingScheduleShell() {
       visibleDays: countMeetingDates(meetingsRef.current),
       cloudLoading: includeCloud,
       backgroundActive: true,
-      message: "正在读取当前月份会议目录，优先显示热缓存和本地索引。",
+      message: includeUnindexedFallback
+        ? "正在后台补齐未索引会议 metadata，日历先保留已显示内容。"
+        : "正在读取当前月份会议目录，优先显示热缓存和本地索引。",
     });
 
     const publishMeetings = (
@@ -1048,10 +1052,21 @@ export default function MeetingScheduleShell() {
         startDate,
         endDate,
         recentLimit: recentMetadataLimit,
+        includeUnindexedFallback,
       });
       localMeetingCount = localPagesForMerge.length;
+      if (includeUnindexedFallback) {
+        publishCalendarStatus("local-fallback", {
+          visibleMeetings: meetingsRef.current.length,
+          visibleDays: countMeetingDates(meetingsRef.current),
+          cloudLoading: includeCloud,
+          backgroundActive: true,
+          message:
+            "后台正在补齐旧导入或未索引会议 metadata，日历先保留当前可见内容。",
+        });
+      }
       publishLoadStatus(
-        "local-index",
+        includeUnindexedFallback ? "index-backfill" : "local-index",
         publishMeetings(
           localPagesForMerge,
           cachedCloud?.ok ? cachedCloud.pages : []
@@ -1060,7 +1075,9 @@ export default function MeetingScheduleShell() {
           cloudLoading: includeCloud,
           backgroundActive: Boolean(cloudPromise),
           message:
-            "本地会议日期索引已显示，云端 metadata 会在后台继续校正。",
+            includeUnindexedFallback
+              ? "未索引会议 metadata 已完成一轮后台补齐，云端 metadata 会继续校正。"
+              : "本地会议日期索引已显示，云端 metadata 会在后台继续校正。",
         }
       );
       writeMeetingHotCacheSnapshot({
@@ -1216,6 +1233,7 @@ export default function MeetingScheduleShell() {
         includeCloud: false,
         interruptCloud: false,
         preserveVisibleMeetings: true,
+        includeUnindexedFallback: false,
       });
     },
     [addTombstone, load]
@@ -1228,8 +1246,21 @@ export default function MeetingScheduleShell() {
         includeCloud: false,
         interruptCloud: false,
         preserveVisibleMeetings: true,
+        includeUnindexedFallback: false,
       });
     });
+
+    let cancelFallbackRecheck: (() => void) | null = null;
+    const fallbackRecheckTimer = window.setTimeout(() => {
+      cancelFallbackRecheck = scheduleMeetingIdleTask(() => {
+        void load({
+          includeCloud: false,
+          interruptCloud: false,
+          preserveVisibleMeetings: true,
+          includeUnindexedFallback: true,
+        });
+      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
+    }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
 
     let cancelCloudRecheck: (() => void) | null = null;
     const cloudRecheckTimer = window.setTimeout(() => {
@@ -1237,12 +1268,15 @@ export default function MeetingScheduleShell() {
         void load({
           includeCloud: true,
           preserveVisibleMeetings: true,
+          includeUnindexedFallback: false,
         });
       }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);
     }, MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS);
 
     return () => {
+      window.clearTimeout(fallbackRecheckTimer);
       window.clearTimeout(cloudRecheckTimer);
+      cancelFallbackRecheck?.();
       cancelCloudRecheck?.();
     };
   }, [dbReady, load]);
@@ -1262,6 +1296,7 @@ export default function MeetingScheduleShell() {
         includeCloud: false,
         interruptCloud: false,
         preserveVisibleMeetings: true,
+        includeUnindexedFallback: false,
       });
     }, refreshDelay);
     return () => window.clearTimeout(timer);
@@ -1283,6 +1318,7 @@ export default function MeetingScheduleShell() {
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleMeetings: true,
+          includeUnindexedFallback: false,
         });
       }, foregroundDelay + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS);
       fallbackReloadTimer = window.setTimeout(() => {
@@ -1290,12 +1326,14 @@ export default function MeetingScheduleShell() {
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleMeetings: true,
+          includeUnindexedFallback: true,
         });
       }, foregroundDelay + MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
       cloudRecheckTimer = window.setTimeout(() => {
         void load({
           includeCloud: true,
           preserveVisibleMeetings: true,
+          includeUnindexedFallback: false,
         });
       }, foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS);
     };
@@ -2377,6 +2415,7 @@ export default function MeetingScheduleShell() {
         includeCloud: false,
         interruptCloud: false,
         preserveVisibleMeetings: true,
+        includeUnindexedFallback: false,
       });
       setRetryResult(
         fixed > 0
@@ -2524,6 +2563,7 @@ export default function MeetingScheduleShell() {
         includeCloud: false,
         interruptCloud: false,
         preserveVisibleMeetings: true,
+        includeUnindexedFallback: false,
       });
       setRunNowMessage(queueResult.message);
     },
@@ -3483,6 +3523,7 @@ export default function MeetingScheduleShell() {
               includeCloud: false,
               interruptCloud: false,
               preserveVisibleMeetings: true,
+              includeUnindexedFallback: false,
             })
           }
         />

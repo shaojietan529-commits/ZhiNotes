@@ -3,6 +3,8 @@ export type MeetingCalendarLoadPhase =
   | "hot-cache"
   | "cached-cloud"
   | "local-index"
+  | "local-fallback"
+  | "index-backfill"
   | "cloud-checking"
   | "cloud-ready"
   | "local-only"
@@ -188,6 +190,20 @@ function meetingCalendarLoadPhaseMeta(
         source: "本地索引",
         tone: state.cloudLoading || state.backgroundActive ? "working" : "success",
       };
+    case "local-fallback":
+      return {
+        label: "本地补齐中",
+        detail: "后台正在补齐旧导入或未索引会议 metadata，日历先保留已显示内容。",
+        source: "本地补齐",
+        tone: "working",
+      };
+    case "index-backfill":
+      return {
+        label: "日期索引校正中",
+        detail: "未索引会议 metadata 已完成一轮补齐，正在复查当前月会议目录。",
+        source: "索引校正",
+        tone: "working",
+      };
     case "cloud-checking":
       return {
         label: "云端校正中",
@@ -233,6 +249,8 @@ function buildMeetingCalendarLoadSteps(
     "hot-cache",
     "cached-cloud",
     "local-index",
+    "local-fallback",
+    "index-backfill",
     "cloud-checking",
     "cloud-ready",
   ];
@@ -253,8 +271,8 @@ function buildMeetingCalendarLoadSteps(
     const stepDoneIndex = {
       "hot-cache": 1,
       "local-index": 2,
-      "background-fill": 2,
-      "cloud-check": 4,
+      "background-fill": 4,
+      "cloud-check": 6,
     }[step];
     return doneThrough >= stepDoneIndex ? "done" : "pending";
   };
@@ -273,7 +291,7 @@ function buildMeetingCalendarLoadSteps(
     {
       id: "background-fill",
       label: "后台补齐",
-      state: stepState("background-fill", ["local-index", "cloud-checking"]),
+      state: stepState("background-fill", ["local-fallback", "index-backfill"]),
     },
     {
       id: "cloud-check",

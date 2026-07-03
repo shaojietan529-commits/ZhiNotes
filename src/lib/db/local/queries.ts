@@ -1702,12 +1702,14 @@ export async function listMeetingPageMetadataForCalendar({
   startDate,
   endDate,
   recentLimit = 8,
+  includeUnindexedFallback = true,
   rangeLimit,
 }: {
   rootId: string;
   startDate: string;
   endDate: string;
   recentLimit?: number;
+  includeUnindexedFallback?: boolean;
   rangeLimit?: number;
 }): Promise<Page[]> {
   const db = await getDb();
@@ -1753,22 +1755,24 @@ export async function listMeetingPageMetadataForCalendar({
     for (const row of recentRows) addIfMeetingScope(row);
   }
 
-  const fallbackRows = readRows(
-    `SELECT ${PAGE_METADATA_SELECT}
-     FROM pages p
-     WHERE p.deleted_at IS NULL
-       AND p.daily_date_key IS NULL
-       AND ${meetingCalendarScopeWhere("p")}
-       AND ${meetingDateCandidateWhere("p")}
-     ORDER BY p.updated_at DESC
-     LIMIT ?`,
-    [rootId, MEETING_CALENDAR_FALLBACK_SCAN_LIMIT]
-  );
-  for (const row of fallbackRows) {
-    if (!isMeetingScopePage(row)) continue;
-    const dateKey = inferMeetingDateKey(row.title, row.properties);
-    if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
-    byId.set(row.id, row);
+  if (includeUnindexedFallback) {
+    const fallbackRows = readRows(
+      `SELECT ${PAGE_METADATA_SELECT}
+       FROM pages p
+       WHERE p.deleted_at IS NULL
+         AND p.daily_date_key IS NULL
+         AND ${meetingCalendarScopeWhere("p")}
+         AND ${meetingDateCandidateWhere("p")}
+       ORDER BY p.updated_at DESC
+       LIMIT ?`,
+      [rootId, MEETING_CALENDAR_FALLBACK_SCAN_LIMIT]
+    );
+    for (const row of fallbackRows) {
+      if (!isMeetingScopePage(row)) continue;
+      const dateKey = inferMeetingDateKey(row.title, row.properties);
+      if (!dateKey || dateKey < startDate || dateKey > endDate) continue;
+      byId.set(row.id, row);
+    }
   }
 
   return Array.from(byId.values());
