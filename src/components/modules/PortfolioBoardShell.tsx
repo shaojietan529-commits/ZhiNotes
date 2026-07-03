@@ -65,7 +65,46 @@ function readSyncErrorMessage(result: unknown): string | null {
 }
 
 const PORTFOLIO_AUTO_PULL_MS = 15 * 1000;
+const PORTFOLIO_ACTION_REQUEST_TIMEOUT_MS = 12000;
 const PORTFOLIO_STORAGE_PREFIX = "zhinote.portfolio.";
+
+class PortfolioActionRequestTimeoutError extends Error {
+  timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`Portfolio action request timed out after ${timeoutMs}ms`);
+    this.name = "PortfolioActionRequestTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+async function fetchPortfolioActionWithTimeout(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1]
+): Promise<Response> {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeout = window.setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, PORTFOLIO_ACTION_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (didTimeout) {
+      throw new PortfolioActionRequestTimeoutError(
+        PORTFOLIO_ACTION_REQUEST_TIMEOUT_MS
+      );
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
 
 export default function PortfolioBoardShell() {
   const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
@@ -689,7 +728,9 @@ export default function PortfolioBoardShell() {
       if (emailChecking) return;
       setEmailChecking(true);
       try {
-        const res = await fetch("/api/portfolio/email-position");
+        const res = await fetchPortfolioActionWithTimeout(
+          "/api/portfolio/email-position"
+        );
         if (res.status === 501) {
           if (!auto) {
             const go = window.confirm(
@@ -744,6 +785,12 @@ export default function PortfolioBoardShell() {
         );
       } catch (err) {
         console.error("[Zhinote] Email position check failed:", err);
+        if (err instanceof PortfolioActionRequestTimeoutError) {
+          if (!auto) {
+            setImportError("邮箱持仓检查请求超时；本地组合数据已保留，可稍后重试。");
+          }
+          return;
+        }
         if (!auto) setImportError("检查邮箱持仓时出错，请稍后重试。");
       } finally {
         setEmailChecking(false);
@@ -800,14 +847,17 @@ export default function PortfolioBoardShell() {
     if (!ok) return;
     setAiTagging(true);
     try {
-      const res = await fetch("/api/ai/suggest-position-tags", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          stocks: untagged.map((p) => ({ key: p.key, name: p.name })),
-          availableTags: knownTags,
-        }),
-      });
+      const res = await fetchPortfolioActionWithTimeout(
+        "/api/ai/suggest-position-tags",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            stocks: untagged.map((p) => ({ key: p.key, name: p.name })),
+            availableTags: knownTags,
+          }),
+        }
+      );
       if (res.status === 501) {
         window.alert(
           "AI 功能尚未配置。请在 Vercel 项目设置中添加 ANTHROPIC_API_KEY。"
@@ -831,7 +881,11 @@ export default function PortfolioBoardShell() {
         return next;
       });
       showNotice(`AI 已为 ${count} 只股票分配标签，可随时手动修改`);
-    } catch {
+    } catch (error) {
+      if (error instanceof PortfolioActionRequestTimeoutError) {
+        window.alert("AI 打标请求超时；本地组合数据已保留，可稍后重试。");
+        return;
+      }
       window.alert("AI 打标出错，请检查网络。");
     } finally {
       setAiTagging(false);

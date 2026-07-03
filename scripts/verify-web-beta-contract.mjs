@@ -274,6 +274,7 @@ const files = {
   moduleDashboard: "src/components/modules/ModuleDashboard.tsx",
   companyResearchShell: "src/components/modules/CompanyResearchShell.tsx",
   portfolioShell: "src/components/modules/PortfolioShell.tsx",
+  portfolioBoardShell: "src/components/modules/PortfolioBoardShell.tsx",
   researchConnectionsPanel:
     "src/components/modules/ResearchConnectionsPanel.tsx",
   researchGraphShell: "src/components/modules/ResearchGraphShell.tsx",
@@ -852,6 +853,7 @@ function run() {
   const moduleDashboard = readProjectFile(files.moduleDashboard);
   const companyResearchShell = readProjectFile(files.companyResearchShell);
   const portfolioShell = readProjectFile(files.portfolioShell);
+  const portfolioBoardShell = readProjectFile(files.portfolioBoardShell);
   const researchConnectionsPanel = readProjectFile(
     files.researchConnectionsPanel
   );
@@ -5334,6 +5336,60 @@ function run() {
   if ((portfolioEmailPositionRoute.match(/\bfetch\(/g) ?? []).length !== 1) {
     fail(
       "Portfolio email position must keep fetch usage centralized in fetchPortfolioEmailPositionRequestWithTimeout."
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "PORTFOLIO_ACTION_REQUEST_TIMEOUT_MS = 12000",
+      "Portfolio browser actions must have a bounded client-side timeout so buttons cannot hang on stalled requests.",
+    ],
+    [
+      "class PortfolioActionRequestTimeoutError extends Error",
+      "Portfolio browser action timeouts must use a typed error so UI copy can distinguish timeout from generic failure.",
+    ],
+    [
+      "async function fetchPortfolioActionWithTimeout",
+      "Portfolio browser actions must route through one shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Portfolio browser actions must be abortable.",
+    ],
+    [
+      "signal: controller.signal",
+      "Portfolio browser action fetches must pass the abort signal.",
+    ],
+    [
+      "window.clearTimeout(timeout)",
+      "Portfolio browser action timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      'fetchPortfolioActionWithTimeout(\n          "/api/portfolio/email-position"',
+      "Portfolio email-position browser action must use the bounded helper.",
+    ],
+    [
+      'fetchPortfolioActionWithTimeout(\n        "/api/ai/suggest-position-tags"',
+      "Portfolio AI-tag browser action must use the bounded helper.",
+    ],
+    [
+      "邮箱持仓检查请求超时；本地组合数据已保留，可稍后重试。",
+      "Portfolio email-position timeout copy must reassure users that local portfolio data is preserved.",
+    ],
+    [
+      "AI 打标请求超时；本地组合数据已保留，可稍后重试。",
+      "Portfolio AI-tag timeout copy must reassure users that local portfolio data is preserved.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.portfolioBoardShell,
+      portfolioBoardShell,
+      snippet,
+      message
+    );
+  }
+  if ((portfolioBoardShell.match(/\bfetch\(/g) ?? []).length !== 1) {
+    fail(
+      "Portfolio board shell must keep fetch usage centralized in fetchPortfolioActionWithTimeout."
     );
   }
   assertSourceExcludes(
