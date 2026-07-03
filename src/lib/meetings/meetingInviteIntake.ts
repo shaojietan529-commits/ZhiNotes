@@ -536,6 +536,44 @@ function findDate(
     };
   }
 
+  // Compact spoken relative dates: 今晚/今早/今晨/明晚/明早/明晨.
+  // Keep these before bare numeric dates so "今晚8-9" is not read as 8/9.
+  const compactRelativeDay = text.match(/(?:今(?:晚|早|晨)|明(?:晚|早|晨))/);
+  if (compactRelativeDay) {
+    const now = new Date();
+    const offsets: Record<string, number> = {
+      "今晚": 0, "今早": 0, "今晨": 0,
+      "明晚": 1, "明早": 1, "明晨": 1,
+    };
+    const offset = offsets[compactRelativeDay[0]] ?? 0;
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    return {
+      year: target.getFullYear(),
+      month: target.getMonth() + 1,
+      day: target.getDate(),
+    };
+  }
+
+  // Relative dates: 今天/今日/明天/明日/后天/后日/大后天/大后日.
+  // Keep these before bare numeric dates so "今日下午3-4" is not read as 3/4.
+  const relativeDay = text.match(/(?:大后天|大后日|后天|后日|明天|明日|今天|今日)/);
+  if (relativeDay) {
+    const now = new Date();
+    const offsets: Record<string, number> = {
+      "今天": 0, "今日": 0,
+      "明天": 1, "明日": 1,
+      "后天": 2, "后日": 2,
+      "大后天": 3, "大后日": 3,
+    };
+    const offset = offsets[relativeDay[0]] ?? 0;
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    return {
+      year: target.getFullYear(),
+      month: target.getMonth() + 1,
+      day: target.getDate(),
+    };
+  }
+
   // Bare numeric date: 6/14, 6-14, 6.14 — guarded against longer number runs
   const numericBare = text.match(
     /(?:^|[^\d.\-/])(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})(?!\d)(?!\s*(?:[\/\-\.]\d|[点时分]|[aApP]\.?[mM]\.?))/
@@ -591,39 +629,6 @@ function findDate(
         day,
       };
     }
-  }
-
-  // Compact spoken relative dates: 今晚/今早/今晨/明晚/明早/明晨
-  const compactRelativeDay = text.match(/(?:今(?:晚|早|晨)|明(?:晚|早|晨))/);
-  if (compactRelativeDay) {
-    const now = new Date();
-    const offsets: Record<string, number> = {
-      "今晚": 0, "今早": 0, "今晨": 0,
-      "明晚": 1, "明早": 1, "明晨": 1,
-    };
-    const offset = offsets[compactRelativeDay[0]] ?? 0;
-    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-    return {
-      year: target.getFullYear(),
-      month: target.getMonth() + 1,
-      day: target.getDate(),
-    };
-  }
-
-  // Relative dates: 今天/明天/后天/大后天
-  const relativeDay = text.match(/(?:大后天|后天|明天|今天)/);
-  if (relativeDay) {
-    const now = new Date();
-    const offsets: Record<string, number> = {
-      "今天": 0, "明天": 1, "后天": 2, "大后天": 3,
-    };
-    const offset = offsets[relativeDay[0]] ?? 0;
-    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-    return {
-      year: target.getFullYear(),
-      month: target.getMonth() + 1,
-      day: target.getDate(),
-    };
   }
 
   // English relative dates: today / tomorrow / day after tomorrow.
@@ -909,7 +914,7 @@ function parseBareCompactHourRange(
 
   const hourPattern = `[01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN}`;
   const re = new RegExp(
-    `(?:^|[^\\d年月日号/.\\-－–—:：])(?:(${TIME_PERIOD_PATTERN})\\s*)?(${hourPattern})\\s*(?:${TIME_RANGE_CONNECTOR_PATTERN})\\s*(${hourPattern})(?!\\s*(?:[\\d月日号/.\\-－–—年]|[:：]))(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
+    `(?:^|[^\\d年月/.\\-－–—:：])(?:(${TIME_PERIOD_PATTERN})\\s*)?(${hourPattern})\\s*(?:${TIME_RANGE_CONNECTOR_PATTERN})\\s*(${hourPattern})(?!\\s*(?:[\\d月日号/.\\-－–—年]|[:：]))(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
     "i"
   );
   const m = re.exec(text);

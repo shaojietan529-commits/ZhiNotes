@@ -57,6 +57,21 @@ const cases = [
     expected: { date: "2026-07-05", time: "16:00", endTime: "", durationMinutes: null },
   },
   {
+    name: "Chinese formal today alias with colon range",
+    input: "会议主题：测试会议\n时间：今日15:00-16:00",
+    expected: { date: "2026-07-04", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese formal tomorrow alias with tight bare range",
+    input: "会议主题：测试会议\n时间：明日15-16",
+    expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese formal day-after-tomorrow alias with short end hour",
+    input: "会议主题：测试会议\n时间：后日9:30-10",
+    expected: { date: "2026-07-06", time: "09:30", endTime: "10:00", durationMinutes: 30 },
+  },
+  {
     name: "English month date with AM/PM",
     input: "Meeting topic: Test meeting\nTime: Jul 8, 2026 4:00 PM to 5:30 PM",
     expected: { date: "2026-07-08", time: "16:00", endTime: "17:30", durationMinutes: 90 },
@@ -182,6 +197,11 @@ const cases = [
     expected: { date: "2026-07-04", time: "20:00", endTime: "21:00", durationMinutes: 60 },
   },
   {
+    name: "Chinese tonight bare compact hour range is not a month-day",
+    input: "会议主题：测试会议\n时间：今晚8-9",
+    expected: { date: "2026-07-04", time: "20:00", endTime: "21:00", durationMinutes: 60 },
+  },
+  {
     name: "Chinese tomorrow night compact relative time",
     input: "会议主题：测试会议\n时间：明晚8点-9点",
     expected: { date: "2026-07-05", time: "20:00", endTime: "21:00", durationMinutes: 60 },
@@ -205,6 +225,11 @@ const cases = [
     name: "Chinese relative day compact afternoon hour range",
     input: "会议主题：测试会议\n时间：明天下午3-4点",
     expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese formal today alias compact afternoon bare range",
+    input: "会议主题：测试会议\n时间：今日下午3-4",
+    expected: { date: "2026-07-04", time: "15:00", endTime: "16:00", durationMinutes: 60 },
   },
   {
     name: "Chinese relative day compact 24-hour range",
@@ -244,6 +269,11 @@ const cases = [
   {
     name: "Chinese month-day compact hour range without period",
     input: "会议主题：测试会议\n时间：6月14日 9-10点",
+    expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese month-day tight bare compact hour range",
+    input: "会议主题：测试会议\n时间：6月14日9-10",
     expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
   },
   {
