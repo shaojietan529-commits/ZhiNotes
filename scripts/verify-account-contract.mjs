@@ -832,7 +832,9 @@ check(
     usePagesHook.includes("scheduleDeferredMetadataHydration(setPages)") &&
     usePagesHook.includes("mergeFullMetadataWithCurrentStore(metadataPages)") &&
     usePagesHook.includes("mergeCloudMetadataWithPendingLocalPages") &&
-    usePagesHook.includes("isCloudPagePendingSync(current.id)") &&
+    usePagesHook.includes('const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync")') &&
+    usePagesHook.includes("} = await loadPageAccountSyncModule();") &&
+    usePagesHook.includes("isPendingSync(current.id)") &&
     usePagesHook.includes("const currentIsNewer =") &&
     usePagesHook.includes("HOT_CACHE_PREFERENCES_CHANGED_EVENT") &&
     usePagesHook.includes("HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY") &&
@@ -1364,6 +1366,14 @@ check(
     meetingScheduleShell.includes("会议信息读取超时，已先保留会议痕迹。") &&
     meetingScheduleShell.includes("fetchMeetingIntakeWithTimeout(input)") &&
     meetingScheduleShell.includes("fetchMeetingIntakeWithTimeout(inputText)") &&
+    meetingScheduleShell.includes("type MeetingImportReceipt") &&
+    meetingScheduleShell.includes("const [intakeReceipt, setIntakeReceipt]") &&
+    meetingScheduleShell.includes("buildMeetingImportReceipt(") &&
+    meetingScheduleShell.includes("function MeetingImportReceiptCard") &&
+    meetingScheduleShell.includes('data-testid="meeting-intake-receipt"') &&
+    meetingScheduleShell.includes("data-local-calendar-visible={receipt.localCalendarVisible}") &&
+    meetingScheduleShell.includes("这场不是今天，所以今日会议不会增加") &&
+    meetingScheduleShell.includes("打开会议页 ↗") &&
     meetingScheduleShell.includes("重新识别完成，但刷新列表失败") &&
     meetingScheduleShell.includes("finally {\n      setRetryLoading(false);\n    }") &&
     !meetingScheduleShell.includes("): Promise<CreateMeetingResult> =>") &&

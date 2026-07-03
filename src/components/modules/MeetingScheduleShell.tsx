@@ -332,6 +332,17 @@ type OpeningMeetingDraft = {
   dateKey: string;
 };
 
+type MeetingImportReceipt = {
+  pageId: string;
+  title: string;
+  dateKey: string;
+  importedAt: string;
+  source: "parsed" | "fallback";
+  todayVisible: boolean;
+  localCalendarVisible: boolean;
+  queueStatus: QueueResult["status"] | "not-requested";
+};
+
 const MEETING_CLOUD_CACHE_PREFIX = "zhinote.zhihui.cloudMetadata.";
 
 export default function MeetingScheduleShell() {
@@ -381,6 +392,8 @@ export default function MeetingScheduleShell() {
   const [intakeMessage, setIntakeMessage] = useState("");
   const [intakeError, setIntakeError] = useState("");
   const [intakePreview, setIntakePreview] = useState<IntakeMeeting | null>(null);
+  const [intakeReceipt, setIntakeReceipt] =
+    useState<MeetingImportReceipt | null>(null);
   const [intakeRecordingDevice, setIntakeRecordingDevice] = useState(
     DEFAULT_RECORDING_DEVICE
   );
@@ -1323,6 +1336,7 @@ export default function MeetingScheduleShell() {
       if (typeof text !== "string" || !text.trim()) return;
       setIntakeText(text.slice(0, 20000));
       setIntakeError("");
+      setIntakeReceipt(null);
       setIntakeMessage("已从 Chrome 插件接收会议信息，请核对后点击导入。");
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
@@ -2198,6 +2212,14 @@ export default function MeetingScheduleShell() {
       });
       focusCalendarDate(draft.date);
       setIntakeText("");
+      setIntakeReceipt(
+        buildMeetingImportReceipt(
+          result.page,
+          draft.date,
+          "parsed",
+          result.queueResult
+        )
+      );
       setIntakeMessage(
         hasExecutableTime
           ? `${formatImportDateMessage(draft.date)}会议页面已弹出；${result?.cloudOnly ? " Edge 本地数据库写入失败，已改存到账号云端。" : ""} 入会链接、会议号和会议密码已保存到会议页面。${formatQueueResultForMessage(
@@ -2229,6 +2251,14 @@ export default function MeetingScheduleShell() {
           traceNote: `解析接口失败，但已保留会议痕迹。失败原因：${message}`,
         });
         focusCalendarDate(fallback.draft.date);
+        setIntakeReceipt(
+          buildMeetingImportReceipt(
+            result.page,
+            fallback.draft.date,
+            "fallback",
+            result.queueResult
+          )
+        );
         setIntakeError(`解析未完成但已保留痕迹，并已弹出会议页：${message}`);
         openCreatedMeetingPage(result.page);
       } catch (fallbackError) {
@@ -2679,6 +2709,7 @@ export default function MeetingScheduleShell() {
                   setIntakeText(e.target.value);
                   setIntakeError("");
                   setIntakeMessage("");
+                  setIntakeReceipt(null);
                 }}
                 rows={3}
                 placeholder="粘贴腾讯会议、Zoom、Webex 等邀请，或直接贴入会链接"
@@ -2737,6 +2768,12 @@ export default function MeetingScheduleShell() {
                 <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
                   {intakeError}
                 </p>
+              )}
+              {intakeReceipt && (
+                <MeetingImportReceiptCard
+                  receipt={intakeReceipt}
+                  onOpenPage={() => openMeetingFullPageById(intakeReceipt.pageId)}
+                />
               )}
               {intakePreview && (
                 <div className="mt-3 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950">
@@ -3443,6 +3480,26 @@ function formatImportDateMessage(dateKey: string) {
     return `已导入今天 ${dateKey} 的会议日历。`;
   }
   return `已导入 ${dateKey} 的会议日历，已自动定位到这一天；这场不是今天，所以“今日会议”不会增加。`;
+}
+
+function buildMeetingImportReceipt(
+  page: Page,
+  dateKey: string,
+  source: MeetingImportReceipt["source"],
+  queueResult?: QueueResult
+): MeetingImportReceipt {
+  const normalizedDateKey = DATE_KEY_PATTERN.test(dateKey) ? dateKey : "";
+  const todayKey = toDateKey(new Date());
+  return {
+    pageId: page.id,
+    title: page.title || "未命名会议",
+    dateKey: normalizedDateKey || "待补时间",
+    importedAt: new Date().toISOString(),
+    source,
+    todayVisible: normalizedDateKey === todayKey,
+    localCalendarVisible: Boolean(normalizedDateKey),
+    queueStatus: queueResult?.status ?? "not-requested",
+  };
 }
 
 async function restoreDeletedMeetingPages(
@@ -4695,6 +4752,66 @@ function MeetingIntakeTodayPlaceholder() {
       </div>
     </div>
   );
+}
+
+function MeetingImportReceiptCard({
+  receipt,
+  onOpenPage,
+}: {
+  receipt: MeetingImportReceipt;
+  onOpenPage: () => void;
+}) {
+  return (
+    <div
+      data-testid="meeting-intake-receipt"
+      data-page-id={receipt.pageId}
+      data-date-key={receipt.dateKey}
+      data-today-visible={receipt.todayVisible}
+      data-local-calendar-visible={receipt.localCalendarVisible}
+      data-queue-status={receipt.queueStatus}
+      className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate font-medium">{receipt.title}</div>
+          <div className="mt-1 leading-5 text-emerald-700 dark:text-emerald-300">
+            已先写入本地日历：{receipt.dateKey}。
+            {receipt.todayVisible
+              ? " 这场会显示在今日会议。"
+              : " 这场不是今天，所以今日会议不会增加。"}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+            <span className="rounded border border-emerald-200 px-1.5 py-0.5 dark:border-emerald-900">
+              {receipt.source === "parsed" ? "解析导入" : "失败留痕"}
+            </span>
+            <span className="rounded border border-emerald-200 px-1.5 py-0.5 dark:border-emerald-900">
+              本地日历 {receipt.localCalendarVisible ? "已可见" : "待补时间"}
+            </span>
+            <span className="rounded border border-emerald-200 px-1.5 py-0.5 dark:border-emerald-900">
+              队列 {formatMeetingReceiptQueueStatus(receipt.queueStatus)}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenPage}
+          className="shrink-0 rounded-md bg-emerald-700 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-emerald-800 dark:bg-emerald-200 dark:text-emerald-950 dark:hover:bg-emerald-100"
+        >
+          打开会议页 ↗
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function formatMeetingReceiptQueueStatus(
+  status: MeetingImportReceipt["queueStatus"]
+) {
+  if (status === "queued") return "已入队";
+  if (status === "pending") return "准备中";
+  if (status === "failed") return "失败";
+  if (status === "skipped") return "跳过";
+  return "未请求";
 }
 
 function MeetingOpeningDraftBanner({

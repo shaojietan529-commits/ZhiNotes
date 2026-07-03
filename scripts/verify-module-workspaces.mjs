@@ -1514,6 +1514,12 @@ check(
     shells.schedule.includes("function MeetingIntakeTodayPlaceholder") &&
     shells.schedule.includes('data-testid="meeting-intake-progress-banner"') &&
     shells.schedule.includes('data-testid="meeting-intake-today-placeholder"') &&
+    shells.schedule.includes("type MeetingImportReceipt") &&
+    shells.schedule.includes("buildMeetingImportReceipt(") &&
+    shells.schedule.includes("function MeetingImportReceiptCard") &&
+    shells.schedule.includes('data-testid="meeting-intake-receipt"') &&
+    shells.schedule.includes("data-local-calendar-visible={receipt.localCalendarVisible}") &&
+    shells.schedule.includes("打开会议页 ↗") &&
     shells.schedule.includes('data-intake-state="parsing"') &&
     shells.schedule.includes('data-calendar-preserved="true"') &&
     shells.schedule.includes("如果解析超时，会自动生成一条待补时间的会议留痕") &&

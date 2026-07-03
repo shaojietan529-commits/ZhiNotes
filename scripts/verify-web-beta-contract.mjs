@@ -6880,6 +6880,34 @@ function run() {
       "Meeting retry parsing must use the bounded intake helper so review batches cannot hang on one slow request.",
     ],
     [
+      "type MeetingImportReceipt",
+      "Meeting import must keep a structured receipt so users can verify where the meeting went.",
+    ],
+    [
+      "buildMeetingImportReceipt(",
+      "Meeting import must build a receipt immediately after optimistic local insertion.",
+    ],
+    [
+      "function MeetingImportReceiptCard",
+      "Meeting import receipt must render a visible confirmation card.",
+    ],
+    [
+      'data-testid="meeting-intake-receipt"',
+      "Meeting import receipt must expose a stable test hook.",
+    ],
+    [
+      "data-local-calendar-visible={receipt.localCalendarVisible}",
+      "Meeting import receipt must expose whether the meeting is visible in the local calendar.",
+    ],
+    [
+      "这场不是今天，所以今日会议不会增加",
+      "Meeting import receipt must explain why a non-today meeting does not change today's meeting count.",
+    ],
+    [
+      "打开会议页 ↗",
+      "Meeting import receipt must provide a direct page-open action.",
+    ],
+    [
       "重新识别完成，但刷新列表失败",
       "Meeting retry parsing must show a recoverable refresh failure instead of leaving users with a silent stuck state.",
     ],
