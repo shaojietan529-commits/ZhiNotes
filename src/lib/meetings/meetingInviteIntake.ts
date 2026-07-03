@@ -365,7 +365,7 @@ function extractTimeRange(text: string) {
   }
 
   const english = text.match(
-    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(20\d{2})\s+(\d{1,2}):([0-5]\d)\s*(AM|PM)?(?:\s*(?:-|–|—|to)\s*(\d{1,2}):([0-5]\d)\s*(AM|PM)?)?/i
+    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(\d{1,2})(?!\d),?\s+(20\d{2})\s+(\d{1,2}):([0-5]\d)\s*(AM|PM)?(?:\s*(?:-|–|—|to)\s*(\d{1,2}):([0-5]\d)\s*(AM|PM)?)?/i
   );
   if (english) {
     const month = MONTHS[english[1].toLowerCase()];
@@ -486,7 +486,7 @@ function findDate(
   }
 
   const englishMonthDay = text.match(
-    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(20\d{2})?/i
+    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(\d{1,2})(?!\d)(?:st|nd|rd|th)?,?\s*(20\d{2})?/i
   );
   if (englishMonthDay) {
     const month = MONTHS[englishMonthDay[1].toLowerCase()];
@@ -494,6 +494,21 @@ function findDate(
     if (month && validMonthDay(month, day)) {
       return {
         year: englishMonthDay[3] ? Number(englishMonthDay[3]) : null,
+        month,
+        day,
+      };
+    }
+  }
+
+  const englishDayMonth = text.match(
+    /\b(\d{1,2})(?!\d)(?:st|nd|rd|th)?\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?,?\s*(20\d{2})?/i
+  );
+  if (englishDayMonth) {
+    const day = Number(englishDayMonth[1]);
+    const month = MONTHS[englishDayMonth[2].toLowerCase()];
+    if (month && validMonthDay(month, day)) {
+      return {
+        year: englishDayMonth[3] ? Number(englishDayMonth[3]) : null,
         month,
         day,
       };
