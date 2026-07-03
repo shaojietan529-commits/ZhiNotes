@@ -659,7 +659,7 @@ async function call(body: Record<string, unknown>): Promise<
     return {
       ok: false,
       status: "error",
-      message: "account session check failed",
+      message: "账号云端暂时无法确认，本地输入已保留，会稍后重试。",
     };
   }
   const probedStatus = await waitForAuthRetryProbe();

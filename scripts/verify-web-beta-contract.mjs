@@ -4709,6 +4709,12 @@ function run() {
   assertSourceIncludes(
     files.accountPageSync,
     accountPageSync,
+    "账号云端暂时无法确认，本地输入已保留，会稍后重试。",
+    "Page account-sync client must show shared account-gate uncertainty as a retryable local-preserved state."
+  );
+  assertSourceIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "页面同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。",
     "Page account-sync client must treat a domain-route 401 after the shared gate as a retryable sync error, not a sign-out."
   );
@@ -4735,6 +4741,12 @@ function run() {
     accountDatabaseSync,
     "checkAccountCloudSyncGate",
     "Database account-sync client must pass the shared account gate before direct summaries or deltas."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "账号云端暂时无法确认，本地输入已保留，会稍后重试。",
+    "Database account-sync client must show shared account-gate uncertainty as a retryable local-preserved state."
   );
   assertSourceIncludes(
     files.accountDatabaseSync,
