@@ -5033,6 +5033,18 @@ function run() {
       'publishCalendarStatus("optimistic-draft"',
       "Meeting calendar must make local-first meeting creation visible.",
     ],
+    [
+      "cancelOpeningMeetingDraft",
+      "Meeting create fallback must let the user dismiss a stuck local draft opening state without deleting the meeting trace.",
+    ],
+    [
+      'data-testid="meeting-opening-draft-toast"',
+      "Meeting create fallback toast must be discoverable in UI smoke checks.",
+    ],
+    [
+      "收起等待",
+      "Meeting create fallback banner must make the dismiss action visible in Chinese UI.",
+    ],
   ]) {
     assertIncludes(files.meetingScheduleShell, meetingScheduleShell, snippet, message);
   }

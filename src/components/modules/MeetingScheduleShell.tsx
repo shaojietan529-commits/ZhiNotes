@@ -2547,6 +2547,15 @@ export default function MeetingScheduleShell() {
     [entriesById, openMeetingFullPage, openPage, selectedMeeting]
   );
 
+  const cancelOpeningMeetingDraft = useCallback((pageId: string) => {
+    setOpeningDraft((current) =>
+      current?.pageId === pageId ? null : current
+    );
+    setOpeningMeetingId((current) => (current === pageId ? null : current));
+    setPeekPageId((current) => (current === pageId ? null : current));
+    setPeekInitialPage((current) => (current?.id === pageId ? null : current));
+  }, []);
+
   const openOpeningMeetingDraftFullPage = useCallback(
     (pageId: string) => {
       openMeetingFullPageById(pageId);
@@ -2659,6 +2668,9 @@ export default function MeetingScheduleShell() {
                   dateKey={openingDraft.dateKey}
                   onOpenFull={() =>
                     openOpeningMeetingDraftFullPage(openingDraft.pageId)
+                  }
+                  onCancel={() =>
+                    cancelOpeningMeetingDraft(openingDraft.pageId)
                   }
                 />
               )}
@@ -3414,6 +3426,7 @@ export default function MeetingScheduleShell() {
           onOpenFull={() =>
             openOpeningMeetingDraftFullPage(openingDraft.pageId)
           }
+          onCancel={() => cancelOpeningMeetingDraft(openingDraft.pageId)}
         />
       )}
     </div>
@@ -4817,9 +4830,11 @@ function formatMeetingReceiptQueueStatus(
 function MeetingOpeningDraftBanner({
   dateKey,
   onOpenFull,
+  onCancel,
 }: {
   dateKey: string;
   onOpenFull: () => void;
+  onCancel: () => void;
 }) {
   return (
     <div
@@ -4839,6 +4854,13 @@ function MeetingOpeningDraftBanner({
       >
         打开完整页面
       </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded px-2 py-1 font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/40"
+      >
+        收起等待
+      </button>
     </div>
   );
 }
@@ -4846,9 +4868,11 @@ function MeetingOpeningDraftBanner({
 function MeetingOpeningDraftToast({
   dateKey,
   onOpenFull,
+  onCancel,
 }: {
   dateKey: string;
   onOpenFull: () => void;
+  onCancel: () => void;
 }) {
   return (
     <div className="pointer-events-none fixed bottom-5 right-5 z-40 max-w-sm px-4">
@@ -4860,13 +4884,22 @@ function MeetingOpeningDraftToast({
         <div className="mt-1 text-amber-600 dark:text-amber-400">
           弹窗正在准备，日历和云端同步会在后台继续。
         </div>
-        <button
-          type="button"
-          onClick={onOpenFull}
-          className="mt-2 rounded border border-amber-300 px-2 py-1 font-medium transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/50"
-        >
-          打开完整页面
-        </button>
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={onOpenFull}
+            className="rounded border border-amber-300 px-2 py-1 font-medium transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/50"
+          >
+            打开完整页面
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded px-2 py-1 font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/40"
+          >
+            收起
+          </button>
+        </div>
       </div>
     </div>
   );
