@@ -41,6 +41,8 @@ export async function POST(request: Request) {
       minutesPageUrl: result.minutesPageUrl,
       meetingPageUrl: result.meetingPageUrl,
       placement: "daily-and-zhihui",
+      meeting: result.meeting,
+      calendar: result.calendar,
       accountEmail: result.accountEmail,
     });
   } catch (error) {

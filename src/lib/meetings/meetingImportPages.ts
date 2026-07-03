@@ -10,11 +10,26 @@ import { generateId } from "@/lib/utils/id";
 
 const INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
 const PAGE_KEY_PREFIX = "zhinotes:pagesync:page:";
+const CHANGE_LOG_KEY_PREFIX = "zhinotes:pagesync:changes:";
 const MAX_SCAN_PAGES = 3000;
 const SCAN_CHUNK = 32;
+const CHANGE_LOG_LIMIT = 5000;
 const MAX_TRANSCRIPT_CHARS = 650_000;
 
 interface IndexEntry {
+  u: string;
+  d: 0 | 1;
+}
+
+interface IndexSummary {
+  count: number;
+  deleted: number;
+  maxUpdatedAt: string;
+  cursor: string;
+}
+
+interface PageChangeLogEntry {
+  id: string;
   u: string;
   d: 0 | 1;
 }
@@ -74,6 +89,24 @@ export interface MeetingImportResult {
   meetingPageUrl: string;
   minutesPageUrl: string;
   accountEmail: string;
+  meeting: {
+    title: string;
+    date: string;
+    time: string;
+    platform: string;
+    organizer: string;
+  };
+  calendar: {
+    source: "meeting-agent-import";
+    dateKey: string;
+    dailyPageId: string;
+    meetingPageId: string;
+    minutesPageId: string;
+    changedPageIds: string[];
+    changeLogEntries: number;
+    previousCursor: string;
+    nextCursor: string;
+  };
 }
 
 export class MeetingImportError extends Error {
@@ -93,6 +126,7 @@ export async function importMeetingArtifactToPages(
   const accountEmail = resolveImportAccountEmail();
   const meeting = normalizeImportPayload(payload);
   const index = await readIndex(kv, accountEmail);
+  const previousSummary = summarizeIndex(index);
   const pages = await readActivePages(kv, accountEmail, index);
 
   const dailyRoot = await resolveOrCreateRoot({
@@ -114,7 +148,7 @@ export async function importMeetingArtifactToPages(
   });
 
   const now = new Date().toISOString();
-  const meetingPage = await upsertMeetingPage({
+  let meetingPage = await upsertMeetingPage({
     kv,
     email: accountEmail,
     index,
@@ -124,7 +158,7 @@ export async function importMeetingArtifactToPages(
     now,
   });
 
-  const dailyPage = await upsertDailyPage({
+  let dailyPage = await upsertDailyPage({
     kv,
     email: accountEmail,
     index,
@@ -145,7 +179,7 @@ export async function importMeetingArtifactToPages(
     now,
   });
 
-  await upsertDailyPage({
+  dailyPage = await upsertDailyPage({
     kv,
     email: accountEmail,
     index,
@@ -157,7 +191,7 @@ export async function importMeetingArtifactToPages(
     legacyMeetingPageId: meetingPage.id,
   });
 
-  await upsertMeetingPage({
+  meetingPage = await upsertMeetingPage({
     kv,
     email: accountEmail,
     index,
@@ -168,7 +202,20 @@ export async function importMeetingArtifactToPages(
     minutesPage,
   });
 
+  const changedRecords = uniquePageRecords([
+    dailyRoot,
+    zhihuiRoot,
+    dailyPage,
+    meetingPage,
+    minutesPage,
+  ]);
+  const nextSummary = summarizeIndex(index);
   await writeIndex(kv, accountEmail, index);
+  const changeLogEntries = await appendMeetingImportChangeLog(
+    kv,
+    accountEmail,
+    changedRecords
+  );
 
   return {
     importId: meeting.importId,
@@ -181,6 +228,24 @@ export async function importMeetingArtifactToPages(
     meetingPageUrl: `/page/${meetingPage.id}`,
     minutesPageUrl: `/page/${minutesPage.id}`,
     accountEmail,
+    meeting: {
+      title: meeting.title,
+      date: meeting.date,
+      time: meeting.time,
+      platform: meeting.platform,
+      organizer: meeting.organizer,
+    },
+    calendar: {
+      source: "meeting-agent-import",
+      dateKey: meeting.date,
+      dailyPageId: dailyPage.id,
+      meetingPageId: meetingPage.id,
+      minutesPageId: minutesPage.id,
+      changedPageIds: changedRecords.map((page) => page.id),
+      changeLogEntries,
+      previousCursor: previousSummary.cursor,
+      nextCursor: nextSummary.cursor,
+    },
   };
 }
 
@@ -592,6 +657,114 @@ async function writeIndex(
   await kvSet(kv, `${INDEX_KEY_PREFIX}${email}`, JSON.stringify(index));
 }
 
+async function appendMeetingImportChangeLog(
+  kv: KvEnv,
+  email: string,
+  records: PageRecord[]
+) {
+  const entries = records
+    .filter((record) => isValidPageId(record.id) && record.updated_at)
+    .map((record) => ({
+      id: record.id,
+      u: record.updated_at,
+      d: record.deleted_at ? 1 : 0,
+    }) satisfies PageChangeLogEntry);
+  if (entries.length === 0) return 0;
+
+  try {
+    const existing = await readChangeLog(kv, email);
+    const next = normalizeChangeLog([...existing, ...entries]).slice(
+      -CHANGE_LOG_LIMIT
+    );
+    await kvSet(
+      kv,
+      `${CHANGE_LOG_KEY_PREFIX}${email}`,
+      JSON.stringify(next)
+    );
+    return entries.length;
+  } catch {
+    // Page records and the index are authoritative. If this acceleration log
+    // write fails, the next calendar metadata request can still rebuild safely.
+    return 0;
+  }
+}
+
+async function readChangeLog(kv: KvEnv, email: string) {
+  const raw = await kvGet(kv, `${CHANGE_LOG_KEY_PREFIX}${email}`);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return normalizeChangeLog(
+      parsed
+        .map(sanitizeChangeLogEntry)
+        .filter((entry): entry is PageChangeLogEntry => Boolean(entry))
+    );
+  } catch {
+    return [];
+  }
+}
+
+function sanitizeChangeLogEntry(value: unknown): PageChangeLogEntry | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  if (!isValidPageId(raw.id)) return null;
+  if (typeof raw.u !== "string" || !raw.u) return null;
+  return {
+    id: raw.id,
+    u: raw.u,
+    d: raw.d === 1 ? 1 : 0,
+  };
+}
+
+function normalizeChangeLog(entries: PageChangeLogEntry[]) {
+  const byPosition = new Map<string, PageChangeLogEntry>();
+  for (const entry of entries) {
+    byPosition.set(`${entry.u}\u0000${entry.id}`, entry);
+  }
+  return [...byPosition.values()].sort((a, b) =>
+    compareChangePosition(a.u, a.id, b.u, b.id)
+  );
+}
+
+function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
+  let count = 0;
+  let deleted = 0;
+  let maxUpdatedAt = "";
+  let maxUpdatedId = "";
+  for (const [id, entry] of Object.entries(index)) {
+    count += 1;
+    if (entry.d === 1) deleted += 1;
+    if (
+      entry.u > maxUpdatedAt ||
+      (entry.u === maxUpdatedAt && id > maxUpdatedId)
+    ) {
+      maxUpdatedAt = entry.u;
+      maxUpdatedId = id;
+    }
+  }
+  return {
+    count,
+    deleted,
+    maxUpdatedAt,
+    cursor: stringifyPageChangeCursor(maxUpdatedAt, maxUpdatedId),
+  };
+}
+
+function compareChangePosition(
+  leftUpdatedAt: string,
+  leftId: string,
+  rightUpdatedAt: string,
+  rightId: string
+) {
+  return leftUpdatedAt.localeCompare(rightUpdatedAt) || leftId.localeCompare(rightId);
+}
+
+function stringifyPageChangeCursor(updatedAt: string, id: string) {
+  if (!updatedAt) return "";
+  return JSON.stringify({ updatedAt, id });
+}
+
 async function readActivePages(
   kv: KvEnv,
   email: string,
@@ -685,6 +858,12 @@ function replacePage(pages: PageRecord[], page: PageRecord) {
   const index = pages.findIndex((item) => item.id === page.id);
   if (index >= 0) pages[index] = page;
   else pages.push(page);
+}
+
+function uniquePageRecords(records: PageRecord[]) {
+  const byId = new Map<string, PageRecord>();
+  for (const record of records) byId.set(record.id, record);
+  return [...byId.values()];
 }
 
 function buildMeetingDetailPageHtml(
@@ -849,6 +1028,15 @@ function text(value: unknown, maxLength: number) {
 
 function numberText(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+}
+
+function isValidPageId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 64 &&
+    /^[A-Za-z0-9_-]+$/.test(value)
+  );
 }
 
 function extractDate(startTime: string, dateLabel: string) {
