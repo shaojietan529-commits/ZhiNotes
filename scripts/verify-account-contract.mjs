@@ -67,7 +67,8 @@ check(
     sessionResponses.includes('"session-unconfirmed"') &&
     sessionResponses.includes("retryable: true") &&
     sessionResponses.includes("keeps_session_cookie: true") &&
-    sessionResponses.includes("{ status: 503 }") &&
+    sessionResponses.includes("accountSessionUnconfirmedPayload") &&
+    sessionResponses.includes("status: 503") &&
     sessionResponses.includes("accountSessionUnconfirmedResponse"),
   "账号 session-unconfirmed 响应必须有共享 helper：返回 503 可重试、明确保留 cookie，避免同步接口把临时失败误判成登出"
 );
@@ -644,6 +645,7 @@ check(
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
 const databaseSyncRoute = read("src/app/api/databases/account-sync/route.ts");
 const fileEmbedSyncRoute = read("src/app/api/files/embed-sync/route.ts");
+const pageIngestRoute = read("src/app/api/pages/ingest/route.ts");
 const meetingAgentJobsRoute = read("src/app/api/meetings/agent/jobs/route.ts");
 const databaseSyncClient = read("src/lib/database/accountDatabaseSync.ts");
 const syncDashboardShell = read("src/components/modules/SyncShell.tsx");
@@ -659,6 +661,15 @@ check(
     fileEmbedSyncRoute.includes('return NextResponse.json({ error: "auth-required" }, { status: 401 });') &&
     !fileEmbedSyncRoute.includes("登录已过期，请重新登录。"),
   "file embed-sync route 必须区分未登录和 session 暂时不可确认：未登录才 401，有 cookie 时返回可重试 session-unconfirmed"
+);
+check(
+  pageIngestRoute.includes("accountSessionUnconfirmedPayload") &&
+    pageIngestRoute.includes("function corsSessionUnconfirmedResponse") &&
+    pageIngestRoute.includes("页面导入暂时无法确认账号；不会登出，请稍后重试。") &&
+    pageIngestRoute.includes("API key 管理暂时无法确认账号；不会登出，请稍后重试。") &&
+    pageIngestRoute.includes("hadSessionToken") &&
+    !pageIngestRoute.includes("登录已过期，请重新登录。"),
+  "pages ingest route 必须保留 CORS 边界，同时把带 cookie 的临时 session 不可确认返回为可重试 session-unconfirmed"
 );
 check(
   meetingAgentJobsRoute.includes("accountSessionUnconfirmedResponse") &&

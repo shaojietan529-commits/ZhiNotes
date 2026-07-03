@@ -7,6 +7,7 @@ import {
   readSessionToken,
   type AccountConfig,
 } from "@/lib/account/server";
+import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
 import { generateId } from "@/lib/utils/id";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,10 @@ function corsJson(data: unknown, init?: ResponseInit) {
     res.headers.set(key, value);
   }
   return res;
+}
+
+function corsSessionUnconfirmedResponse(message: string) {
+  return corsJson(accountSessionUnconfirmedPayload(message), { status: 503 });
 }
 
 export function OPTIONS() {
@@ -212,8 +217,14 @@ export async function POST(request: Request) {
     return corsJson({ error: "account-not-configured" }, { status: 501 });
   }
 
+  const hadSessionToken = Boolean(readSessionToken(request));
   const auth = await authenticateRequest(config, request);
   if (!auth) {
+    if (hadSessionToken) {
+      return corsSessionUnconfirmedResponse(
+        "页面导入暂时无法确认账号；不会登出，请稍后重试。"
+      );
+    }
     return corsJson({ error: "auth-required" }, { status: 401 });
   }
   const { email } = auth;
@@ -338,9 +349,14 @@ export async function GET(request: Request) {
   }
 
   const token = readSessionToken(request);
-  const account = token ? await getSessionAccount(config, token) : null;
-  if (!account) {
+  if (!token) {
     return corsJson({ error: "auth-required" }, { status: 401 });
+  }
+  const account = await getSessionAccount(config, token);
+  if (!account) {
+    return corsSessionUnconfirmedResponse(
+      "API key 管理暂时无法确认账号；不会登出，请稍后重试。"
+    );
   }
 
   const action = new URL(request.url).searchParams.get("action");
