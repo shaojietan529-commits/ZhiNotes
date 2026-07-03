@@ -48,6 +48,12 @@ import {
   type PendingCloudDatabaseSyncStatus,
 } from "@/lib/database/accountDatabaseSync";
 import {
+  FILE_EMBED_SYNC_QUEUE_EVENT,
+  FILE_EMBED_SYNC_QUEUE_STORAGE_KEY,
+  getPendingFileEmbedSyncStatus,
+  type PendingFileEmbedSyncStatus,
+} from "@/lib/files/fileEmbedSyncQueue";
+import {
   buildCloudUploadReliabilityReport,
   type CloudUploadReliabilityGateStatus,
   type CloudUploadReliabilityReport,
@@ -137,9 +143,9 @@ const accountCloudCoverageRows: {
   {
     id: "files-comments-versions-ai",
     title: "文件 / 评论 / 版本 / AI 输出",
-    status: "local-only",
-    scope: "文件原始字节、评论正文、版本快照和 AI 输出仍按本地或显式确认边界处理。",
-    boundary: "导入成页面正文的内容可随页面同步，但原始文件和敏感输出不会自动外发。",
+    status: "partial",
+    scope: "文件嵌入已有独立上传队列；评论正文、版本快照和 AI 输出仍按本地或显式确认边界处理。",
+    boundary: "文件队列只在账号页和同步中心展示元数据状态；失败清零前会阻断缓存重建。",
     next: "下一步需要云表、权限、容量策略和二次确认后，才能纳入全域云端主库。",
   },
 ];
@@ -197,6 +203,26 @@ async function getDatabaseCacheRebuildPendingBlocker(): Promise<string | null> {
   );
 }
 
+function getFileEmbedCacheRebuildPendingBlocker(): string | null {
+  return getFileEmbedCacheRebuildBlockerFromStatus(
+    getPendingFileEmbedSyncStatus()
+  );
+}
+
+function getFileEmbedCacheRebuildBlockerFromStatus(
+  status: PendingFileEmbedSyncStatus
+): string | null {
+  const pending = status.pending;
+  if (
+    pending === 0 &&
+    status.failed === 0 &&
+    status.manualReviewCount === 0
+  ) {
+    return null;
+  }
+  return `全域缓存重建已拦截：文件上传队列仍有 ${pending} 个待上传文件、${status.failed} 个失败、${status.manualReviewCount} 个需要人工处理。文件仍保存在本机；为避免重建本地缓存时误判云端已完整，请先到同步中心处理文件 pending / failed / manual review。`;
+}
+
 function getDatabaseCacheRebuildBlockerFromStatus(
   status: PendingCloudDatabaseSyncStatus
 ): string | null {
@@ -215,6 +241,7 @@ function isAccountCloudUploadStatusStorageEvent(event: StorageEvent): boolean {
   return (
     Boolean(event.key?.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)) ||
     Boolean(event.key?.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)) ||
+    event.key === FILE_EMBED_SYNC_QUEUE_STORAGE_KEY ||
     event.key === SYNC_LOG_STATUS_STORAGE_KEY ||
     event.key === SETTINGS_SYNC_STATUS_STORAGE_KEY ||
     event.key === KNOWLEDGE_SYNC_STATUS_STORAGE_KEY
@@ -258,6 +285,8 @@ export default function AccountShell() {
     useState<PendingCloudPageSyncStatus | null>(null);
   const [databasePendingStatus, setDatabasePendingStatus] =
     useState<PendingCloudDatabaseSyncStatus | null>(null);
+  const [fileEmbedPendingStatus, setFileEmbedPendingStatus] =
+    useState<PendingFileEmbedSyncStatus | null>(null);
   const [syncSummary, setSyncSummary] = useState<SyncLogSummary | null>(null);
   const [workspaceIdentity, setWorkspaceIdentity] =
     useState<LocalWorkspaceIdentity | null>(null);
@@ -291,6 +320,7 @@ export default function AccountShell() {
     ]);
     setPagePendingStatus(getPendingCloudPageSyncStatus());
     setDatabasePendingStatus(databaseStatus);
+    setFileEmbedPendingStatus(getPendingFileEmbedSyncStatus());
     setSyncSummary(localSyncSummary);
     setWorkspaceIdentity(readLocalWorkspaceIdentity());
   }, []);
@@ -313,6 +343,7 @@ export default function AccountShell() {
     window.addEventListener(DATABASE_SYNC_STATUS_EVENT, handleSyncStatus);
     window.addEventListener(SETTINGS_SYNC_STATUS_EVENT, handleSyncStatus);
     window.addEventListener(KNOWLEDGE_SYNC_STATUS_EVENT, handleSyncStatus);
+    window.addEventListener(FILE_EMBED_SYNC_QUEUE_EVENT, handleSyncStatus);
     window.addEventListener(SYNC_LOG_STATUS_EVENT, handleSyncStatus);
     window.addEventListener("storage", handleStorage);
     return () => {
@@ -321,6 +352,7 @@ export default function AccountShell() {
       window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleSyncStatus);
       window.removeEventListener(SETTINGS_SYNC_STATUS_EVENT, handleSyncStatus);
       window.removeEventListener(KNOWLEDGE_SYNC_STATUS_EVENT, handleSyncStatus);
+      window.removeEventListener(FILE_EMBED_SYNC_QUEUE_EVENT, handleSyncStatus);
       window.removeEventListener(SYNC_LOG_STATUS_EVENT, handleSyncStatus);
       window.removeEventListener("storage", handleStorage);
     };
@@ -345,15 +377,27 @@ export default function AccountShell() {
     if (!pagePendingStatus) {
       return "正在检查页面 pending、failed、manual review 状态，检查完成前不允许重建本机页面缓存。";
     }
-    return getPageCacheRebuildBlockerFromStatus(pagePendingStatus);
-  }, [pagePendingStatus]);
+    if (!fileEmbedPendingStatus) {
+      return "正在检查文件上传 pending、failed、manual review 状态，检查完成前不允许重建本机页面缓存。";
+    }
+    return (
+      getPageCacheRebuildBlockerFromStatus(pagePendingStatus) ??
+      getFileEmbedCacheRebuildBlockerFromStatus(fileEmbedPendingStatus)
+    );
+  }, [fileEmbedPendingStatus, pagePendingStatus]);
 
   const databaseCacheRebuildGateNotice = useMemo(() => {
     if (!databasePendingStatus) {
       return "正在检查数据库 pending、failed、manual review 状态，检查完成前不允许重建本机数据库缓存。";
     }
-    return getDatabaseCacheRebuildBlockerFromStatus(databasePendingStatus);
-  }, [databasePendingStatus]);
+    if (!fileEmbedPendingStatus) {
+      return "正在检查文件上传 pending、failed、manual review 状态，检查完成前不允许重建本机数据库缓存。";
+    }
+    return (
+      getDatabaseCacheRebuildBlockerFromStatus(databasePendingStatus) ??
+      getFileEmbedCacheRebuildBlockerFromStatus(fileEmbedPendingStatus)
+    );
+  }, [databasePendingStatus, fileEmbedPendingStatus]);
 
   const refreshHotCachePreferences = useCallback(async () => {
     const setting = await getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY);
@@ -599,7 +643,9 @@ export default function AccountShell() {
   }
 
   async function handlePageCacheRebuildRun() {
-    const pendingBlocker = getPageCacheRebuildPendingBlocker();
+    const pendingBlocker =
+      getPageCacheRebuildPendingBlocker() ??
+      getFileEmbedCacheRebuildPendingBlocker();
     if (pendingBlocker) {
       setPageSyncNotice(pendingBlocker);
       void refreshCloudUploadReliability();
@@ -709,7 +755,9 @@ export default function AccountShell() {
   }
 
   async function handleDatabaseCacheRebuildRun() {
-    const pendingBlocker = await getDatabaseCacheRebuildPendingBlocker();
+    const pendingBlocker =
+      (await getDatabaseCacheRebuildPendingBlocker()) ??
+      getFileEmbedCacheRebuildPendingBlocker();
     if (pendingBlocker) {
       setDatabaseSyncNotice(pendingBlocker);
       void refreshCloudUploadReliability();
@@ -1260,6 +1308,7 @@ export default function AccountShell() {
               databaseSyncOn={databaseSyncOn}
               pagePendingStatus={pagePendingStatus}
               databasePendingStatus={databasePendingStatus}
+              fileEmbedPendingStatus={fileEmbedPendingStatus}
               syncSummary={syncSummary}
               onOpenSyncCenter={() =>
                 router.push("/modules/sync#cloud-source-of-truth-plan")
@@ -1376,7 +1425,7 @@ export default function AccountShell() {
                 页面同步本身不上传：数据库表格、本地文件、评论、版本历史。同步走你自己的
                 Upstash 云存储，只有登录此账号的浏览器能读取。冲突时保留较新的修改。
                 本机页面缓存可随时重建，不会删除云端真数据；但重建前会重新检查页面
-                pending queue、失败记录和人工处理记录，未上传或失败输入清零前会被拦截。
+                pending queue、文件上传队列、失败记录和人工处理记录，未上传或失败输入清零前会被拦截。
                 数据库表格由下方独立同步面板管理。
               </p>
             </div>
@@ -1475,7 +1524,7 @@ export default function AccountShell() {
               <p className="mt-3 text-[11px] leading-5 text-zinc-400">
                 这相当于把数据库主账本放到云端保险柜，本机只保留复印件。复印件坏了可以清掉重拉；
                 手动上传只会提交本机明确记录过的待同步修改，不会把整份本机缓存覆盖到云端。
-                重建前会重新检查 database pending queue、本地 sync_log、失败记录和人工处理记录，
+                重建前会重新检查 database pending queue、本地 sync_log、文件上传队列、失败记录和人工处理记录，
                 未上传或失败的数据库变更清零前会被拦截。
               </p>
             </div>
@@ -1560,6 +1609,7 @@ function AccountCloudCoverageCard({
   databaseSyncOn,
   pagePendingStatus,
   databasePendingStatus,
+  fileEmbedPendingStatus,
   syncSummary,
   onOpenSyncCenter,
 }: {
@@ -1567,6 +1617,7 @@ function AccountCloudCoverageCard({
   databaseSyncOn: boolean;
   pagePendingStatus: PendingCloudPageSyncStatus | null;
   databasePendingStatus: PendingCloudDatabaseSyncStatus | null;
+  fileEmbedPendingStatus: PendingFileEmbedSyncStatus | null;
   syncSummary: SyncLogSummary | null;
   onOpenSyncCenter: () => void;
 }) {
@@ -1577,6 +1628,11 @@ function AccountCloudCoverageCard({
     ? databasePendingStatus.pending +
       databasePendingStatus.queued +
       databasePendingStatus.syncLogPending
+    : null;
+  const filePending = fileEmbedPendingStatus
+    ? fileEmbedPendingStatus.pending +
+      fileEmbedPendingStatus.failed +
+      fileEmbedPendingStatus.manualReviewCount
     : null;
   const globalPending = syncSummary?.pending ?? null;
 
@@ -1604,7 +1660,7 @@ function AccountCloudCoverageCard({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
         <AccountCloudCoverageMetric
           label="页面队列"
           value={
@@ -1631,6 +1687,11 @@ function AccountCloudCoverageCard({
           label="全域 sync_log"
           value={globalPending === null ? "检查中" : `${globalPending} 条`}
           detail="其他待上传设置/关系"
+        />
+        <AccountCloudCoverageMetric
+          label="文件队列"
+          value={filePending === null ? "检查中" : `${filePending} 个`}
+          detail="pending / failed / 人工"
         />
       </div>
 
@@ -1661,7 +1722,7 @@ function AccountCloudCoverageCard({
 
       <p className="mt-4 text-[11px] leading-5 text-zinc-400">
         读法：绿色代表已经以云端为主库；黄色代表只接入白名单或 metadata；灰色代表仍需你明确确认后才会上云。
-        如果这里还有 pending，先处理队列，再判断是否需要重建本机缓存。
+        如果这里还有 pending、failed 或人工处理项，先处理队列，再判断是否需要重建本机缓存。
       </p>
     </div>
   );

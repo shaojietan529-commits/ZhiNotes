@@ -2782,24 +2782,29 @@ check(
 check(
   accountShell.includes("getPendingCloudPageSyncStatus") &&
     accountShell.includes("getPageCacheRebuildPendingBlocker") &&
-    accountShell.includes("pending queue、失败记录和人工处理记录") &&
+    accountShell.includes("pending queue、文件上传队列、失败记录和人工处理记录") &&
     accountShell.includes("页面 pending、failed、manual review 都清零后再重建") &&
     accountShell.includes("status.failed === 0") &&
     accountShell.includes("status.manualReviewCount === 0") &&
     pageCacheRebuildBody.includes("getPageCacheRebuildPendingBlocker()") &&
+    pageCacheRebuildBody.includes("getFileEmbedCacheRebuildPendingBlocker()") &&
     pageCacheRebuildBody.includes("setPageSyncNotice(pendingBlocker)") &&
     pageCacheRebuildBody.indexOf("getPageCacheRebuildPendingBlocker()") <
+      pageCacheRebuildBody.indexOf("getFileEmbedCacheRebuildPendingBlocker()") &&
+    pageCacheRebuildBody.indexOf("getFileEmbedCacheRebuildPendingBlocker()") <
       pageCacheRebuildBody.indexOf("window.confirm"),
-  "AccountShell 重建本机页面缓存前必须先检查页面 pending、failed 和 manual review；未上传或失败输入清零前不能进入确认弹窗"
+  "AccountShell 重建本机页面缓存前必须先检查页面 pending、failed、manual review 和文件上传队列；未上传或失败输入清零前不能进入确认弹窗"
 );
 check(
   accountShell.includes("pageCacheRebuildGateNotice") &&
     accountShell.includes("getPageCacheRebuildBlockerFromStatus(pagePendingStatus)") &&
+    accountShell.includes("getFileEmbedCacheRebuildBlockerFromStatus(fileEmbedPendingStatus)") &&
     accountShell.includes("account-page-cache-rebuild-gate") &&
     accountShell.includes('data-cache-rebuild-ready={blocker ? "false" : "true"}') &&
     accountShell.includes("Boolean(pageCacheRebuildGateNotice)") &&
     accountShell.includes("页面缓存重建门禁") &&
-    accountShell.includes("页面 pending、failed、manual review 均为 0"),
+    accountShell.includes("页面 pending、failed、manual review 均为 0") &&
+    accountShell.includes("正在检查文件上传 pending、failed、manual review 状态"),
   "AccountShell 页面缓存重建门禁必须在点击前可见，并在 pending/failed/manual review 未清零时禁用重建按钮"
 );
 check(
@@ -2829,24 +2834,34 @@ check(
 check(
   accountShell.includes("getPendingCloudDatabaseSyncStatus") &&
     accountShell.includes("getDatabaseCacheRebuildPendingBlocker") &&
-    accountShell.includes("database pending queue、本地 sync_log、失败记录和人工处理记录") &&
+    accountShell.includes("database pending queue、本地 sync_log、文件上传队列、失败记录和人工处理记录") &&
     accountShell.includes("pending、failed、manual review 都清零后再重建") &&
     accountShell.includes("status.failed === 0") &&
     accountShell.includes("status.manualReviewCount === 0") &&
     databaseCacheRebuildBody.includes(
       "await getDatabaseCacheRebuildPendingBlocker()"
     ) &&
+    databaseCacheRebuildBody.includes(
+      "getFileEmbedCacheRebuildPendingBlocker()"
+    ) &&
     databaseCacheRebuildBody.includes("setDatabaseSyncNotice(pendingBlocker)") &&
     databaseCacheRebuildBody.indexOf(
       "await getDatabaseCacheRebuildPendingBlocker()"
+    ) <
+      databaseCacheRebuildBody.indexOf(
+        "getFileEmbedCacheRebuildPendingBlocker()"
+      ) &&
+    databaseCacheRebuildBody.indexOf(
+      "getFileEmbedCacheRebuildPendingBlocker()"
     ) < databaseCacheRebuildBody.indexOf("window.confirm"),
-  "AccountShell 重建本机数据库缓存前必须先检查 database pending queue、本地 sync_log、failed 和 manual review；未上传或失败数据库变更清零前不能进入确认弹窗"
+  "AccountShell 重建本机数据库缓存前必须先检查 database pending queue、本地 sync_log、failed、manual review 和文件上传队列；未上传或失败数据库/文件变更清零前不能进入确认弹窗"
 );
 check(
   accountShell.includes("databaseCacheRebuildGateNotice") &&
     accountShell.includes(
       "getDatabaseCacheRebuildBlockerFromStatus(databasePendingStatus)"
     ) &&
+    accountShell.includes("getFileEmbedCacheRebuildBlockerFromStatus(fileEmbedPendingStatus)") &&
     accountShell.includes("account-database-cache-rebuild-gate") &&
     accountShell.includes('data-cache-rebuild-ready={blocker ? "false" : "true"}') &&
     accountShell.includes("Boolean(databaseCacheRebuildGateNotice)") &&
