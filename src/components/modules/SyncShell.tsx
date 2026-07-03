@@ -10837,6 +10837,7 @@ function SyncDashboard() {
                 failedTotal={syncLocalUseQueueSnapshot.failedTotal}
                 manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
                 enabledDomainCount={syncLocalUseQueueSnapshot.enabledDomainCount}
+                pendingDomainRows={pendingDomainRows}
                 onDrainAll={() => void handleDrainAllPendingPush()}
                 onOpenAccount={() => router.push("/account")}
               />
@@ -20210,6 +20211,7 @@ function SyncLocalUseReadinessPanel({
   failedTotal,
   manualReviewTotal,
   enabledDomainCount,
+  pendingDomainRows,
   onDrainAll,
   onOpenAccount,
 }: {
@@ -20218,10 +20220,23 @@ function SyncLocalUseReadinessPanel({
   failedTotal: number;
   manualReviewTotal: number;
   enabledDomainCount: number;
+  pendingDomainRows: PendingDomainRow[];
   onDrainAll: () => void;
   onOpenAccount: () => void;
 }) {
   const attentionTotal = Math.max(failedTotal, manualReviewTotal);
+  const activeDomainRows = pendingDomainRows.filter(
+    (row) =>
+      row.pending > 0 ||
+      row.failed > 0 ||
+      row.manualReview > 0 ||
+      row.inFlight > 0
+  );
+  const activeDomainLabels = activeDomainRows.map((row) => row.label);
+  const activeDomainDetail =
+    activeDomainLabels.length > 0
+      ? activeDomainLabels.slice(0, 4).join(" / ")
+      : "暂无全域 pending";
   const facts = [
     {
       label: "本地可继续使用",
@@ -20244,9 +20259,17 @@ function SyncLocalUseReadinessPanel({
       detail: `${failedTotal} 失败 / ${manualReviewTotal} 人工`,
     },
     {
-      label: "同步域",
+      label: "核心同步",
       value: `${enabledDomainCount}/2`,
-      detail: "页面 + 数据库",
+      detail: "页面 / 数据库开关",
+    },
+    {
+      label: "全域队列",
+      value: `${activeDomainRows.length} 域`,
+      detail:
+        activeDomainLabels.length > 4
+          ? `${activeDomainDetail} / +${activeDomainLabels.length - 4}`
+          : activeDomainDetail,
     },
   ];
 
@@ -20258,6 +20281,8 @@ function SyncLocalUseReadinessPanel({
       data-local-input-can-continue={String(readiness.localInputCanContinue)}
       data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
+      data-active-sync-domain-count={activeDomainRows.length}
+      data-active-sync-domain-labels={activeDomainLabels.join(",")}
       className="space-y-3"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -20295,7 +20320,7 @@ function SyncLocalUseReadinessPanel({
           </button>
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-5">
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
         {facts.map((fact) => (
           <div
             key={fact.label}

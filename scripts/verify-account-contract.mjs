@@ -2624,12 +2624,23 @@ check(
     syncDashboardShell.includes(
       "data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}"
     ) &&
+    syncDashboardShell.includes("pendingDomainRows={pendingDomainRows}") &&
+    syncDashboardShell.includes(
+      "data-active-sync-domain-count={activeDomainRows.length}"
+    ) &&
+    syncDashboardShell.includes(
+      'data-active-sync-domain-labels={activeDomainLabels.join(",")}'
+    ) &&
     syncDashboardShell.includes("本地可继续使用") &&
     syncDashboardShell.includes("云端交接") &&
     syncDashboardShell.includes("缓存重建") &&
+    syncDashboardShell.includes("核心同步") &&
+    syncDashboardShell.includes("页面 / 数据库开关") &&
+    syncDashboardShell.includes("全域队列") &&
+    syncDashboardShell.includes("暂无全域 pending") &&
     syncDashboardShell.includes("补传全部本地输入") &&
     syncDashboardShell.includes("不读取页面正文、数据库行值、文件 bytes"),
-  "同步中心应在上传安全总览前展示本地可继续使用、云端交接和缓存重建阻断状态，并保持 metadata-only 边界"
+  "同步中心应在上传安全总览前展示本地可继续使用、云端交接、缓存重建阻断、核心同步开关和全域 pending 域分布，并保持 metadata-only 边界"
 );
 check(
   syncDashboardShell.includes("SyncOperationalStatusStrip") &&

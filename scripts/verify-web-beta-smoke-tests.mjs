@@ -9211,6 +9211,36 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "pendingDomainRows={pendingDomainRows}",
+    "Sync UI local-use panel must receive the full-domain pending distribution."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-active-sync-domain-count={activeDomainRows.length}',
+    "Sync UI local-use panel must expose active full-domain queue counts for smoke checks."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "核心同步",
+    "Sync UI local-use panel must label page/database switches separately from all-domain queues."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "全域队列",
+    "Sync UI local-use panel must show which broader sync domains currently have local queue work."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "暂无全域 pending",
+    "Sync UI local-use panel must explicitly say when no full-domain pending queue is present."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "上传安全总览",
     "Sync UI must show a plain-language upload safety summary."
   );
