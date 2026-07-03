@@ -11,6 +11,18 @@ export const dynamic = "force-dynamic";
 const AUTH_KEY = "zhinotes:portfolio:auth:v1";
 const DATA_KEY = "zhinotes:portfolio:data:v1";
 const MAX_PAYLOAD_BYTES = 1024 * 1024;
+const PORTFOLIO_PASSCODE_SERVER_SYNC_TIMEOUT_MS = 8000;
+
+class PortfolioPasscodeServerSyncTimeoutError extends Error {
+  status = 504;
+  timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`Portfolio passcode sync request timed out after ${timeoutMs}ms`);
+    this.name = "PortfolioPasscodeServerSyncTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
 
 function kvEnv(): { url: string; token: string } | null {
   const url =
@@ -25,10 +37,13 @@ async function kvGet(
   env: { url: string; token: string },
   key: string
 ): Promise<string | null> {
-  const res = await fetch(`${env.url}/get/${key}`, {
-    headers: { authorization: `Bearer ${env.token}` },
-    cache: "no-store",
-  });
+  const res = await fetchPortfolioPasscodeServerSyncWithTimeout(
+    `${env.url}/get/${key}`,
+    {
+      headers: { authorization: `Bearer ${env.token}` },
+      cache: "no-store",
+    }
+  );
   if (!res.ok) throw new Error("kv get failed");
   const data = await res.json();
   return typeof data.result === "string" ? data.result : null;
@@ -39,12 +54,43 @@ async function kvSet(
   key: string,
   value: string
 ): Promise<void> {
-  const res = await fetch(`${env.url}/set/${key}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${env.token}` },
-    body: value,
-  });
+  const res = await fetchPortfolioPasscodeServerSyncWithTimeout(
+    `${env.url}/set/${key}`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.token}` },
+      body: value,
+    }
+  );
   if (!res.ok) throw new Error("kv set failed");
+}
+
+async function fetchPortfolioPasscodeServerSyncWithTimeout(
+  url: string,
+  init: RequestInit
+) {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeout = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, PORTFOLIO_PASSCODE_SERVER_SYNC_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (didTimeout) {
+      throw new PortfolioPasscodeServerSyncTimeoutError(
+        PORTFOLIO_PASSCODE_SERVER_SYNC_TIMEOUT_MS
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function hashPasscode(passcode: string): string {
@@ -129,7 +175,18 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
-  } catch {
+  } catch (error) {
+    if (error instanceof PortfolioPasscodeServerSyncTimeoutError) {
+      return NextResponse.json(
+        {
+          error: "portfolio-passcode-sync-timeout",
+          message:
+            "组合 passcode 云同步请求超时；本地组合数据不受影响，可稍后重试。",
+          timeout_ms: error.timeoutMs,
+        },
+        { status: error.status }
+      );
+    }
     return NextResponse.json(
       { error: "云端存储读写失败，请稍后重试。" },
       { status: 502 }

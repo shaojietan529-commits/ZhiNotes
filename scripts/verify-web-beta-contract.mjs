@@ -185,6 +185,7 @@ const files = {
   accountShell: "src/components/modules/AccountShell.tsx",
   accountMeRoute: "src/app/api/account/me/route.ts",
   portfolioPasscodeSync: "src/lib/portfolio/cloudSync.ts",
+  portfolioPasscodeSyncRoute: "src/app/api/portfolio/sync/route.ts",
   accountPortfolioSync: "src/lib/portfolio/accountSync.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
@@ -733,6 +734,9 @@ function run() {
   const accountShell = readProjectFile(files.accountShell);
   const accountMeRoute = readProjectFile(files.accountMeRoute);
   const portfolioPasscodeSync = readProjectFile(files.portfolioPasscodeSync);
+  const portfolioPasscodeSyncRoute = readProjectFile(
+    files.portfolioPasscodeSyncRoute
+  );
   const accountPortfolioSync = readProjectFile(files.accountPortfolioSync);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
@@ -5118,6 +5122,68 @@ function run() {
     "clearTimeout(timeout)",
     "Legacy portfolio passcode sync request timeout timers must be cleared after fetch settles."
   );
+  for (const [snippet, message] of [
+    [
+      "PORTFOLIO_PASSCODE_SERVER_SYNC_TIMEOUT_MS = 8000",
+      "Portfolio passcode server KV requests must have a shorter bounded timeout than the browser action timeout.",
+    ],
+    [
+      "class PortfolioPasscodeServerSyncTimeoutError extends Error",
+      "Portfolio passcode server sync timeouts must use a typed error so the route can return a stable retryable response.",
+    ],
+    [
+      "async function fetchPortfolioPasscodeServerSyncWithTimeout",
+      "Portfolio passcode server sync must route KV get and set through a shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Portfolio passcode server sync must be able to abort slow KV requests.",
+    ],
+    [
+      "signal: controller.signal",
+      "Portfolio passcode server sync must pass the abort signal to fetch.",
+    ],
+    [
+      "throw new PortfolioPasscodeServerSyncTimeoutError",
+      "Portfolio passcode server sync timeout must surface as a typed retryable error.",
+    ],
+    [
+      "clearTimeout(timeout)",
+      "Portfolio passcode server sync timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      "fetchPortfolioPasscodeServerSyncWithTimeout(\n    `${env.url}/get/",
+      "Portfolio passcode server KV get calls must use the bounded helper.",
+    ],
+    [
+      "fetchPortfolioPasscodeServerSyncWithTimeout(\n    `${env.url}/set/",
+      "Portfolio passcode server KV set calls must use the bounded helper.",
+    ],
+    [
+      'error: "portfolio-passcode-sync-timeout"',
+      "Portfolio passcode server sync timeout responses must expose a stable retryable error code.",
+    ],
+    [
+      "本地组合数据不受影响",
+      "Portfolio passcode server sync timeout responses must reassure users that local portfolio data is preserved.",
+    ],
+    [
+      "timeout_ms: error.timeoutMs",
+      "Portfolio passcode server sync timeout responses must include the timeout budget for diagnostics.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.portfolioPasscodeSyncRoute,
+      portfolioPasscodeSyncRoute,
+      snippet,
+      message
+    );
+  }
+  if ((portfolioPasscodeSyncRoute.match(/\bfetch\(/g) ?? []).length !== 1) {
+    fail(
+      "Portfolio passcode server sync must keep fetch usage centralized in fetchPortfolioPasscodeServerSyncWithTimeout."
+    );
+  }
   assertSourceExcludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
