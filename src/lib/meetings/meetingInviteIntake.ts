@@ -589,6 +589,23 @@ function findDate(
     }
   }
 
+  // Compact spoken relative dates: 今晚/今早/今晨/明晚/明早/明晨
+  const compactRelativeDay = text.match(/(?:今(?:晚|早|晨)|明(?:晚|早|晨))/);
+  if (compactRelativeDay) {
+    const now = new Date();
+    const offsets: Record<string, number> = {
+      "今晚": 0, "今早": 0, "今晨": 0,
+      "明晚": 1, "明早": 1, "明晨": 1,
+    };
+    const offset = offsets[compactRelativeDay[0]] ?? 0;
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    return {
+      year: target.getFullYear(),
+      month: target.getMonth() + 1,
+      day: target.getDate(),
+    };
+  }
+
   // Relative dates: 今天/明天/后天/大后天
   const relativeDay = text.match(/(?:大后天|后天|明天|今天)/);
   if (relativeDay) {
@@ -687,6 +704,8 @@ function applyChinesePeriod(hour: number, period: string) {
     normalized === "下午" ||
     normalized === "晚上" ||
     normalized === "中午" ||
+    normalized === "今晚" ||
+    normalized === "明晚" ||
     normalized === "pm"
   ) {
     return hour < 12 ? hour + 12 : hour;
@@ -694,6 +713,10 @@ function applyChinesePeriod(hour: number, period: string) {
   if (
     normalized === "上午" ||
     normalized === "凌晨" ||
+    normalized === "今早" ||
+    normalized === "明早" ||
+    normalized === "今晨" ||
+    normalized === "明晨" ||
     normalized === "am"
   ) {
     return hour === 12 ? 0 : hour;
@@ -714,8 +737,10 @@ interface ClockHit {
 // either before or after the clock. English hour-only readings like "4 PM"
 // are accepted only when an AM/PM marker is present.
 function parseClockAt(text: string): ClockHit | null {
+  const periodPattern =
+    "上午|下午|中午|晚上|凌晨|今晚|今早|今晨|明晚|明早|明晨|a\\.?m\\.?|p\\.?m\\.?";
   const re = new RegExp(
-    `(?:(上午|下午|中午|晚上|凌晨|a\\.?m\\.?|p\\.?m\\.?)\\s*)?([01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN})\\s*(?:(?:[:：]\\s*([0-5]\\d)\\s*点?)|(?:[点时]\\s*(?:(半)|((?:[0-5]?\\d|${CHINESE_NUMBER_PATTERN}))\\s*分?)?)|(?=(?:上午|下午|中午|晚上|凌晨|a\\.?m\\.?|p\\.?m\\.?)\\b))(?:\\s*(上午|下午|中午|晚上|凌晨|a\\.?m\\.?|p\\.?m\\.?))?`,
+    `(?:(${periodPattern})\\s*)?([01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN})\\s*(?:(?:[:：]\\s*([0-5]\\d)\\s*点?)|(?:[点时]\\s*(?:(半)|((?:[0-5]?\\d|${CHINESE_NUMBER_PATTERN}))\\s*分?)?)|(?=(?:${periodPattern})\\b))(?:\\s*(${periodPattern}))?`,
     "i"
   );
   const m = re.exec(text);

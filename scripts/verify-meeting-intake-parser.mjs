@@ -171,6 +171,26 @@ const cases = [
     input: "会议主题：测试会议\n时间：明天上午九点三十分",
     expected: { date: "2026-07-05", time: "09:30", endTime: "", durationMinutes: null },
   },
+  {
+    name: "Chinese tonight compact relative time",
+    input: "会议主题：测试会议\n时间：今晚八点到九点",
+    expected: { date: "2026-07-04", time: "20:00", endTime: "21:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese tomorrow night compact relative time",
+    input: "会议主题：测试会议\n时间：明晚8点-9点",
+    expected: { date: "2026-07-05", time: "20:00", endTime: "21:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese tomorrow morning compact relative time",
+    input: "会议主题：测试会议\n时间：明早九点半",
+    expected: { date: "2026-07-05", time: "09:30", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "Chinese tomorrow noon remains supported",
+    input: "会议主题：测试会议\n时间：明天中午十二点到一点",
+    expected: { date: "2026-07-05", time: "12:00", endTime: "13:00", durationMinutes: 60 },
+  },
 ];
 
 const results = [];
