@@ -20,6 +20,10 @@ import {
 } from "@/lib/pages/moduleWorkspaces";
 import { collectMovedPageSnapshots } from "@/lib/pages/pageSnapshotUpdates";
 import { usePages } from "@/hooks/usePages";
+import {
+  buildPageListLoadStatusView,
+  type PageListLoadStatusView,
+} from "@/lib/sync/pageListLoadStatus";
 import type { Page } from "@/lib/utils/types";
 import PageContextMenu from "@/components/page/LazyPageContextMenu";
 
@@ -375,7 +379,7 @@ function PageTreeItem({
 
 export default function PageTree() {
   const openPage = useLocalFirstPageNavigation();
-  const { pages, upsertPages } = usePages();
+  const { pages, upsertPages, pageListLoadStatus } = usePages();
   const treePages = useDeferredValue(pages);
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const currentPageId = useWorkspaceStore((s) => s.currentPageId);
@@ -457,6 +461,10 @@ export default function PageTree() {
   const currentPathIds = useMemo(
     () => getCurrentPagePathIds(currentPageId, pagesById),
     [currentPageId, pagesById]
+  );
+  const pageListLoadStatusView = useMemo(
+    () => buildPageListLoadStatusView(pageListLoadStatus),
+    [pageListLoadStatus]
   );
 
   useEffect(() => {
@@ -574,21 +582,28 @@ export default function PageTree() {
 
   if (pages.length === 0) {
     return (
-      <p
-        data-testid="sidebar-page-tree-empty-state"
-        data-local-cache-ready={String(dbReady)}
-        data-local-first-windowing="true"
-        className="px-3 py-4 text-center text-xs text-zinc-400"
-      >
-        {dbReady
-          ? "还没有页面，先创建一个页面。"
-          : "正在准备本地缓存，页面会先从热缓存显示。"}
-      </p>
+      <>
+        <PageListLoadStatusStrip view={pageListLoadStatusView} />
+        <p
+          data-testid="sidebar-page-tree-empty-state"
+          data-local-cache-ready={String(dbReady)}
+          data-local-first-windowing="true"
+          data-first-paint-state={pageListLoadStatusView.firstPaintState}
+          className="px-3 py-4 text-center text-xs text-zinc-400"
+        >
+          {dbReady
+            ? pageListLoadStatusView.backgroundActive
+              ? "正在读取页面 metadata，列表会先从本地热缓存显示。"
+              : "还没有页面，先创建一个页面。"
+            : "正在准备本地缓存，页面会先从热缓存显示。"}
+        </p>
+      </>
     );
   }
 
   return (
     <>
+      <PageListLoadStatusStrip view={pageListLoadStatusView} />
       <ul
         className="space-y-0.5"
         onDragOver={handleRootDragOver}
@@ -658,6 +673,49 @@ export default function PageTree() {
         />
       )}
     </>
+  );
+}
+
+function PageListLoadStatusStrip({
+  view,
+}: {
+  view: PageListLoadStatusView;
+}) {
+  const toneClass =
+    view.tone === "success"
+      ? "border-emerald-500/15 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+      : view.tone === "warning"
+        ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+        : view.tone === "working"
+          ? "border-blue-500/15 bg-blue-500/5 text-blue-700 dark:text-blue-300"
+          : "border-zinc-200 bg-zinc-100 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400";
+
+  return (
+    <div
+      data-testid="sidebar-page-list-load-status"
+      data-load-phase={view.phase}
+      data-first-paint-state={view.firstPaintState}
+      data-first-paint-label={view.firstPaintLabel}
+      data-visible-pages={view.visiblePages}
+      data-visible-root-pages={view.visibleRootPages}
+      data-background-active={view.backgroundActive}
+      data-cloud-loading={view.cloudLoading}
+      data-stale-cache={view.staleCache}
+      data-privacy-boundary={view.privacyBoundary}
+      className={`mb-1 mx-2 rounded-md border px-2 py-1 text-[10px] leading-4 ${toneClass}`}
+      title={view.ariaLabel}
+      aria-label={view.ariaLabel}
+    >
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <span className="min-w-0 truncate">{view.label}</span>
+        <span className="shrink-0 tabular-nums">
+          {view.visiblePages} 页
+        </span>
+      </div>
+      {(view.backgroundActive || view.tone === "warning") && (
+        <p className="truncate text-[10px] opacity-80">{view.detail}</p>
+      )}
+    </div>
   );
 }
 

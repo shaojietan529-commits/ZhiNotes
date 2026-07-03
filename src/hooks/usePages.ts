@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import {
   getAllPageMetadata,
   getAllPages,
@@ -32,6 +32,11 @@ import {
   readPageListHotCacheSnapshot,
   writePageListHotCacheSnapshot,
 } from "@/lib/sync/pageListHotCacheSnapshot";
+import {
+  createPageListLoadStatus,
+  type PageListLoadPhase,
+  type PageListLoadStatusState,
+} from "@/lib/sync/pageListLoadStatus";
 import type { Page } from "@/lib/utils/types";
 
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
@@ -303,6 +308,35 @@ function isPageListHotCacheFirstPaintPage(page: Page): boolean {
   );
 }
 
+function countPageListRootPages(pages: Page[]): number {
+  return pages.filter((page) => !page.deleted_at && page.parent_id === null)
+    .length;
+}
+
+function createPageListStatusFromPages(
+  phase: PageListLoadPhase,
+  pages: Page[],
+  input: Partial<PageListLoadStatusState> = {}
+): PageListLoadStatusState {
+  return createPageListLoadStatus({
+    phase,
+    visiblePages: pages.filter((page) => !page.deleted_at).length,
+    visibleRootPages: countPageListRootPages(pages),
+    ...input,
+  });
+}
+
+function schedulePageListLoadStatusUpdate(
+  setStatus: (status: PageListLoadStatusState) => void,
+  status: PageListLoadStatusState
+): void {
+  if (typeof window === "undefined") {
+    setStatus(status);
+    return;
+  }
+  window.setTimeout(() => setStatus(status), 0);
+}
+
 function mergeCloudMetadataWithPendingLocalPages(
   cloudMetadata: Page[],
   isPendingSync: (pageId: string) => boolean
@@ -345,15 +379,28 @@ export function usePages(options: UsePagesOptions = {}) {
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const refreshRequestRef = useRef(0);
   const browserHotCacheBootstrappedRef = useRef(false);
+  const [pageListLoadStatus, setPageListLoadStatus] = useState(() =>
+    createPageListStatusFromPages("booting", pages, {
+      backgroundActive: true,
+      message: "侧边栏会先显示本地页面 metadata，再后台校正云端目录。",
+    })
+  );
 
   const upsertPageSnapshots = useCallback(
     (incomingPages: Page[], reason: PageUpdateReason = "cloud-push") => {
       if (incomingPages.length === 0) return;
       upsertPages(incomingPages);
+      const nextPages = useWorkspaceStore.getState().pages;
       writePageListHotCacheSnapshot({
-        pages: useWorkspaceStore.getState().pages,
+        pages: nextPages,
         source: "optimistic-local",
       });
+      setPageListLoadStatus(
+        createPageListStatusFromPages("optimistic-local", nextPages, {
+          backgroundActive: true,
+          message: "页面列表已先本地更新，云端同步在后台继续。",
+        })
+      );
       emitPageSnapshotsUpdated(reason, incomingPages);
     },
     [upsertPages]
@@ -371,6 +418,16 @@ export function usePages(options: UsePagesOptions = {}) {
     let all: Page[] = [];
     let localSnapshotLoaded = false;
     let cloudSnapshotAuthoritative = false;
+    const currentPages = useWorkspaceStore.getState().pages;
+    setPageListLoadStatus(
+      createPageListStatusFromPages("booting", currentPages, {
+        backgroundActive: true,
+        message:
+          currentPages.length > 0
+            ? "页面列表已保留当前本地内容，正在刷新 metadata。"
+            : "正在读取页面 metadata，先查本地热缓存。",
+      })
+    );
 
     const renderLocalPagesSnapshot = async (): Promise<boolean> => {
       try {
@@ -385,6 +442,13 @@ export function usePages(options: UsePagesOptions = {}) {
               pages: hotPages,
               source: "hot-cache-metadata",
             });
+            setPageListLoadStatus(
+              createPageListStatusFromPages("local-hot-cache", hotPages, {
+                backgroundActive: true,
+                message:
+                  "已先显示常用页面 metadata，完整页面目录和云端校正在后台继续。",
+              })
+            );
             scheduleDeferredMetadataHydration(setPages);
             return true;
           }
@@ -399,10 +463,23 @@ export function usePages(options: UsePagesOptions = {}) {
           pages: all,
           source: "local-metadata",
         });
+        setPageListLoadStatus(
+          createPageListStatusFromPages("local-index", all, {
+            backgroundActive: true,
+            message: "本地页面 metadata 已显示，云端校正在后台继续。",
+          })
+        );
         return true;
       } catch {
         // The browser database is only a rebuildable hot cache. If it cannot
         // be read, keep the workspace usable through cloud metadata below.
+        setPageListLoadStatus(
+          createPageListStatusFromPages("cloud-checking", all, {
+            cloudLoading: true,
+            backgroundActive: true,
+            message: "本地页面缓存暂不可读，正在尝试用云端 metadata 兜底。",
+          })
+        );
         return false;
       }
     };
@@ -416,6 +493,13 @@ export function usePages(options: UsePagesOptions = {}) {
       force: boolean;
       requireLocalCacheCoverage: boolean;
     }) => {
+      setPageListLoadStatus(
+        createPageListStatusFromPages("cloud-checking", all, {
+          cloudLoading: true,
+          backgroundActive: true,
+          message: "本地页面列表已可用，正在后台校正云端 metadata。",
+        })
+      );
       try {
         const {
           isCloudPagePendingSync,
@@ -453,10 +537,36 @@ export function usePages(options: UsePagesOptions = {}) {
               });
             }
           }
+          setPageListLoadStatus(
+            createPageListStatusFromPages("cloud-ready", all, {
+              message:
+                cloud.pages.length > 0
+                  ? "页面列表已和云端 metadata 对齐。"
+                  : "云端本轮没有新的页面 metadata，当前本地列表继续使用。",
+            })
+          );
+          return;
         }
+        setPageListLoadStatus(
+          createPageListStatusFromPages(
+            cloud.status === "error" ? "cloud-error" : "local-only",
+            all,
+            {
+              message:
+                cloud.message ??
+                "云端页面目录暂不可用，本地页面列表继续可用。",
+            }
+          )
+        );
       } catch {
         // Cloud metadata refresh is best effort. If the network or auth layer
         // is unavailable, the already-rendered local hot cache remains usable.
+        if (!isCurrentRefresh()) return;
+        setPageListLoadStatus(
+          createPageListStatusFromPages("cloud-error", all, {
+            message: "云端页面 metadata 本轮校正失败，本地页面列表继续可用。",
+          })
+        );
       }
     };
 
@@ -516,12 +626,26 @@ export function usePages(options: UsePagesOptions = {}) {
     if (useWorkspaceStore.getState().pages.length > 0) return;
     const snapshot = readPageListHotCacheSnapshot();
     if (!snapshot || snapshot.pages.length === 0) return;
-    setPages(snapshot.pages.map(pageListHotCacheSnapshotPageToPage));
+    const snapshotPages = snapshot.pages.map(pageListHotCacheSnapshotPageToPage);
+    setPages(snapshotPages);
+    schedulePageListLoadStatusUpdate(
+      setPageListLoadStatus,
+      createPageListStatusFromPages("hot-cache", snapshotPages, {
+        backgroundActive: true,
+        staleCache: Boolean(snapshot.stale),
+        message: snapshot.stale
+          ? "已先显示较早的浏览器页面 metadata，后台会刷新到最新。"
+          : "已先显示浏览器页面 metadata，后台会继续校正。",
+      })
+    );
   }, [autoLoad, setPages]);
 
   useEffect(() => {
     if (!autoLoad) return;
-    refresh({ broadcast: false });
+    const timer = window.setTimeout(() => {
+      void refresh({ broadcast: false });
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [autoLoad, refresh]);
 
   useEffect(() => {
@@ -571,6 +695,7 @@ export function usePages(options: UsePagesOptions = {}) {
 
   return {
     pages,
+    pageListLoadStatus,
     refresh,
     hydrateContentInBackground,
     upsertPages: upsertPageSnapshots,

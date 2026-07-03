@@ -72,6 +72,7 @@ const files = {
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
   pageListHotCacheSnapshot: "src/lib/sync/pageListHotCacheSnapshot.ts",
+  pageListLoadStatus: "src/lib/sync/pageListLoadStatus.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   dailyCalendarLoadStatus: "src/lib/sync/dailyCalendarLoadStatus.ts",
   meetingCalendarLoadStatus: "src/lib/sync/meetingCalendarLoadStatus.ts",
@@ -502,6 +503,7 @@ function run() {
   const pageListHotCacheSnapshot = readProjectFile(
     files.pageListHotCacheSnapshot
   );
+  const pageListLoadStatus = readProjectFile(files.pageListLoadStatus);
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
   const dailyCalendarLoadStatus = readProjectFile(
     files.dailyCalendarLoadStatus
@@ -5583,6 +5585,74 @@ function run() {
     "!isPageListHotCacheFirstPaintPage(current)",
     "Full local metadata must replace browser page-list first-paint entries instead of preserving empty properties."
   );
+  for (const [snippet, message] of [
+    [
+      "PageListLoadPhase",
+      "Page list load status must expose explicit phase ids for sidebar diagnostics.",
+    ],
+    [
+      "buildPageListLoadStatusView",
+      "Page list load status must be built through a reusable view model.",
+    ],
+    [
+      "PageListFirstPaintState",
+      "Page list status must classify first paint for blank-list diagnostics.",
+    ],
+    [
+      "Page list load status is metadata-only",
+      "Page list load status must document its metadata-only privacy boundary.",
+    ],
+    [
+      "visibleRootPages",
+      "Page list status must expose root-page counts without reading page bodies.",
+    ],
+  ]) {
+    assertIncludes(files.pageListLoadStatus, pageListLoadStatus, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "createPageListLoadStatus",
+      "usePages must publish a page-list load status while metadata is being hydrated.",
+    ],
+    [
+      "pageListLoadStatus",
+      "usePages must return the current page-list load status to sidebar consumers.",
+    ],
+    [
+      'createPageListStatusFromPages("hot-cache"',
+      "usePages must label browser-hot-cache first paint while background correction continues.",
+    ],
+    [
+      'createPageListStatusFromPages("local-hot-cache"',
+      "usePages must label bounded local hot-cache metadata before full local scans.",
+    ],
+    [
+      'createPageListStatusFromPages("cloud-checking"',
+      "usePages must label cloud metadata correction instead of making the page list look blank.",
+    ],
+  ]) {
+    assertIncludes(files.usePages, usePages, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      'data-testid="sidebar-page-list-load-status"',
+      "Sidebar page tree must expose the page-list load status for UI smoke checks.",
+    ],
+    [
+      "data-first-paint-state={view.firstPaintState}",
+      "Sidebar page-list status must expose first-paint state.",
+    ],
+    [
+      "data-visible-pages={view.visiblePages}",
+      "Sidebar page-list status must expose visible page counts.",
+    ],
+    [
+      "data-background-active={view.backgroundActive}",
+      "Sidebar page-list status must expose background correction state.",
+    ],
+  ]) {
+    assertIncludes(files.pageTree, pageTree, snippet, message);
+  }
   if (
     !(
       usePages.indexOf("const snapshot = readPageListHotCacheSnapshot();") >= 0 &&
@@ -5614,6 +5684,23 @@ function run() {
     failures.push(
       `${files.pageListHotCacheSnapshot} must not call storage.key(: page-list hot-cache reads should use the exact localStorage key instead of scanning every localStorage key.`
     );
+  }
+  for (const forbiddenPageListStatusSnippet of [
+    "page.content_text",
+    "page.content_yjs",
+    "page.properties",
+    "comment.body",
+    "field_values",
+    "fetch(",
+    "window.localStorage",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+  ]) {
+    if (pageListLoadStatus.includes(forbiddenPageListStatusSnippet)) {
+      failures.push(
+        `${files.pageListLoadStatus} must not include ${forbiddenPageListStatusSnippet}: page-list load status must stay metadata-only and side-effect-free.`
+      );
+    }
   }
   assertIncludes(
     files.dailyNotesShell,

@@ -151,6 +151,7 @@ const files = {
   hotCacheRouteWarmupHook: "src/hooks/useHotCacheRouteWarmup.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
+  pageListLoadStatus: "src/lib/sync/pageListLoadStatus.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   dailyCalendarLoadStatus: "src/lib/sync/dailyCalendarLoadStatus.ts",
   meetingCalendarLoadStatus: "src/lib/sync/meetingCalendarLoadStatus.ts",
@@ -673,6 +674,7 @@ function run() {
   const calendarFirstPaintRange = readProjectFile(
     files.calendarFirstPaintRange
   );
+  const pageListLoadStatus = readProjectFile(files.pageListLoadStatus);
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
   const dailyCalendarLoadStatus = readProjectFile(
     files.dailyCalendarLoadStatus
@@ -23755,6 +23757,48 @@ function run() {
       usePages,
       "HOT_CACHE_PREFERENCES_CHANGED_EVENT",
       "Page and sidebar lists must refresh when user hot-cache preferences change.",
+    ],
+    [
+      files.pageListLoadStatus,
+      pageListLoadStatus,
+      "PageListLoadPhase",
+      "Page list load status must expose phase ids for sidebar first-paint diagnostics.",
+    ],
+    [
+      files.pageListLoadStatus,
+      pageListLoadStatus,
+      "buildPageListLoadStatusView",
+      "Page list load status must use a reusable metadata-only view model.",
+    ],
+    [
+      files.pageListLoadStatus,
+      pageListLoadStatus,
+      "Page list load status is metadata-only",
+      "Page list load status must document its metadata-only privacy boundary.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "pageListLoadStatus",
+      "usePages must expose page-list load status to sidebar consumers.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      'createPageListStatusFromPages("cloud-checking"',
+      "usePages must mark cloud metadata correction instead of leaving the sidebar page list ambiguous.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      'data-testid="sidebar-page-list-load-status"',
+      "Sidebar page tree must render a visible page-list load status strip.",
+    ],
+    [
+      files.pageTree,
+      pageTree,
+      "data-first-paint-state={view.firstPaintState}",
+      "Sidebar page-list status must expose first-paint state for smoke checks.",
     ],
     [
       files.localQueries,
