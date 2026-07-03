@@ -2933,6 +2933,11 @@ check(
 check(
   syncDashboardShell.includes("SyncLocalUseReadinessPanel") &&
     syncDashboardShell.includes("buildAccountLocalUseReadiness") &&
+    syncDashboardShell.includes("summarizeSyncSummaryTables(syncSummary") &&
+    syncDashboardShell.includes('"workspace_settings"') &&
+    syncDashboardShell.includes('"page_comments"') &&
+    syncDashboardShell.includes("settingsPendingTotal: settingsWaiting") &&
+    syncDashboardShell.includes("knowledgePendingTotal: knowledgeWaiting") &&
     syncDashboardShell.includes('id="sync-local-use-readiness-panel"') &&
     syncDashboardShell.includes('data-testid="sync-local-use-readiness-panel"') &&
     syncDashboardShell.includes("data-local-use-status={readiness.status}") &&

@@ -10884,6 +10884,26 @@ function run() {
       "fileStatus: fileEmbedPendingStatus",
       "Sync UI cache rebuild preflight must include file embed queue status.",
     ],
+    [
+      "summarizeSyncSummaryTables(syncSummary",
+      "Sync UI top local-use snapshot must reuse the existing sync summary instead of adding extra polling.",
+    ],
+    [
+      '"workspace_settings"',
+      "Sync UI local-use queue breakdown must include workspace/account/module setting tables.",
+    ],
+    [
+      '"page_comments"',
+      "Sync UI local-use queue breakdown must include comment/version/wiki-link tables.",
+    ],
+    [
+      "settingsPendingTotal: settingsWaiting",
+      "Sync UI local-use queue breakdown must classify workspace/account/module settings pending rows.",
+    ],
+    [
+      "knowledgePendingTotal: knowledgeWaiting",
+      "Sync UI local-use queue breakdown must classify comments, versions, and wiki-link pending rows.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }

@@ -2147,25 +2147,50 @@ function SyncDashboard() {
       databasePendingStatus.queued +
       databasePendingStatus.syncLogPending;
     const fileWaiting = fileEmbedPendingStatus.pending;
+    const settingsQueue = summarizeSyncSummaryTables(syncSummary, [
+      "workspace_settings",
+      "account_settings",
+      "module_settings",
+    ]);
+    const knowledgeQueue = summarizeSyncSummaryTables(syncSummary, [
+      "wiki_links",
+      "page_comments",
+      "block_comments",
+      "page_versions",
+    ]);
+    const settingsWaiting = settingsQueue.pending;
+    const knowledgeWaiting = knowledgeQueue.pending;
+    const settingsVisibleWork = settingsQueue.total > 0;
+    const knowledgeVisibleWork = knowledgeQueue.total > 0;
     const pendingTotal = Math.max(
-      pageWaiting + databaseWaiting + fileWaiting,
+      pageWaiting +
+        databaseWaiting +
+        fileWaiting +
+        settingsWaiting +
+        knowledgeWaiting,
       syncSummary?.pending ?? 0
     );
     const failedTotal = Math.max(
       pagePendingStatus.failed +
         databasePendingStatus.failed +
-        fileEmbedPendingStatus.failed,
+        fileEmbedPendingStatus.failed +
+        settingsQueue.failed +
+        knowledgeQueue.failed,
       syncSummary?.failed ?? 0
     );
     const manualReviewTotal = Math.max(
       pagePendingStatus.manualReviewCount +
         databasePendingStatus.manualReviewCount +
-        fileEmbedPendingStatus.manualReviewCount,
+        fileEmbedPendingStatus.manualReviewCount +
+        settingsQueue.manualReview +
+        knowledgeQueue.manualReview,
       syncSummary?.manualReview ?? 0
     );
     const enabledDomainCount =
       (pagePendingStatus.enabled ? 1 : 0) +
-      (databasePendingStatus.enabled ? 1 : 0);
+      (databasePendingStatus.enabled ? 1 : 0) +
+      (settingsVisibleWork ? 1 : 0) +
+      (knowledgeVisibleWork ? 1 : 0);
     return {
       pendingTotal,
       failedTotal,
@@ -2174,6 +2199,8 @@ function SyncDashboard() {
       pagePendingTotal: pageWaiting,
       databasePendingTotal: databaseWaiting,
       filePendingTotal: fileWaiting,
+      settingsPendingTotal: settingsWaiting,
+      knowledgePendingTotal: knowledgeWaiting,
       fileFailedTotal: fileEmbedPendingStatus.failed,
       fileManualReviewTotal: fileEmbedPendingStatus.manualReviewCount,
     };
@@ -2208,6 +2235,8 @@ function SyncDashboard() {
       pagePendingTotal: syncLocalUseQueueSnapshot.pagePendingTotal,
       databasePendingTotal: syncLocalUseQueueSnapshot.databasePendingTotal,
       filePendingTotal: syncLocalUseQueueSnapshot.filePendingTotal,
+      settingsPendingTotal: syncLocalUseQueueSnapshot.settingsPendingTotal,
+      knowledgePendingTotal: syncLocalUseQueueSnapshot.knowledgePendingTotal,
       fileFailedTotal: syncLocalUseQueueSnapshot.fileFailedTotal,
       fileManualReviewTotal: syncLocalUseQueueSnapshot.fileManualReviewTotal,
     });
@@ -25983,6 +26012,24 @@ function buildPendingDomainRows(
       return PENDING_DOMAIN_DEFINITIONS.findIndex((item) => item.id === a.id) -
         PENDING_DOMAIN_DEFINITIONS.findIndex((item) => item.id === b.id);
     });
+}
+
+function summarizeSyncSummaryTables(
+  syncSummary: SyncLogSummary | null,
+  tableNames: string[]
+) {
+  const tableNameSet = new Set(tableNames);
+  const matchingTables =
+    syncSummary?.tables.filter((table) => tableNameSet.has(table.tableName)) ??
+    [];
+  return {
+    pending: sumPendingTables(matchingTables, "pending"),
+    failed: sumPendingTables(matchingTables, "failed"),
+    inFlight: sumPendingTables(matchingTables, "inFlight"),
+    manualReview: sumPendingTables(matchingTables, "manualReview"),
+    total: sumPendingTables(matchingTables, "total"),
+    lastChangeAt: latestPendingDomainChange(matchingTables),
+  };
 }
 
 function mergeCorePendingDomainRows(
