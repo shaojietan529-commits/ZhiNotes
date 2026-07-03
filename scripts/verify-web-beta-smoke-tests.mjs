@@ -2918,6 +2918,26 @@ function run() {
       "Local-first cloud input plan must protect the pending queue.",
     ],
     [
+      "fileStatus: PendingFileEmbedSyncStatus",
+      "Local-first cloud input plan must accept file embed queue status.",
+    ],
+    [
+      "file_waiting_rows",
+      "Local-first cloud input plan must count pending file rows.",
+    ],
+    [
+      "file-embed-queue-visible",
+      "Local-first cloud input plan must gate on visible file embed queue state.",
+    ],
+    [
+      "input.fileStatus.failed",
+      "Local-first cloud input plan must include file sync failures.",
+    ],
+    [
+      "input.fileStatus.manualReviewCount",
+      "Local-first cloud input plan must include file sync manual-review rows.",
+    ],
+    [
       "input.syncSummary?.manualReview ?? 0",
       "Local-first cloud input plan must include full-domain sync_log manual-review rows.",
     ],
@@ -2961,6 +2981,14 @@ function run() {
     [
       "等待 durable ack",
       "Sync UI must distinguish local save from durable cloud acknowledgement.",
+    ],
+    [
+      "fileStatus: fileEmbedPendingStatus",
+      "Sync UI must pass file embed queue status into the local-first cloud input plan.",
+    ],
+    [
+      "plan.summary.file_waiting_rows",
+      "Sync UI must show file waiting rows in the local-first cloud input plan summary.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);

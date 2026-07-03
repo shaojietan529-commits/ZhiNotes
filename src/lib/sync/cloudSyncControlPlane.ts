@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import type { CloudAckCacheSafetyReport } from "@/lib/sync/cloudAckCacheSafetyReport";
 import type { CloudUploadReliabilityReport } from "@/lib/sync/cloudUploadReliabilityReport";
@@ -33,6 +34,7 @@ export type CloudSyncControlPlaneAction =
 export interface CloudSyncControlPlaneInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
+  fileStatus: PendingFileEmbedSyncStatus;
   syncSummary: SyncLogSummary | null;
   localFirstCloudInputPlan: LocalFirstCloudInputPlan;
   cloudUploadReliabilityReport: CloudUploadReliabilityReport;
@@ -128,6 +130,7 @@ export interface CloudSyncControlPlane {
     blocked: number;
     page_waiting_rows: number;
     database_waiting_rows: number;
+    file_waiting_rows: number;
     sync_log_pending_rows: number;
     total_waiting_rows: number;
     failed_rows: number;
@@ -135,6 +138,7 @@ export interface CloudSyncControlPlane {
     cloud_workspace_linked: boolean;
     page_sync_enabled: boolean;
     database_sync_enabled: boolean;
+    file_sync_enabled: boolean;
     oldest_pending_age_label: string;
     last_drain_safe_to_switch_device: boolean;
     hot_cache_ready_jobs: number;
@@ -155,21 +159,28 @@ export function buildCloudSyncControlPlane(
     input.databaseStatus.pending +
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
+  const fileWaitingRows = input.fileStatus.pending;
   const syncLogPendingRows = input.syncSummary?.pending ?? 0;
   const totalWaitingRows =
-    pageWaitingRows + databaseWaitingRows + syncLogPendingRows;
+    pageWaitingRows +
+    databaseWaitingRows +
+    fileWaitingRows +
+    syncLogPendingRows;
   const failedRows = Math.max(
-    input.pageStatus.failed + input.databaseStatus.failed,
+    input.pageStatus.failed + input.databaseStatus.failed + input.fileStatus.failed,
     input.syncSummary?.failed ?? 0
   );
   const manualReviewRows = Math.max(
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.pageStatus.manualReviewCount +
+      input.databaseStatus.manualReviewCount +
+      input.fileStatus.manualReviewCount,
     input.syncSummary?.manualReview ?? 0
   );
   const cloudWorkspaceLinked =
     input.handoffReadinessReceipt.summary.cloud_workspace_linked;
   const pageSyncEnabled = input.pageStatus.enabled;
   const databaseSyncEnabled = input.databaseStatus.enabled;
+  const fileSyncEnabled = input.fileStatus.enabled;
   const lastDrainSafeToSwitchDevice =
     input.lastDrainReceipt?.summary.safe_to_switch_device_now ?? false;
   const hotCacheReadyJobs = input.hotCacheWarmupPlan.jobs.filter(
@@ -189,7 +200,8 @@ export function buildCloudSyncControlPlane(
     failedRows === 0 &&
     manualReviewRows === 0 &&
     pageSyncEnabled &&
-    databaseSyncEnabled;
+    databaseSyncEnabled &&
+    fileSyncEnabled;
   const canKeepTypingNow =
     input.localFirstCloudInputPlan.can_confirm_local_save_immediately &&
     manualReviewRows === 0;
@@ -200,6 +212,7 @@ export function buildCloudSyncControlPlane(
     input,
     pageWaitingRows,
     databaseWaitingRows,
+    fileWaitingRows,
     syncLogPendingRows,
     totalWaitingRows,
     failedRows,
@@ -207,6 +220,7 @@ export function buildCloudSyncControlPlane(
     cloudWorkspaceLinked,
     pageSyncEnabled,
     databaseSyncEnabled,
+    fileSyncEnabled,
     lastDrainSafeToSwitchDevice,
     hotCacheReadyJobs,
     canKeepTypingNow,
@@ -247,7 +261,7 @@ export function buildCloudSyncControlPlane(
     can_upload_workspace_data_now: false,
     can_clear_local_cache_now: false,
     privacy_boundary:
-      "Generated locally from page/database pending queues, sync_log counts, last drain receipt, handoff readiness, hot-cache plan, cloud ACK/cache safety, and upload reliability metadata. It does not read or export page ids, database keys, page bodies, Yjs payloads, database row values, comments, file names, file bytes, secrets, tokens, cookies, credentials, or raw workspace content. It does not send network requests, upload workspace data, write server data, mutate local cache, clear local cache, mark local rows synced, enable sync push/pull, or enable AI.",
+      "Generated locally from page/database/file pending queues, sync_log counts, last drain receipt, handoff readiness, hot-cache plan, cloud ACK/cache safety, and upload reliability metadata. It does not read or export page ids, database keys, page bodies, Yjs payloads, database row values, comments, file names, file bytes, secrets, tokens, cookies, credentials, or raw workspace content. It does not send network requests, upload workspace data, write server data, mutate local cache, clear local cache, mark local rows synced, enable sync push/pull, or enable AI.",
     boundary: {
       local_control_plane_only: true,
       reads_queue_counts: true,
@@ -284,6 +298,7 @@ export function buildCloudSyncControlPlane(
       blocked,
       page_waiting_rows: pageWaitingRows,
       database_waiting_rows: databaseWaitingRows,
+      file_waiting_rows: fileWaitingRows,
       sync_log_pending_rows: syncLogPendingRows,
       total_waiting_rows: totalWaitingRows,
       failed_rows: failedRows,
@@ -291,6 +306,7 @@ export function buildCloudSyncControlPlane(
       cloud_workspace_linked: cloudWorkspaceLinked,
       page_sync_enabled: pageSyncEnabled,
       database_sync_enabled: databaseSyncEnabled,
+      file_sync_enabled: fileSyncEnabled,
       oldest_pending_age_label:
         input.handoffReadinessReceipt.summary.oldest_pending_age_label,
       last_drain_safe_to_switch_device: lastDrainSafeToSwitchDevice,
@@ -316,6 +332,7 @@ function buildDecisions(input: {
   input: CloudSyncControlPlaneInput;
   pageWaitingRows: number;
   databaseWaitingRows: number;
+  fileWaitingRows: number;
   syncLogPendingRows: number;
   totalWaitingRows: number;
   failedRows: number;
@@ -323,6 +340,7 @@ function buildDecisions(input: {
   cloudWorkspaceLinked: boolean;
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
+  fileSyncEnabled: boolean;
   lastDrainSafeToSwitchDevice: boolean;
   hotCacheReadyJobs: number;
   canKeepTypingNow: boolean;
@@ -365,7 +383,7 @@ function buildDecisions(input: {
         : input.totalWaitingRows > 0
           ? "等待登录/配置/退避恢复"
           : "暂无待补传",
-      evidence: `${input.pageWaitingRows} 页面 · ${input.databaseWaitingRows} 数据库 · ${input.syncLogPendingRows} sync_log。`,
+      evidence: `${input.pageWaitingRows} 页面 · ${input.databaseWaitingRows} 数据库 · ${input.fileWaitingRows} 文件 · ${input.syncLogPendingRows} sync_log。`,
       nextAction: input.shouldRunBackgroundDrainNow
         ? "运行普通补传；只补传明确排队的本地修改。"
         : input.totalWaitingRows > 0
@@ -470,7 +488,7 @@ function buildInstructions(input: {
           : "run-background-drain",
       label: "再补传 pending queue",
       trigger: input.shouldRunBackgroundDrainNow
-        ? "页面和数据库同步开启，且存在待补传记录。"
+        ? "页面、数据库和文件队列同步开启，且存在待补传记录。"
         : "待补传记录为空、同步未开启，或存在失败/人工处理记录。",
       execution: "只处理显式 pending rows；不做全量上传。",
       owner_visible_copy:

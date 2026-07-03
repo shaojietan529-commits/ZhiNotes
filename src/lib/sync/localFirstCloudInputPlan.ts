@@ -1,5 +1,6 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
 import type { SyncLogSummary } from "@/lib/db/local/queries";
+import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import type {
   CloudNativeFluidityGateStatus,
@@ -22,6 +23,7 @@ export type LocalFirstCloudInputGateStatus =
 export interface LocalFirstCloudInputPlanInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
+  fileStatus: PendingFileEmbedSyncStatus;
   syncSummary: SyncLogSummary | null;
   cloudNativeFluidityReport: CloudNativeFluidityReport;
   syncPushApiGuard: SyncPushApiDisabledResponse;
@@ -94,6 +96,7 @@ export interface LocalFirstCloudInputPlan {
     blockers: number;
     page_waiting_rows: number;
     database_waiting_rows: number;
+    file_waiting_rows: number;
     sync_log_pending_rows: number;
     failed_rows: number;
     manual_review_rows: number;
@@ -119,17 +122,20 @@ export function buildLocalFirstCloudInputPlan(
     input.databaseStatus.pending +
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
+  const fileWaitingRows = input.fileStatus.pending;
   const syncLogPendingRows = input.syncSummary?.pending ?? 0;
   const failedRows = Math.max(
-    input.pageStatus.failed + input.databaseStatus.failed,
+    input.pageStatus.failed + input.databaseStatus.failed + input.fileStatus.failed,
     input.syncSummary?.failed ?? 0
   );
   const manualReviewRows = Math.max(
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.pageStatus.manualReviewCount +
+      input.databaseStatus.manualReviewCount +
+      input.fileStatus.manualReviewCount,
     input.syncSummary?.manualReview ?? 0
   );
   const totalWaitingRows =
-    pageWaitingRows + databaseWaitingRows + syncLogPendingRows;
+    pageWaitingRows + databaseWaitingRows + fileWaitingRows + syncLogPendingRows;
   const cloudDomainsEnabled =
     (input.pageStatus.enabled ? 1 : 0) +
     (input.databaseStatus.enabled ? 1 : 0);
@@ -151,6 +157,7 @@ export function buildLocalFirstCloudInputPlan(
   const gates = buildGates({
     pageWaitingRows,
     databaseWaitingRows,
+    fileWaitingRows,
     syncLogPendingRows,
     failedRows,
     manualReviewRows,
@@ -219,6 +226,7 @@ export function buildLocalFirstCloudInputPlan(
       blockers,
       page_waiting_rows: pageWaitingRows,
       database_waiting_rows: databaseWaitingRows,
+      file_waiting_rows: fileWaitingRows,
       sync_log_pending_rows: syncLogPendingRows,
       failed_rows: failedRows,
       manual_review_rows: manualReviewRows,
@@ -237,7 +245,7 @@ export function buildLocalFirstCloudInputPlan(
       "Append or update the explicit pending queue entry without blocking typing or navigation.",
       "Run background upload when account cloud sync is enabled and auth is healthy.",
       "Keep the row in pending state until a durable cloud acknowledgement is recorded.",
-      "Show 云端已确认 only after waiting rows, failed rows, and manual review rows are all zero.",
+      "Show 云端已确认 only after page, database, file, sync_log waiting rows, failed rows, and manual review rows are all zero.",
       "Block cache rebuild and device handoff when failed/manual-review rows exist.",
     ],
     next_action: getNextAction({
@@ -253,6 +261,7 @@ export function buildLocalFirstCloudInputPlan(
 function buildGates(input: {
   pageWaitingRows: number;
   databaseWaitingRows: number;
+  fileWaitingRows: number;
   syncLogPendingRows: number;
   failedRows: number;
   manualReviewRows: number;
@@ -296,6 +305,18 @@ function buildGates(input: {
       "账号页必须保持数据库同步开启，且关闭时不能提示云端已确认。"
     ),
     gate(
+      "file-embed-queue-visible",
+      "文件嵌入队列可见",
+      input.input.fileStatus.enabled ? "pass" : "block",
+      input.input.fileStatus.enabled
+        ? `文件队列可见，等待 ${input.fileWaitingRows} 条，最近失败 ${input.input.fileStatus.lastFailureAt ?? "暂无"}。`
+        : "文件嵌入队列不可用；HTML、PDF、Word、Excel 等附件不会可靠进入云端确认口径。",
+      input.input.fileStatus.enabled
+        ? "文件和报告可以进入后台上传队列观察。"
+        : "只能显示“本地已保存，文件队列不可确认”。",
+      "文件队列必须保持可见，且 pending/failed/manual review 未清零时不能提示云端已确认。"
+    ),
+    gate(
       "pending-queue-preserved",
       "等待上传队列受保护",
       input.totalWaitingRows === 0 ? "pass" : "warn",
@@ -312,7 +333,7 @@ function buildGates(input: {
       "失败记录清零",
       input.failedRows === 0 ? "pass" : "block",
       input.failedRows === 0
-        ? "页面和数据库没有失败记录。"
+        ? "页面、数据库和文件没有失败记录。"
         : `当前有 ${input.failedRows} 条失败记录。`,
       input.failedRows === 0
         ? "无需展示错误状态。"
@@ -386,7 +407,8 @@ function buildUiStates(): LocalFirstCloudInputUiState[] {
     {
       id: "cloud-confirmed",
       label: "云端已确认",
-      when_to_show: "页面和数据库同步都开启，等待/失败/人工处理记录均为 0，且有 lastSyncAt。",
+      when_to_show:
+        "页面和数据库同步都开启，页面/数据库/文件/sync_log 等待、失败、人工处理记录均为 0，且有 lastSyncAt。",
       copy: "云端已确认。",
       blocks_navigation: false,
       blocks_cache_rebuild: false,

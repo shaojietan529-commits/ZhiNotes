@@ -12015,6 +12015,30 @@ function run() {
       "Local-first cloud input plan must gate on database cloud queue enablement.",
     ],
     [
+      "fileStatus: PendingFileEmbedSyncStatus",
+      "Local-first cloud input plan must accept file embed queue status.",
+    ],
+    [
+      "file_waiting_rows",
+      "Local-first cloud input plan must count pending file rows.",
+    ],
+    [
+      "file-embed-queue-visible",
+      "Local-first cloud input plan must gate on visible file embed queue state.",
+    ],
+    [
+      "input.fileStatus.pending",
+      "Local-first cloud input plan must include pending file rows in waiting totals.",
+    ],
+    [
+      "input.fileStatus.failed",
+      "Local-first cloud input plan must include file sync failures.",
+    ],
+    [
+      "input.fileStatus.manualReviewCount",
+      "Local-first cloud input plan must include file sync manual-review rows.",
+    ],
+    [
       "pending-queue-preserved",
       "Local-first cloud input plan must protect pending queue state.",
     ],
@@ -12285,6 +12309,30 @@ function run() {
       "Cloud sync control plane must surface failure messages.",
     ],
     [
+      "fileStatus: PendingFileEmbedSyncStatus",
+      "Cloud sync control plane must accept file embed queue status.",
+    ],
+    [
+      "file_waiting_rows",
+      "Cloud sync control plane must count pending file rows.",
+    ],
+    [
+      "file_sync_enabled",
+      "Cloud sync control plane must expose file sync enablement.",
+    ],
+    [
+      "input.fileStatus.pending",
+      "Cloud sync control plane must include pending file rows in waiting totals.",
+    ],
+    [
+      "input.fileStatus.failed",
+      "Cloud sync control plane must include file sync failures.",
+    ],
+    [
+      "input.fileStatus.manualReviewCount",
+      "Cloud sync control plane must include file sync manual-review rows.",
+    ],
+    [
       "reads_handoff_hashes: true",
       "Cloud sync control plane must use handoff hashes rather than raw workspace ids.",
     ],
@@ -12428,6 +12476,14 @@ function run() {
     [
       "onDrainAll={() => void handleDrainAllPendingPush()}",
       "Cloud sync control plane UI must route to the existing drain-all pending action.",
+    ],
+    [
+      "fileStatus: fileEmbedPendingStatus",
+      "SyncShell must pass file embed queue status into the cloud sync control plane.",
+    ],
+    [
+      "plane.summary.file_waiting_rows",
+      "SyncShell must show file waiting rows in the cloud sync control plane summary.",
     ],
     [
       "onWarmup={() => void handleRunHotCacheWarmup()}",
@@ -15017,6 +15073,14 @@ function run() {
     [
       "等待 durable ack",
       "Sync UI must distinguish local save from cloud acknowledgement.",
+    ],
+    [
+      "fileStatus: fileEmbedPendingStatus",
+      "Sync UI must pass file embed queue status into the local-first cloud input plan.",
+    ],
+    [
+      "plan.summary.file_waiting_rows",
+      "Sync UI must show file waiting rows in the local-first cloud input plan summary.",
     ],
     [
       "buildCloudUploadReliabilityReport",

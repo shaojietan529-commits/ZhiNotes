@@ -2255,6 +2255,7 @@ function SyncDashboard() {
       buildLocalFirstCloudInputPlan({
         pageStatus: pagePendingStatus,
         databaseStatus: databasePendingStatus,
+        fileStatus: fileEmbedPendingStatus,
         syncSummary,
         cloudNativeFluidityReport,
         syncPushApiGuard,
@@ -2263,6 +2264,7 @@ function SyncDashboard() {
     [
       cloudNativeFluidityReport,
       databasePendingStatus,
+      fileEmbedPendingStatus,
       pagePendingStatus,
       syncDrainReceipt,
       syncPushApiGuard,
@@ -2516,6 +2518,7 @@ function SyncDashboard() {
       buildCloudSyncControlPlane({
         pageStatus: pagePendingStatus,
         databaseStatus: databasePendingStatus,
+        fileStatus: fileEmbedPendingStatus,
         syncSummary,
         localFirstCloudInputPlan,
         cloudUploadReliabilityReport,
@@ -2529,6 +2532,7 @@ function SyncDashboard() {
       cloudAckCacheSafetyReport,
       cloudUploadReliabilityReport,
       databasePendingStatus,
+      fileEmbedPendingStatus,
       hotCacheWarmupPlan,
       hotCacheWarmupReceipt,
       localFirstCloudInputPlan,
@@ -22189,7 +22193,7 @@ function CloudSyncControlPlanePanel({
         <CacheRebuildFact
           label="后台补传"
           value={plane.should_run_background_drain_now ? "建议运行" : "暂不需要"}
-          detail={`${plane.summary.total_waiting_rows} 条等待`}
+          detail={`${plane.summary.page_waiting_rows} 页面 · ${plane.summary.database_waiting_rows} 数据库 · ${plane.summary.file_waiting_rows} 文件`}
         />
         <CacheRebuildFact
           label="云端确认"
@@ -22689,7 +22693,7 @@ function LocalFirstCloudInputPlanPanel({
         <CacheRebuildFact
           label="等待"
           value={String(plan.summary.total_waiting_rows)}
-          detail={`${plan.summary.page_waiting_rows} 页面 · ${plan.summary.database_waiting_rows} 数据库`}
+          detail={`${plan.summary.page_waiting_rows} 页面 · ${plan.summary.database_waiting_rows} 数据库 · ${plan.summary.file_waiting_rows} 文件`}
         />
         <CacheRebuildFact
           label="失败"
