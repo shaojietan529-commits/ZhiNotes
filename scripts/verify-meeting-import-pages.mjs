@@ -16,11 +16,21 @@ const root = process.cwd();
 const require = createRequire(import.meta.url);
 const importPath = "src/lib/meetings/meetingImportPages.ts";
 const importRoutePath = "src/app/api/meetings/import/route.ts";
+const accountSyncRoutePath = "src/app/api/pages/account-sync/route.ts";
+const accountSyncClientPath = "src/lib/pages/accountPageSync.ts";
 const kvStore = new Map();
 let idCounter = 0;
 
 const importer = loadImporter(path.join(root, importPath));
 const importRouteSource = readFileSync(path.join(root, importRoutePath), "utf8");
+const accountSyncRouteSource = readFileSync(
+  path.join(root, accountSyncRoutePath),
+  "utf8"
+);
+const accountSyncClientSource = readFileSync(
+  path.join(root, accountSyncClientPath),
+  "utf8"
+);
 
 const payload = {
   schema_version: "zhinotes.meeting_import.v1",
@@ -108,6 +118,26 @@ expect(
   importRouteSource.includes("calendar: result.calendar"),
   "import route should return the calendar visibility receipt"
 );
+expect(
+  accountSyncClientSource.includes('action: "meeting-calendar-metadata"'),
+  "client sync helper should request meeting calendar metadata"
+);
+expect(
+  accountSyncRouteSource.includes('body.action === "meeting-calendar-metadata"'),
+  "account sync route should expose meeting calendar metadata"
+);
+expect(
+  /async function getMeetingCalendarMetadata[\s\S]*refreshMeetingCalendarCacheFromChangeLog/.test(
+    accountSyncRouteSource
+  ),
+  "meeting metadata should attempt a change-log refresh before full rebuild"
+);
+expect(
+  /async function refreshMeetingCalendarCacheFromChangeLog[\s\S]*readChangedPageRecordsFromChangeLog[\s\S]*updateMeetingCalendarCacheWithRecords[\s\S]*writeMeetingCalendarCache/.test(
+    accountSyncRouteSource
+  ),
+  "meeting metadata change-log refresh should read changed ids, update cache records, and persist the cache"
+);
 
 if (failures.length > 0) {
   console.error("verify:meeting-import 失败：");
@@ -121,11 +151,14 @@ console.log(
     {
       importer: importPath,
       route: importRoutePath,
+      metadata_route: accountSyncRoutePath,
+      metadata_client: accountSyncClientPath,
       synthetic_imports: 1,
       index_records: Object.keys(index ?? {}).length,
       change_log_entries: changeLog?.length ?? 0,
       changed_page_ids: result.calendar.changedPageIds.length,
       calendar_date_key: result.calendar.dateKey,
+      downstream_cache_refresh_contract: true,
       privacy_boundary:
         "Synthetic in-memory KV verification only. It does not connect real cloud storage, read browser storage, page bodies, real meeting content, transcripts, join URLs, passcodes, cookies, credentials, or file bytes.",
     },
