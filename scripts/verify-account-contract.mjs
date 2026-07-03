@@ -272,6 +272,7 @@ check(
     accountClientSession.includes("getLastAuthenticatedAccount") &&
     accountClientSession.includes("rememberLastAuthenticatedAccount") &&
     accountClientSession.includes("withStoredAuthenticatedFallback") &&
+    accountClientSession.includes('| "unconfirmed"') &&
     accountClientSession.includes("const fallbackSession = withStoredAuthenticatedFallback(") &&
     accountClientSession.includes("cachedAccountSession = fallbackSession") &&
     accountClientSession.includes("return fallbackSession") &&
@@ -299,6 +300,7 @@ check(
   accountClientSession.includes(
     'data.retryable || data.reason === "session-unconfirmed"'
   ) &&
+    accountClientSession.includes('status: "unconfirmed"') &&
     accountClientSession.includes(
       "account session temporarily unconfirmed"
     ) &&
@@ -338,6 +340,7 @@ check(
 check(
   shell.includes("session.authenticated && session.account") &&
     shell.includes("session.stale") &&
+    shell.includes('session.status === "unconfirmed" || session.status === "error"') &&
     shell.includes("已保留最近一次登录状态") &&
     shell.indexOf("session.authenticated && session.account") <
       shell.indexOf('session.status === "unconfigured"'),
@@ -349,6 +352,10 @@ check(
     accountCloudSyncGate.includes(
       'session.status === "unconfigured" && session.authenticated'
     ) &&
+    accountCloudSyncGate.includes(
+      'session.status === "unconfirmed" && session.authenticated'
+    ) &&
+    accountCloudSyncGate.includes('session.status === "unconfirmed"') &&
     accountCloudSyncGate.includes("session.stale && session.authenticated") &&
     accountCloudSyncGate.includes("authenticated: session.authenticated") &&
     accountCloudSyncGate.includes("reads_page_body_text: false") &&
@@ -363,6 +370,12 @@ check(
     'session.status === "unconfigured" && session.authenticated'
   ) < accountCloudSyncGate.indexOf('if (session.status === "unconfigured") {'),
   "账号云同步 gate 必须先识别最近登录账号兜底，再处理真正未配置状态"
+);
+check(
+  accountCloudSyncGate.indexOf(
+    'session.status === "unconfirmed" && session.authenticated'
+  ) < accountCloudSyncGate.indexOf('if (session.status === "unconfirmed") {'),
+  "账号云同步 gate 必须先识别最近登录账号兜底，再把 session-unconfirmed 作为可重试账号检查错误"
 );
 const page = read("src/app/(workspace)/account/page.tsx");
 check(page.includes("AccountShell"), "/account 路由缺少 AccountShell");
@@ -3169,6 +3182,7 @@ check(
     ) &&
     sidebar.includes("accountSessionFallback") &&
     sidebar.includes("getAccountSessionFallbackReason") &&
+    sidebar.includes('status === "unconfirmed"') &&
     sidebar.includes("session.stale") &&
     sidebar.includes("session.staleReason") &&
     sidebar.includes("setAccountLabel(formatClientAccountLabel(session.account))") &&

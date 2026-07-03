@@ -49,12 +49,30 @@ export async function checkAccountCloudSyncGate(
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }
+  if (session.status === "unconfirmed" && session.authenticated) {
+    return {
+      status: "error",
+      authenticated: true,
+      reason: "account-check-failed",
+      retryable: true,
+      boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
+    };
+  }
   if (session.status === "unconfigured") {
     return {
       status: "unconfigured",
       authenticated: false,
       reason: "account-unconfigured",
       retryable: false,
+      boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
+    };
+  }
+  if (session.status === "unconfirmed") {
+    return {
+      status: "error",
+      authenticated: false,
+      reason: "account-check-failed",
+      retryable: true,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }

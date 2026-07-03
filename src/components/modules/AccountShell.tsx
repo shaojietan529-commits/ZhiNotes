@@ -393,7 +393,7 @@ export default function AccountShell() {
         setPhase("unconfigured");
         return;
       }
-      if (session.status === "error") {
+      if (session.status === "unconfirmed" || session.status === "error") {
         setPhase("error");
         return;
       }

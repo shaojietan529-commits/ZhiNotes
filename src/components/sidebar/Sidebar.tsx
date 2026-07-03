@@ -488,6 +488,9 @@ function getAccountSessionFallbackReason(
   if (status === "unconfigured") {
     return "账号系统暂时不可用，已显示上次登录用户名";
   }
+  if (status === "unconfirmed") {
+    return "账号会话暂时无法确认，已显示上次登录用户名";
+  }
   return "账号云端暂不可确认，已显示上次登录用户名";
 }
 

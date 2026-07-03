@@ -12,7 +12,11 @@ export const ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY =
 // do not make a valid long-lived login look signed out after one day.
 const ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
-export type AccountSessionStatus = "ok" | "unconfigured" | "error";
+export type AccountSessionStatus =
+  | "ok"
+  | "unconfigured"
+  | "unconfirmed"
+  | "error";
 
 export interface AccountSessionResult {
   status: AccountSessionStatus;
@@ -58,6 +62,7 @@ export async function fetchAccountSession(
     if (
       now < accountSessionRetryAfter &&
       (cachedAccountSession.status === "unconfigured" ||
+        cachedAccountSession.status === "unconfirmed" ||
         cachedAccountSession.status === "error")
     ) {
       return cachedAccountSession;
@@ -90,7 +95,9 @@ export async function fetchAccountSession(
   cachedAccountSession = result;
   cachedAccountSessionAt = Date.now();
   accountSessionRetryAfter =
-    result.status === "unconfigured" || result.status === "error"
+    result.status === "unconfigured" ||
+    result.status === "unconfirmed" ||
+    result.status === "error"
       ? Date.now() + ACCOUNT_SESSION_RETRY_BACKOFF_MS
       : 0;
   if (result.authenticated && result.account && !result.stale) {
@@ -135,7 +142,7 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
     }
     if (data.retryable || data.reason === "session-unconfirmed") {
       return {
-        status: "error",
+        status: "unconfirmed",
         authenticated: false,
         account: null,
         error:
@@ -214,6 +221,7 @@ function withStoredAuthenticatedFallback(
   const canUseFallback =
     result.status === "error" ||
     result.status === "unconfigured" ||
+    result.status === "unconfirmed" ||
     (result.status === "ok" && !result.authenticated);
   if (!canUseFallback) return result;
   const account = readStoredAuthenticatedAccount(now);
@@ -227,8 +235,10 @@ function withStoredAuthenticatedFallback(
       result.status === "ok"
         ? "account session could not be confirmed; explicit logout clears this fallback"
         : result.status === "unconfigured"
-        ? "account system temporarily unconfigured"
-        : result.error ?? "account session check temporarily unavailable",
+          ? "account system temporarily unconfigured"
+          : result.status === "unconfirmed"
+            ? "account session temporarily unconfirmed"
+            : result.error ?? "account session check temporarily unavailable",
   };
 }
 
