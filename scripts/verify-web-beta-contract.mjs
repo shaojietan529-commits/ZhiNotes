@@ -23011,6 +23011,30 @@ function run() {
     [
       files.accountShell,
       accountShell,
+      "HOT_CACHE_PREFERENCES_CHANGED_EVENT",
+      "Account hot-cache preferences must refresh when another local module updates the same setting.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY",
+      "Account hot-cache preferences must refresh from cross-tab preference pings.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "handleHotCachePreferencesChanged",
+      "Account hot-cache preferences must handle same-tab preference updates without waiting for login reload.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "handleHotCachePreferencesStorage",
+      "Account hot-cache preferences must handle cross-tab preference updates without waiting for polling.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
       "不写 sync_log",
       "Account hot-cache route warmup must disclose that it does not enter the upload queue.",
     ],

@@ -68,6 +68,8 @@ import {
 } from "@/lib/sync/settingsSyncStatus";
 import {
   DEFAULT_HOT_CACHE_PREFERENCES,
+  HOT_CACHE_PREFERENCES_CHANGED_EVENT,
+  HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY,
   HOT_CACHE_PREFERENCES_SETTING_KEY,
   metadataRecentLimitForHotCachePreferences,
   normalizeHotCachePreferences,
@@ -326,6 +328,38 @@ export default function AccountShell() {
   useEffect(() => {
     if (phase !== "signed-in") return;
     void refreshHotCachePreferences();
+  }, [phase, refreshHotCachePreferences]);
+
+  useEffect(() => {
+    if (phase !== "signed-in") return;
+    const handleHotCachePreferencesChanged = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ preferences?: Partial<HotCachePreferences> }>
+      ).detail;
+      if (detail?.preferences) {
+        setHotCacheSettingSaved(true);
+        setHotCachePreferences(normalizeHotCachePreferences(detail.preferences));
+        return;
+      }
+      void refreshHotCachePreferences();
+    };
+    const handleHotCachePreferencesStorage = (event: StorageEvent) => {
+      if (event.key === HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY) {
+        void refreshHotCachePreferences();
+      }
+    };
+    window.addEventListener(
+      HOT_CACHE_PREFERENCES_CHANGED_EVENT,
+      handleHotCachePreferencesChanged
+    );
+    window.addEventListener("storage", handleHotCachePreferencesStorage);
+    return () => {
+      window.removeEventListener(
+        HOT_CACHE_PREFERENCES_CHANGED_EVENT,
+        handleHotCachePreferencesChanged
+      );
+      window.removeEventListener("storage", handleHotCachePreferencesStorage);
+    };
   }, [phase, refreshHotCachePreferences]);
 
   const setSignedInAccount = useCallback((nextAccount: ClientAccountInfo) => {

@@ -187,6 +187,10 @@ check(
     shell.includes("parseHotCachePreferences") &&
     shell.includes("normalizeHotCachePreferences") &&
     shell.includes("notifyHotCachePreferencesChanged") &&
+    shell.includes("HOT_CACHE_PREFERENCES_CHANGED_EVENT") &&
+    shell.includes("HOT_CACHE_PREFERENCES_CHANGED_STORAGE_KEY") &&
+    shell.includes("handleHotCachePreferencesChanged") &&
+    shell.includes("handleHotCachePreferencesStorage") &&
     shell.includes("metadataRecentLimitForHotCachePreferences") &&
     shell.includes("getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY)") &&
     shell.includes("upsertWorkspaceSetting(") &&
