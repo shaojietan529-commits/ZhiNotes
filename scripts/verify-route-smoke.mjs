@@ -102,6 +102,7 @@ async function main() {
   try {
     await waitForRoute(`${baseUrl}/daily`, START_TIMEOUT_MS);
     const results = [];
+    const overBudgetRoutes = [];
     for (const route of ROUTES) {
       const result = await requestRoute(`${baseUrl}${route.path}`);
       if (result.statusCode !== route.expectedStatus) {
@@ -122,41 +123,45 @@ async function main() {
       }
       const maxDurationMs =
         route.maxDurationMs ?? DEFAULT_STABLE_ROUTE_BUDGET_MS;
-      if (result.durationMs > maxDurationMs) {
-        throw new Error(
-          `${route.label} exceeded stable-use shell budget: ${Math.round(
-            result.durationMs
-          )}ms > ${maxDurationMs}ms`
-        );
-      }
-      results.push({
+      const routeResult = {
         route: route.path,
         status: result.statusCode,
         durationMs: Math.round(result.durationMs),
         maxDurationMs,
-      });
+      };
+      results.push(routeResult);
+      if (result.durationMs > maxDurationMs) {
+        overBudgetRoutes.push(routeResult);
+      }
     }
     const slowestRoute = results
       .slice()
       .sort((a, b) => b.durationMs - a.durationMs)[0];
+    const receipt = {
+      mode: existingServer ? "existing-next-dev-http" : "next-dev-http",
+      host: HOST,
+      port,
+      stableUseShellBudgetMs: DEFAULT_STABLE_ROUTE_BUDGET_MS,
+      slowestRoute,
+      overBudgetRoutes,
+      routes: results,
+      privacyBoundary:
+        "This check requests only public route shells from a local Next.js server, reusing an already-running local dev server when available or starting a temporary one otherwise. It enforces a conservative stable-use shell response budget and reports every over-budget route together so Daily, ZhiHui, account, sync, module, database, knowledge, industry, portfolio, and page shells cannot silently regress into long blank loads. It reads local module registry and development-stability route metadata only; it does not read browser storage, page bodies, database rows, file bytes, cookies, credentials, or cloud data.",
+    };
+    if (overBudgetRoutes.length > 0) {
+      console.error("Route smoke verification failed");
+      console.error(JSON.stringify(receipt, null, 2));
+      throw new Error(
+        `Stable-use shell budget exceeded: ${overBudgetRoutes
+          .map(
+            (route) =>
+              `${route.route} ${route.durationMs}ms > ${route.maxDurationMs}ms`
+          )
+          .join(", ")}`
+      );
+    }
     console.log("Route smoke verification passed");
-    console.log(
-      JSON.stringify(
-        {
-          mode: existingServer ? "existing-next-dev-http" : "next-dev-http",
-          host: HOST,
-          port,
-          stableUseShellBudgetMs: DEFAULT_STABLE_ROUTE_BUDGET_MS,
-          slowestRoute,
-          overBudgetRoutes: [],
-          routes: results,
-          privacyBoundary:
-            "This check requests only public route shells from a local Next.js server, reusing an already-running local dev server when available or starting a temporary one otherwise. It enforces a conservative stable-use shell response budget so Daily, ZhiHui, account, sync, module, database, knowledge, industry, portfolio, and page shells cannot silently regress into long blank loads. It reads local module registry and development-stability route metadata only; it does not read browser storage, page bodies, database rows, file bytes, cookies, credentials, or cloud data.",
-        },
-        null,
-        2
-      )
-    );
+    console.log(JSON.stringify(receipt, null, 2));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("verify:route-smoke failed:", message);
