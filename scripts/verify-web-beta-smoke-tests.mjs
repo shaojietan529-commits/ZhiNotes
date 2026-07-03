@@ -1416,6 +1416,10 @@ function run() {
       "Daily peek close must clear matching opening feedback so dismissed local drafts do not look stuck.",
     ],
     [
+      "openDailyPeekFullPage",
+      "Daily peek full-page escape must clear matching opening feedback immediately after local-first routing.",
+    ],
+    [
       "current?.pageId === closingPageId ? null : current",
       "Daily peek close must clear only the matching local draft wait instead of clearing unrelated draft state.",
     ],
@@ -5048,6 +5052,10 @@ function run() {
     [
       "closeMeetingPeekModal",
       "Meeting peek close must clear matching opening feedback so dismissed meeting drafts do not look stuck.",
+    ],
+    [
+      "openMeetingPeekFullPage",
+      "Meeting peek full-page escape must clear matching opening feedback immediately after local-first routing.",
     ],
     [
       "current === closingPageId ? null : current",

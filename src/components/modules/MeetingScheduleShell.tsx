@@ -2582,6 +2582,19 @@ export default function MeetingScheduleShell() {
     [openMeetingFullPageById]
   );
 
+  const openMeetingPeekFullPage = useCallback(
+    (pageId: string) => {
+      openMeetingFullPageById(pageId);
+      setOpeningMeetingId((current) => (current === pageId ? null : current));
+      setOpeningDraft((current) =>
+        current?.pageId === pageId ? null : current
+      );
+      setPeekPageId((current) => (current === pageId ? null : current));
+      setPeekInitialPage((current) => (current?.id === pageId ? null : current));
+    },
+    [openMeetingFullPageById]
+  );
+
   const quickCreateMeetingForDate = useCallback(
     (dateKey: string) => {
       if (creatingMeetingDateKeyRef.current !== null) return;
@@ -3412,14 +3425,7 @@ export default function MeetingScheduleShell() {
           pageId={peekPageId}
           initialPage={peekInitialPage}
           onClose={closeMeetingPeekModal}
-          onOpenFull={(id) => {
-            setOpeningDraft((current) =>
-              current?.pageId === id ? null : current
-            );
-            setPeekPageId(null);
-            setPeekInitialPage(null);
-            openMeetingFullPageById(id);
-          }}
+          onOpenFull={openMeetingPeekFullPage}
           onReady={handlePeekReady}
           onChanged={() =>
             void load({

@@ -1897,6 +1897,19 @@ export default function DailyNotesShell() {
     [openDailyNoteFullPageById]
   );
 
+  const openDailyPeekFullPage = useCallback(
+    (pageId: string) => {
+      openDailyNoteFullPageById(pageId);
+      setOpeningNoteId((current) => (current === pageId ? null : current));
+      setOpeningDraft((current) =>
+        current?.pageId === pageId ? null : current
+      );
+      setPeekPageId((current) => (current === pageId ? null : current));
+      setPeekInitialPage((current) => (current?.id === pageId ? null : current));
+    },
+    [openDailyNoteFullPageById]
+  );
+
   useEffect(() => {
     if (peekPageId) return;
     if (!openingNoteId) return;
@@ -2615,15 +2628,7 @@ export default function DailyNotesShell() {
           pageId={peekPageId}
           initialPage={peekInitialPage}
           onClose={closeDailyPeekModal}
-          onOpenFull={(id) => {
-            setOpeningNoteId(null);
-            setOpeningDraft((current) =>
-              current?.pageId === id ? null : current
-            );
-            setPeekPageId(null);
-            setPeekInitialPage(null);
-            openDailyNoteFullPageById(id);
-          }}
+          onOpenFull={openDailyPeekFullPage}
           onReady={handlePeekReady}
           onChanged={() =>
             void load({
