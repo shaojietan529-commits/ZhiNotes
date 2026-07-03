@@ -23071,6 +23071,30 @@ function run() {
     [
       files.accountShell,
       accountShell,
+      "PAGE_SYNC_STORAGE_KEY_PREFIX",
+      "Account cloud upload reliability card must refresh from page sync cross-tab storage pings.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "DATABASE_SYNC_STORAGE_KEY_PREFIX",
+      "Account cloud upload reliability card must refresh from database sync cross-tab storage pings.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "event.key?.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)",
+      "Account page cache rebuild gate must react when another tab changes page pending queue storage.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "event.key?.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)",
+      "Account database cache rebuild gate must react when another tab changes database pending queue storage.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
       "KNOWLEDGE_SYNC_STATUS_EVENT",
       "Account cloud upload reliability card must refresh from knowledge sync status events.",
     ],

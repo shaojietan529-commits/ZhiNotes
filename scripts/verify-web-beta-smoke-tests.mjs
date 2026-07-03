@@ -14522,6 +14522,10 @@ function run() {
     );
   }
   for (const snippet of [
+    "PAGE_SYNC_STORAGE_KEY_PREFIX",
+    "DATABASE_SYNC_STORAGE_KEY_PREFIX",
+    "event.key?.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)",
+    "event.key?.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)",
     "SETTINGS_SYNC_STATUS_EVENT",
     "KNOWLEDGE_SYNC_STATUS_EVENT",
     "SYNC_LOG_STATUS_EVENT",

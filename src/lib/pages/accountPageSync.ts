@@ -48,6 +48,7 @@ const REMOTE_CURSOR_KEY = "zhinote.pagesync.remoteCursor";
 const PENDING_PUSH_IDS_KEY = "zhinote.pagesync.pendingPushIds";
 const PENDING_PUSH_META_KEY = "zhinote.pagesync.pendingPushMeta";
 const AUTH_RETRY_KEY = "zhinote.pagesync.authRetry.v1";
+export const PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync.";
 const DAILY_IMPORT_REPAIR_SIGNATURE_KEY =
   "zhinote.pagesync.dailyImportRepairSignature.v1";
 export const PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";

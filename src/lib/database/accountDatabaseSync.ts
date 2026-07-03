@@ -31,6 +31,7 @@ const REMOTE_CURSOR_KEY = "zhinote.databasesync.remoteCursor";
 const PENDING_PUSH_KEYS_KEY = "zhinote.databasesync.pendingPushKeys";
 const PENDING_PUSH_META_KEY = "zhinote.databasesync.pendingPushMeta";
 const AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1";
+export const DATABASE_SYNC_STORAGE_KEY_PREFIX = "zhinote.databasesync.";
 const INCREMENTAL_PULL_LIMIT = 100;
 const QUICK_INCREMENTAL_BATCH_LIMIT = 3;
 const PULL_BATCH = 80;

@@ -15,6 +15,7 @@ import {
 } from "@/lib/portfolio/accountSync";
 import {
   PAGE_SYNC_STATUS_EVENT,
+  PAGE_SYNC_STORAGE_KEY_PREFIX,
   forcePullDailyCloudPages,
   getLastPageSyncAt,
   getPendingCloudPageSyncStatus,
@@ -35,6 +36,7 @@ import {
 } from "@/lib/account/clientSession";
 import {
   DATABASE_SYNC_STATUS_EVENT,
+  DATABASE_SYNC_STORAGE_KEY_PREFIX,
   getLastDatabaseSyncAt,
   getPendingCloudDatabaseSyncStatus,
   isDatabaseSyncEnabled,
@@ -179,6 +181,8 @@ function getDatabaseCacheRebuildBlockerFromStatus(
 
 function isAccountCloudUploadStatusStorageEvent(event: StorageEvent): boolean {
   return (
+    Boolean(event.key?.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)) ||
+    Boolean(event.key?.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)) ||
     event.key === SYNC_LOG_STATUS_STORAGE_KEY ||
     event.key === SETTINGS_SYNC_STATUS_STORAGE_KEY ||
     event.key === KNOWLEDGE_SYNC_STATUS_STORAGE_KEY

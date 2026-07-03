@@ -158,6 +158,10 @@ check(
     shell.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
     shell.includes("SYNC_LOG_STATUS_EVENT") &&
     shell.includes("isAccountCloudUploadStatusStorageEvent") &&
+    shell.includes("PAGE_SYNC_STORAGE_KEY_PREFIX") &&
+    shell.includes("DATABASE_SYNC_STORAGE_KEY_PREFIX") &&
+    shell.includes("event.key?.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)") &&
+    shell.includes("event.key?.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)") &&
     shell.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
     shell.includes("KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
     shell.includes("SYNC_LOG_STATUS_STORAGE_KEY") &&
@@ -491,6 +495,15 @@ check(
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
 const databaseSyncClient = read("src/lib/database/accountDatabaseSync.ts");
 const syncDashboardShell = read("src/components/modules/SyncShell.tsx");
+check(
+  pageSyncClient.includes(
+    'export const PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync."'
+  ) &&
+    databaseSyncClient.includes(
+      'export const DATABASE_SYNC_STORAGE_KEY_PREFIX = "zhinote.databasesync."'
+    ),
+  "页面和数据库同步模块必须导出 storage key 前缀，供账号页和同步中心即时刷新跨标签队列状态"
+);
 check(
   pageSyncClient.includes("checkAccountCloudSyncGate") &&
     pageSyncClient.includes('accountGate.status === "unconfigured"') &&
