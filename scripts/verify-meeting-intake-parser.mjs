@@ -151,6 +151,26 @@ const cases = [
     input: "Meeting topic: Test meeting\nTime: 12/06 4 PM",
     expected: { date: "2026-12-06", time: "16:00", endTime: "", durationMinutes: null },
   },
+  {
+    name: "Chinese text month-day with text hour range",
+    input: "会议主题：测试会议\n时间：六月十四日下午四点到五点",
+    expected: { date: "2026-06-14", time: "16:00", endTime: "17:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese text month-day with half-hour time",
+    input: "会议主题：测试会议\n时间：六月十四日 上午九点半",
+    expected: { date: "2026-06-14", time: "09:30", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "Numeric month-day with Chinese text half-hour range",
+    input: "会议主题：测试会议\n时间：6月14日 下午四点半-五点半",
+    expected: { date: "2026-06-14", time: "16:30", endTime: "17:30", durationMinutes: 60 },
+  },
+  {
+    name: "Relative day with Chinese text minute",
+    input: "会议主题：测试会议\n时间：明天上午九点三十分",
+    expected: { date: "2026-07-05", time: "09:30", endTime: "", durationMinutes: null },
+  },
 ];
 
 const results = [];

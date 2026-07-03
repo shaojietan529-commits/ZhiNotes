@@ -402,6 +402,41 @@ function validMonthDay(month: number, day: number) {
   return month >= 1 && month <= 12 && day >= 1 && day <= 31;
 }
 
+const CHINESE_NUMBER_PATTERN = "[零〇一二两三四五六七八九十]{1,3}";
+const CHINESE_DIGITS: Record<string, number> = {
+  "零": 0,
+  "〇": 0,
+  "一": 1,
+  "二": 2,
+  "两": 2,
+  "三": 3,
+  "四": 4,
+  "五": 5,
+  "六": 6,
+  "七": 7,
+  "八": 8,
+  "九": 9,
+};
+
+function parseChineseNumber(value: string): number | null {
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (!normalized.includes("十")) {
+    return CHINESE_DIGITS[normalized] ?? null;
+  }
+
+  const [left, right] = normalized.split("十");
+  const tens = left ? CHINESE_DIGITS[left] : 1;
+  const ones = right ? CHINESE_DIGITS[right] : 0;
+  if (tens === undefined || ones === undefined) return null;
+  return tens * 10 + ones;
+}
+
+function parseClockNumber(value: string): number | null {
+  if (/^\d+$/.test(value)) return Number(value);
+  return parseChineseNumber(value);
+}
+
 const WEEKDAY_MAP: Record<string, number> = {
   "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 0, "天": 0,
 };
@@ -469,6 +504,21 @@ function findDate(
       month: Number(chineseMonthDay[1]),
       day: Number(chineseMonthDay[2]),
     };
+  }
+
+  const chineseTextMonthDay = text.match(
+    new RegExp(`(${CHINESE_NUMBER_PATTERN})\\s*月\\s*(${CHINESE_NUMBER_PATTERN})\\s*[日号]?`)
+  );
+  if (chineseTextMonthDay) {
+    const month = parseChineseNumber(chineseTextMonthDay[1]);
+    const day = parseChineseNumber(chineseTextMonthDay[2]);
+    if (month !== null && day !== null && validMonthDay(month, day)) {
+      return {
+        year: null,
+        month,
+        day,
+      };
+    }
   }
 
   // Numeric with 日/号 suffix: 06.14日, 06-14号
@@ -664,17 +714,25 @@ interface ClockHit {
 // either before or after the clock. English hour-only readings like "4 PM"
 // are accepted only when an AM/PM marker is present.
 function parseClockAt(text: string): ClockHit | null {
-  const re =
-    /(?:(上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?)\s*)?([01]?\d|2[0-3])\s*(?:(?:[:：]\s*([0-5]\d)\s*点?)|(?:[点时]\s*(?:(半)|([0-5]?\d)\s*分?)?)|(?=(?:上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?)\b))(?:\s*(上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?))?/i;
+  const re = new RegExp(
+    `(?:(上午|下午|中午|晚上|凌晨|a\\.?m\\.?|p\\.?m\\.?)\\s*)?([01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN})\\s*(?:(?:[:：]\\s*([0-5]\\d)\\s*点?)|(?:[点时]\\s*(?:(半)|((?:[0-5]?\\d|${CHINESE_NUMBER_PATTERN}))\\s*分?)?)|(?=(?:上午|下午|中午|晚上|凌晨|a\\.?m\\.?|p\\.?m\\.?)\\b))(?:\\s*(上午|下午|中午|晚上|凌晨|a\\.?m\\.?|p\\.?m\\.?))?`,
+    "i"
+  );
   const m = re.exec(text);
   if (!m) return null;
+  const rawHour = parseClockNumber(m[2]);
+  if (rawHour === null || rawHour < 0 || rawHour > 23) return null;
   let minute = 0;
   if (m[3] !== undefined) minute = Number(m[3]);
   else if (m[4] === "半") minute = 30;
-  else if (m[5] !== undefined && m[5] !== "") minute = Number(m[5]);
+  else if (m[5] !== undefined && m[5] !== "") {
+    const parsedMinute = parseClockNumber(m[5]);
+    if (parsedMinute === null || parsedMinute < 0 || parsedMinute > 59) return null;
+    minute = parsedMinute;
+  }
   const period = m[1] || m[6] || "";
   return {
-    rawHour: Number(m[2]),
+    rawHour,
     minute,
     period,
     start: m.index,
