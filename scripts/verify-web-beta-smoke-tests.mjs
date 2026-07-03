@@ -105,6 +105,8 @@ const files = {
   accountClientSession: "src/lib/account/clientSession.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
   accountMeRoute: "src/app/api/account/me/route.ts",
+  portfolioEmailSetupRoute: "src/app/api/portfolio/email-setup/route.ts",
+  portfolioEmailPositionRoute: "src/app/api/portfolio/email-position/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   cloudPageMutations: "src/lib/pages/cloudPageMutations.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
@@ -559,6 +561,12 @@ function run() {
   const accountClientSession = readProjectFile(files.accountClientSession);
   const accountShell = readProjectFile(files.accountShell);
   const accountMeRoute = readProjectFile(files.accountMeRoute);
+  const portfolioEmailSetupRoute = readProjectFile(
+    files.portfolioEmailSetupRoute
+  );
+  const portfolioEmailPositionRoute = readProjectFile(
+    files.portfolioEmailPositionRoute
+  );
   const accountPageSync = readProjectFile(files.accountPageSync);
   const cloudPageMutations = readProjectFile(files.cloudPageMutations);
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
@@ -8908,6 +8916,39 @@ function run() {
     ],
   ]) {
     assertIncludes(files.cloudApi, cloudApi, snippet, message);
+  }
+  for (const [file, source, helper, code, message] of [
+    [
+      files.portfolioEmailSetupRoute,
+      portfolioEmailSetupRoute,
+      "fetchPortfolioEmailRequestWithTimeout",
+      'error: "portfolio-email-request-timeout"',
+      "Portfolio email setup must bound Microsoft auth calls and return a stable retryable timeout response.",
+    ],
+    [
+      files.portfolioEmailPositionRoute,
+      portfolioEmailPositionRoute,
+      "fetchPortfolioEmailPositionRequestWithTimeout",
+      'error: "portfolio-email-position-timeout"',
+      "Portfolio email position import must bound Microsoft Graph calls and return a stable retryable timeout response.",
+    ],
+  ]) {
+    assertIncludes(file, source, "const controller = new AbortController();", message);
+    assertIncludes(file, source, "signal: controller.signal", message);
+    assertIncludes(file, source, helper, message);
+    assertIncludes(file, source, code, message);
+    assertIncludes(file, source, "本地组合数据不受影响", message);
+    assertIncludes(file, source, "timeout_ms", message);
+  }
+  if ((portfolioEmailSetupRoute.match(/\bfetch\(/g) ?? []).length !== 1) {
+    failures.push(
+      "Portfolio email setup must keep fetch usage centralized in fetchPortfolioEmailRequestWithTimeout."
+    );
+  }
+  if ((portfolioEmailPositionRoute.match(/\bfetch\(/g) ?? []).length !== 1) {
+    failures.push(
+      "Portfolio email position must keep fetch usage centralized in fetchPortfolioEmailPositionRequestWithTimeout."
+    );
   }
   assertIncludes(
     files.accountShell,

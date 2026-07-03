@@ -9,6 +9,59 @@ export const dynamic = "force-dynamic";
 
 const BASE = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPE = "https://graph.microsoft.com/Mail.Read offline_access";
+const PORTFOLIO_EMAIL_REQUEST_TIMEOUT_MS = 8000;
+
+class PortfolioEmailRequestTimeoutError extends Error {
+  status = 504;
+  timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`Portfolio email request timed out after ${timeoutMs}ms`);
+    this.name = "PortfolioEmailRequestTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+async function fetchPortfolioEmailRequestWithTimeout(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1]
+): Promise<Response> {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeout = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, PORTFOLIO_EMAIL_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (didTimeout) {
+      throw new PortfolioEmailRequestTimeoutError(
+        PORTFOLIO_EMAIL_REQUEST_TIMEOUT_MS
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function portfolioEmailTimeoutResponse(
+  error: PortfolioEmailRequestTimeoutError
+) {
+  return NextResponse.json(
+    {
+      error: "portfolio-email-request-timeout",
+      message: "组合邮件授权请求超时；本地组合数据不受影响，可稍后重试。",
+      timeout_ms: error.timeoutMs,
+    },
+    { status: error.status }
+  );
+}
 
 export async function POST(req: Request) {
   let body: { action?: string; clientId?: string; deviceCode?: string };
@@ -25,11 +78,20 @@ export async function POST(req: Request) {
   }
 
   if (body.action === "start") {
-    const res = await fetch(`${BASE}/devicecode`, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ client_id: clientId, scope: SCOPE }),
-    });
+    let res: Response;
+    try {
+      res = await fetchPortfolioEmailRequestWithTimeout(`${BASE}/devicecode`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ client_id: clientId, scope: SCOPE }),
+        cache: "no-store",
+      });
+    } catch (error) {
+      if (error instanceof PortfolioEmailRequestTimeoutError) {
+        return portfolioEmailTimeoutResponse(error);
+      }
+      throw error;
+    }
     const data = await res.json();
     if (typeof data.device_code !== "string") {
       // Surface Microsoft's own error code so the owner can tell apart a
@@ -75,15 +137,24 @@ export async function POST(req: Request) {
     if (!deviceCode) {
       return NextResponse.json({ error: "缺少 device code" }, { status: 400 });
     }
-    const res = await fetch(`${BASE}/token`, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: clientId,
-        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-        device_code: deviceCode,
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetchPortfolioEmailRequestWithTimeout(`${BASE}/token`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+          device_code: deviceCode,
+        }),
+        cache: "no-store",
+      });
+    } catch (error) {
+      if (error instanceof PortfolioEmailRequestTimeoutError) {
+        return portfolioEmailTimeoutResponse(error);
+      }
+      throw error;
+    }
     const data = await res.json();
     if (typeof data.refresh_token === "string") {
       return NextResponse.json({

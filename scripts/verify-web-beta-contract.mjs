@@ -186,6 +186,8 @@ const files = {
   accountMeRoute: "src/app/api/account/me/route.ts",
   portfolioPasscodeSync: "src/lib/portfolio/cloudSync.ts",
   portfolioPasscodeSyncRoute: "src/app/api/portfolio/sync/route.ts",
+  portfolioEmailSetupRoute: "src/app/api/portfolio/email-setup/route.ts",
+  portfolioEmailPositionRoute: "src/app/api/portfolio/email-position/route.ts",
   accountPortfolioSync: "src/lib/portfolio/accountSync.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
@@ -736,6 +738,12 @@ function run() {
   const portfolioPasscodeSync = readProjectFile(files.portfolioPasscodeSync);
   const portfolioPasscodeSyncRoute = readProjectFile(
     files.portfolioPasscodeSyncRoute
+  );
+  const portfolioEmailSetupRoute = readProjectFile(
+    files.portfolioEmailSetupRoute
+  );
+  const portfolioEmailPositionRoute = readProjectFile(
+    files.portfolioEmailPositionRoute
   );
   const accountPortfolioSync = readProjectFile(files.accountPortfolioSync);
   const accountPageSync = readProjectFile(files.accountPageSync);
@@ -5182,6 +5190,142 @@ function run() {
   if ((portfolioPasscodeSyncRoute.match(/\bfetch\(/g) ?? []).length !== 1) {
     fail(
       "Portfolio passcode server sync must keep fetch usage centralized in fetchPortfolioPasscodeServerSyncWithTimeout."
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "PORTFOLIO_EMAIL_REQUEST_TIMEOUT_MS = 8000",
+      "Portfolio email setup requests must have a bounded upstream timeout so slow Microsoft auth cannot freeze local portfolio use.",
+    ],
+    [
+      "class PortfolioEmailRequestTimeoutError extends Error",
+      "Portfolio email setup timeouts must use a typed error so the route can return a stable retryable response.",
+    ],
+    [
+      "async function fetchPortfolioEmailRequestWithTimeout",
+      "Portfolio email setup device-code and token calls must route through a shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Portfolio email setup must be able to abort slow Microsoft auth requests.",
+    ],
+    [
+      "signal: controller.signal",
+      "Portfolio email setup must pass the abort signal to fetch.",
+    ],
+    [
+      "throw new PortfolioEmailRequestTimeoutError",
+      "Portfolio email setup timeout must surface as a typed retryable error.",
+    ],
+    [
+      "clearTimeout(timeout)",
+      "Portfolio email setup timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      "fetchPortfolioEmailRequestWithTimeout(`${BASE}/devicecode`",
+      "Portfolio email setup device-code calls must use the bounded helper.",
+    ],
+    [
+      "fetchPortfolioEmailRequestWithTimeout(`${BASE}/token`",
+      "Portfolio email setup token polling calls must use the bounded helper.",
+    ],
+    [
+      'error: "portfolio-email-request-timeout"',
+      "Portfolio email setup timeout responses must expose a stable retryable error code.",
+    ],
+    [
+      "组合邮件授权请求超时；本地组合数据不受影响，可稍后重试。",
+      "Portfolio email setup timeout copy must reassure users that local portfolio data is preserved.",
+    ],
+    [
+      "timeout_ms: error.timeoutMs",
+      "Portfolio email setup timeout responses must include the timeout budget for diagnostics.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.portfolioEmailSetupRoute,
+      portfolioEmailSetupRoute,
+      snippet,
+      message
+    );
+  }
+  if ((portfolioEmailSetupRoute.match(/\bfetch\(/g) ?? []).length !== 1) {
+    fail(
+      "Portfolio email setup must keep fetch usage centralized in fetchPortfolioEmailRequestWithTimeout."
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "PORTFOLIO_EMAIL_POSITION_REQUEST_TIMEOUT_MS = 8000",
+      "Portfolio email position requests must have a bounded upstream timeout so slow Microsoft Graph cannot freeze local portfolio use.",
+    ],
+    [
+      "class PortfolioEmailPositionRequestTimeoutError extends Error",
+      "Portfolio email position timeouts must use a typed error so the route can return a stable retryable response.",
+    ],
+    [
+      "async function fetchPortfolioEmailPositionRequestWithTimeout",
+      "Portfolio email position token, message, and attachment calls must route through a shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Portfolio email position must be able to abort slow Microsoft Graph requests.",
+    ],
+    [
+      "signal: controller.signal",
+      "Portfolio email position must pass the abort signal to fetch.",
+    ],
+    [
+      "throw new PortfolioEmailPositionRequestTimeoutError",
+      "Portfolio email position timeout must surface as a typed retryable error.",
+    ],
+    [
+      "clearTimeout(timeout)",
+      "Portfolio email position timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      'fetchPortfolioEmailPositionRequestWithTimeout(\n      "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"',
+      "Portfolio email position refresh-token calls must use the bounded helper.",
+    ],
+    [
+      "fetchPortfolioEmailPositionRequestWithTimeout(listUrl",
+      "Portfolio email position message list calls must use the bounded helper.",
+    ],
+    [
+      "fetchPortfolioEmailPositionRequestWithTimeout(\n        `${GRAPH}/me/messages/${message.id}/attachments?$select=id,name,size`",
+      "Portfolio email position attachment metadata calls must use the bounded helper.",
+    ],
+    [
+      "fetchPortfolioEmailPositionRequestWithTimeout(\n        `${GRAPH}/me/messages/${message.id}/attachments/${target.id}`",
+      "Portfolio email position attachment file calls must use the bounded helper.",
+    ],
+    [
+      "portfolioEmailPositionTimeoutResponse(auth.timeoutMs)",
+      "Portfolio email position auth timeouts must return the same stable retryable response as Graph timeouts.",
+    ],
+    [
+      'error: "portfolio-email-position-timeout"',
+      "Portfolio email position timeout responses must expose a stable retryable error code.",
+    ],
+    [
+      "组合邮件导入请求超时；本地组合数据不受影响，可稍后重试。",
+      "Portfolio email position timeout copy must reassure users that local portfolio data is preserved.",
+    ],
+    [
+      "timeout_ms: timeoutMs",
+      "Portfolio email position timeout responses must include the timeout budget for diagnostics.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.portfolioEmailPositionRoute,
+      portfolioEmailPositionRoute,
+      snippet,
+      message
+    );
+  }
+  if ((portfolioEmailPositionRoute.match(/\bfetch\(/g) ?? []).length !== 1) {
+    fail(
+      "Portfolio email position must keep fetch usage centralized in fetchPortfolioEmailPositionRequestWithTimeout."
     );
   }
   assertSourceExcludes(
