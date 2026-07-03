@@ -406,6 +406,26 @@ const WEEKDAY_MAP: Record<string, number> = {
   "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 0, "天": 0,
 };
 
+const ENGLISH_WEEKDAY_MAP: Record<string, number> = {
+  sun: 0,
+  sunday: 0,
+  mon: 1,
+  monday: 1,
+  tue: 2,
+  tues: 2,
+  tuesday: 2,
+  wed: 3,
+  wednesday: 3,
+  thu: 4,
+  thur: 4,
+  thurs: 4,
+  thursday: 4,
+  fri: 5,
+  friday: 5,
+  sat: 6,
+  saturday: 6,
+};
+
 function findDate(
   text: string
 ): { year: number | null; month: number; day: number } | null {
@@ -465,6 +485,21 @@ function findDate(
     };
   }
 
+  const englishMonthDay = text.match(
+    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(20\d{2})?/i
+  );
+  if (englishMonthDay) {
+    const month = MONTHS[englishMonthDay[1].toLowerCase()];
+    const day = Number(englishMonthDay[2]);
+    if (month && validMonthDay(month, day)) {
+      return {
+        year: englishMonthDay[3] ? Number(englishMonthDay[3]) : null,
+        month,
+        day,
+      };
+    }
+  }
+
   // Relative dates: 今天/明天/后天/大后天
   const relativeDay = text.match(/(?:大后天|后天|明天|今天)/);
   if (relativeDay) {
@@ -502,6 +537,26 @@ function findDate(
     };
   }
 
+  const englishRelWeekday = text.match(
+    /\b(?:(this|next)\s+)?(Sun(?:day)?|Mon(?:day)?|Tue(?:s|sday)?|Wed(?:nesday)?|Thu(?:r|rs|rsday|rday)?|Fri(?:day)?|Sat(?:urday)?)\b/i
+  );
+  if (englishRelWeekday) {
+    const prefix = englishRelWeekday[1]?.toLowerCase() ?? "";
+    const targetDow = ENGLISH_WEEKDAY_MAP[englishRelWeekday[2].toLowerCase()];
+    const now = new Date();
+    const currentDow = now.getDay();
+    const diff =
+      prefix === "next"
+        ? daysUntilNextChineseWeekday(targetDow, currentDow)
+        : daysUntilUpcomingWeekday(targetDow, currentDow);
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+    return {
+      year: target.getFullYear(),
+      month: target.getMonth() + 1,
+      day: target.getDate(),
+    };
+  }
+
   return null;
 }
 
@@ -519,10 +574,20 @@ function daysUntilNextChineseWeekday(targetDow: number, currentDow: number) {
 
 // Convert a 12-hour clock reading to 24-hour using a Chinese period marker.
 function applyChinesePeriod(hour: number, period: string) {
-  if (period === "下午" || period === "晚上" || period === "中午") {
+  const normalized = period.trim().toLowerCase().replace(/\./g, "");
+  if (
+    normalized === "下午" ||
+    normalized === "晚上" ||
+    normalized === "中午" ||
+    normalized === "pm"
+  ) {
     return hour < 12 ? hour + 12 : hour;
   }
-  if (period === "上午" || period === "凌晨") {
+  if (
+    normalized === "上午" ||
+    normalized === "凌晨" ||
+    normalized === "am"
+  ) {
     return hour === 12 ? 0 : hour;
   }
   return hour;
@@ -537,20 +602,22 @@ interface ClockHit {
 }
 
 // Parse the first clock in the text: optional Chinese period marker, then
-// HH:MM or H点(MM分)? or H点半 or H时MM分.
+// HH:MM or H点(MM分)? or H点半 or H时MM分, with Chinese/AM/PM markers
+// either before or after the clock.
 function parseClockAt(text: string): ClockHit | null {
   const re =
-    /(上午|下午|中午|晚上|凌晨)?\s*([01]?\d|2[0-3])\s*(?:[:：]\s*([0-5]\d)\s*点?|[点时]\s*(?:(半)|([0-5]?\d)\s*分?)?)/;
+    /(?:(上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?)\s*)?([01]?\d|2[0-3])\s*(?:[:：]\s*([0-5]\d)\s*点?|[点时]\s*(?:(半)|([0-5]?\d)\s*分?)?)(?:\s*(上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?))?/i;
   const m = re.exec(text);
   if (!m) return null;
   let minute = 0;
   if (m[3] !== undefined) minute = Number(m[3]);
   else if (m[4] === "半") minute = 30;
   else if (m[5] !== undefined && m[5] !== "") minute = Number(m[5]);
+  const period = m[1] || m[6] || "";
   return {
     rawHour: Number(m[2]),
     minute,
-    period: m[1] ?? "",
+    period,
     start: m.index,
     end: m.index + m[0].length,
   };

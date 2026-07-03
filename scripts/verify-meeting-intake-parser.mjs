@@ -61,6 +61,21 @@ const cases = [
     input: "Meeting topic: Test meeting\nTime: Jul 8, 2026 4:00 PM to 5:30 PM",
     expected: { date: "2026-07-08", time: "16:00", endTime: "17:30", durationMinutes: 90 },
   },
+  {
+    name: "Chinese relative weekday with trailing PM range",
+    input: "会议主题：测试会议\n时间：下周一 4:00 PM - 5:30 PM",
+    expected: { date: "2026-07-06", time: "16:00", endTime: "17:30", durationMinutes: 90 },
+  },
+  {
+    name: "English next weekday with trailing PM range",
+    input: "Meeting topic: Test meeting\nTime: next Monday 4:00 PM - 5:30 PM",
+    expected: { date: "2026-07-06", time: "16:00", endTime: "17:30", durationMinutes: 90 },
+  },
+  {
+    name: "English weekday with AM midnight range",
+    input: "Meeting topic: Test meeting\nTime: Monday 12:00 AM - 1:00 AM",
+    expected: { date: "2026-07-06", time: "00:00", endTime: "01:00", durationMinutes: 60 },
+  },
 ];
 
 const results = [];
