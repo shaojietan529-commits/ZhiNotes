@@ -53,9 +53,19 @@ import {
 import {
   getSyncLogSummary,
   getWorkspaceSetting,
+  SYNC_LOG_STATUS_EVENT,
+  SYNC_LOG_STATUS_STORAGE_KEY,
   upsertWorkspaceSetting,
   type SyncLogSummary,
 } from "@/lib/db/local/queries";
+import {
+  KNOWLEDGE_SYNC_STATUS_EVENT,
+  KNOWLEDGE_SYNC_STATUS_STORAGE_KEY,
+} from "@/lib/sync/knowledgeSyncStatus";
+import {
+  SETTINGS_SYNC_STATUS_EVENT,
+  SETTINGS_SYNC_STATUS_STORAGE_KEY,
+} from "@/lib/sync/settingsSyncStatus";
 import {
   DEFAULT_HOT_CACHE_PREFERENCES,
   HOT_CACHE_PREFERENCES_SETTING_KEY,
@@ -165,6 +175,14 @@ function getDatabaseCacheRebuildBlockerFromStatus(
   return `数据库缓存重建已拦截：仍有 ${pending} 条待上传变更（cloud key ${status.pending} 条、内存排队 ${status.queued} 条、本地 sync_log ${status.syncLogPending} 条）、${status.failed} 条失败记录、${status.manualReviewCount} 条需要人工处理。为避免本机新输入被云端旧 manifest 隐藏，请先“上传待同步变更”或“立即同步数据库”，确认 pending、failed、manual review 都清零后再重建。`;
 }
 
+function isAccountCloudUploadStatusStorageEvent(event: StorageEvent): boolean {
+  return (
+    event.key === SYNC_LOG_STATUS_STORAGE_KEY ||
+    event.key === SETTINGS_SYNC_STATUS_STORAGE_KEY ||
+    event.key === KNOWLEDGE_SYNC_STATUS_STORAGE_KEY
+  );
+}
+
 export default function AccountShell() {
   const router = useRouter();
   const { refresh: refreshPages } = usePages({ autoLoad: false });
@@ -248,12 +266,25 @@ export default function AccountShell() {
     const handleSyncStatus = () => {
       void refreshCloudUploadReliability();
     };
+    const handleStorage = (event: StorageEvent) => {
+      if (isAccountCloudUploadStatusStorageEvent(event)) {
+        void refreshCloudUploadReliability();
+      }
+    };
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleSyncStatus);
     window.addEventListener(DATABASE_SYNC_STATUS_EVENT, handleSyncStatus);
+    window.addEventListener(SETTINGS_SYNC_STATUS_EVENT, handleSyncStatus);
+    window.addEventListener(KNOWLEDGE_SYNC_STATUS_EVENT, handleSyncStatus);
+    window.addEventListener(SYNC_LOG_STATUS_EVENT, handleSyncStatus);
+    window.addEventListener("storage", handleStorage);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleSyncStatus);
       window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleSyncStatus);
+      window.removeEventListener(SETTINGS_SYNC_STATUS_EVENT, handleSyncStatus);
+      window.removeEventListener(KNOWLEDGE_SYNC_STATUS_EVENT, handleSyncStatus);
+      window.removeEventListener(SYNC_LOG_STATUS_EVENT, handleSyncStatus);
+      window.removeEventListener("storage", handleStorage);
     };
   }, [phase, refreshCloudUploadReliability]);
 

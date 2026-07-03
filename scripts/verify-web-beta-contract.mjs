@@ -23039,6 +23039,36 @@ function run() {
       "Account page manual page sync must always clear busy state and refresh the cloud upload reliability card.",
     ],
     [
+      files.accountShell,
+      accountShell,
+      "SETTINGS_SYNC_STATUS_EVENT",
+      "Account cloud upload reliability card must refresh from settings sync status events.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "KNOWLEDGE_SYNC_STATUS_EVENT",
+      "Account cloud upload reliability card must refresh from knowledge sync status events.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "SYNC_LOG_STATUS_EVENT",
+      "Account cloud upload reliability card must refresh from global sync_log status events.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      "isAccountCloudUploadStatusStorageEvent",
+      "Account cloud upload reliability card must refresh from content-free cross-tab status storage pings.",
+    ],
+    [
+      files.accountShell,
+      accountShell,
+      'window.addEventListener("storage", handleStorage)',
+      "Account cloud upload reliability card must not wait for polling when another tab changes sync status.",
+    ],
+    [
       files.hotCacheRouteWarmup,
       hotCacheRouteWarmup,
       "export function getHotCacheRouteTargets",

@@ -14517,6 +14517,23 @@ function run() {
       "Account hot-cache preferences must expose safe route-only warmup from the account page."
     );
   }
+  for (const snippet of [
+    "SETTINGS_SYNC_STATUS_EVENT",
+    "KNOWLEDGE_SYNC_STATUS_EVENT",
+    "SYNC_LOG_STATUS_EVENT",
+    "isAccountCloudUploadStatusStorageEvent",
+    "SETTINGS_SYNC_STATUS_STORAGE_KEY",
+    "KNOWLEDGE_SYNC_STATUS_STORAGE_KEY",
+    "SYNC_LOG_STATUS_STORAGE_KEY",
+    'window.addEventListener("storage", handleStorage)',
+  ]) {
+    assertIncludes(
+      files.accountShell,
+      accountShell,
+      snippet,
+      "Account cloud upload reliability card must refresh from settings, knowledge, and sync_log status pings instead of waiting for polling."
+    );
+  }
   if (
     (accountShell.match(/finally \{\n      setShareBusy\(false\);\n    \}/g) ?? [])
       .length < 2

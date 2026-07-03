@@ -154,12 +154,20 @@ check(
     shell.includes("readLocalWorkspaceIdentity()") &&
     shell.includes("PAGE_SYNC_STATUS_EVENT") &&
     shell.includes("DATABASE_SYNC_STATUS_EVENT") &&
+    shell.includes("SETTINGS_SYNC_STATUS_EVENT") &&
+    shell.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
+    shell.includes("SYNC_LOG_STATUS_EVENT") &&
+    shell.includes("isAccountCloudUploadStatusStorageEvent") &&
+    shell.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
+    shell.includes("KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
+    shell.includes("SYNC_LOG_STATUS_STORAGE_KEY") &&
+    shell.includes('window.addEventListener("storage", handleStorage)') &&
     shell.includes("safe_to_switch_device_now") &&
     shell.includes("只读队列账本") &&
     shell.includes("不触发上传") &&
     shell.includes("pending 清零后最稳") &&
     shell.includes("refreshCloudUploadReliability"),
-  "AccountShell 应在账号页显示本地输入上云健康卡，只读 pending/sync_log/workspace metadata，不触发上传"
+  "AccountShell 应在账号页显示本地输入上云健康卡，并即时响应 page/database/settings/knowledge/sync_log 跨标签状态，不触发上传"
 );
 check(
   (shell.match(/finally \{\n      setShareBusy\(false\);\n    \}/g) ?? [])
