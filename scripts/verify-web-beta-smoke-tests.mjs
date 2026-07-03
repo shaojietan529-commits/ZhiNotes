@@ -100,6 +100,8 @@ const files = {
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
   accountServer: "src/lib/account/server.ts",
+  cloudApi: "src/lib/cloud/api.ts",
+  cloudSupabaseRest: "src/lib/cloud/supabaseRest.ts",
   accountClientSession: "src/lib/account/clientSession.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
   accountMeRoute: "src/app/api/account/me/route.ts",
@@ -552,6 +554,8 @@ function run() {
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
   const accountServer = readProjectFile(files.accountServer);
+  const cloudApi = readProjectFile(files.cloudApi);
+  const cloudSupabaseRest = readProjectFile(files.cloudSupabaseRest);
   const accountClientSession = readProjectFile(files.accountClientSession);
   const accountShell = readProjectFile(files.accountShell);
   const accountMeRoute = readProjectFile(files.accountMeRoute);
@@ -8847,6 +8851,63 @@ function run() {
     failures.push(
       "Account server must keep fetch usage centralized in fetchAccountServerRequestWithTimeout."
     );
+  }
+  for (const [snippet, message] of [
+    [
+      "SUPABASE_REQUEST_TIMEOUT_MS = 8000",
+      "Supabase cloud requests must have the same bounded upstream timeout as account server requests.",
+    ],
+    [
+      "export class SupabaseRequestTimeoutError extends Error",
+      "Supabase timeout must be a typed error so route handlers can return a stable retryable response.",
+    ],
+    [
+      "async function fetchSupabaseRequestWithTimeout",
+      "Supabase REST/Auth requests must route through a shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Supabase upstream requests must be able to abort slow cloud services.",
+    ],
+    [
+      "signal: controller.signal",
+      "Supabase upstream requests must pass the abort signal to fetch.",
+    ],
+    [
+      "throw new SupabaseRequestTimeoutError(SUPABASE_REQUEST_TIMEOUT_MS)",
+      "Supabase timeout must surface as a retryable typed error instead of an unknown failure.",
+    ],
+    [
+      "clearTimeout(timeout)",
+      "Supabase timeout timers must be cleared after fetch settles.",
+    ],
+  ]) {
+    assertIncludes(files.cloudSupabaseRest, cloudSupabaseRest, snippet, message);
+  }
+  if ((cloudSupabaseRest.match(/\bfetch\(/g) ?? []).length !== 1) {
+    failures.push(
+      "Supabase REST/Auth requests must keep fetch usage centralized in fetchSupabaseRequestWithTimeout."
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "SupabaseRequestTimeoutError",
+      "Cloud API error responses must recognize Supabase timeout errors.",
+    ],
+    [
+      'error: "supabase-request-timeout"',
+      "Cloud API timeout responses must expose a stable retryable error code.",
+    ],
+    [
+      "本地数据和待同步队列不受影响",
+      "Cloud API timeout message must reassure users that local data and pending queues are preserved.",
+    ],
+    [
+      "timeout_ms: error.timeoutMs",
+      "Cloud API timeout responses must expose the timeout budget for diagnostics.",
+    ],
+  ]) {
+    assertIncludes(files.cloudApi, cloudApi, snippet, message);
   }
   assertIncludes(
     files.accountShell,

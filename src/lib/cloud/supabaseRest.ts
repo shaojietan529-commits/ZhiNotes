@@ -20,6 +20,19 @@ export class SupabaseRequestError extends Error {
   }
 }
 
+export class SupabaseRequestTimeoutError extends Error {
+  status = 504;
+  timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`Supabase request timed out after ${timeoutMs}ms`);
+    this.name = "SupabaseRequestTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+const SUPABASE_REQUEST_TIMEOUT_MS = 8000;
+
 export async function requestSupabaseAuth<T>(
   path: string,
   init: RequestInit,
@@ -78,7 +91,7 @@ async function requestSupabase<T>({
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const response = await fetch(url, {
+  const response = await fetchSupabaseRequestWithTimeout(url, {
     ...init,
     headers,
     cache: "no-store",
@@ -94,6 +107,45 @@ async function requestSupabase<T>({
   }
 
   return body as T;
+}
+
+async function fetchSupabaseRequestWithTimeout(
+  url: string,
+  init: RequestInit
+) {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeout = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, SUPABASE_REQUEST_TIMEOUT_MS);
+  const upstreamSignal = init.signal;
+  const abortFromUpstream = () => controller.abort();
+
+  if (upstreamSignal) {
+    if (upstreamSignal.aborted) {
+      controller.abort();
+    } else {
+      upstreamSignal.addEventListener("abort", abortFromUpstream, {
+        once: true,
+      });
+    }
+  }
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (didTimeout) {
+      throw new SupabaseRequestTimeoutError(SUPABASE_REQUEST_TIMEOUT_MS);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    upstreamSignal?.removeEventListener("abort", abortFromUpstream);
+  }
 }
 
 async function readJson(response: Response) {

@@ -5,7 +5,10 @@ import {
   type WebBetaApiStubId,
 } from "@/lib/sync/webBetaApiStubs";
 import { getCloudReadiness } from "@/lib/cloud/config";
-import { SupabaseRequestError } from "@/lib/cloud/supabaseRest";
+import {
+  SupabaseRequestError,
+  SupabaseRequestTimeoutError,
+} from "@/lib/cloud/supabaseRest";
 
 export function disabledCloudResponse(apiId: WebBetaApiStubId) {
   return NextResponse.json(buildWebBetaApiStubResponse(apiId), {
@@ -71,6 +74,20 @@ export function badRequestResponse(message: string) {
 }
 
 export function supabaseErrorResponse(error: unknown) {
+  if (error instanceof SupabaseRequestTimeoutError) {
+    return NextResponse.json(
+      {
+        format: "zhinote-cloud-error",
+        error: "supabase-request-timeout",
+        message:
+          "云端请求超时，请稍后重试；本地数据和待同步队列不受影响。",
+        status: error.status,
+        timeout_ms: error.timeoutMs,
+      },
+      { status: error.status }
+    );
+  }
+
   if (error instanceof SupabaseRequestError) {
     return NextResponse.json(
       {
