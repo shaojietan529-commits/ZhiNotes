@@ -3103,6 +3103,12 @@ function run() {
   assertIncludes(
     files.cloudUploadReliabilityReport,
     cloudUploadReliabilityReport,
+    "reads_auth_retry_state: true",
+    "Cloud upload reliability report must surface account auth retry state without reading content."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
     "reads_page_ids: false",
     "Cloud upload reliability report must not read page ids."
   );
@@ -3165,6 +3171,24 @@ function run() {
     cloudUploadReliabilityReport,
     "failure-reasons-visible",
     "Cloud upload reliability report must keep failure reasons visible."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "account-auth-retry-visible",
+    "Cloud upload reliability report must keep account auth retry visible as a retryable local-preserved state."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "auth_retry_active",
+    "Cloud upload reliability report must expose whether auth retry is active."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "!authRetryActive",
+    "Cloud upload reliability report must not mark cross-device handoff safe while auth retry is active."
   );
   assertIncludes(
     files.cloudUploadReliabilityReport,

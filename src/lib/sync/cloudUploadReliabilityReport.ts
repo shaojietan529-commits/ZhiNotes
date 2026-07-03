@@ -41,6 +41,7 @@ export interface CloudUploadReliabilityReport {
     reads_queue_timestamps: true;
     reads_failure_counts: true;
     reads_failure_messages: true;
+    reads_auth_retry_state: true;
     reads_workspace_link_metadata: true;
     reads_page_ids: false;
     reads_database_keys: false;
@@ -73,6 +74,10 @@ export interface CloudUploadReliabilityReport {
     total_waiting_rows: number;
     failed_rows: number;
     manual_review_rows: number;
+    auth_retry_active: boolean;
+    auth_retry_domains: string[];
+    auth_retry_until: string | null;
+    auth_retry_state_label: string;
     oldest_pending_queued_at: string | null;
     oldest_pending_age_ms: number | null;
     oldest_pending_age_label: string;
@@ -108,6 +113,20 @@ export function buildCloudUploadReliabilityReport(
     input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
     input.syncSummary?.manualReview ?? 0
   );
+  const authRetryDomains = [
+    input.pageStatus.authRetryStatus ? "页面" : null,
+    input.databaseStatus.authRetryStatus ? "数据库" : null,
+  ].filter(Boolean) as string[];
+  const authRetryActive = authRetryDomains.length > 0;
+  const authRetryUntil = getLatestTimestamp([
+    input.pageStatus.authRetryUntil,
+    input.databaseStatus.authRetryUntil,
+  ]);
+  const authRetryStateLabel = authRetryActive
+    ? `${authRetryDomains.join("、")}认证退避${
+        authRetryUntil ? `，下次自动重试 ${authRetryUntil}` : ""
+      }`
+    : "无认证退避";
   const oldestPendingQueuedAt = getOldestTimestamp([
     input.pageStatus.oldestPendingQueuedAt,
     input.databaseStatus.oldestPendingQueuedAt,
@@ -136,6 +155,10 @@ export function buildCloudUploadReliabilityReport(
     totalWaitingRows,
     failedRows,
     manualReviewRows,
+    authRetryActive,
+    authRetryDomains,
+    authRetryUntil,
+    authRetryStateLabel,
     hasStalePending,
     hasCriticalPending,
     oldestPendingQueuedAt,
@@ -155,13 +178,14 @@ export function buildCloudUploadReliabilityReport(
     generated_at: generatedAt,
     status,
     privacy_boundary:
-      "Generated locally from sync queue metadata. It reads only sync flags, queue counts, timestamps, failure counts, recent failure messages, and workspace link metadata. It does not read or export page ids, database keys, page bodies, Yjs payloads, database row values, comments, file names, file bytes, secrets, tokens, cookies, or raw workspace content; it does not send network requests, upload workspace data, write server data, clear local cache, or enable sync/AI.",
+      "Generated locally from sync queue metadata. It reads only sync flags, queue counts, timestamps, failure counts, recent failure messages, auth retry state, and workspace link metadata. It does not read or export page ids, database keys, page bodies, Yjs payloads, database row values, comments, file names, file bytes, secrets, tokens, cookies, or raw workspace content; it does not send network requests, upload workspace data, write server data, clear local cache, or enable sync/AI.",
     boundary: {
       local_report_only: true,
       reads_queue_counts: true,
       reads_queue_timestamps: true,
       reads_failure_counts: true,
       reads_failure_messages: true,
+      reads_auth_retry_state: true,
       reads_workspace_link_metadata: true,
       reads_page_ids: false,
       reads_database_keys: false,
@@ -188,13 +212,20 @@ export function buildCloudUploadReliabilityReport(
       local_input_buffered: true,
       safe_to_keep_typing: pageSyncEnabled || databaseSyncEnabled,
       safe_to_switch_device_now:
-        blockers === 0 && totalWaitingRows === 0 && failedRows === 0,
+        blockers === 0 &&
+        totalWaitingRows === 0 &&
+        failedRows === 0 &&
+        !authRetryActive,
       page_waiting_rows: pageWaitingRows,
       database_waiting_rows: databaseWaitingRows,
       sync_log_pending_rows: syncLogPendingRows,
       total_waiting_rows: totalWaitingRows,
       failed_rows: failedRows,
       manual_review_rows: manualReviewRows,
+      auth_retry_active: authRetryActive,
+      auth_retry_domains: authRetryDomains,
+      auth_retry_until: authRetryUntil,
+      auth_retry_state_label: authRetryStateLabel,
       oldest_pending_queued_at: oldestPendingQueuedAt,
       oldest_pending_age_ms: oldestPendingAgeMs,
       oldest_pending_age_label: formatAge(oldestPendingAgeMs),
@@ -209,6 +240,7 @@ export function buildCloudUploadReliabilityReport(
       totalWaitingRows,
       failedRows,
       manualReviewRows,
+      authRetryActive,
       hasCriticalPending,
     }),
   };
@@ -224,6 +256,10 @@ function buildGates(input: {
   totalWaitingRows: number;
   failedRows: number;
   manualReviewRows: number;
+  authRetryActive: boolean;
+  authRetryDomains: string[];
+  authRetryUntil: string | null;
+  authRetryStateLabel: string;
   hasStalePending: boolean;
   hasCriticalPending: boolean;
   oldestPendingQueuedAt: string | null;
@@ -267,6 +303,21 @@ function buildGates(input: {
       next_action: input.databaseSyncEnabled
         ? "保持数据库同步开启，观察失败和人工复核阈值。"
         : "打开账号页开启数据库同步。",
+    },
+    {
+      id: "account-auth-retry-visible",
+      title: "账号认证退避可见",
+      status: input.authRetryActive ? "warn" : "pass",
+      evidence: input.authRetryActive
+        ? `${input.authRetryStateLabel}；本地输入仍先保存，不会因为临时账号确认失败而自动登出。`
+        : "当前没有账号认证退避，页面和数据库同步没有等待账号重试。",
+      owner_visible_reason:
+        "临时账号确认失败不等于登出；云端 ACK 前不建议切换设备或重建缓存。",
+      next_action: input.authRetryActive
+        ? `继续本地输入，等待${input.authRetryDomains.join("、")}账号云端自动重试${
+            input.authRetryUntil ? `（${input.authRetryUntil} 后）` : ""
+          }；不要清缓存。`
+        : "继续保持账号退避状态可见，避免把临时云端不确定误判为登出。",
     },
     {
       id: "pending-queue-durable",
@@ -337,6 +388,7 @@ function getNextAction(
     totalWaitingRows: number;
     failedRows: number;
     manualReviewRows: number;
+    authRetryActive: boolean;
     hasCriticalPending: boolean;
   }
 ) {
@@ -345,6 +397,9 @@ function getNextAction(
   }
   if (input.manualReviewRows > 0) {
     return "先导出人工复核包，处理重复失败的页面或数据库记录。";
+  }
+  if (input.authRetryActive) {
+    return "本地输入可继续；等待账号云端认证退避恢复，pending 清零前不要切换设备或重建缓存。";
   }
   if (input.failedRows > 0) {
     return "先手动补传失败队列，确认失败原因消失。";
@@ -368,6 +423,15 @@ function getOldestTimestamp(values: Array<string | null | undefined>) {
     if (!oldest || Date.parse(value) < Date.parse(oldest)) oldest = value;
   }
   return oldest;
+}
+
+function getLatestTimestamp(values: Array<string | null | undefined>) {
+  let latest: string | null = null;
+  for (const value of values) {
+    if (!value || Number.isNaN(Date.parse(value))) continue;
+    if (!latest || Date.parse(value) > Date.parse(latest)) latest = value;
+  }
+  return latest;
 }
 
 function getAgeMs(timestamp: string | null, nowIso: string): number | null {

@@ -1722,7 +1722,7 @@ function AccountCloudUploadReliabilityCard({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
         <AccountCloudUploadReliabilityFact
           label="待上传"
           value={String(report.summary.total_waiting_rows)}
@@ -1737,6 +1737,11 @@ function AccountCloudUploadReliabilityCard({
           label="最早排队"
           value={report.summary.oldest_pending_age_label}
           detail={report.summary.oldest_pending_queued_at ?? "暂无待上传"}
+        />
+        <AccountCloudUploadReliabilityFact
+          label="账号重试"
+          value={report.summary.auth_retry_active ? "等待重试" : "无"}
+          detail={report.summary.auth_retry_state_label}
         />
         <AccountCloudUploadReliabilityFact
           label="继续输入"

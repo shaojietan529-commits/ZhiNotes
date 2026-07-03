@@ -120,6 +120,9 @@ const globalSyncLogStatusHook = read("src/hooks/useGlobalSyncLogStatus.ts");
 const accountLocalUseReadiness = read(
   "src/lib/sync/accountLocalUseReadiness.ts"
 );
+const cloudUploadReliabilityReport = read(
+  "src/lib/sync/cloudUploadReliabilityReport.ts"
+);
 const developmentStabilityPlan = read(
   "src/lib/sync/developmentStabilityPlan.ts"
 );
@@ -167,11 +170,23 @@ check(
     shell.includes("SYNC_LOG_STATUS_STORAGE_KEY") &&
     shell.includes('window.addEventListener("storage", handleStorage)') &&
     shell.includes("safe_to_switch_device_now") &&
+    shell.includes("账号重试") &&
     shell.includes("只读队列账本") &&
     shell.includes("不触发上传") &&
     shell.includes("pending 清零后最稳") &&
     shell.includes("refreshCloudUploadReliability"),
   "AccountShell 应在账号页显示本地输入上云健康卡，并即时响应 page/database/settings/knowledge/sync_log 跨标签状态，不触发上传"
+);
+check(
+  cloudUploadReliabilityReport.includes("reads_auth_retry_state: true") &&
+    cloudUploadReliabilityReport.includes("auth_retry_active") &&
+    cloudUploadReliabilityReport.includes("auth_retry_domains") &&
+    cloudUploadReliabilityReport.includes("auth_retry_until") &&
+    cloudUploadReliabilityReport.includes("auth_retry_state_label") &&
+    cloudUploadReliabilityReport.includes("account-auth-retry-visible") &&
+    cloudUploadReliabilityReport.includes("临时账号确认失败不等于登出") &&
+    cloudUploadReliabilityReport.includes("!authRetryActive"),
+  "本地输入上云健康报告应把账号认证退避作为可见黄灯：本地可继续写，但云端 ACK 前不能显示为安全切设备"
 );
 check(
   (shell.match(/finally \{\n      setShareBusy\(false\);\n    \}/g) ?? [])

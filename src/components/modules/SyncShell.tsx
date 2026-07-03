@@ -22369,7 +22369,7 @@ function CloudUploadReliabilityPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
         <CacheRebuildFact
           label="结论"
           value={formatCloudUploadReliabilityStatus(report.status)}
@@ -22389,6 +22389,11 @@ function CloudUploadReliabilityPanel({
           label="最早排队"
           value={report.summary.oldest_pending_age_label}
           detail={report.summary.oldest_pending_queued_at ?? "暂无待上传"}
+        />
+        <CacheRebuildFact
+          label="账号重试"
+          value={report.summary.auth_retry_active ? "等待重试" : "无"}
+          detail={report.summary.auth_retry_state_label}
         />
         <CacheRebuildFact
           label="跨设备"

@@ -11374,6 +11374,10 @@ function run() {
       "Cloud upload reliability report must surface recent failure messages.",
     ],
     [
+      "reads_auth_retry_state: true",
+      "Cloud upload reliability report must surface auth retry state without reading user content.",
+    ],
+    [
       "reads_workspace_link_metadata: true",
       "Cloud upload reliability report must read only workspace link metadata.",
     ],
@@ -11432,6 +11436,18 @@ function run() {
     [
       "failure-reasons-visible",
       "Cloud upload reliability report must keep failure reasons visible.",
+    ],
+    [
+      "account-auth-retry-visible",
+      "Cloud upload reliability report must show account auth retry as visible retryable uncertainty.",
+    ],
+    [
+      "auth_retry_active",
+      "Cloud upload reliability report must expose whether auth retry is active.",
+    ],
+    [
+      "!authRetryActive",
+      "Cloud upload reliability report must not claim cross-device handoff is safe during auth retry.",
     ],
     [
       "input.syncSummary?.failed ?? 0",
