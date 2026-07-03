@@ -212,6 +212,16 @@ const cases = [
     expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
   },
   {
+    name: "Chinese relative day bare compact 24-hour range",
+    input: "会议主题：测试会议\n时间：明天15-16",
+    expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese relative weekday bare compact 24-hour range",
+    input: "会议主题：测试会议\n时间：周三15-16",
+    expected: { date: "2026-07-08", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
     name: "Chinese relative day colon range to bare end hour",
     input: "会议主题：测试会议\n时间：明天15:00-16",
     expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
@@ -237,6 +247,11 @@ const cases = [
     expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
   },
   {
+    name: "Chinese month-day bare compact hour range",
+    input: "会议主题：测试会议\n时间：6月14日 9-10",
+    expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
     name: "Chinese month-day fullwidth dash compact hour range",
     input: "会议主题：测试会议\n时间：6月14日 9－10点",
     expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
@@ -255,6 +270,21 @@ const cases = [
     name: "Chinese split date and compact hour range",
     input: "会议主题：测试会议\n日期：6月14日\n时间：9-10点",
     expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese split date and bare compact hour range",
+    input: "会议主题：测试会议\n日期：6月14日\n时间：9-10",
+    expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
+    name: "ISO date-only is not misread as bare compact time",
+    input: "会议主题：测试会议\n日期：2026-07-04",
+    expected: { date: "2026-07-04", time: "", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "ISO date with bare compact hour range",
+    input: "会议主题：测试会议\n时间：2026-07-08 15-16",
+    expected: { date: "2026-07-08", time: "15:00", endTime: "16:00", durationMinutes: 60 },
   },
   {
     name: "Chinese compact hour range without date is not a fake date",

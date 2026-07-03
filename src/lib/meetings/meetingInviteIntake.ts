@@ -875,7 +875,7 @@ function parseCompactHourRange(
     "i"
   );
   const m = re.exec(text);
-  if (!m) return null;
+  if (!m) return parseBareCompactHourRange(text, options);
 
   const period = m[1] || m[5] || "";
   if (!period && !options.allowCompactHourRange) return null;
@@ -898,6 +898,42 @@ function parseCompactHourRange(
     minute: 0,
     endHour: period ? applyChinesePeriod(endHour, period) : endHour,
     endMinute: m[4] === "半" ? 30 : 0,
+  };
+}
+
+function parseBareCompactHourRange(
+  text: string,
+  options: { allowCompactHourRange?: boolean } = {}
+): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
+  if (!options.allowCompactHourRange) return null;
+
+  const hourPattern = `[01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN}`;
+  const re = new RegExp(
+    `(?:^|[^\\d年月日号/.\\-－–—:：])(?:(${TIME_PERIOD_PATTERN})\\s*)?(${hourPattern})\\s*(?:${TIME_RANGE_CONNECTOR_PATTERN})\\s*(${hourPattern})(?!\\s*(?:[\\d月日号/.\\-－–—年]|[:：]))(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
+    "i"
+  );
+  const m = re.exec(text);
+  if (!m) return null;
+
+  const period = m[1] || m[4] || "";
+  const startHour = parseClockNumber(m[2]);
+  const endHour = parseClockNumber(m[3]);
+  if (
+    startHour === null ||
+    endHour === null ||
+    startHour < 0 ||
+    startHour > 23 ||
+    endHour < 0 ||
+    endHour > 23
+  ) {
+    return null;
+  }
+
+  return {
+    hour: period ? applyChinesePeriod(startHour, period) : startHour,
+    minute: 0,
+    endHour: period ? applyChinesePeriod(endHour, period) : endHour,
+    endMinute: 0,
   };
 }
 
