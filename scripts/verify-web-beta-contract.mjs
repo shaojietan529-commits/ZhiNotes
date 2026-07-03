@@ -4692,6 +4692,30 @@ function run() {
       "Account session helper must read the stale authenticated fallback from bounded browser storage helpers.",
     ],
     [
+      "ACCOUNT_SESSION_REQUEST_TIMEOUT_MS = 8000",
+      "Account session helper must keep /api/account/me probes bounded so a slow account API cannot freeze the signed-in UI.",
+    ],
+    [
+      "async function fetchAccountSessionStatus",
+      "Account session helper must route /api/account/me through a shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Account session helper must be able to abort slow /api/account/me probes.",
+    ],
+    [
+      "signal: controller.signal",
+      "Account session helper must pass the abort signal to the /api/account/me fetch.",
+    ],
+    [
+      "clearTimeout(timeout)",
+      "Account session helper must clear the session probe timeout after fetch settles.",
+    ],
+    [
+      "account session check timed out",
+      "Account session timeout must stay a retryable temporary error that can use the last-authenticated fallback.",
+    ],
+    [
       "export const ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
       "Account session helper must expose the cross-tab stale authenticated storage key to UI listeners.",
     ],

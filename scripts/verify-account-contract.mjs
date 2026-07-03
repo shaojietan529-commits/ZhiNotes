@@ -281,6 +281,13 @@ check(
     accountClientSession.includes("window.localStorage.removeItem") &&
     accountClientSession.includes("staleReason") &&
     accountClientSession.includes("clearStoredAuthenticatedAccount") &&
+    accountClientSession.includes("ACCOUNT_SESSION_REQUEST_TIMEOUT_MS = 8000") &&
+    accountClientSession.includes("async function fetchAccountSessionStatus") &&
+    accountClientSession.includes("const controller = new AbortController();") &&
+    accountClientSession.includes("signal: controller.signal") &&
+    accountClientSession.includes("controller.abort()") &&
+    accountClientSession.includes("clearTimeout(timeout)") &&
+    accountClientSession.includes("account session check timed out") &&
     accountClientSession.includes(
       'result.status === "ok" && !result.authenticated'
     ) &&

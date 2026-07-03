@@ -8,6 +8,7 @@ const ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY =
   "zhinote:account-session-unconfigured:v1";
 export const ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY =
   "zhinote:account-session-last-authenticated:v1";
+const ACCOUNT_SESSION_REQUEST_TIMEOUT_MS = 8000;
 // Match the 90-day httpOnly session cookie so transient account API failures
 // do not make a valid long-lived login look signed out after one day.
 const ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS = 90 * 24 * 60 * 60 * 1000;
@@ -115,7 +116,7 @@ export async function fetchAccountSession(
 
 async function runFetchAccountSession(): Promise<AccountSessionResult> {
   try {
-    const res = await fetch("/api/account/me", { cache: "no-store" });
+    const res = await fetchAccountSessionStatus();
     if (res.status === 501) {
       return {
         status: "unconfigured",
@@ -152,14 +153,41 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
       };
     }
     return { status: "ok", authenticated: false, account: null };
-  } catch {
+  } catch (error) {
     return {
       status: "error",
       authenticated: false,
       account: null,
-      error: "network error",
+      error: isAbortError(error)
+        ? "account session check timed out"
+        : "network error",
     };
   }
+}
+
+async function fetchAccountSessionStatus(): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    ACCOUNT_SESSION_REQUEST_TIMEOUT_MS
+  );
+  try {
+    return await fetch("/api/account/me", {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
 }
 
 function readStoredUnconfiguredAccountSession(
