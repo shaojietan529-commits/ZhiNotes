@@ -70,6 +70,13 @@ const verificationCommands = [
       "Check ZhiHui glossary privacy boundaries and sync-page read path.",
   },
   {
+    id: "verify-meeting-intake",
+    command: "npm run verify:meeting-intake",
+    args: ["run", "verify:meeting-intake"],
+    purpose:
+      "Check synthetic ZhiHui meeting invite date/time parsing so imported meetings land on the expected calendar day.",
+  },
+  {
     id: "verify-web-beta-smoke",
     command: "npm run verify:web-beta:smoke",
     args: ["run", "verify:web-beta:smoke"],
@@ -191,6 +198,7 @@ function printReceipt(startedAt, results, status) {
       "module center stable-use status and registry-backed module contracts stay visible",
       "database views, import/export, and local-only button actions stay inside safe local boundaries",
       "editor shortcuts, page creation, file preview, and ZhiHui glossary privacy contracts stay intact",
+      "synthetic ZhiHui meeting invite parser cases continue to land on the expected calendar day",
       "Daily and ZhiHui local-first smoke contracts stay intact",
       "core account, sync, module, database, report, file, company research, meeting, project, research graph, knowledge, industry, calendar, portfolio, and page route shells respond before deeper data hydration",
     ],
