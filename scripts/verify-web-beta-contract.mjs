@@ -6160,6 +6160,10 @@ function run() {
       "Page save status model must distinguish cloud confirmation from local save.",
     ],
     [
+      "页面已在本机保存；当前云端暂不可确认，会稍后自动重试，不会因此登出。",
+      "Page save status auth-retry copy must describe temporary cloud uncertainty instead of implying the account was logged out.",
+    ],
+    [
       "can_claim_cloud_confirmed",
       "Page save status model must expose whether cloud confirmation can be claimed.",
     ],
@@ -6247,6 +6251,12 @@ function run() {
     pageCloudSaveStatus,
     "当前页待云同步",
     "Page save status model must tell the owner when the current page is waiting for cloud upload."
+  );
+  assertSourceExcludes(
+    files.pageCloudSaveStatus,
+    pageCloudSaveStatus,
+    "需要重新登录或配置",
+    "Page save status auth-retry copy must not tell the user to relogin when the cloud account is only temporarily uncertain."
   );
   assertSourceIncludes(
     files.pageShell,

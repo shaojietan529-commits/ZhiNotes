@@ -82,9 +82,9 @@ export function buildPageCloudSaveStatus(
     return view({
       ...base,
       id: "offline-buffer",
-      label: "离线缓冲",
+      label: "本地缓冲",
       title:
-        "页面已在本机保存；当前账号云同步需要重新登录或配置，恢复后再补传。",
+        "页面已在本机保存；当前云端暂不可确认，会稍后自动重试，不会因此登出。",
       tone: "warning",
       blocksCacheRebuild: true,
     });
