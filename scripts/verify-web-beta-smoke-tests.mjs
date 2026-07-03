@@ -192,6 +192,7 @@ const files = {
   commentSidePanel: "src/components/shared/CommentSidePanel.tsx",
   blockCommentEvents: "src/components/shared/blockCommentEvents.ts",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
+  meetingInviteIntake: "src/lib/meetings/meetingInviteIntake.ts",
   notesShell: "src/components/modules/NotesShell.tsx",
   databasesShell: "src/components/modules/DatabasesShell.tsx",
   filesShell: "src/components/modules/FilesShell.tsx",
@@ -682,6 +683,7 @@ function run() {
   const commentSidePanel = readProjectFile(files.commentSidePanel);
   const blockCommentEvents = readProjectFile(files.blockCommentEvents);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
+  const meetingInviteIntake = readProjectFile(files.meetingInviteIntake);
   const notesShell = readProjectFile(files.notesShell);
   const databasesShell = readProjectFile(files.databasesShell);
   const filesShell = readProjectFile(files.filesShell);
@@ -11419,6 +11421,36 @@ function run() {
     meetingScheduleShell,
     "fetchMeetingIntakeWithTimeout(inputText)",
     "Meeting retry parsing must use the bounded intake helper so review batches cannot hang on one slow request."
+  );
+  assertIncludes(
+    files.meetingInviteIntake,
+    meetingInviteIntake,
+    'prefix === "下"',
+    "Meeting invite parser must treat 下周 as a distinct next-week relative date."
+  );
+  assertIncludes(
+    files.meetingInviteIntake,
+    meetingInviteIntake,
+    "daysUntilNextChineseWeekday",
+    "Meeting invite parser must calculate 下周 weekday dates with a dedicated Chinese-week helper."
+  );
+  assertIncludes(
+    files.meetingInviteIntake,
+    meetingInviteIntake,
+    "const currentMondayIndex = currentDow === 0 ? 6 : currentDow - 1;",
+    "Meeting invite parser must use Monday-start Chinese week indexing for 下周 dates."
+  );
+  assertIncludes(
+    files.meetingInviteIntake,
+    meetingInviteIntake,
+    "return 7 - currentMondayIndex + targetMondayIndex;",
+    "Meeting invite parser must avoid double-adding a week when 下周 appears after the target weekday."
+  );
+  assertExcludes(
+    files.meetingInviteIntake,
+    meetingInviteIntake,
+    "diff = diff <= 0 ? diff + 7 : diff;",
+    "Meeting invite parser must not double-add seven days for 下周 weekday imports."
   );
   assertIncludes(
     files.meetingScheduleShell,

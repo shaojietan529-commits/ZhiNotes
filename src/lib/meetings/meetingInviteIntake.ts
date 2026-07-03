@@ -483,20 +483,17 @@ function findDate(
 
   // Relative weekday: 本周一/下周三/这周五/周六/下周日
   const relWeekday = text.match(
-    /(?:本|这|下)?\s*周\s*([一二三四五六日天])/
+    /(?:(本|这|下)\s*)?周\s*([一二三四五六日天])/
   );
   if (relWeekday) {
-    const targetDow = WEEKDAY_MAP[relWeekday[1]];
-    const isNext = relWeekday[0].startsWith("下");
+    const prefix = relWeekday[1] ?? "";
+    const targetDow = WEEKDAY_MAP[relWeekday[2]];
     const now = new Date();
     const currentDow = now.getDay();
-    let diff = targetDow - currentDow;
-    if (isNext) {
-      diff = diff <= 0 ? diff + 7 : diff;
-      diff += 7;
-    } else {
-      if (diff < 0) diff += 7;
-    }
+    const diff =
+      prefix === "下"
+        ? daysUntilNextChineseWeekday(targetDow, currentDow)
+        : daysUntilUpcomingWeekday(targetDow, currentDow);
     const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
     return {
       year: target.getFullYear(),
@@ -506,6 +503,18 @@ function findDate(
   }
 
   return null;
+}
+
+function daysUntilUpcomingWeekday(targetDow: number, currentDow: number) {
+  let diff = targetDow - currentDow;
+  if (diff < 0) diff += 7;
+  return diff;
+}
+
+function daysUntilNextChineseWeekday(targetDow: number, currentDow: number) {
+  const currentMondayIndex = currentDow === 0 ? 6 : currentDow - 1;
+  const targetMondayIndex = targetDow === 0 ? 6 : targetDow - 1;
+  return 7 - currentMondayIndex + targetMondayIndex;
 }
 
 // Convert a 12-hour clock reading to 24-hour using a Chinese period marker.
