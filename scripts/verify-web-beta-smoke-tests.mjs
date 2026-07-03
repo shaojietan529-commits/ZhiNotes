@@ -204,6 +204,9 @@ const files = {
   industryChainShell: "src/components/modules/IndustryChainShell.tsx",
   knowledgeBaseShell: "src/components/modules/KnowledgeBaseShell.tsx",
   aiWorkbenchShell: "src/components/modules/AiWorkbenchShell.tsx",
+  anthropicRequest: "src/lib/ai/anthropicRequest.ts",
+  aiAnalyzeTagsRoute: "src/app/api/ai/analyze-tags/route.ts",
+  aiSuggestPositionTagsRoute: "src/app/api/ai/suggest-position-tags/route.ts",
   pageImportPlanPanel: "src/components/modules/PageImportPlanPanel.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
   pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
@@ -688,6 +691,11 @@ function run() {
   const industryChainShell = readProjectFile(files.industryChainShell);
   const knowledgeBaseShell = readProjectFile(files.knowledgeBaseShell);
   const aiWorkbenchShell = readProjectFile(files.aiWorkbenchShell);
+  const anthropicRequest = readProjectFile(files.anthropicRequest);
+  const aiAnalyzeTagsRoute = readProjectFile(files.aiAnalyzeTagsRoute);
+  const aiSuggestPositionTagsRoute = readProjectFile(
+    files.aiSuggestPositionTagsRoute
+  );
   const pageImportPlanPanel = readProjectFile(files.pageImportPlanPanel);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
   const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
@@ -8933,7 +8941,12 @@ function run() {
       "Portfolio email position import must bound Microsoft Graph calls and return a stable retryable timeout response.",
     ],
   ]) {
-    assertIncludes(file, source, "const controller = new AbortController();", message);
+    assertIncludes(
+      file,
+      source,
+      "const controller = new AbortController();",
+      message
+    );
     assertIncludes(file, source, "signal: controller.signal", message);
     assertIncludes(file, source, helper, message);
     assertIncludes(file, source, code, message);
@@ -8950,6 +8963,46 @@ function run() {
       "Portfolio email position must keep fetch usage centralized in fetchPortfolioEmailPositionRequestWithTimeout."
     );
   }
+  for (const [file, source] of [
+    [files.aiAnalyzeTagsRoute, aiAnalyzeTagsRoute],
+    [files.aiSuggestPositionTagsRoute, aiSuggestPositionTagsRoute],
+  ]) {
+    assertIncludes(
+      file,
+      source,
+      "fetchAnthropicMessagesWithTimeout(apiKey",
+      "AI helper routes must call Anthropic through the bounded helper."
+    );
+    assertIncludes(
+      file,
+      source,
+      "error instanceof AnthropicRequestTimeoutError",
+      "AI helper routes must return a stable timeout response instead of a generic 500."
+    );
+    if (source.includes("https://api.anthropic.com/v1/messages")) {
+      failures.push(
+        `${file} must not fetch Anthropic directly; use fetchAnthropicMessagesWithTimeout.`
+      );
+    }
+  }
+  assertIncludes(
+    files.anthropicRequest,
+    anthropicRequest,
+    "ANTHROPIC_REQUEST_TIMEOUT_MS = 8000",
+    "Anthropic provider calls must have a bounded server-side timeout."
+  );
+  assertIncludes(
+    files.anthropicRequest,
+    anthropicRequest,
+    'error: "ai-provider-request-timeout"',
+    "AI provider timeout responses must expose a stable retryable error code."
+  );
+  assertIncludes(
+    files.anthropicRequest,
+    anthropicRequest,
+    "AI 请求超时；本地数据不受影响，可稍后重试。",
+    "AI provider timeout copy must reassure users that local data is preserved."
+  );
   assertIncludes(
     files.accountShell,
     accountShell,

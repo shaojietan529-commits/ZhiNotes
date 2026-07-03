@@ -16,8 +16,11 @@ const files = {
   aiWorkbench: "src/lib/ai/aiWorkbench.ts",
   researchRunbook: "src/lib/ai/aiResearchRunbook.ts",
   outputReview: "src/lib/ai/aiOutputReview.ts",
+  anthropicRequest: "src/lib/ai/anthropicRequest.ts",
   aiShell: "src/components/modules/AiWorkbenchShell.tsx",
   aiRoute: "src/app/api/ai/run/route.ts",
+  aiAnalyzeTagsRoute: "src/app/api/ai/analyze-tags/route.ts",
+  aiSuggestPositionTagsRoute: "src/app/api/ai/suggest-position-tags/route.ts",
   highRiskRegistry: "src/lib/security/highRiskActionRegistry.ts",
   readme: "README.md",
 };
@@ -87,8 +90,13 @@ function run() {
   const aiWorkbench = readProjectFile(files.aiWorkbench);
   const researchRunbook = readProjectFile(files.researchRunbook);
   const outputReview = readProjectFile(files.outputReview);
+  const anthropicRequest = readProjectFile(files.anthropicRequest);
   const aiShell = readProjectFile(files.aiShell);
   const aiRoute = readProjectFile(files.aiRoute);
+  const aiAnalyzeTagsRoute = readProjectFile(files.aiAnalyzeTagsRoute);
+  const aiSuggestPositionTagsRoute = readProjectFile(
+    files.aiSuggestPositionTagsRoute
+  );
   const highRiskRegistry = readProjectFile(files.highRiskRegistry);
   const readme = readProjectFile(files.readme);
 
@@ -387,6 +395,94 @@ function run() {
     "buildAiRunDisabledResponse",
     "AI run route must return the disabled response."
   );
+  for (const [snippet, message] of [
+    [
+      "ANTHROPIC_REQUEST_TIMEOUT_MS = 8000",
+      "Anthropic requests must have a bounded server-side timeout.",
+    ],
+    [
+      "export class AnthropicRequestTimeoutError extends Error",
+      "Anthropic timeout must use a typed error so AI routes can return stable retryable responses.",
+    ],
+    [
+      "export async function fetchAnthropicMessagesWithTimeout",
+      "Anthropic provider calls must route through one shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Anthropic provider calls must be abortable.",
+    ],
+    [
+      "signal: controller.signal",
+      "Anthropic provider calls must pass the abort signal to fetch.",
+    ],
+    [
+      "throw new AnthropicRequestTimeoutError",
+      "Anthropic timeouts must surface as typed retryable errors.",
+    ],
+    [
+      "clearTimeout(timeout)",
+      "Anthropic timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      'error: "ai-provider-request-timeout"',
+      "AI provider timeout responses must expose a stable retryable error code.",
+    ],
+    [
+      "AI 请求超时；本地数据不受影响，可稍后重试。",
+      "AI provider timeout copy must reassure users that local data is preserved.",
+    ],
+    [
+      "timeout_ms: error.timeoutMs",
+      "AI provider timeout responses must include the timeout budget for diagnostics.",
+    ],
+  ]) {
+    assertIncludes(
+      files.anthropicRequest,
+      anthropicRequest,
+      snippet,
+      message
+    );
+  }
+  if ((anthropicRequest.match(/\bfetch\(/g) ?? []).length !== 1) {
+    failures.push(
+      "Anthropic provider calls must keep fetch usage centralized in fetchAnthropicMessagesWithTimeout."
+    );
+  }
+  for (const [file, source] of [
+    [files.aiAnalyzeTagsRoute, aiAnalyzeTagsRoute],
+    [files.aiSuggestPositionTagsRoute, aiSuggestPositionTagsRoute],
+  ]) {
+    assertIncludes(
+      file,
+      source,
+      "@/lib/ai/anthropicRequest",
+      "AI helper routes must import the shared Anthropic timeout wrapper."
+    );
+    assertIncludes(
+      file,
+      source,
+      "fetchAnthropicMessagesWithTimeout(apiKey",
+      "AI helper routes must call Anthropic through the bounded helper."
+    );
+    assertIncludes(
+      file,
+      source,
+      "error instanceof AnthropicRequestTimeoutError",
+      "AI helper routes must return a stable timeout response instead of a generic 500."
+    );
+    assertIncludes(
+      file,
+      source,
+      "buildAnthropicTimeoutBody(error)",
+      "AI helper routes must use the shared local-data-preserved timeout body."
+    );
+    if (source.includes("https://api.anthropic.com/v1/messages")) {
+      failures.push(
+        `${file} must not fetch Anthropic directly; use fetchAnthropicMessagesWithTimeout.`
+      );
+    }
+  }
 
   for (const gateId of requiredPolicyGates) {
     assertIncludes(
@@ -760,6 +856,7 @@ function run() {
         output_destinations: requiredOutputDestinations.length,
         output_review_gates: requiredOutputGates.length,
         run_endpoint_disabled: true,
+        provider_timeout_boundary: true,
         local_only: true,
       },
       null,

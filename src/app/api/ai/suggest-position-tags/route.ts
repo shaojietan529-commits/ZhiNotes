@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  AnthropicRequestTimeoutError,
+  buildAnthropicTimeoutBody,
+  fetchAnthropicMessagesWithTimeout,
+} from "@/lib/ai/anthropicRequest";
 
 export const dynamic = "force-dynamic";
 
@@ -69,18 +74,10 @@ ${tagInstruction}
 ${stockList}`;
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 2048,
-        messages: [{ role: "user", content: prompt }],
-      }),
+    const res = await fetchAnthropicMessagesWithTimeout(apiKey, {
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
     });
 
     if (!res.ok) {
@@ -105,7 +102,12 @@ ${stockList}`;
       }
     }
     return NextResponse.json({ tags });
-  } catch {
+  } catch (error) {
+    if (error instanceof AnthropicRequestTimeoutError) {
+      return NextResponse.json(buildAnthropicTimeoutBody(error), {
+        status: error.status,
+      });
+    }
     return NextResponse.json({ error: "AI analysis error" }, { status: 500 });
   }
 }
