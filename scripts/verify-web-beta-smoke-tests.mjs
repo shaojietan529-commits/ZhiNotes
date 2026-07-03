@@ -9409,6 +9409,30 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus\n      )",
+    "Sync UI operational status must merge page/database pending status into the domain list when sync_log is still catching up."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "mergeCorePendingDomainRows",
+    "Sync UI pending domain rows must include core page/database queues, not only global sync_log rows."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "pageStatus.pending + pageStatus.queued",
+    "Sync UI pending domain rows must include page pending and in-memory page queues."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "databaseStatus.pending +\n          databaseStatus.queued +\n          databaseStatus.syncLogPending",
+    "Sync UI pending domain rows must include database cloud-key, in-memory, and sync_log queues."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     'data-active-sync-domain-count={activeDomainRows.length}',
     "Sync UI local-use panel must expose active full-domain queue counts for smoke checks."
   );
@@ -9429,6 +9453,24 @@ function run() {
     syncShell,
     "暂无全域 pending",
     "Sync UI local-use panel must explicitly say when no full-domain pending queue is present."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "下一步：{row.nextAction}",
+    "Sync UI pending domain cards must give the owner a concrete next action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "先补传页面输入；本地写作可以继续。",
+    "Sync UI pending domain cards must explicitly say page pending uploads do not block local writing."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "先补传数据库变更；本地编辑可以继续。",
+    "Sync UI pending domain cards must explicitly say database pending uploads do not block local editing."
   );
   assertIncludes(
     files.syncShell,

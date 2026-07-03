@@ -650,6 +650,7 @@ type PendingDomainRow = {
   id: PendingDomainId;
   label: string;
   detail: string;
+  nextAction: string;
   pending: number;
   failed: number;
   inFlight: number;
@@ -2180,8 +2181,13 @@ function SyncDashboard() {
     [syncPayloadPreview]
   );
   const pendingDomainRows = useMemo(
-    () => buildPendingDomainRows(syncSummary),
-    [syncSummary]
+    () =>
+      buildPendingDomainRows(
+        syncSummary,
+        pagePendingStatus,
+        databasePendingStatus
+      ),
+    [databasePendingStatus, pagePendingStatus, syncSummary]
   );
   const syncConflictReview = useMemo(
     () =>
@@ -19927,6 +19933,13 @@ function SyncOperationalStatusStrip({
                     : ""}
                   {row.inFlight > 0 ? ` · ${row.inFlight} 上传中` : ""}
                 </div>
+                <div
+                  className="mt-2 rounded bg-zinc-50 px-2 py-1 text-[11px] leading-4 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+                  data-testid={`sync-pending-domain-next-action-${row.id}`}
+                  data-pending-domain-next-action={row.nextAction}
+                >
+                  下一步：{row.nextAction}
+                </div>
                 <div className="mt-1 truncate font-mono text-[10px] text-zinc-400">
                   {row.lastChangeAt
                     ? formatDate(row.lastChangeAt)
@@ -25625,7 +25638,9 @@ function SyncEntryRow({ entry }: { entry: SyncLogEntry }) {
 }
 
 function buildPendingDomainRows(
-  syncSummary: SyncLogSummary | null
+  syncSummary: SyncLogSummary | null,
+  pageStatus: PendingCloudPageSyncStatus,
+  databaseStatus: PendingCloudDatabaseSyncStatus
 ): PendingDomainRow[] {
   const tableRows = syncSummary?.tables ?? [];
   const matchedTables = new Set<string>();
@@ -25641,6 +25656,7 @@ function buildPendingDomainRows(
         id: definition.id,
         label: definition.label,
         detail: definition.detail,
+        nextAction: "",
         pending: sumPendingTables(matchingTables, "pending"),
         failed: sumPendingTables(matchingTables, "failed"),
         inFlight: sumPendingTables(matchingTables, "inFlight"),
@@ -25660,6 +25676,7 @@ function buildPendingDomainRows(
       id: "other",
       label: "其他本地表",
       detail: "尚未归入固定数据域的 pending 变更，用来发现新的上云范围。",
+      nextAction: "",
       pending: sumPendingTables(unmatchedTables, "pending"),
       failed: sumPendingTables(unmatchedTables, "failed"),
       inFlight: sumPendingTables(unmatchedTables, "inFlight"),
@@ -25670,12 +25687,104 @@ function buildPendingDomainRows(
     });
   }
 
-  return rows.sort((a, b) => {
-    if (b.pending !== a.pending) return b.pending - a.pending;
-    if (b.total !== a.total) return b.total - a.total;
-    return PENDING_DOMAIN_DEFINITIONS.findIndex((item) => item.id === a.id) -
-      PENDING_DOMAIN_DEFINITIONS.findIndex((item) => item.id === b.id);
+  return mergeCorePendingDomainRows(rows, pageStatus, databaseStatus)
+    .map(withPendingDomainNextAction)
+    .sort((a, b) => {
+      if (b.pending !== a.pending) return b.pending - a.pending;
+      if (b.total !== a.total) return b.total - a.total;
+      return PENDING_DOMAIN_DEFINITIONS.findIndex((item) => item.id === a.id) -
+        PENDING_DOMAIN_DEFINITIONS.findIndex((item) => item.id === b.id);
+    });
+}
+
+function mergeCorePendingDomainRows(
+  rows: PendingDomainRow[],
+  pageStatus: PendingCloudPageSyncStatus,
+  databaseStatus: PendingCloudDatabaseSyncStatus
+): PendingDomainRow[] {
+  return rows.map((row) => {
+    if (row.id === "pages") {
+      return mergePendingDomainRowWithCoreStatus(row, {
+        pending: pageStatus.pending + pageStatus.queued,
+        failed: pageStatus.failed,
+        manualReview: pageStatus.manualReviewCount,
+        lastChangeAt:
+          pageStatus.lastFailureAt ??
+          pageStatus.oldestPendingQueuedAt ??
+          pageStatus.lastAttemptAt ??
+          pageStatus.lastSyncAt,
+        tableNames: ["pending_page_cloud_push", "pages"],
+      });
+    }
+    if (row.id === "databases") {
+      return mergePendingDomainRowWithCoreStatus(row, {
+        pending:
+          databaseStatus.pending +
+          databaseStatus.queued +
+          databaseStatus.syncLogPending,
+        failed: databaseStatus.failed,
+        manualReview: databaseStatus.manualReviewCount,
+        lastChangeAt:
+          databaseStatus.lastFailureAt ??
+          databaseStatus.oldestPendingQueuedAt ??
+          databaseStatus.lastAttemptAt ??
+          databaseStatus.lastSyncAt,
+        tableNames: ["pending_database_cloud_push", "database_sync_log"],
+      });
+    }
+    return row;
   });
+}
+
+function mergePendingDomainRowWithCoreStatus(
+  row: PendingDomainRow,
+  status: {
+    pending: number;
+    failed: number;
+    manualReview: number;
+    lastChangeAt: string | null;
+    tableNames: string[];
+  }
+): PendingDomainRow {
+  const pending = Math.max(row.pending, status.pending);
+  const failed = Math.max(row.failed, status.failed);
+  const manualReview = Math.max(row.manualReview, status.manualReview);
+  return {
+    ...row,
+    pending,
+    failed,
+    manualReview,
+    total: Math.max(row.total, pending + failed + manualReview + row.inFlight),
+    lastChangeAt: latestNullableDate(row.lastChangeAt, status.lastChangeAt),
+    tableNames: [...new Set([...row.tableNames, ...status.tableNames])],
+  };
+}
+
+function withPendingDomainNextAction(row: PendingDomainRow): PendingDomainRow {
+  return {
+    ...row,
+    nextAction: getPendingDomainNextAction(row),
+  };
+}
+
+function getPendingDomainNextAction(row: PendingDomainRow): string {
+  if (row.manualReview > 0) {
+    return "先导出人工复核包，确认样本 id/key 和最近失败原因。";
+  }
+  if (row.failed > 0) {
+    return "先点击补传待上传；如果继续失败，再查看详细队列。";
+  }
+  if (row.inFlight > 0) {
+    return "正在上传，先保持页面打开，等待 ACK 回写。";
+  }
+  if (row.pending > 0) {
+    return row.id === "pages"
+      ? "先补传页面输入；本地写作可以继续。"
+      : row.id === "databases"
+        ? "先补传数据库变更；本地编辑可以继续。"
+        : "等待后台补传；不要在队列清零前重建缓存。";
+  }
+  return "当前无需处理。";
 }
 
 function isPendingDomainTable(
@@ -25711,6 +25820,15 @@ function latestPendingDomainChange(tables: SyncLogSummary["tables"]) {
     if (!latest) return table.lastChangeAt;
     return table.lastChangeAt > latest ? table.lastChangeAt : latest;
   }, null);
+}
+
+function latestNullableDate(
+  first: string | null,
+  second: string | null
+): string | null {
+  if (!first) return second;
+  if (!second) return first;
+  return first > second ? first : second;
 }
 
 function PermissionMatrix({ roleId }: { roleId: PermissionRoleId }) {
