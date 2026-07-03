@@ -31,6 +31,11 @@ import {
   metadataRecentLimitForHotCachePreferences,
   parseHotCachePreferences,
 } from "@/lib/sync/hotCacheSelectionSettings";
+import {
+  pageListHotCacheSnapshotPageToPage,
+  readPageListHotCacheSnapshot,
+  writePageListHotCacheSnapshot,
+} from "@/lib/sync/pageListHotCacheSnapshot";
 import type { Page } from "@/lib/utils/types";
 
 interface UsePagesOptions {
@@ -174,7 +179,12 @@ function scheduleDeferredMetadataHydration(
     deferredMetadataHydrationScheduled = false;
     deferredMetadataHydrationInFlight = loadPagesSnapshot(false)
       .then((metadataPages) => {
-        setPages(mergeFullMetadataWithCurrentStore(metadataPages));
+        const mergedPages = mergeFullMetadataWithCurrentStore(metadataPages);
+        setPages(mergedPages);
+        writePageListHotCacheSnapshot({
+          pages: mergedPages,
+          source: "local-metadata",
+        });
       })
       .catch(() => {
         // The fast hot-cache metadata already rendered; full local metadata
@@ -268,6 +278,7 @@ function mergeFullMetadataWithCurrentStore(localMetadata: Page[]): Page[] {
       continue;
     }
     const currentIsNewer =
+      !isPageListHotCacheFirstPaintPage(current) &&
       (current.updated_at || "").localeCompare(local.updated_at || "") >= 0;
     const preferred = currentIsNewer ? current : local;
     byId.set(current.id, {
@@ -283,6 +294,15 @@ function mergeFullMetadataWithCurrentStore(localMetadata: Page[]): Page[] {
     });
   }
   return [...byId.values()];
+}
+
+function isPageListHotCacheFirstPaintPage(page: Page): boolean {
+  return (
+    page.sync_version === 0 &&
+    page.content_text === null &&
+    page.content_yjs === null &&
+    page.properties === null
+  );
 }
 
 function mergeCloudMetadataWithPendingLocalPages(cloudMetadata: Page[]): Page[] {
@@ -323,11 +343,16 @@ export function usePages(options: UsePagesOptions = {}) {
   const setPages = useWorkspaceStore((s) => s.setPages);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const refreshRequestRef = useRef(0);
+  const browserHotCacheBootstrappedRef = useRef(false);
 
   const upsertPageSnapshots = useCallback(
     (incomingPages: Page[], reason: PageUpdateReason = "cloud-push") => {
       if (incomingPages.length === 0) return;
       upsertPages(incomingPages);
+      writePageListHotCacheSnapshot({
+        pages: useWorkspaceStore.getState().pages,
+        source: "optimistic-local",
+      });
       emitPageSnapshotsUpdated(reason, incomingPages);
     },
     [upsertPages]
@@ -355,6 +380,10 @@ export function usePages(options: UsePagesOptions = {}) {
             localSnapshotLoaded = true;
             if (!isCurrentRefresh()) return false;
             setPages(hotPages);
+            writePageListHotCacheSnapshot({
+              pages: hotPages,
+              source: "hot-cache-metadata",
+            });
             scheduleDeferredMetadataHydration(setPages);
             return true;
           }
@@ -365,6 +394,10 @@ export function usePages(options: UsePagesOptions = {}) {
         localSnapshotLoaded = true;
         if (!isCurrentRefresh()) return false;
         setPages(all);
+        writePageListHotCacheSnapshot({
+          pages: all,
+          source: "local-metadata",
+        });
         return true;
       } catch {
         // The browser database is only a rebuildable hot cache. If it cannot
@@ -391,13 +424,25 @@ export function usePages(options: UsePagesOptions = {}) {
             all = mergeCloudMetadataWithPendingLocalPages(cloudPages);
             cloudSnapshotAuthoritative = true;
             setPages(all);
+            writePageListHotCacheSnapshot({
+              pages: all,
+              source: "cloud-metadata",
+            });
           } else if (cloudPages.length > 0) {
             if (localSnapshotLoaded) {
               all = mergeMetadataForCount(all, cloudPages);
               setPages(all);
+              writePageListHotCacheSnapshot({
+                pages: all,
+                source: "cloud-metadata",
+              });
             } else {
               all = cloudPages;
               setPages(cloudPages);
+              writePageListHotCacheSnapshot({
+                pages: cloudPages,
+                source: "cloud-metadata",
+              });
             }
           }
         }
@@ -455,6 +500,16 @@ export function usePages(options: UsePagesOptions = {}) {
     metadataFirstContent,
     setPages,
   ]);
+
+  useEffect(() => {
+    if (!autoLoad) return;
+    if (browserHotCacheBootstrappedRef.current) return;
+    browserHotCacheBootstrappedRef.current = true;
+    if (useWorkspaceStore.getState().pages.length > 0) return;
+    const snapshot = readPageListHotCacheSnapshot();
+    if (!snapshot || snapshot.pages.length === 0) return;
+    setPages(snapshot.pages.map(pageListHotCacheSnapshotPageToPage));
+  }, [autoLoad, setPages]);
 
   useEffect(() => {
     if (!autoLoad) return;

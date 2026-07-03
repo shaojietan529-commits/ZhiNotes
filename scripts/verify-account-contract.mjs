@@ -816,6 +816,9 @@ check(
 );
 
 const usePagesHook = read("src/hooks/usePages.ts");
+const pageListHotCacheSnapshot = read(
+  "src/lib/sync/pageListHotCacheSnapshot.ts"
+);
 const filesShell = read("src/components/modules/FilesShell.tsx");
 const pageImportPlanPanel = read("src/components/modules/PageImportPlanPanel.tsx");
 check(
@@ -855,10 +858,18 @@ check(
     usePagesHook.includes("Cloud metadata refresh is best effort") &&
     usePagesHook.includes("cloudSnapshotAuthoritative = true") &&
     usePagesHook.includes("includeContent && !localSnapshotLoaded && all.length === 0") &&
+    usePagesHook.includes("readPageListHotCacheSnapshot") &&
+    usePagesHook.includes("pageListHotCacheSnapshotPageToPage") &&
+    usePagesHook.includes("writePageListHotCacheSnapshot") &&
+    usePagesHook.includes("browserHotCacheBootstrappedRef") &&
+    usePagesHook.includes("isPageListHotCacheFirstPaintPage") &&
+    usePagesHook.includes("!isPageListHotCacheFirstPaintPage(current)") &&
     usePagesHook.indexOf("await renderLocalPagesSnapshot()") <
       usePagesHook.indexOf("const cloud = await syncCloudPageMetadataDelta") &&
+    usePagesHook.indexOf("const snapshot = readPageListHotCacheSnapshot();") <
+      usePagesHook.indexOf("refresh({ broadcast: false });") &&
     !usePagesHook.includes("fetchCloudPageMetadata"),
-  "usePages 应先显示本地热缓存，再用云端 metadata 增量校正；includeContent 只能在本地缓存不可读时用云端 metadata 兜底；云端 full refresh 不能隐藏本机 pending 待上传页面"
+  "usePages 应先显示浏览器页面目录热缓存，再显示本地热缓存，再用云端 metadata 增量校正；includeContent 只能在本地缓存不可读时用云端 metadata 兜底；云端 full refresh 不能隐藏本机 pending 待上传页面"
 );
 check(
   usePagesHook.includes("autoLoad?: boolean") &&
@@ -874,6 +885,28 @@ check(
   usePagesHook.includes("remoteMetadataToPage") &&
     usePagesHook.includes("content_text: null"),
   "usePages 云端 metadata 本地写入失败时仍应能用无正文页面列表渲染侧栏"
+);
+check(
+  pageListHotCacheSnapshot.includes('format: "zhinote-page-list-hot-cache-snapshot"') &&
+    pageListHotCacheSnapshot.includes('route_target: "global-page-list"') &&
+    pageListHotCacheSnapshot.includes("PAGE_LIST_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000") &&
+    pageListHotCacheSnapshot.includes("PAGE_LIST_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000") &&
+    pageListHotCacheSnapshot.includes("PAGE_LIST_HOT_CACHE_MAX_PAGES = 500") &&
+    pageListHotCacheSnapshot.includes("records_metadata_only: true") &&
+    pageListHotCacheSnapshot.includes("stores_page_properties: false") &&
+    pageListHotCacheSnapshot.includes("enters_sync_log: false") &&
+    pageListHotCacheSnapshot.includes("uploads_workspace_data: false") &&
+    pageListHotCacheSnapshot.includes("window.localStorage.setItem(PAGE_LIST_HOT_CACHE_KEY") &&
+    pageListHotCacheSnapshot.includes("shouldWritePageListHotCacheSnapshot") &&
+    pageListHotCacheSnapshot.includes("buildPageListHotCacheSnapshotSignature") &&
+    pageListHotCacheSnapshot.includes("content_text: null") &&
+    !pageListHotCacheSnapshot.includes("page.content_text") &&
+    !pageListHotCacheSnapshot.includes("page.content_yjs") &&
+    !pageListHotCacheSnapshot.includes("page.properties") &&
+    !pageListHotCacheSnapshot.includes("recordSyncChange") &&
+    !pageListHotCacheSnapshot.includes("INSERT INTO sync_log") &&
+    !pageListHotCacheSnapshot.includes("fetch("),
+  "页面目录热缓存必须是浏览器本地、metadata-only、有 24h/7d 新旧窗口、有界存储、不保存正文/属性、不进 sync_log、不上传"
 );
 check(
   shell.includes("usePages({ autoLoad: false })") &&

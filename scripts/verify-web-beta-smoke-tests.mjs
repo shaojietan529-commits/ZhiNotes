@@ -71,6 +71,7 @@ const files = {
   hotCacheRouteWarmupHook: "src/hooks/useHotCacheRouteWarmup.ts",
   hotCacheLocalIndex: "src/lib/sync/hotCacheLocalIndex.ts",
   calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
+  pageListHotCacheSnapshot: "src/lib/sync/pageListHotCacheSnapshot.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   dailyCalendarLoadStatus: "src/lib/sync/dailyCalendarLoadStatus.ts",
   meetingCalendarLoadStatus: "src/lib/sync/meetingCalendarLoadStatus.ts",
@@ -496,6 +497,9 @@ function run() {
   const hotCacheLocalIndex = readProjectFile(files.hotCacheLocalIndex);
   const calendarFirstPaintRange = readProjectFile(
     files.calendarFirstPaintRange
+  );
+  const pageListHotCacheSnapshot = readProjectFile(
+    files.pageListHotCacheSnapshot
   );
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
   const dailyCalendarLoadStatus = readProjectFile(
@@ -5287,6 +5291,146 @@ function run() {
       calendarFirstPaintRange,
       snippet,
       message
+    );
+  }
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    'format: "zhinote-page-list-hot-cache-snapshot"',
+    "Page list hot cache must keep a dedicated browser snapshot format."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    'route_target: "global-page-list"',
+    "Page list hot cache must stay scoped to the global page/sidebar list."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "PAGE_LIST_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",
+    "Page list hot cache must keep a fresh window for unchanged-write skipping."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "PAGE_LIST_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000",
+    "Page list hot cache must keep a bounded stale metadata fallback for hard refresh first paint."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "PAGE_LIST_HOT_CACHE_MAX_PAGES = 500",
+    "Page list hot cache must stay bounded for large imported workspaces."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "records_metadata_only: true",
+    "Page list hot cache must stay metadata-only."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "stores_page_properties: false",
+    "Page list hot cache must not persist page property payloads."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "enters_sync_log: false",
+    "Page list hot cache snapshot must not enter the upload queue."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "window.localStorage.setItem(PAGE_LIST_HOT_CACHE_KEY",
+    "Page list hot cache snapshot must stay a local browser cache."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "shouldWritePageListHotCacheSnapshot",
+    "Page list hot cache writes must skip unchanged fresh snapshots."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "buildPageListHotCacheSnapshotSignature",
+    "Page list hot cache writes must compare stable metadata signatures."
+  );
+  assertIncludes(
+    files.pageListHotCacheSnapshot,
+    pageListHotCacheSnapshot,
+    "content_text: null",
+    "Page list hot cache snapshot must restore page-list entries without page body text."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "readPageListHotCacheSnapshot",
+    "usePages must read browser page-list hot cache before slower local/cloud checks."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "pageListHotCacheSnapshotPageToPage",
+    "usePages must convert browser page-list hot cache metadata into page-list entries."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "writePageListHotCacheSnapshot",
+    "usePages must refresh the page-list hot cache after metadata loads."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "browserHotCacheBootstrappedRef",
+    "usePages must bootstrap the browser page-list hot cache only once per hook mount."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "isPageListHotCacheFirstPaintPage",
+    "usePages must recognize browser page-list hot cache entries as first-paint metadata."
+  );
+  assertIncludes(
+    files.usePages,
+    usePages,
+    "!isPageListHotCacheFirstPaintPage(current)",
+    "Full local metadata must replace browser page-list first-paint entries instead of preserving empty properties."
+  );
+  if (
+    !(
+      usePages.indexOf("const snapshot = readPageListHotCacheSnapshot();") >= 0 &&
+      usePages.indexOf("const snapshot = readPageListHotCacheSnapshot();") <
+        usePages.indexOf("refresh({ broadcast: false });")
+    )
+  ) {
+    failures.push(
+      "usePages must read browser page-list hot cache before starting the dbReady-gated refresh effect."
+    );
+  }
+  for (const forbiddenPageListSnapshotSnippet of [
+    "page.content_text",
+    "page.content_yjs",
+    "page.properties",
+    "comment.body",
+    "field_values",
+    "fetch(",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+  ]) {
+    if (pageListHotCacheSnapshot.includes(forbiddenPageListSnapshotSnippet)) {
+      failures.push(
+        `${files.pageListHotCacheSnapshot} must not include ${forbiddenPageListSnapshotSnippet}: page-list hot cache snapshot must stay metadata-only, local-only, and out of sync_log.`
+      );
+    }
+  }
+  if (pageListHotCacheSnapshot.includes("storage.key(")) {
+    failures.push(
+      `${files.pageListHotCacheSnapshot} must not call storage.key(: page-list hot-cache reads should use the exact localStorage key instead of scanning every localStorage key.`
     );
   }
   assertIncludes(
