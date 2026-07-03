@@ -6403,6 +6403,9 @@ function SyncDashboard() {
           manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
           pendingDomainRows={pendingDomainRows}
           onDrainAll={() => void handleDrainAllPendingPush()}
+          onRetryPage={() => void handleRetryPagePendingPush()}
+          onRetryDatabase={() => void handleRetryDatabasePendingPush()}
+          onExportManualReview={handleExportSyncManualReviewPacket}
           onOpenSyncLog={() =>
             document
               .getElementById("sync-log-visibility-section")
@@ -19743,6 +19746,46 @@ function developmentStabilityStatusClass(
   return "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300";
 }
 
+function getPendingDomainAction(
+  row: PendingDomainRow,
+  actions: {
+    onRetryPage: () => void;
+    onRetryDatabase: () => void;
+    onExportManualReview: () => void;
+    onOpenSyncLog: () => void;
+  }
+) {
+  if (row.manualReview > 0) {
+    return {
+      label: "导出复核包",
+      onClick: actions.onExportManualReview,
+      primary: true,
+    };
+  }
+
+  if (row.id === "pages" && (row.pending > 0 || row.failed > 0)) {
+    return {
+      label: "补传页面",
+      onClick: actions.onRetryPage,
+      primary: true,
+    };
+  }
+
+  if (row.id === "databases" && (row.pending > 0 || row.failed > 0)) {
+    return {
+      label: "补传数据库",
+      onClick: actions.onRetryDatabase,
+      primary: true,
+    };
+  }
+
+  return {
+    label: "查看详细队列",
+    onClick: actions.onOpenSyncLog,
+    primary: false,
+  };
+}
+
 function SyncOperationalStatusStrip({
   readiness,
   pendingTotal,
@@ -19750,6 +19793,9 @@ function SyncOperationalStatusStrip({
   manualReviewTotal,
   pendingDomainRows,
   onDrainAll,
+  onRetryPage,
+  onRetryDatabase,
+  onExportManualReview,
   onOpenSyncLog,
   onOpenAccount,
 }: {
@@ -19759,6 +19805,9 @@ function SyncOperationalStatusStrip({
   manualReviewTotal: number;
   pendingDomainRows: PendingDomainRow[];
   onDrainAll: () => void;
+  onRetryPage: () => void;
+  onRetryDatabase: () => void;
+  onExportManualReview: () => void;
   onOpenSyncLog: () => void;
   onOpenAccount: () => void;
 }) {
@@ -19913,40 +19962,64 @@ function SyncOperationalStatusStrip({
         </div>
         {visibleDomains.length > 0 ? (
           <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {visibleDomains.map((row) => (
-              <div
-                key={row.id}
-                className="rounded-md border border-zinc-100 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-xs font-medium text-zinc-800 dark:text-zinc-100">
-                    {row.label}
-                  </span>
-                  <span className="text-[11px] text-zinc-400">
-                    {row.pending} pending
-                  </span>
-                </div>
-                <div className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
-                  {row.failed > 0 ? `${row.failed} 失败` : "无失败"}
-                  {row.manualReview > 0
-                    ? ` · ${row.manualReview} 人工`
-                    : ""}
-                  {row.inFlight > 0 ? ` · ${row.inFlight} 上传中` : ""}
-                </div>
+            {visibleDomains.map((row) => {
+              const domainAction = getPendingDomainAction(row, {
+                onRetryPage,
+                onRetryDatabase,
+                onExportManualReview,
+                onOpenSyncLog,
+              });
+
+              return (
                 <div
-                  className="mt-2 rounded bg-zinc-50 px-2 py-1 text-[11px] leading-4 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
-                  data-testid={`sync-pending-domain-next-action-${row.id}`}
-                  data-pending-domain-next-action={row.nextAction}
+                  key={row.id}
+                  className="rounded-md border border-zinc-100 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950"
                 >
-                  下一步：{row.nextAction}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs font-medium text-zinc-800 dark:text-zinc-100">
+                      {row.label}
+                    </span>
+                    <span className="text-[11px] text-zinc-400">
+                      {row.pending} pending
+                    </span>
+                  </div>
+                  <div className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+                    {row.failed > 0 ? `${row.failed} 失败` : "无失败"}
+                    {row.manualReview > 0
+                      ? ` · ${row.manualReview} 人工`
+                      : ""}
+                    {row.inFlight > 0 ? ` · ${row.inFlight} 上传中` : ""}
+                  </div>
+                  <div
+                    className="mt-2 rounded bg-zinc-50 px-2 py-1 text-[11px] leading-4 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+                    data-testid={`sync-pending-domain-next-action-${row.id}`}
+                    data-pending-domain-next-action={row.nextAction}
+                  >
+                    下一步：{row.nextAction}
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="min-w-0 truncate font-mono text-[10px] text-zinc-400">
+                      {row.lastChangeAt
+                        ? formatDate(row.lastChangeAt)
+                        : row.tableNames[0] || "暂无时间戳"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={domainAction.onClick}
+                      data-testid={`sync-pending-domain-action-${row.id}`}
+                      data-pending-domain-action-label={domainAction.label}
+                      className={
+                        domainAction.primary
+                          ? "shrink-0 rounded-md bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+                          : "shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-[11px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                      }
+                    >
+                      {domainAction.label}
+                    </button>
+                  </div>
                 </div>
-                <div className="mt-1 truncate font-mono text-[10px] text-zinc-400">
-                  {row.lastChangeAt
-                    ? formatDate(row.lastChangeAt)
-                    : row.tableNames[0] || "暂无时间戳"}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="mt-3 rounded-md border border-zinc-100 bg-white px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">

@@ -12693,6 +12693,60 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "getPendingDomainAction",
+    "Sync UI must choose a direct action for each top pending domain card."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid={`sync-pending-domain-action-${row.id}`}',
+    "Sync UI must expose a stable test hook for each top pending domain action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-pending-domain-action-label={domainAction.label}",
+    "Sync UI must expose the chosen top pending domain action label."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "onRetryPage={() => void handleRetryPagePendingPush()}",
+    "Sync top status strip must be wired to the page retry handler."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "onRetryDatabase={() => void handleRetryDatabasePendingPush()}",
+    "Sync top status strip must be wired to the database retry handler."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "onExportManualReview={handleExportSyncManualReviewPacket}",
+    "Sync top status strip must be wired to manual review packet export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "导出复核包",
+    "Sync top pending domain cards must offer manual review export directly."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "补传页面",
+    "Sync top pending domain cards must offer page retry directly."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "补传数据库",
+    "Sync top pending domain cards must offer database retry directly."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "handleExportSyncHandoffReadinessReceipt",
     "Sync UI must expose a local cross-device handoff readiness export handler."
   );

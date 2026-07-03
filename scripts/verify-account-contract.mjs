@@ -2698,6 +2698,25 @@ check(
     syncDashboardShell.includes("可云端交接") &&
     syncDashboardShell.includes("优先查看的数据域") &&
     syncDashboardShell.includes("云端交接：") &&
+    syncDashboardShell.includes("getPendingDomainAction") &&
+    syncDashboardShell.includes("导出复核包") &&
+    syncDashboardShell.includes("补传页面") &&
+    syncDashboardShell.includes("补传数据库") &&
+    syncDashboardShell.includes(
+      'data-testid={`sync-pending-domain-action-${row.id}`}'
+    ) &&
+    syncDashboardShell.includes(
+      "data-pending-domain-action-label={domainAction.label}"
+    ) &&
+    syncDashboardShell.includes(
+      "onRetryPage={() => void handleRetryPagePendingPush()}"
+    ) &&
+    syncDashboardShell.includes(
+      "onRetryDatabase={() => void handleRetryDatabasePendingPush()}"
+    ) &&
+    syncDashboardShell.includes(
+      "onExportManualReview={handleExportSyncManualReviewPacket}"
+    ) &&
     syncDashboardShell.includes("不读取正文、数据库值或文件内容") &&
     syncDashboardShell.includes(
       "data-local-input-can-continue={String(readiness.localInputCanContinue)}"
