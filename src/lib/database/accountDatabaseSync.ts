@@ -38,6 +38,7 @@ const PULL_BATCH = 80;
 const PUSH_BATCH_RECORDS = 80;
 const PUSH_BATCH_BYTES = 800 * 1024;
 const CLOUD_DATABASE_PUSH_DEBOUNCE_MS = 1000;
+const ACCOUNT_DATABASE_SYNC_REQUEST_TIMEOUT_MS = 12000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const METADATA_DELTA_THROTTLE_MS = 2500;
 const AUTH_RETRY_PROBE_WINDOW_KEY = "__zhinoteDatabaseSyncAuthRetryProbe";
@@ -669,11 +670,7 @@ async function call(body: Record<string, unknown>): Promise<
   const finishAuthRetryProbe = startAuthRetryProbe();
   let probeStatus: AuthRetryProbeStatus = "ok";
   try {
-    const res = await fetch("/api/databases/account-sync", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const res = await fetchAccountDatabaseSync(body);
     if (res.status === 501) {
       probeStatus = "unconfigured";
       rememberAuthRetryStatus("unconfigured");
@@ -698,11 +695,47 @@ async function call(body: Record<string, unknown>): Promise<
     }
     rememberAuthRetryStatus("ok");
     return { ok: true, json };
-  } catch {
-    return { ok: false, status: "error", message: "网络错误" };
+  } catch (error) {
+    probeStatus = "error";
+    return {
+      ok: false,
+      status: "error",
+      message: isAbortError(error)
+        ? "数据库同步请求超时；本地输入已保留，会稍后重试。"
+        : "网络错误",
+    };
   } finally {
     finishAuthRetryProbe(probeStatus);
   }
+}
+
+async function fetchAccountDatabaseSync(
+  body: Record<string, unknown>
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    ACCOUNT_DATABASE_SYNC_REQUEST_TIMEOUT_MS
+  );
+  try {
+    return await fetch("/api/databases/account-sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
 }
 
 export async function getCloudDatabaseManifestSummary(): Promise<CloudDatabaseManifestSummaryResult> {

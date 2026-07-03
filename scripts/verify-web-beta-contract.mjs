@@ -4828,6 +4828,42 @@ function run() {
     "数据库同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。",
     "Database account-sync client must treat a domain-route 401 after the shared gate as a retryable sync error, not a sign-out."
   );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "ACCOUNT_DATABASE_SYNC_REQUEST_TIMEOUT_MS = 12000",
+    "Database account-sync requests must have a bounded timeout so slow cloud APIs do not leave local use hanging."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "async function fetchAccountDatabaseSync",
+    "Database account-sync must route every account-sync fetch through a shared timeout wrapper."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "const controller = new AbortController();",
+    "Database account-sync must be able to abort slow account-sync requests."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "signal: controller.signal",
+    "Database account-sync fetches must pass the abort signal to the browser fetch call."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "clearTimeout(timeout)",
+    "Database account-sync request timeout timers must be cleared after fetch settles."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "数据库同步请求超时；本地输入已保留，会稍后重试。",
+    "Database account-sync timeout errors must explicitly tell the user local input is preserved."
+  );
   assertSourceExcludes(
     files.accountDatabaseSync,
     accountDatabaseSync,

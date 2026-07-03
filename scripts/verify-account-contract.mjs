@@ -582,6 +582,16 @@ check(
     pageSyncClient.includes("页面同步请求超时；本地输入已保留，会稍后重试。"),
   "页面同步底层 fetch 必须可超时取消；超时只能进入可重试错误并明确本地输入已保留"
 );
+check(
+  databaseSyncClient.includes("ACCOUNT_DATABASE_SYNC_REQUEST_TIMEOUT_MS = 12000") &&
+    databaseSyncClient.includes("async function fetchAccountDatabaseSync") &&
+    databaseSyncClient.includes("const controller = new AbortController();") &&
+    databaseSyncClient.includes("signal: controller.signal") &&
+    databaseSyncClient.includes("controller.abort()") &&
+    databaseSyncClient.includes("clearTimeout(timeout)") &&
+    databaseSyncClient.includes("数据库同步请求超时；本地输入已保留，会稍后重试。"),
+  "数据库同步底层 fetch 必须可超时取消；超时只能进入可重试错误并明确本地输入已保留"
+);
 const coreManifestCompareReceipt = read(
   "src/lib/sync/coreManifestCompareReceipt.ts"
 );
