@@ -152,6 +152,36 @@ check(
   "AccountShell 应通过共享账号状态 helper 检查会话，并在登录/改名/退出后刷新缓存；成功登录或改名后要重写最近登录账号兜底"
 );
 check(
+  shell.includes("ACCOUNT_ACTION_REQUEST_TIMEOUT_MS = 12000") &&
+    shell.includes("async function fetchAccountActionWithTimeout") &&
+    shell.includes("const controller = new AbortController();") &&
+    shell.includes("signal: controller.signal") &&
+    shell.includes("window.clearTimeout(timeout)") &&
+    shell.includes('fetchAccountActionWithTimeout("/api/account/login/start"') &&
+    shell.includes('fetchAccountActionWithTimeout("/api/account/login/verify"') &&
+    shell.includes('fetchAccountActionWithTimeout("/api/account/me"') &&
+    shell.includes(
+      'fetchAccountActionWithTimeout("/api/pages/ingest?action=current")'
+    ) &&
+    shell.includes(
+      'fetchAccountActionWithTimeout(\n        "/api/pages/ingest?action=generate"'
+    ) &&
+    shell.includes('fetchAccountActionWithTimeout("/api/account/logout"') &&
+    shell.includes(
+      "发送验证码请求超时，请稍后重试；当前页面数据不受影响。"
+    ) &&
+    shell.includes("验证登录请求超时，请稍后重试；不会清除当前本地数据。") &&
+    shell.includes("用户名保存请求超时；当前登录状态已保留，可稍后重试。") &&
+    shell.includes(
+      "每日纪要归档修复请求超时；本地页面和待同步队列未改变，可稍后重试。"
+    ) &&
+    !shell.includes('await fetch("/api/account/login/start"') &&
+    !shell.includes('await fetch("/api/account/login/verify"') &&
+    !shell.includes('await fetch("/api/account/me"') &&
+    !shell.includes('await fetch("/api/account/logout"'),
+  "AccountShell 账号操作请求必须统一走可超时取消的 helper，接口慢不能让登录、改名、密钥、归档修复或退出操作长期卡住"
+);
+check(
   accountClientProfile.includes("export function formatClientAccountLabel") &&
     accountClientProfile.includes("account?.display_name?.trim()") &&
     accountClientProfile.includes("account?.email_hint?.trim()") &&

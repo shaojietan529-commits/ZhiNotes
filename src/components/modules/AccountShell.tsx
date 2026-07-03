@@ -100,6 +100,8 @@ type Phase =
 
 type AccountCloudCoverageStatus = "cloud-ready" | "partial" | "local-only";
 
+const ACCOUNT_ACTION_REQUEST_TIMEOUT_MS = 12000;
+
 const accountCloudCoverageRows: {
   id: string;
   title: string;
@@ -141,6 +143,35 @@ const accountCloudCoverageRows: {
     next: "下一步需要云表、权限、容量策略和二次确认后，才能纳入全域云端主库。",
   },
 ];
+
+async function fetchAccountActionWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(
+    () => controller.abort(),
+    ACCOUNT_ACTION_REQUEST_TIMEOUT_MS
+  );
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function getAccountActionFailureMessage(
+  error: unknown,
+  timeoutMessage: string,
+  fallbackMessage: string
+) {
+  return error instanceof Error && error.name === "AbortError"
+    ? timeoutMessage
+    : fallbackMessage;
+}
 
 function getPageCacheRebuildPendingBlocker(): string | null {
   return getPageCacheRebuildBlockerFromStatus(getPendingCloudPageSyncStatus());
@@ -417,7 +448,7 @@ export default function AccountShell() {
       }
     });
     // Load existing API key
-    void fetch("/api/pages/ingest?action=current")
+    void fetchAccountActionWithTimeout("/api/pages/ingest?action=current")
       .then((r) => r.json())
       .then((d) => { if (d.ok) setApiKey(d.apiKey); })
       .catch(() => {});
@@ -496,7 +527,7 @@ export default function AccountShell() {
     setDailyRepairBusy(true);
     setPageSyncNotice(null);
     try {
-      const res = await fetch("/api/pages/account-sync", {
+      const res = await fetchAccountActionWithTimeout("/api/pages/account-sync", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "repair-daily-imports" }),
@@ -523,8 +554,14 @@ export default function AccountShell() {
         `云端修复完成：归档 ${repaired} 页，缺少日期跳过 ${skippedNoDate} 页。正在同步到本机…`
       );
       await handlePageSyncRun();
-    } catch {
-      setPageSyncNotice("网络错误，未能修复每日纪要归档。");
+    } catch (error) {
+      setPageSyncNotice(
+        getAccountActionFailureMessage(
+          error,
+          "每日纪要归档修复请求超时；本地页面和待同步队列未改变，可稍后重试。",
+          "网络错误，未能修复每日纪要归档。"
+        )
+      );
     } finally {
       setDailyRepairBusy(false);
       void refreshCloudUploadReliability();
@@ -732,7 +769,7 @@ export default function AccountShell() {
     setBusy(true);
     setNotice(null);
     try {
-      const res = await fetch("/api/account/login/start", {
+      const res = await fetchAccountActionWithTimeout("/api/account/login/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email }),
@@ -744,8 +781,14 @@ export default function AccountShell() {
       }
       setPhase("code");
       setNotice("验证码已发送（如果该邮箱在受邀名单内），请查收邮件。");
-    } catch {
-      setNotice("网络错误，请稍后重试。");
+    } catch (error) {
+      setNotice(
+        getAccountActionFailureMessage(
+          error,
+          "发送验证码请求超时，请稍后重试；当前页面数据不受影响。",
+          "网络错误，请稍后重试。"
+        )
+      );
     } finally {
       setBusy(false);
     }
@@ -755,7 +798,7 @@ export default function AccountShell() {
     setBusy(true);
     setNotice(null);
     try {
-      const res = await fetch("/api/account/login/verify", {
+      const res = await fetchAccountActionWithTimeout("/api/account/login/verify", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, code }),
@@ -769,8 +812,14 @@ export default function AccountShell() {
       setSignedInAccount(data.account as ClientAccountInfo);
       setCode("");
       setPhase("signed-in");
-    } catch {
-      setNotice("网络错误，请稍后重试。");
+    } catch (error) {
+      setNotice(
+        getAccountActionFailureMessage(
+          error,
+          "验证登录请求超时，请稍后重试；不会清除当前本地数据。",
+          "网络错误，请稍后重试。"
+        )
+      );
     } finally {
       setBusy(false);
     }
@@ -785,7 +834,7 @@ export default function AccountShell() {
     setProfileBusy(true);
     setProfileNotice(null);
     try {
-      const res = await fetch("/api/account/me", {
+      const res = await fetchAccountActionWithTimeout("/api/account/me", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ display_name: displayName }),
@@ -798,8 +847,14 @@ export default function AccountShell() {
       clearAccountSessionCache();
       setSignedInAccount(data.account as ClientAccountInfo);
       setProfileNotice("用户名已保存。");
-    } catch {
-      setProfileNotice("网络错误，请稍后重试。");
+    } catch (error) {
+      setProfileNotice(
+        getAccountActionFailureMessage(
+          error,
+          "用户名保存请求超时；当前登录状态已保留，可稍后重试。",
+          "网络错误，请稍后重试。"
+        )
+      );
     } finally {
       setProfileBusy(false);
     }
@@ -867,7 +922,9 @@ export default function AccountShell() {
     setApiKeyBusy(true);
     setApiKeyNotice(null);
     try {
-      const res = await fetch("/api/pages/ingest?action=generate");
+      const res = await fetchAccountActionWithTimeout(
+        "/api/pages/ingest?action=generate"
+      );
       const data = await res.json();
       if (res.ok && data.ok) {
         setApiKey(data.apiKey);
@@ -875,8 +932,14 @@ export default function AccountShell() {
       } else {
         setApiKeyNotice(data.error ?? "生成失败。");
       }
-    } catch {
-      setApiKeyNotice("网络错误。");
+    } catch (error) {
+      setApiKeyNotice(
+        getAccountActionFailureMessage(
+          error,
+          "生成密钥请求超时；旧密钥和本地数据未改变，可稍后重试。",
+          "网络错误。"
+        )
+      );
     } finally {
       setApiKeyBusy(false);
     }
@@ -885,7 +948,9 @@ export default function AccountShell() {
   async function handleLogout() {
     setBusy(true);
     try {
-      await fetch("/api/account/logout", { method: "POST" });
+      await fetchAccountActionWithTimeout("/api/account/logout", {
+        method: "POST",
+      });
     } catch {
       // Cookie may already be gone; fall through to the signed-out view.
     } finally {

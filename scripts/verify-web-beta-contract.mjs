@@ -4786,6 +4786,54 @@ function run() {
     "rememberLastAuthenticatedAccount(nextAccount)",
     "Account shell must refresh the stale account fallback whenever it accepts a signed-in account."
   );
+  for (const [snippet, message] of [
+    [
+      "ACCOUNT_ACTION_REQUEST_TIMEOUT_MS = 12000",
+      "Account shell user actions must have a bounded request timeout so login/profile/API-key controls cannot hang indefinitely.",
+    ],
+    [
+      "async function fetchAccountActionWithTimeout",
+      "Account shell user actions must route through a shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Account shell user actions must be able to abort slow account and account-adjacent requests.",
+    ],
+    [
+      "signal: controller.signal",
+      "Account shell user actions must pass the abort signal to fetch.",
+    ],
+    [
+      "window.clearTimeout(timeout)",
+      "Account shell user action timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      'fetchAccountActionWithTimeout("/api/account/login/start"',
+      "Sending an account login code must use the bounded account action fetch helper.",
+    ],
+    [
+      'fetchAccountActionWithTimeout("/api/account/login/verify"',
+      "Verifying an account login code must use the bounded account action fetch helper.",
+    ],
+    [
+      'fetchAccountActionWithTimeout("/api/account/me"',
+      "Saving the account display name must use the bounded account action fetch helper.",
+    ],
+    [
+      'fetchAccountActionWithTimeout(\n        "/api/pages/ingest?action=generate"',
+      "Generating the ingest API key must use the bounded account action fetch helper.",
+    ],
+    [
+      "验证登录请求超时，请稍后重试；不会清除当前本地数据。",
+      "Account login timeout copy must make clear that local data is not cleared.",
+    ],
+    [
+      "用户名保存请求超时；当前登录状态已保留，可稍后重试。",
+      "Account display-name timeout copy must make clear that the current login state is preserved.",
+    ],
+  ]) {
+    assertSourceIncludes(files.accountShell, accountShell, snippet, message);
+  }
   if (
     !(
       accountShell.indexOf("rememberLastAuthenticatedAccount(nextAccount)") <
