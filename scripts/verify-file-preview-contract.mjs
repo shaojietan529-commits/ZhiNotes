@@ -23,6 +23,11 @@ const files = {
   structure: "src/lib/files/filePreviewStructure.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
   fileEmbedSyncClient: "src/lib/files/fileEmbedSyncClient.ts",
+  fileEmbedSyncQueue: "src/lib/files/fileEmbedSyncQueue.ts",
+  fileEmbedSyncStatusHook: "src/hooks/useFileEmbedCloudSyncStatus.ts",
+  accountSyncCoordinator: "src/hooks/useAccountCloudSyncCoordinator.ts",
+  sidebar: "src/components/sidebar/Sidebar.tsx",
+  syncShell: "src/components/modules/SyncShell.tsx",
   upload: "src/components/editor/filePreviewUpload.ts",
   editor: "src/components/editor/Editor.tsx",
   codeHighlight: "src/lib/codeHighlight.ts",
@@ -230,6 +235,15 @@ function run() {
   const structure = readProjectFile(files.structure);
   const actionReceipts = readProjectFile(files.actionReceipts);
   const fileEmbedSyncClient = readProjectFile(files.fileEmbedSyncClient);
+  const fileEmbedSyncQueue = readProjectFile(files.fileEmbedSyncQueue);
+  const fileEmbedSyncStatusHook = readProjectFile(
+    files.fileEmbedSyncStatusHook
+  );
+  const accountSyncCoordinator = readProjectFile(
+    files.accountSyncCoordinator
+  );
+  const sidebar = readProjectFile(files.sidebar);
+  const syncShell = readProjectFile(files.syncShell);
   const upload = readProjectFile(files.upload);
   const editor = readProjectFile(files.editor);
   const codeHighlight = readProjectFile(files.codeHighlight);
@@ -447,6 +461,148 @@ function run() {
     fail(
       `${files.fileEmbedSyncClient} must keep direct fetch usage centralized in fetchFileEmbedSyncWithTimeout.`
     );
+  }
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
+      "FILE_EMBED_SYNC_QUEUE_STORAGE_KEY",
+      "File embed cloud sync retries must have a visible metadata queue.",
+    ],
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
+      "FILE_EMBED_SYNC_QUEUE_EVENT",
+      "File embed sync queue updates must notify open tabs.",
+    ],
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
+      "storesFileBytes: false",
+      "File embed sync queue must prove it does not persist file bytes in localStorage.",
+    ],
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
+      "getStoredPageFile(entry.fileId)",
+      "File embed retry must load bytes from the local IndexedDB file copy, not localStorage.",
+    ],
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
+      "FILE_EMBED_MANUAL_REVIEW_FAILURE_THRESHOLD = 3",
+      "Repeated file upload failures must stop at manual review instead of looping forever.",
+    ],
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
+      "status: \"manual_review\"",
+      "Missing local file copies must be surfaced for manual review.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "useFileEmbedCloudSyncStatus",
+      "UI surfaces must subscribe to the file embed queue status.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      'window.addEventListener("storage", handleStorage)',
+      "File embed queue state must update across tabs.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      'window.addEventListener("online", handleForeground)',
+      "File embed queue status must refresh when connectivity returns.",
+    ],
+    [
+      files.upload,
+      upload,
+      "markFileEmbedCloudSyncAttempt",
+      "Editor file uploads must enter the metadata queue before cloud push.",
+    ],
+    [
+      files.upload,
+      upload,
+      "markFileEmbedCloudSyncSuccess",
+      "Successful cloud pushes must remove file entries from the queue.",
+    ],
+    [
+      files.upload,
+      upload,
+      "markFileEmbedCloudSyncFailure",
+      "File cloud failures must remain visible for retry or manual review.",
+    ],
+    [
+      files.upload,
+      upload,
+      "retryable: res.status !== 413",
+      "Oversized file sync responses must go to manual review instead of retrying forever.",
+    ],
+    [
+      files.accountSyncCoordinator,
+      accountSyncCoordinator,
+      "useFileEmbedCloudSyncStatus",
+      "Global account sync status must include file embed queue visibility.",
+    ],
+    [
+      files.accountSyncCoordinator,
+      accountSyncCoordinator,
+      "filePendingTotal",
+      "Global account sync status must expose file pending counts.",
+    ],
+    [
+      files.accountSyncCoordinator,
+      accountSyncCoordinator,
+      "retryFileEmbedSync({",
+      "Global account sync retry must include file embed pending uploads.",
+    ],
+    [
+      files.accountSyncCoordinator,
+      accountSyncCoordinator,
+      "const fileAutoRetryablePendingTotal = 0",
+      "File byte uploads must stay out of the high-frequency account auto-retry loop.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "data-file-pending-total",
+      "Sidebar sync status must expose file pending counts for smoke tests.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "/modules/sync#file-embed-pending-upload-queue",
+      "Sidebar file pending status must deep-link to the sync center file queue.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "fileEmbedPendingStatus",
+      "Sync center must include file embed pending counts.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "file_embed_sync_queue",
+      "Sync center pending-domain rows must identify the file embed queue table.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "file-embed-pending-upload-queue",
+      "Sync center must expose a stable anchor for file pending uploads.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "const fileQueueClear =",
+      "Sync center handoff copy must not mark all queues clear while files remain pending.",
+    ],
+  ]) {
+    assertIncludes(sourceLabel, source, snippet, message);
   }
   for (const [sourceLabel, source] of [
     [files.upload, upload],

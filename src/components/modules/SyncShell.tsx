@@ -85,6 +85,11 @@ import {
   listStoredPageFiles,
   type StoredPageFile,
 } from "@/lib/files/localStore";
+import { useFileEmbedCloudSyncStatus } from "@/hooks/useFileEmbedCloudSyncStatus";
+import {
+  getPendingFileEmbedSyncStatus,
+  type PendingFileEmbedSyncStatus,
+} from "@/lib/files/fileEmbedSyncQueue";
 import {
   PERMISSION_ROLES,
   buildPermissionPolicySnapshot,
@@ -1499,6 +1504,8 @@ function SyncDashboard() {
   const [busyQueueAction, setBusyQueueAction] = useState<SyncQueueAction | null>(
     null
   );
+  const fileEmbedSync = useFileEmbedCloudSyncStatus();
+  const fileEmbedPendingStatus = fileEmbedSync.status;
   const [pagePendingStatus, setPagePendingStatus] =
     useState<PendingCloudPageSyncStatus>(() =>
       getPendingCloudPageSyncStatus()
@@ -2122,17 +2129,21 @@ function SyncDashboard() {
       databasePendingStatus.pending +
       databasePendingStatus.queued +
       databasePendingStatus.syncLogPending;
+    const fileWaiting = fileEmbedPendingStatus.pending;
     const pendingTotal = Math.max(
-      pageWaiting + databaseWaiting,
+      pageWaiting + databaseWaiting + fileWaiting,
       syncSummary?.pending ?? 0
     );
     const failedTotal = Math.max(
-      pagePendingStatus.failed + databasePendingStatus.failed,
+      pagePendingStatus.failed +
+        databasePendingStatus.failed +
+        fileEmbedPendingStatus.failed,
       syncSummary?.failed ?? 0
     );
     const manualReviewTotal = Math.max(
       pagePendingStatus.manualReviewCount +
-        databasePendingStatus.manualReviewCount,
+        databasePendingStatus.manualReviewCount +
+        fileEmbedPendingStatus.manualReviewCount,
       syncSummary?.manualReview ?? 0
     );
     const enabledDomainCount =
@@ -2144,7 +2155,12 @@ function SyncDashboard() {
       manualReviewTotal,
       enabledDomainCount,
     };
-  }, [databasePendingStatus, pagePendingStatus, syncSummary]);
+  }, [
+    databasePendingStatus,
+    fileEmbedPendingStatus,
+    pagePendingStatus,
+    syncSummary,
+  ]);
   const syncLocalUseReadiness = useMemo(() => {
     const state: AccountCloudSyncReadinessState =
       syncLocalUseQueueSnapshot.failedTotal > 0 ||
@@ -2197,9 +2213,10 @@ function SyncDashboard() {
       buildPendingDomainRows(
         syncSummary,
         pagePendingStatus,
-        databasePendingStatus
+        databasePendingStatus,
+        fileEmbedPendingStatus
       ),
-    [databasePendingStatus, pagePendingStatus, syncSummary]
+    [databasePendingStatus, fileEmbedPendingStatus, pagePendingStatus, syncSummary]
   );
   const syncConflictReview = useMemo(
     () =>
@@ -4660,6 +4677,16 @@ function SyncDashboard() {
             message:
               err instanceof Error ? err.message : "数据库补传失败。",
           }));
+      const fileResult = await fileEmbedSync
+        .syncNow({ includeManualReview: true, limit: 10 })
+        .catch((err) => ({
+          attempted: 0,
+          synced: 0,
+          failed: 1,
+          manualReview: 0,
+          missingLocalFiles: 0,
+          message: err instanceof Error ? err.message : "文件补传失败。",
+        }));
 
       const [afterDatabaseStatus, nextSyncSummary, nextSyncEntries] =
         await Promise.all([
@@ -4668,6 +4695,7 @@ function SyncDashboard() {
           getPendingSyncLogEntries(25),
         ]);
       const afterPageStatus = getPendingCloudPageSyncStatus();
+      const afterFileStatus = getPendingFileEmbedSyncStatus();
       const receipt = buildSyncUploadDrainReceipt({
         beforePageStatus,
         beforeDatabaseStatus,
@@ -4678,6 +4706,12 @@ function SyncDashboard() {
         pageResult,
         databaseResult,
       });
+      const fileQueueClear =
+        afterFileStatus.pending === 0 &&
+        afterFileStatus.failed === 0 &&
+        afterFileStatus.manualReviewCount === 0;
+      const allQueuesClear =
+        receipt.summary.safe_to_switch_device_now && fileQueueClear;
 
       setPagePendingStatus(afterPageStatus);
       setDatabasePendingStatus(afterDatabaseStatus);
@@ -4697,9 +4731,9 @@ function SyncDashboard() {
         } 条。`
       );
       setSyncDrainMessage(
-        receipt.summary.safe_to_switch_device_now
-          ? `补传全部完成：页面和数据库待上传队列已清空，当前适合切换设备。`
-          : `补传全部已运行：仍有 ${receipt.summary.waiting_rows_after} 条待上传、${receipt.summary.failed_rows_after} 条失败、${receipt.summary.manual_review_rows_after} 条需人工处理。${receipt.next_action}`
+        allQueuesClear
+          ? `补传全部完成：页面、数据库和文件待上传队列已清空，当前适合切换设备。`
+          : `补传全部已运行：仍有 ${receipt.summary.waiting_rows_after + afterFileStatus.pending} 条待上传、${receipt.summary.failed_rows_after + afterFileStatus.failed} 条失败、${receipt.summary.manual_review_rows_after + afterFileStatus.manualReviewCount} 条需人工处理。文件补传成功 ${fileResult.synced} 个。${receipt.next_action}`
       );
     } catch (err) {
       console.error("[Zhinote] Failed to drain pending sync queues:", err);
@@ -19995,6 +20029,12 @@ function SyncOperationalStatusStrip({
               return (
                 <div
                   key={row.id}
+                  id={
+                    row.id === "files"
+                      ? "file-embed-pending-upload-queue"
+                      : undefined
+                  }
+                  data-testid={`sync-pending-domain-${row.id}`}
                   className="rounded-md border border-zinc-100 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950"
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -25740,7 +25780,8 @@ function SyncEntryRow({ entry }: { entry: SyncLogEntry }) {
 function buildPendingDomainRows(
   syncSummary: SyncLogSummary | null,
   pageStatus: PendingCloudPageSyncStatus,
-  databaseStatus: PendingCloudDatabaseSyncStatus
+  databaseStatus: PendingCloudDatabaseSyncStatus,
+  fileStatus: PendingFileEmbedSyncStatus
 ): PendingDomainRow[] {
   const tableRows = syncSummary?.tables ?? [];
   const matchedTables = new Set<string>();
@@ -25787,7 +25828,7 @@ function buildPendingDomainRows(
     });
   }
 
-  return mergeCorePendingDomainRows(rows, pageStatus, databaseStatus)
+  return mergeCorePendingDomainRows(rows, pageStatus, databaseStatus, fileStatus)
     .map(withPendingDomainNextAction)
     .sort((a, b) => {
       if (b.pending !== a.pending) return b.pending - a.pending;
@@ -25800,7 +25841,8 @@ function buildPendingDomainRows(
 function mergeCorePendingDomainRows(
   rows: PendingDomainRow[],
   pageStatus: PendingCloudPageSyncStatus,
-  databaseStatus: PendingCloudDatabaseSyncStatus
+  databaseStatus: PendingCloudDatabaseSyncStatus,
+  fileStatus: PendingFileEmbedSyncStatus
 ): PendingDomainRow[] {
   return rows.map((row) => {
     if (row.id === "pages") {
@@ -25830,6 +25872,18 @@ function mergeCorePendingDomainRows(
           databaseStatus.lastAttemptAt ??
           databaseStatus.lastSyncAt,
         tableNames: ["pending_database_cloud_push", "database_sync_log"],
+      });
+    }
+    if (row.id === "files") {
+      return mergePendingDomainRowWithCoreStatus(row, {
+        pending: fileStatus.pending,
+        failed: fileStatus.failed,
+        manualReview: fileStatus.manualReviewCount,
+        lastChangeAt:
+          fileStatus.lastFailureAt ??
+          fileStatus.oldestPendingQueuedAt ??
+          fileStatus.lastAttemptAt,
+        tableNames: ["file_embed_sync_queue"],
       });
     }
     return row;

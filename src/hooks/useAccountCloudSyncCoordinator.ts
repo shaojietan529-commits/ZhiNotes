@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo } from "react";
 import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
+import { useFileEmbedCloudSyncStatus } from "@/hooks/useFileEmbedCloudSyncStatus";
 import { useGlobalSyncLogStatus } from "@/hooks/useGlobalSyncLogStatus";
 import { useKnowledgeCloudSyncStatus } from "@/hooks/useKnowledgeCloudSyncStatus";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
@@ -46,11 +47,13 @@ export function useAccountCloudSyncCoordinator() {
   const globalSyncLog = useGlobalSyncLogStatus();
   const settingsSync = useSettingsCloudSyncStatus();
   const knowledgeSync = useKnowledgeCloudSyncStatus();
+  const fileSync = useFileEmbedCloudSyncStatus();
 
   const pageSyncNow = pageSync.syncNow;
   const databaseSyncNow = databaseSync.syncNow;
   const refreshSettingsSyncStatus = settingsSync.refresh;
   const refreshKnowledgeSyncStatus = knowledgeSync.refresh;
+  const retryFileEmbedSync = fileSync.syncNow;
   const syncNow = useCallback(
     async (options: AccountCloudSyncCoordinatorOptions = {}) => {
       await Promise.allSettled([
@@ -66,11 +69,16 @@ export function useAccountCloudSyncCoordinator() {
         }),
         refreshSettingsSyncStatus(),
         refreshKnowledgeSyncStatus(),
+        retryFileEmbedSync({
+          includeManualReview: options.includeManualReview,
+          limit: 5,
+        }),
       ]);
     },
     [
       databaseSyncNow,
       pageSyncNow,
+      retryFileEmbedSync,
       refreshKnowledgeSyncStatus,
       refreshSettingsSyncStatus,
     ]
@@ -84,6 +92,7 @@ export function useAccountCloudSyncCoordinator() {
     databaseSync.pendingStatus.syncLogPending;
   const settingsPendingTotal = settingsSync.status.totalPending;
   const knowledgePendingTotal = knowledgeSync.status.totalPending;
+  const filePendingTotal = fileSync.status.pending;
   const globalSyncLogCoveredPendingTotal =
     databaseSync.pendingStatus.syncLogPending +
     settingsPendingTotal +
@@ -109,18 +118,21 @@ export function useAccountCloudSyncCoordinator() {
   const pendingTotal =
     pagePendingTotal +
     databasePendingTotal +
+    filePendingTotal +
     settingsPendingTotal +
     knowledgePendingTotal +
     globalSyncLogExtraPendingTotal;
   const failedTotal =
     pageSync.pendingStatus.failed +
     databaseSync.pendingStatus.failed +
+    fileSync.status.failed +
     settingsSync.status.failed +
     knowledgeSync.status.failed +
     globalSyncLogExtraFailedTotal;
   const manualReviewTotal =
     pageSync.pendingStatus.manualReviewCount +
     databaseSync.pendingStatus.manualReviewCount +
+    fileSync.status.manualReviewCount +
     settingsSync.status.manualReviewCount +
     knowledgeSync.status.manualReviewCount +
     globalSyncLogExtraManualReviewTotal;
@@ -147,13 +159,18 @@ export function useAccountCloudSyncCoordinator() {
     knowledgePendingTotal - knowledgeSync.status.manualReviewCount,
     0
   );
+  // File bytes can be much larger than page/database deltas. Keep them visible
+  // and available to explicit quick-sync, but do not run them in the 900ms
+  // account-level auto-retry loop.
+  const fileAutoRetryablePendingTotal = 0;
   const syncCenterVisibleOnlyPendingTotal =
     settingsAutoRetryablePendingTotal +
     knowledgeAutoRetryablePendingTotal +
     globalSyncLogExtraPendingTotal;
   const autoRetryableSyncWorkTotal =
     pageAutoRetryablePendingTotal +
-    databaseAutoRetryablePendingTotal;
+    databaseAutoRetryablePendingTotal +
+    fileAutoRetryablePendingTotal;
   const pageVisibleSyncWork =
     pagePendingTotal > 0 ||
     pageSync.pendingStatus.failed > 0 ||
@@ -170,6 +187,10 @@ export function useAccountCloudSyncCoordinator() {
     knowledgePendingTotal > 0 ||
     knowledgeSync.status.failed > 0 ||
     knowledgeSync.status.manualReviewCount > 0;
+  const fileVisibleSyncWork =
+    filePendingTotal > 0 ||
+    fileSync.status.failed > 0 ||
+    fileSync.status.manualReviewCount > 0;
   const globalSyncLogVisibleSyncWork =
     globalSyncLogExtraPendingTotal > 0 ||
     globalSyncLogExtraFailedTotal > 0 ||
@@ -187,6 +208,7 @@ export function useAccountCloudSyncCoordinator() {
       : 0) +
     (settingsVisibleSyncWork ? 1 : 0) +
     (knowledgeVisibleSyncWork ? 1 : 0) +
+    (fileVisibleSyncWork ? 1 : 0) +
     (globalSyncLogVisibleSyncWork ? 1 : 0);
   const lastSyncAt =
     [pageSync.lastSyncAt, databaseSync.lastSyncAt]
@@ -228,6 +250,9 @@ export function useAccountCloudSyncCoordinator() {
       knowledgePendingTotal > 0
         ? `知识库附属 ${knowledgePendingTotal}（评论/版本/链接待云端回放）`
         : null,
+      filePendingTotal > 0
+        ? `文件 ${filePendingTotal}（只记录待上传元数据，文件仍在本地）`
+        : null,
       globalSyncLogExtraPendingTotal > 0
         ? `其他本地队列 ${globalSyncLogExtraPendingTotal}（同步中心处理）`
         : null,
@@ -267,6 +292,7 @@ export function useAccountCloudSyncCoordinator() {
     return `账号云同步已完成${details.length ? `：${details.join("，")}` : ""}`;
   }, [
     databasePendingTotal,
+    filePendingTotal,
     globalSyncLogExtraPendingTotal,
     knowledgePendingTotal,
     lastSyncAt,
@@ -325,6 +351,7 @@ export function useAccountCloudSyncCoordinator() {
     databaseSync,
     pagePendingTotal,
     databasePendingTotal,
+    filePendingTotal,
     settingsPendingTotal,
     knowledgePendingTotal,
     globalSyncLogExtraPendingTotal,
@@ -339,6 +366,7 @@ export function useAccountCloudSyncCoordinator() {
     lastSyncAt,
     localUseReadiness,
     knowledgeSync,
+    fileSync,
     settingsSync,
     globalSyncLog,
     syncNow,

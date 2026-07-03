@@ -11,6 +11,11 @@ import {
   FileEmbedSyncRequestTimeoutError,
 } from "@/lib/files/fileEmbedSyncClient";
 import {
+  markFileEmbedCloudSyncAttempt,
+  markFileEmbedCloudSyncFailure,
+  markFileEmbedCloudSyncSuccess,
+} from "@/lib/files/fileEmbedSyncQueue";
+import {
   appendFilePreviewActionReceipt,
   buildFilePreviewActionReceipt,
   type FilePreviewActionKind,
@@ -365,22 +370,42 @@ export async function insertFilesAsEmbeds(editor: Editor, files: File[]) {
 }
 
 async function syncFileToCloud(stored: StoredPageFile) {
-  const res = await fetchFileEmbedSyncWithTimeout({
-    action: "push",
-    fileId: stored.id,
-    fileName: stored.name,
-    mimeType: stored.mimeType,
-    kind: stored.kind,
-    size: stored.size,
-    dataUrl: stored.dataUrl,
-    textContent: stored.textContent ?? null,
-  });
-  if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as {
-      message?: string;
-    };
-    if (data.message) {
-      console.warn("[Zhinote] File cloud sync:", data.message);
+  markFileEmbedCloudSyncAttempt(stored);
+  let recordedFailure = false;
+  try {
+    const res = await fetchFileEmbedSyncWithTimeout({
+      action: "push",
+      fileId: stored.id,
+      fileName: stored.name,
+      mimeType: stored.mimeType,
+      kind: stored.kind,
+      size: stored.size,
+      dataUrl: stored.dataUrl,
+      textContent: stored.textContent ?? null,
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        error?: string;
+      };
+      const message =
+        data.message ?? data.error ?? "文件云同步失败；文件仍保存在本地。";
+      markFileEmbedCloudSyncFailure(stored, message, {
+        retryable: res.status !== 413,
+      });
+      recordedFailure = true;
+      throw new Error(message);
     }
+    markFileEmbedCloudSyncSuccess(stored.id);
+  } catch (error) {
+    if (!recordedFailure) {
+      markFileEmbedCloudSyncFailure(
+        stored,
+        error instanceof Error
+          ? error.message
+          : "文件云同步失败；文件仍保存在本地。"
+      );
+    }
+    throw error;
   }
 }

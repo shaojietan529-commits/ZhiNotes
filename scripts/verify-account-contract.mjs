@@ -2896,14 +2896,20 @@ check(
       "data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}"
     ) &&
     syncDashboardShell.includes("pendingDomainRows={pendingDomainRows}") &&
-    syncDashboardShell.includes(
+    (syncDashboardShell.includes(
       "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus\n      )"
-    ) &&
+    ) ||
+      syncDashboardShell.includes(
+        "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus,\n        fileEmbedPendingStatus\n      )"
+      )) &&
     syncDashboardShell.includes("mergeCorePendingDomainRows") &&
     syncDashboardShell.includes("pageStatus.pending + pageStatus.queued") &&
     syncDashboardShell.includes(
       "databaseStatus.pending +\n          databaseStatus.queued +\n          databaseStatus.syncLogPending"
     ) &&
+    syncDashboardShell.includes("fileStatus.pending") &&
+    syncDashboardShell.includes("file_embed_sync_queue") &&
+    syncDashboardShell.includes("file-embed-pending-upload-queue") &&
     syncDashboardShell.includes(
       "data-active-sync-domain-count={activeDomainRows.length}"
     ) &&

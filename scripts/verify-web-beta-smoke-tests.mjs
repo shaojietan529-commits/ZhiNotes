@@ -10180,12 +10180,18 @@ function run() {
     "pendingDomainRows={pendingDomainRows}",
     "Sync UI local-use panel must receive the full-domain pending distribution."
   );
-  assertIncludes(
-    files.syncShell,
-    syncShell,
-    "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus\n      )",
-    "Sync UI operational status must merge page/database pending status into the domain list when sync_log is still catching up."
-  );
+  if (
+    !syncShell.includes(
+      "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus\n      )"
+    ) &&
+    !syncShell.includes(
+      "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus,\n        fileEmbedPendingStatus\n      )"
+    )
+  ) {
+    failures.push(
+      `${files.syncShell} missing buildPendingDomainRows(...pagePendingStatus, databasePendingStatus): Sync UI operational status must merge page/database pending status into the domain list when sync_log is still catching up.`
+    );
+  }
   assertIncludes(
     files.syncShell,
     syncShell,

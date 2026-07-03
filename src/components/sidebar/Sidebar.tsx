@@ -252,6 +252,7 @@ function getAccountSyncCenterTarget(accountSync: {
   manualReviewTotal: number;
   pagePendingTotal: number;
   databasePendingTotal: number;
+  filePendingTotal: number;
   settingsPendingTotal: number;
   knowledgePendingTotal: number;
   globalSyncLogExtraPendingTotal: number;
@@ -272,6 +273,9 @@ function getAccountSyncCenterTarget(accountSync: {
   if (accountSync.databasePendingTotal > 0) {
     return "/modules/sync#database-pending-upload-queue";
   }
+  if (accountSync.filePendingTotal > 0) {
+    return "/modules/sync#file-embed-pending-upload-queue";
+  }
   if (accountSync.knowledgePendingTotal > 0) {
     return "/modules/sync#knowledge-replay-batch-plan";
   }
@@ -287,6 +291,7 @@ function getAccountSyncCenterTarget(accountSync: {
 function getAccountSyncDomainBreakdown(accountSync: {
   pagePendingTotal: number;
   databasePendingTotal: number;
+  filePendingTotal: number;
   settingsPendingTotal: number;
   knowledgePendingTotal: number;
   globalSyncLogExtraPendingTotal: number;
@@ -299,6 +304,9 @@ function getAccountSyncDomainBreakdown(accountSync: {
       : null,
     accountSync.databasePendingTotal > 0
       ? `数据库 ${accountSync.databasePendingTotal}`
+      : null,
+    accountSync.filePendingTotal > 0
+      ? `文件 ${accountSync.filePendingTotal}`
       : null,
     accountSync.settingsPendingTotal > 0
       ? `设置 ${accountSync.settingsPendingTotal}`
@@ -320,6 +328,7 @@ function getAccountSyncDomainBreakdown(accountSync: {
 function getAccountSyncDomainBreakdownItems(accountSync: {
   pagePendingTotal: number;
   databasePendingTotal: number;
+  filePendingTotal: number;
   settingsPendingTotal: number;
   knowledgePendingTotal: number;
   globalSyncLogExtraPendingTotal: number;
@@ -337,6 +346,12 @@ function getAccountSyncDomainBreakdownItems(accountSync: {
       id: "databases",
       label: "数据库",
       count: accountSync.databasePendingTotal,
+      tone: "pending" as const,
+    },
+    {
+      id: "files",
+      label: "文件",
+      count: accountSync.filePendingTotal,
       tone: "pending" as const,
     },
     {
@@ -434,6 +449,7 @@ function getAccountSyncInlineSummary(accountSync: {
   manualReviewTotal: number;
   pagePendingTotal: number;
   databasePendingTotal: number;
+  filePendingTotal: number;
   settingsPendingTotal: number;
   knowledgePendingTotal: number;
   globalSyncLogExtraPendingTotal: number;
@@ -807,6 +823,7 @@ export default function Sidebar() {
     accountSync.manualReviewTotal > 0 ||
     accountSync.pagePendingTotal > 0 ||
     accountSync.databasePendingTotal > 0 ||
+    accountSync.filePendingTotal > 0 ||
     accountSync.settingsPendingTotal > 0 ||
     accountSync.knowledgePendingTotal > 0 ||
     accountSync.globalSyncLogExtraPendingTotal > 0 ||
@@ -1481,6 +1498,7 @@ export default function Sidebar() {
             data-sync-manual-review={accountSync.manualReviewTotal}
             data-page-pending-total={accountSync.pagePendingTotal}
             data-database-pending-total={accountSync.databasePendingTotal}
+            data-file-pending-total={accountSync.filePendingTotal}
             data-settings-pending-total={accountSync.settingsPendingTotal}
             data-knowledge-pending-total={accountSync.knowledgePendingTotal}
             data-global-sync-log-extra-pending-total={
@@ -1522,6 +1540,7 @@ export default function Sidebar() {
               data-manual-review-total={accountSync.manualReviewTotal}
               data-page-pending-total={accountSync.pagePendingTotal}
               data-database-pending-total={accountSync.databasePendingTotal}
+              data-file-pending-total={accountSync.filePendingTotal}
               data-settings-pending-total={accountSync.settingsPendingTotal}
               data-knowledge-pending-total={accountSync.knowledgePendingTotal}
               data-global-sync-log-extra-pending-total={
