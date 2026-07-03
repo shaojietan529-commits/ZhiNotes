@@ -1429,6 +1429,12 @@ check(
     shells.schedule.includes("const addMeetingOnMouseDown = useCallback") &&
     shells.schedule.includes("onPointerDown={(event) => addMeetingOnPointerDown(event, key)}") &&
     shells.schedule.includes("onMouseDown={(event) => addMeetingOnMouseDown(event, key)}") &&
+    shells.schedule.includes("type MeetingCreateButtonState =") &&
+    shells.schedule.includes("function getMeetingCreateButtonState(") &&
+    shells.schedule.includes("data-create-state={newMeetingButtonState}") &&
+    shells.schedule.includes("data-create-state={formCreateButtonState}") &&
+    shells.schedule.includes("data-create-state={createButtonState}") &&
+    shells.schedule.includes("data-local-draft-created={") &&
     shells.schedule.includes("onFocus={warmMeetingPeekOpen}") &&
     shells.schedule.includes("const [openingDraft, setOpeningDraft]") &&
     shells.schedule.includes("const [openingMeetingId, setOpeningMeetingId]") &&

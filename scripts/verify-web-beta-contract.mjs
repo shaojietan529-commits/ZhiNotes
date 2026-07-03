@@ -6775,6 +6775,30 @@ function run() {
       "Meeting calendar date-cell + must bind the mouse-down quick-create path.",
     ],
     [
+      "type MeetingCreateButtonState =",
+      "Meeting create controls must share an explicit state model for idle, creating, opened draft, and blocked states.",
+    ],
+    [
+      "function getMeetingCreateButtonState(",
+      "Meeting create controls must derive visible button state from the current date, busy key, and opening draft.",
+    ],
+    [
+      "data-create-state={newMeetingButtonState}",
+      "The top-level new meeting control must expose the current create state for diagnostics and accessibility.",
+    ],
+    [
+      "data-create-state={formCreateButtonState}",
+      "The manual meeting form submit button must expose the current create state while it is creating or blocked.",
+    ],
+    [
+      "data-create-state={createButtonState}",
+      "Each meeting calendar + control must expose the current create state so fast clicks are visibly acknowledged.",
+    ],
+    [
+      "data-local-draft-created={",
+      "Meeting create controls must expose when a local draft has already opened before cloud persistence completes.",
+    ],
+    [
       "onFocus={warmMeetingPeekOpen}",
       "Meeting schedule controls must warm the page shell and peek editor for keyboard users before navigation.",
     ],

@@ -332,6 +332,12 @@ type OpeningMeetingDraft = {
   dateKey: string;
 };
 
+type MeetingCreateButtonState =
+  | "idle"
+  | "creating"
+  | "local-draft-opened"
+  | "blocked-by-other-create";
+
 type MeetingImportReceipt = {
   pageId: string;
   title: string;
@@ -344,6 +350,17 @@ type MeetingImportReceipt = {
 };
 
 const MEETING_CLOUD_CACHE_PREFIX = "zhinote.zhihui.cloudMetadata.";
+
+function getMeetingCreateButtonState(
+  dateKey: string,
+  creatingMeetingDateKey: string | null,
+  openingDraft: OpeningMeetingDraft | null
+): MeetingCreateButtonState {
+  if (openingDraft?.dateKey === dateKey) return "local-draft-opened";
+  if (creatingMeetingDateKey === dateKey) return "creating";
+  if (creatingMeetingDateKey) return "blocked-by-other-create";
+  return "idle";
+}
 
 export default function MeetingScheduleShell() {
   const router = useRouter();
@@ -2668,6 +2685,16 @@ export default function MeetingScheduleShell() {
     (calendarLoadStatus.cloudLoading || calendarLoadStatus.backgroundActive)
       ? calendarLoadStatusView.detail
       : null;
+  const newMeetingButtonState = getMeetingCreateButtonState(
+    todayKey,
+    creatingMeetingDateKey,
+    openingDraft
+  );
+  const formCreateButtonState = getMeetingCreateButtonState(
+    form.date || todayKey,
+    creatingMeetingDateKey,
+    openingDraft
+  );
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -2698,6 +2725,14 @@ export default function MeetingScheduleShell() {
             </div>
             <button
               type="button"
+              aria-busy={
+                newMeetingButtonState === "creating" ||
+                newMeetingButtonState === "local-draft-opened"
+              }
+              data-create-state={newMeetingButtonState}
+              data-local-draft-created={
+                newMeetingButtonState === "local-draft-opened"
+              }
               disabled={creatingMeetingDateKey !== null}
               onPointerEnter={warmMeetingPeekOpen}
               onPointerDown={warmMeetingPeekOpen}
@@ -3087,6 +3122,14 @@ export default function MeetingScheduleShell() {
                 </button>
                 <button
                   type="button"
+                  aria-busy={
+                    formCreateButtonState === "creating" ||
+                    formCreateButtonState === "local-draft-opened"
+                  }
+                  data-create-state={formCreateButtonState}
+                  data-local-draft-created={
+                    formCreateButtonState === "local-draft-opened"
+                  }
                   disabled={creatingMeetingDateKey !== null}
                   onPointerEnter={warmMeetingPeekOpen}
                   onPointerDown={warmMeetingPeekOpen}
@@ -3173,6 +3216,11 @@ export default function MeetingScheduleShell() {
               const isToday = key === todayKey;
               const isHighlighted = key === highlightedDateKey;
               const isOpeningDraft = openingDraft?.dateKey === key;
+              const createButtonState = getMeetingCreateButtonState(
+                key,
+                creatingMeetingDateKey,
+                openingDraft
+              );
               const isMeetingDateHydrated =
                 hydratedMeetingDateKeys.has(key) ||
                 isExpanded ||
@@ -3218,6 +3266,14 @@ export default function MeetingScheduleShell() {
                       type="button"
                       data-testid={`meeting-add-${key}`}
                       aria-label={`创建 ${key} 的会议页面`}
+                      aria-busy={
+                        createButtonState === "creating" ||
+                        createButtonState === "local-draft-opened"
+                      }
+                      data-create-state={createButtonState}
+                      data-local-draft-created={
+                        createButtonState === "local-draft-opened"
+                      }
                       disabled={creatingMeetingDateKey !== null}
                       onPointerEnter={warmMeetingPeekOpen}
                       onPointerDown={(event) => addMeetingOnPointerDown(event, key)}

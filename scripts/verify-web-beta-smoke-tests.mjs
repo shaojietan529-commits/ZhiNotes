@@ -10290,6 +10290,12 @@ function run() {
     "const addMeetingOnMouseDown = useCallback",
     "onPointerDown={(event) => addMeetingOnPointerDown(event, key)}",
     "onMouseDown={(event) => addMeetingOnMouseDown(event, key)}",
+    "type MeetingCreateButtonState =",
+    "function getMeetingCreateButtonState(",
+    "data-create-state={newMeetingButtonState}",
+    "data-create-state={formCreateButtonState}",
+    "data-create-state={createButtonState}",
+    "data-local-draft-created={",
   ]) {
     assertIncludes(
       files.meetingScheduleShell,
