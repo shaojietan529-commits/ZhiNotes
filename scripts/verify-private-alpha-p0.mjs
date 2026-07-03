@@ -77,6 +77,13 @@ const verificationCommands = [
       "Check synthetic ZhiHui meeting invite date/time parsing so imported meetings land on the expected calendar day.",
   },
   {
+    id: "verify-meeting-import",
+    command: "npm run verify:meeting-import",
+    args: ["run", "verify:meeting-import"],
+    purpose:
+      "Check synthetic ZhiHui meeting artifact imports write page index records, metadata-only change logs, and calendar visibility receipts.",
+  },
+  {
     id: "verify-web-beta-smoke",
     command: "npm run verify:web-beta:smoke",
     args: ["run", "verify:web-beta:smoke"],
@@ -199,6 +206,7 @@ function printReceipt(startedAt, results, status) {
       "database views, import/export, and local-only button actions stay inside safe local boundaries",
       "editor shortcuts, page creation, file preview, and ZhiHui glossary privacy contracts stay intact",
       "synthetic ZhiHui meeting invite parser cases continue to land on the expected calendar day",
+      "synthetic ZhiHui meeting imports write metadata-only change logs and calendar visibility receipts",
       "Daily and ZhiHui local-first smoke contracts stay intact",
       "core account, sync, module, database, report, file, company research, meeting, project, research graph, knowledge, industry, calendar, portfolio, and page route shells respond before deeper data hydration",
     ],

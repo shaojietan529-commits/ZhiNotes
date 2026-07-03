@@ -22,6 +22,7 @@
     "verify:account": "node scripts/verify-account-contract.mjs",
     "verify:local-use-readiness": "node scripts/verify-local-use-readiness.mjs",
     "verify:meeting-intake": "node scripts/verify-meeting-intake-parser.mjs",
+    "verify:meeting-import": "node scripts/verify-meeting-import-pages.mjs",
     "verify:zhihui-glossary": "node scripts/verify-zhihui-glossary-contract.mjs",
     "verify:web-beta": "node scripts/verify-web-beta-contract.mjs",
     "verify:web-beta:smoke": "node scripts/verify-web-beta-smoke-tests.mjs",
