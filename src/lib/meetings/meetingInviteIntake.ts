@@ -402,6 +402,10 @@ function validMonthDay(month: number, day: number) {
   return month >= 1 && month <= 12 && day >= 1 && day <= 31;
 }
 
+function expandTwoDigitYear(year: number) {
+  return year >= 70 ? 1900 + year : 2000 + year;
+}
+
 const CHINESE_NUMBER_PATTERN = "[零〇一二两三四五六七八九十]{1,3}";
 const CHINESE_DIGITS: Record<string, number> = {
   "零": 0,
@@ -473,6 +477,22 @@ function findDate(
       year: Number(withYear[1]),
       month: Number(withYear[2]),
       day: Number(withYear[3]),
+    };
+  }
+
+  // Short investment-note style year: 26年6月14日, 26.6.14, 26/6/14.
+  // Keep this before bare month/day so "26.6.14" is not read as 6/26.
+  const withShortYear = text.match(
+    /(?:^|[^\d])(\d{2})\s*[\/.\-年]\s*(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*[日号]?(?!\d)/
+  );
+  if (
+    withShortYear &&
+    validMonthDay(Number(withShortYear[2]), Number(withShortYear[3]))
+  ) {
+    return {
+      year: expandTwoDigitYear(Number(withShortYear[1])),
+      month: Number(withShortYear[2]),
+      day: Number(withShortYear[3]),
     };
   }
 

@@ -172,6 +172,21 @@ const cases = [
     expected: { date: "2026-06-14", time: "16:00", endTime: "17:00", durationMinutes: 60 },
   },
   {
+    name: "Chinese short year month-day date",
+    input: "会议主题：测试会议\n时间：26年6月14日 9:00-10:00",
+    expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
+    name: "Dotted short year date is not read as month-day",
+    input: "会议主题：测试会议\n时间：26.6.14 9-10",
+    expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
+    name: "Slash short year date",
+    input: "会议主题：测试会议\n时间：26/6/14 15:00-16",
+    expected: { date: "2026-06-14", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
     name: "Chinese text month-day with half-hour time",
     input: "会议主题：测试会议\n时间：六月十四日 上午九点半",
     expected: { date: "2026-06-14", time: "09:30", endTime: "", durationMinutes: null },
