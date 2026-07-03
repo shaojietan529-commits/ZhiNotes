@@ -91,6 +91,21 @@ const cases = [
     input: "Meeting topic: Test meeting\nTime: day after tomorrow 12:00 PM - 1:00 PM",
     expected: { date: "2026-07-06", time: "12:00", endTime: "13:00", durationMinutes: 60 },
   },
+  {
+    name: "English tomorrow with hour-only PM range",
+    input: "Meeting topic: Test meeting\nTime: tomorrow at 4 PM - 5 PM",
+    expected: { date: "2026-07-05", time: "16:00", endTime: "17:00", durationMinutes: 60 },
+  },
+  {
+    name: "English today with hour-only AM time",
+    input: "Meeting topic: Test meeting\nTime: today 9 AM",
+    expected: { date: "2026-07-04", time: "09:00", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "English weekday with hour-only noon range",
+    input: "Meeting topic: Test meeting\nTime: Monday 12 PM - 1 PM",
+    expected: { date: "2026-07-06", time: "12:00", endTime: "13:00", durationMinutes: 60 },
+  },
 ];
 
 const results = [];

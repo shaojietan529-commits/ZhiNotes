@@ -622,10 +622,11 @@ interface ClockHit {
 
 // Parse the first clock in the text: optional Chinese period marker, then
 // HH:MM or H点(MM分)? or H点半 or H时MM分, with Chinese/AM/PM markers
-// either before or after the clock.
+// either before or after the clock. English hour-only readings like "4 PM"
+// are accepted only when an AM/PM marker is present.
 function parseClockAt(text: string): ClockHit | null {
   const re =
-    /(?:(上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?)\s*)?([01]?\d|2[0-3])\s*(?:[:：]\s*([0-5]\d)\s*点?|[点时]\s*(?:(半)|([0-5]?\d)\s*分?)?)(?:\s*(上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?))?/i;
+    /(?:(上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?)\s*)?([01]?\d|2[0-3])\s*(?:(?:[:：]\s*([0-5]\d)\s*点?)|(?:[点时]\s*(?:(半)|([0-5]?\d)\s*分?)?)|(?=(?:上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?)\b))(?:\s*(上午|下午|中午|晚上|凌晨|a\.?m\.?|p\.?m\.?))?/i;
   const m = re.exec(text);
   if (!m) return null;
   let minute = 0;
