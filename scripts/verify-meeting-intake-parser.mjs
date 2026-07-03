@@ -126,6 +126,31 @@ const cases = [
     input: "Meeting topic: Test meeting\nTime: July 2026 4 PM",
     expected: { date: "", time: "", endTime: "", durationMinutes: null },
   },
+  {
+    name: "Numeric day-first slash date with year",
+    input: "Meeting topic: Test meeting\nDate: 14/06/2026\nTime: 4 PM - 5 PM",
+    expected: { date: "2026-06-14", time: "16:00", endTime: "17:00", durationMinutes: 60 },
+  },
+  {
+    name: "Numeric day-first dash date with year",
+    input: "Meeting topic: Test meeting\nTime: 14-06-2026 9:30 AM",
+    expected: { date: "2026-06-14", time: "09:30", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "Numeric day-first dotted date with year",
+    input: "Meeting topic: Test meeting\nTime: 14.06.2026 4:00 PM - 5:30 PM",
+    expected: { date: "2026-06-14", time: "16:00", endTime: "17:30", durationMinutes: 90 },
+  },
+  {
+    name: "Numeric day-first slash date without year",
+    input: "Meeting topic: Test meeting\nTime: 14/06 4 PM",
+    expected: { date: "2026-06-14", time: "16:00", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "Ambiguous numeric date keeps existing month-first behavior",
+    input: "Meeting topic: Test meeting\nTime: 12/06 4 PM",
+    expected: { date: "2026-12-06", time: "16:00", endTime: "", durationMinutes: null },
+  },
 ];
 
 const results = [];

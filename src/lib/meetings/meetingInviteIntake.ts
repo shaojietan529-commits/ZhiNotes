@@ -441,6 +441,22 @@ function findDate(
     };
   }
 
+  // Non-ambiguous day/month/year: 14/06/2026, 14-06-2026, 14.06.2026.
+  const numericDayMonthYear = text.match(
+    /(?:^|[^\d])(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(20\d{2})(?!\d)/
+  );
+  if (numericDayMonthYear) {
+    const day = Number(numericDayMonthYear[1]);
+    const month = Number(numericDayMonthYear[2]);
+    if (day > 12 && validMonthDay(month, day)) {
+      return {
+        year: Number(numericDayMonthYear[3]),
+        month,
+        day,
+      };
+    }
+  }
+
   // Explicit month/day should outrank relative weekday labels that often sit
   // beside it, e.g. "06.14日（本周日）下午16:00点".
   const chineseMonthDay = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/);
@@ -474,15 +490,23 @@ function findDate(
   const numericBare = text.match(
     /(?:^|[^\d.\-/])(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})(?![\/\-\.]\d)/
   );
-  if (
-    numericBare &&
-    validMonthDay(Number(numericBare[1]), Number(numericBare[2]))
-  ) {
+  if (numericBare && validMonthDay(Number(numericBare[1]), Number(numericBare[2]))) {
     return {
       year: null,
       month: Number(numericBare[1]),
       day: Number(numericBare[2]),
     };
+  }
+  if (numericBare) {
+    const day = Number(numericBare[1]);
+    const month = Number(numericBare[2]);
+    if (day > 12 && validMonthDay(month, day)) {
+      return {
+        year: null,
+        month,
+        day,
+      };
+    }
   }
 
   const englishMonthDay = text.match(
