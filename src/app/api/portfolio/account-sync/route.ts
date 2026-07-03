@@ -9,6 +9,7 @@ import {
   readSessionToken,
   type AccountConfig,
 } from "@/lib/account/server";
+import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
 
 export const dynamic = "force-dynamic";
 
@@ -80,9 +81,8 @@ export async function POST(request: Request) {
   try {
     const account = await getSessionAccount(config, token);
     if (!account) {
-      return NextResponse.json(
-        { error: "登录已过期，请重新登录。" },
-        { status: 401 }
+      return accountSessionUnconfirmedResponse(
+        "组合同步暂时无法确认账号；本地组合数据已保留，请稍后重试。"
       );
     }
     const me = account.email;

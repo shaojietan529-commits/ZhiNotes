@@ -4,6 +4,7 @@ import {
   getSessionAccount,
   readSessionToken,
 } from "@/lib/account/server";
+import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
 import {
   authorizeMeetingAgent,
   enqueueMeetingAgentJob,
@@ -85,7 +86,9 @@ export async function POST(request: Request) {
   }
   const account = await getSessionAccount(accountConfig, token);
   if (!account) {
-    return NextResponse.json({ error: "登录已过期，请重新登录。" }, { status: 401 });
+    return accountSessionUnconfirmedResponse(
+      "会议录制任务暂时无法确认账号；不会登出，请稍后重试。"
+    );
   }
 
   let body: { meeting?: unknown; runNow?: unknown };

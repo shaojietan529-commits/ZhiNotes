@@ -28,6 +28,7 @@ const read = (rel) => {
 
 // 1. Server helper: gating, hashing, limits
 const server = read("src/lib/account/server.ts");
+const sessionResponses = read("src/lib/account/sessionResponses.ts");
 for (const token of [
   "getAccountConfig",
   "ZHINOTES_ACCOUNT_ALLOWED_EMAILS",
@@ -60,6 +61,15 @@ check(
     ) &&
     (server.match(/\bfetch\(/g) ?? []).length === 1,
   "server.ts 的 KV 和 Resend 外部请求必须统一走 8 秒超时 helper，账号接口不能因外部服务慢而长期挂起"
+);
+check(
+  sessionResponses.includes("ACCOUNT_SESSION_UNCONFIRMED_REASON") &&
+    sessionResponses.includes('"session-unconfirmed"') &&
+    sessionResponses.includes("retryable: true") &&
+    sessionResponses.includes("keeps_session_cookie: true") &&
+    sessionResponses.includes("{ status: 503 }") &&
+    sessionResponses.includes("accountSessionUnconfirmedResponse"),
+  "账号 session-unconfirmed 响应必须有共享 helper：返回 503 可重试、明确保留 cookie，避免同步接口把临时失败误判成登出"
 );
 
 // 2. Routes: all gated, none log, cookie httpOnly
@@ -105,6 +115,7 @@ const meGetSessionUnconfirmedHandler = me.slice(
 check(
   meGetSessionUnconfirmedHandler.includes('reason: "session-unconfirmed"') &&
     meGetSessionUnconfirmedHandler.includes("retryable: true") &&
+    meGetSessionUnconfirmedHandler.includes("keeps_session_cookie: true") &&
     !meGetSessionUnconfirmedHandler.includes("cookies.delete") &&
     !meGetSessionUnconfirmedHandler.includes("response.cookies.delete"),
   "me route GET 云端 session 暂时查不到时必须保留 cookie，交给前端 stale fallback，而不是自动登出"
@@ -114,9 +125,8 @@ const mePatchSessionUnconfirmedHandler = me.slice(
   me.indexOf("const nextAccount = await updateAccountDisplayName")
 );
 check(
-  mePatchSessionUnconfirmedHandler.includes(
-    "登录状态暂时无法确认，请稍后重试或重新登录。"
-  ) &&
+  mePatchSessionUnconfirmedHandler.includes("accountSessionUnconfirmedResponse") &&
+    mePatchSessionUnconfirmedHandler.includes("登录状态暂时无法确认；用户名没有修改，请稍后重试。") &&
     !mePatchSessionUnconfirmedHandler.includes("cookies.delete") &&
     !mePatchSessionUnconfirmedHandler.includes("response.cookies.delete"),
   "me route PATCH 云端 session 暂时查不到时只能返回可恢复错误，不能清除登录 cookie"
@@ -454,6 +464,12 @@ for (const token of [
 }
 check(!accountSync.includes("console."), "account-sync route 不应该写日志");
 check(
+  accountSync.includes("accountSessionUnconfirmedResponse") &&
+    accountSync.includes("组合同步暂时无法确认账号；本地组合数据已保留，请稍后重试。") &&
+    !accountSync.includes("登录已过期，请重新登录。"),
+  "portfolio account-sync route 有 cookie 但 session 暂时查不到时必须返回可重试 session-unconfirmed，不能返回登录过期"
+);
+check(
   portfolioAccountSyncClient.includes("checkAccountCloudSyncGate") &&
     portfolioAccountSyncClient.includes('accountGate.status === "signed-out"') &&
     portfolioAccountSyncClient.includes("组合同步接口暂时无法确认账号权限；本地组合数据未删除，请稍后重试。") &&
@@ -517,6 +533,13 @@ for (const token of [
 check(
   !pageSyncRoute.includes("console."),
   "pages account-sync route 不应该写日志"
+);
+check(
+  pageSyncRoute.includes("accountSessionUnconfirmedResponse") &&
+    pageSyncRoute.includes("页面同步暂时无法确认账号；本地输入已保留，请稍后重试。") &&
+    pageSyncRoute.includes("每日纪要修复暂时无法确认账号；不会登出，请稍后重试。") &&
+    !pageSyncRoute.includes("登录已过期，请重新登录。"),
+  "pages account-sync route 有 cookie 但 session 暂时查不到时必须返回可重试 session-unconfirmed，不能返回登录过期"
 );
 check(
   pageSyncRoute.includes("existing.u >= record.updated_at"),
@@ -619,8 +642,37 @@ check(
 );
 
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
+const databaseSyncRoute = read("src/app/api/databases/account-sync/route.ts");
+const fileEmbedSyncRoute = read("src/app/api/files/embed-sync/route.ts");
+const meetingAgentJobsRoute = read("src/app/api/meetings/agent/jobs/route.ts");
 const databaseSyncClient = read("src/lib/database/accountDatabaseSync.ts");
 const syncDashboardShell = read("src/components/modules/SyncShell.tsx");
+check(
+  databaseSyncRoute.includes("accountSessionUnconfirmedResponse") &&
+    databaseSyncRoute.includes("数据库同步暂时无法确认账号；本地修改已保留，请稍后重试。") &&
+    !databaseSyncRoute.includes("登录已过期，请重新登录。"),
+  "databases account-sync route 有 cookie 但 session 暂时查不到时必须返回可重试 session-unconfirmed，不能返回登录过期"
+);
+check(
+  fileEmbedSyncRoute.includes("accountSessionUnconfirmedResponse") &&
+    fileEmbedSyncRoute.includes("文件云同步暂时无法确认账号；文件已保存在本地，请稍后重试。") &&
+    fileEmbedSyncRoute.includes('return NextResponse.json({ error: "auth-required" }, { status: 401 });') &&
+    !fileEmbedSyncRoute.includes("登录已过期，请重新登录。"),
+  "file embed-sync route 必须区分未登录和 session 暂时不可确认：未登录才 401，有 cookie 时返回可重试 session-unconfirmed"
+);
+check(
+  meetingAgentJobsRoute.includes("accountSessionUnconfirmedResponse") &&
+    meetingAgentJobsRoute.includes("会议录制任务暂时无法确认账号；不会登出，请稍后重试。") &&
+    !meetingAgentJobsRoute.includes("登录已过期，请重新登录。"),
+  "meeting agent jobs route 有 cookie 但 session 暂时查不到时必须返回可重试 session-unconfirmed，不能返回登录过期"
+);
+check(
+  shell.includes("当前未登录，请登录后再同步。") &&
+    shell.includes("当前未登录，请登录后再拉取每日纪要。") &&
+    shell.includes("当前未登录，请登录后再同步数据库。") &&
+    !shell.includes("登录已过期"),
+  "账号页同步操作的未登录文案不能再提示登录已过期，避免把临时同步失败解释成被登出"
+);
 check(
   pageSyncClient.includes(
     'export const PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync."'

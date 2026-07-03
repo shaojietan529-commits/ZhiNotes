@@ -6,6 +6,7 @@ import {
   kvSet,
   readSessionToken,
 } from "@/lib/account/server";
+import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +43,14 @@ export async function POST(request: Request) {
   }
 
   const token = readSessionToken(request);
-  const account = token ? await getSessionAccount(config, token) : null;
-  if (!account) {
+  if (!token) {
     return NextResponse.json({ error: "auth-required" }, { status: 401 });
+  }
+  const account = await getSessionAccount(config, token);
+  if (!account) {
+    return accountSessionUnconfirmedResponse(
+      "文件云同步暂时无法确认账号；文件已保存在本地，请稍后重试。"
+    );
   }
   const email = account.email;
 

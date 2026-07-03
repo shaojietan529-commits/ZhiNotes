@@ -507,7 +507,7 @@ export default function AccountShell() {
           `同步完成：拉取 ${result.pulled} 页，修复归档 ${result.repaired ?? 0} 页，推送 ${result.pushed} 页。`
         );
       } else if (result.status === "unauthenticated") {
-        setPageSyncNotice("登录已过期，请重新登录后再同步。");
+        setPageSyncNotice("当前未登录，请登录后再同步。");
       } else if (result.status === "disabled") {
         setPageSyncNotice("请先打开页面云同步开关。");
       } else {
@@ -584,7 +584,7 @@ export default function AccountShell() {
           `每日纪要索引已从云端拉取：更新 ${result.pulled}/${result.total} 页${failedText}。${reasonText}请回到“每日纪要”查看；打开单篇纪要时会自动拉取正文。`
         );
       } else if (result.status === "unauthenticated") {
-        setPageSyncNotice("登录已过期，请重新登录后再拉取每日纪要。");
+        setPageSyncNotice("当前未登录，请登录后再拉取每日纪要。");
       } else if (result.status === "disabled") {
         setPageSyncNotice("请先打开页面云同步开关。");
       } else {
@@ -625,7 +625,7 @@ export default function AccountShell() {
           `本机页面缓存已按云端主库重建：清理 ${result.cleared} 条（其中本机多余缓存 ${result.pruned} 条），拉取 ${result.pulled}/${result.total} 页，修复归档 ${result.repaired ?? 0} 页${preservedText}。`
         );
       } else if (result.status === "unauthenticated") {
-        setPageSyncNotice("登录已过期，请重新登录后再重建本机缓存。");
+        setPageSyncNotice("当前未登录，请登录后再重建本机缓存。");
       } else if (result.status === "disabled") {
         setPageSyncNotice("请先打开页面云同步开关。");
       } else {
@@ -669,7 +669,7 @@ export default function AccountShell() {
           `数据库同步完成：拉取 ${result.pulled} 条，推送 ${result.pushed} 条，远端跳过 ${result.skipped} 条。`
         );
       } else if (result.status === "unauthenticated") {
-        setDatabaseSyncNotice("登录已过期，请重新登录后再同步数据库。");
+        setDatabaseSyncNotice("当前未登录，请登录后再同步数据库。");
       } else if (result.status === "disabled") {
         setDatabaseSyncNotice("请先打开数据库云同步开关。");
       } else {
@@ -694,7 +694,7 @@ export default function AccountShell() {
           `待同步数据库变更已上传：推送 ${result.pushed}/${result.total} 条，远端跳过 ${result.skipped} 条较旧记录。`
         );
       } else if (result.status === "unauthenticated") {
-        setDatabaseSyncNotice("登录已过期，请重新登录后再上传数据库。");
+        setDatabaseSyncNotice("当前未登录，请登录后再上传数据库。");
       } else if (result.status === "disabled") {
         setDatabaseSyncNotice("请先打开数据库云同步开关。");
       } else {
@@ -730,7 +730,7 @@ export default function AccountShell() {
           `本机数据库缓存已按云端主库重建：清理 ${result.cleared} 条，拉取 ${result.pulled}/${result.total} 条。`
         );
       } else if (result.status === "unauthenticated") {
-        setDatabaseSyncNotice("登录已过期，请重新登录后再重建数据库缓存。");
+        setDatabaseSyncNotice("当前未登录，请登录后再重建数据库缓存。");
       } else if (result.status === "disabled") {
         setDatabaseSyncNotice("请先打开数据库云同步开关。");
       } else {

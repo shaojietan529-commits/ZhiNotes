@@ -8,6 +8,7 @@ import {
   readSessionToken,
   type AccountConfig,
 } from "@/lib/account/server";
+import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
 import { generateId } from "@/lib/utils/id";
 
 export const dynamic = "force-dynamic";
@@ -1593,9 +1594,8 @@ export async function GET(request: Request) {
   try {
     const account = await getSessionAccount(config, token);
     if (!account) {
-      return NextResponse.json(
-        { error: "登录已过期，请重新登录。" },
-        { status: 401 }
+      return accountSessionUnconfirmedResponse(
+        "每日纪要修复暂时无法确认账号；不会登出，请稍后重试。"
       );
     }
     const result = await repairDailyImportPlacement(config, account.email);
@@ -1654,9 +1654,8 @@ export async function POST(request: Request) {
   try {
     const account = await getSessionAccount(config, token);
     if (!account) {
-      return NextResponse.json(
-        { error: "登录已过期，请重新登录。" },
-        { status: 401 }
+      return accountSessionUnconfirmedResponse(
+        "页面同步暂时无法确认账号；本地输入已保留，请稍后重试。"
       );
     }
     const me = account.email;

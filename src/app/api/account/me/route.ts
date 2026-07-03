@@ -11,6 +11,7 @@ import {
   readSessionToken,
   updateAccountDisplayName,
 } from "@/lib/account/server";
+import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export async function GET(request: Request) {
         account: null,
         reason: "session-unconfirmed",
         retryable: true,
+        keeps_session_cookie: true,
       });
     }
     const response = NextResponse.json({
@@ -103,9 +105,8 @@ export async function PATCH(request: Request) {
   try {
     const account = await getSessionAccount(config, token);
     if (!account) {
-      return NextResponse.json(
-        { error: "登录状态暂时无法确认，请稍后重试或重新登录。" },
-        { status: 401 }
+      return accountSessionUnconfirmedResponse(
+        "登录状态暂时无法确认；用户名没有修改，请稍后重试。"
       );
     }
 
