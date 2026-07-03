@@ -5849,6 +5849,36 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS",
+    "Daily must accelerate metadata-only fallback when hard refresh has no visible notes yet."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "DAILY_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS",
+    "Daily must keep normal fallback recovery on a slower idle path when visible notes already exist."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "firstVisibleMs === null\n        ? DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n        : DAILY_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS",
+    "Daily fallback timing must distinguish empty first paint from ordinary background refresh."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "当前月热缓存和日期索引暂未命中，正在优先补齐旧导入 metadata。",
+    "Daily empty first paint must show a clear metadata-only recovery status instead of looking blank."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "当前月本地目录暂未命中，正在并行补齐旧导入 metadata 和云端目录。",
+    "Daily empty first paint must keep the fallback recovery visible even when cloud correction starts."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "DAILY_CLOUD_METADATA_RECHECK_DELAY_MS",
     "Daily notes local updates must schedule a delayed cloud metadata recheck after the fast local refresh."
   );

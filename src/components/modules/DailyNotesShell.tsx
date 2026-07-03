@@ -166,6 +166,8 @@ const DAILY_PEEK_EDITOR_WARMUP_DELAY_MS = 1400;
 const DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 1800;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
+const DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120;
+const DAILY_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS = 450;
 const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900;
 const DAILY_FOREGROUND_QUIET_WINDOW_MS = 1600;
 const DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400;
@@ -1007,6 +1009,18 @@ export default function DailyNotesShell() {
         local_pages: localMetadata.length,
       });
     }
+    const fallbackIdleTimeout =
+      firstVisibleMs === null
+        ? DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS
+        : DAILY_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS;
+    if (firstVisibleMs === null) {
+      publishCalendarStatus("local-fallback", Array.from(byId.values()), {
+        backgroundActive: true,
+        cloudLoading: includeCloud,
+        message:
+          "当前月热缓存和日期索引暂未命中，正在优先补齐旧导入 metadata。",
+      });
+    }
     scheduleDailyIdleTask(() => {
       void (async () => {
         const fallbackMetadata = await listDailyPageMetadataForCalendar({
@@ -1065,7 +1079,7 @@ export default function DailyNotesShell() {
         });
       })()
         .catch(() => undefined);
-    }, 450);
+    }, fallbackIdleTimeout);
 
     if (includeCloud) {
       setCloudLoading(true);
@@ -1073,7 +1087,10 @@ export default function DailyNotesShell() {
         backgroundActive: true,
         cloudLoading: true,
         staleCloud: Boolean(cachedCloud?.stale),
-        message: "本地目录已可用，正在读取云端 metadata 校正。",
+        message:
+          firstVisibleMs === null
+            ? "当前月本地目录暂未命中，正在并行补齐旧导入 metadata 和云端目录。"
+            : "本地目录已可用，正在读取云端 metadata 校正。",
       });
       if (cachedCloud?.status === "ok" && cachedCloud.rootId) {
         if (!cachedCloud.stale) {
