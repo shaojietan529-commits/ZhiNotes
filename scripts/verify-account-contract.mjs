@@ -1179,6 +1179,9 @@ check(
 const dailyNotesShell = read("src/components/modules/DailyNotesShell.tsx");
 const dailyHotCacheSnapshot = read("src/lib/sync/dailyHotCacheSnapshot.ts");
 const dailyCalendarLoadStatus = read("src/lib/sync/dailyCalendarLoadStatus.ts");
+const dailyCreateOpenModeSettings = read(
+  "src/lib/sync/dailyCreateOpenModeWorkspaceSettings.ts"
+);
 const meetingCalendarLoadStatus = read(
   "src/lib/sync/meetingCalendarLoadStatus.ts"
 );
@@ -1384,6 +1387,11 @@ check(
     dailyNotesShell.includes("新建每日纪要时本地草稿准备失败，日历仍保留现有内容。") &&
     dailyNotesShell.includes("handleCreateFailure(error);\n        return;") &&
     dailyNotesShell.includes("DEFAULT_DAILY_CREATE_OPEN_MODE") &&
+    dailyCreateOpenModeSettings.includes(
+      'DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "full-page"'
+    ) &&
+    dailyNotesShell.includes('"zhinote.daily.createOpenMode.v3"') &&
+    dailyNotesShell.includes("点 + 即可进入一篇新纪要") &&
     dailyNotesShell.includes('data-testid="daily-create-open-mode"') &&
     dailyNotesShell.includes("open_mode_full_page: dailyCreateOpenMode === \"full-page\" ? 1 : 0") &&
     dailyNotesShell.includes("updateDailyCreateOpenMode") &&

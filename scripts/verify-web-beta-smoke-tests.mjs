@@ -1469,8 +1469,8 @@ function run() {
   assertIncludes(
     files.dailyCreateOpenModeWorkspaceSettings,
     dailyCreateOpenModeWorkspaceSettings,
-    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "peek";',
-    "Daily note creation must default to peek opening so + gives immediate in-page feedback."
+    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "full-page";',
+    "Daily note creation must default to full-page opening so + follows the Notion-style create-then-enter workflow."
   );
   for (const [snippet, message] of [
     [
@@ -10811,13 +10811,14 @@ function run() {
     "status: \"daily-create-local-shell-requested\"",
     "const openOpeningDailyDraftFullPage = useCallback",
     "current?.pageId === pageId ? null : current",
+    "每日纪要正在进入页面",
     "每日纪要已弹出",
   ]) {
     assertIncludes(
       files.dailyNotesShell,
       dailyNotesShell,
       snippet,
-      "Daily + creation must seed local state first, default to peek opening, and keep explicit full-page mode available."
+      "Daily + creation must seed local state first, default to full-page opening, and keep explicit peek mode available."
     );
   }
   assertOrderedSnippets(

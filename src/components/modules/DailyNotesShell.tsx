@@ -181,7 +181,7 @@ const DAILY_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
 const DAILY_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const DAILY_DATE_INDEX_BACKFILL_KEY = "zhinote.daily.dateIndex.backfilled.v2";
 const DAILY_CREATE_OPEN_MODE_STORAGE_KEY =
-  "zhinote.daily.createOpenMode.v2";
+  "zhinote.daily.createOpenMode.v3";
 const DAILY_CREATE_OPEN_MODE_CHANGED_EVENT =
   "zhinote:daily-create-open-mode-changed";
 const DAILY_CREATE_OPEN_MODE_CHANGED_STORAGE_KEY =
@@ -2175,7 +2175,7 @@ export default function DailyNotesShell() {
                 <span>📅</span> 每日纪要
               </h1>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                按日历浏览每天的纪要。鼠标悬停某一天，点 + 即可弹出一篇新纪要。
+                按日历浏览每天的纪要。鼠标悬停某一天，点 + 即可进入一篇新纪要。
               </p>
               {cloudNotice && (
                 <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">

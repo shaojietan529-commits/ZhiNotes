@@ -6357,7 +6357,7 @@ function run() {
     ],
     [
       "const warmDailyCreateOpenPath = useCallback",
-      "Daily + creation must warm the selected open path so default peek and explicit full-page both feel immediate.",
+      "Daily + creation must warm the selected open path so default full-page and explicit peek both feel immediate.",
     ],
     [
       "warmDailyPeekOpen();",
@@ -6484,8 +6484,12 @@ function run() {
       "Daily + creation must defer root resolution and cloud queue persistence behind the immediate navigation path.",
     ],
     [
+      "每日纪要正在进入页面",
+      "Daily + creation must keep the default full-page route notice while optional peek mode uses the popup notice.",
+    ],
+    [
       "每日纪要已弹出",
-      "Daily + creation must keep the default peek-mode notice while explicit full-page mode uses the route notice.",
+      "Daily + creation must keep the optional peek-mode notice while default full-page mode uses the route notice.",
     ],
     [
       "openPage(note, { source })",
@@ -6745,8 +6749,8 @@ function run() {
   assertSourceIncludes(
     files.dailyCreateOpenModeWorkspaceSettings,
     dailyCreateOpenModeWorkspaceSettings,
-    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "peek";',
-    "Daily + creation must default to peek opening so the + action gives immediate in-page feedback."
+    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "full-page";',
+    "Daily + creation must default to full-page opening so + follows the Notion-style create-then-enter workflow."
   );
   for (const [snippet, message] of [
     [
