@@ -271,6 +271,21 @@ check(
   "最近登录账号兜底应匹配 90 天登录期，接口短暂失败不能在一天后显示成掉线"
 );
 check(
+  accountClientSession.includes(
+    'data.retryable || data.reason === "session-unconfirmed"'
+  ) &&
+    accountClientSession.includes(
+      "account session temporarily unconfirmed"
+    ) &&
+    accountClientSession.indexOf(
+      'data.retryable || data.reason === "session-unconfirmed"'
+    ) <
+      accountClientSession.indexOf(
+        'return { status: "ok", authenticated: false, account: null };'
+      ),
+  "账号状态客户端必须把 /me 的可重试 session-unconfirmed 当成临时不可确认，而不是明确登出"
+);
+check(
   accountClientSession.includes("if (!res.ok) {\n      return {\n        status: \"error\"") &&
     accountClientSession.includes(
       "const result = withStoredAuthenticatedFallback(\n    await accountSessionInFlight,"

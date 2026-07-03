@@ -133,6 +133,17 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
         account: data.account as ClientAccountInfo,
       };
     }
+    if (data.retryable || data.reason === "session-unconfirmed") {
+      return {
+        status: "error",
+        authenticated: false,
+        account: null,
+        error:
+          typeof data.reason === "string"
+            ? data.reason
+            : "account session temporarily unconfirmed",
+      };
+    }
     return { status: "ok", authenticated: false, account: null };
   } catch {
     return {

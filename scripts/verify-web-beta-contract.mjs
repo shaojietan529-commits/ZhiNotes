@@ -4631,6 +4631,14 @@ function run() {
       "explicit logout clears this fallback",
       "Account session helper must preserve the account label through transient missing-session checks without storing tokens.",
     ],
+    [
+      'data.retryable || data.reason === "session-unconfirmed"',
+      "Account session helper must treat retryable /me session uncertainty as a transient account-check error, not explicit sign-out.",
+    ],
+    [
+      "account session temporarily unconfirmed",
+      "Account session helper must expose a stable retryable reason for temporary session uncertainty.",
+    ],
   ]) {
     assertSourceIncludes(files.accountClientSession, accountClientSession, snippet, message);
   }
