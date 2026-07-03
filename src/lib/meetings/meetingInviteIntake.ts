@@ -350,7 +350,7 @@ function extractTimeRange(text: string) {
   // with periods, weekday tags or AM/PM markers ("06.14日（本周日）下午16:00点"),
   // so a single contiguous pattern misses them — search each on its own.
   const date = findDate(text);
-  const time = findTime(text);
+  const time = findTime(text, { allowCompactHourRange: Boolean(date) });
 
   if (date && time) {
     return buildTimeResult({
@@ -770,7 +770,8 @@ function parseClockAt(text: string): ClockHit | null {
 // Chinese period markers and an optional range connector.
 // Prioritises time that appears after a label like 时间：, 开始时间：, Time:
 function findTime(
-  text: string
+  text: string,
+  options: { allowCompactHourRange?: boolean } = {}
 ): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
   // Try labeled time first — these are the highest-confidence hits.
   const labelPattern =
@@ -778,18 +779,19 @@ function findTime(
   let labelMatch: RegExpExecArray | null;
   while ((labelMatch = labelPattern.exec(text)) !== null) {
     const afterLabel = text.slice(labelMatch.index + labelMatch[0].length);
-    const hit = parseTimeRange(afterLabel);
+    const hit = parseTimeRange(afterLabel, options);
     if (hit) return hit;
   }
 
   // Fall back to the first clock anywhere in the text.
-  return parseTimeRange(text);
+  return parseTimeRange(text, options);
 }
 
 function parseTimeRange(
-  text: string
+  text: string,
+  options: { allowCompactHourRange?: boolean } = {}
 ): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
-  const compactRange = parseCompactHourRange(text);
+  const compactRange = parseCompactHourRange(text, options);
   if (compactRange) return compactRange;
 
   const first = parseClockAt(text);
@@ -813,18 +815,19 @@ function parseTimeRange(
 }
 
 function parseCompactHourRange(
-  text: string
+  text: string,
+  options: { allowCompactHourRange?: boolean } = {}
 ): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
   const hourPattern = `[01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN}`;
   const re = new RegExp(
-    `(?:(${TIME_PERIOD_PATTERN})\\s*)(${hourPattern})\\s*(?:-|--|---|~|至|到|to)\\s*(${hourPattern})\\s*(?:点|时)(半)?(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
+    `(?:(${TIME_PERIOD_PATTERN})\\s*)?(${hourPattern})\\s*(?:---|--|-|~|至|到|to)\\s*(${hourPattern})\\s*(?:点|时)(半)?(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
     "i"
   );
   const m = re.exec(text);
   if (!m) return null;
 
   const period = m[1] || m[5] || "";
-  if (!period) return null;
+  if (!period && !options.allowCompactHourRange) return null;
 
   const startHour = parseClockNumber(m[2]);
   const endHour = parseClockNumber(m[3]);
@@ -840,9 +843,9 @@ function parseCompactHourRange(
   }
 
   return {
-    hour: applyChinesePeriod(startHour, period),
+    hour: period ? applyChinesePeriod(startHour, period) : startHour,
     minute: 0,
-    endHour: applyChinesePeriod(endHour, period),
+    endHour: period ? applyChinesePeriod(endHour, period) : endHour,
     endMinute: m[4] === "半" ? 30 : 0,
   };
 }

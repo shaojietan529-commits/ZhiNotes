@@ -207,8 +207,28 @@ const cases = [
     expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
   },
   {
+    name: "Chinese relative day compact 24-hour range",
+    input: "会议主题：测试会议\n时间：明天15-16点",
+    expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese month-day compact hour range without period",
+    input: "会议主题：测试会议\n时间：6月14日 9-10点",
+    expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese split date and compact hour range",
+    input: "会议主题：测试会议\n日期：6月14日\n时间：9-10点",
+    expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
     name: "Chinese compact hour range without date is not a fake date",
     input: "会议主题：测试会议\n时间：下午3-4点",
+    expected: { date: "", time: "", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "Chinese compact numeric hour range without date stays incomplete",
+    input: "会议主题：测试会议\n时间：9-10点",
     expected: { date: "", time: "", endTime: "", durationMinutes: null },
   },
   {
