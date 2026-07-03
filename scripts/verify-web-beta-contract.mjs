@@ -11850,6 +11850,42 @@ function run() {
       "Cloud-native fluidity report must check pending queue visibility.",
     ],
     [
+      "fileStatus: PendingFileEmbedSyncStatus",
+      "Cloud-native fluidity report must accept file embed queue status.",
+    ],
+    [
+      "file_pending_rows",
+      "Cloud-native fluidity report must summarize pending file rows.",
+    ],
+    [
+      "file_failed_rows",
+      "Cloud-native fluidity report must summarize failed file rows.",
+    ],
+    [
+      "file_manual_review_rows",
+      "Cloud-native fluidity report must summarize file manual-review rows.",
+    ],
+    [
+      "input.fileStatus.pending",
+      "Cloud-native fluidity report must include pending file rows in fluidity gates.",
+    ],
+    [
+      "input.fileStatus.failed",
+      "Cloud-native fluidity report must include failed file rows in fluidity gates.",
+    ],
+    [
+      "input.fileStatus.manualReviewCount",
+      "Cloud-native fluidity report must include file manual-review rows in fluidity gates.",
+    ],
+    [
+      'metric("file-pending"',
+      "Cloud-native fluidity report must expose file pending rows as a metric.",
+    ],
+    [
+      'metric("file-failed-ack"',
+      "Cloud-native fluidity report must expose file failed ACK rows as a metric.",
+    ],
+    [
       "input.syncSummary?.failed ?? 0",
       "Cloud-native fluidity report must include full-domain sync_log failed rows.",
     ],
@@ -15013,6 +15049,10 @@ function run() {
     [
       "buildCloudNativeFluidityReport",
       "Sync UI must build the cloud-native fluidity health report.",
+    ],
+    [
+      "fileStatus: fileEmbedPendingStatus",
+      "Sync UI must pass file embed queue status into the cloud-native fluidity report.",
     ],
     [
       "CloudNativeFluidityPanel",

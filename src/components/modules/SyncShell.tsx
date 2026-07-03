@@ -2076,6 +2076,7 @@ function SyncDashboard() {
       buildCloudNativeFluidityReport({
         pageStatus: pagePendingStatus,
         databaseStatus: databasePendingStatus,
+        fileStatus: fileEmbedPendingStatus,
         syncSummary,
         cloudMasterReconcile,
         hotCacheWarmupPlan,
@@ -2087,6 +2088,7 @@ function SyncDashboard() {
       cacheRebuildPreflightReceipt,
       cloudMasterReconcile,
       databasePendingStatus,
+      fileEmbedPendingStatus,
       hotCacheLocalIndexSummary,
       hotCacheWarmupPlan,
       pagePendingStatus,

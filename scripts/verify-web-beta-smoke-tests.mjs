@@ -2811,6 +2811,30 @@ function run() {
   assertIncludes(
     files.cloudNativeFluidityReport,
     cloudNativeFluidityReport,
+    "fileStatus: PendingFileEmbedSyncStatus",
+    "Cloud-native fluidity report must accept file embed queue status."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "file_pending_rows",
+    "Cloud-native fluidity report must summarize pending file rows."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "input.fileStatus.failed",
+    "Cloud-native fluidity report must include file sync failures."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "input.fileStatus.manualReviewCount",
+    "Cloud-native fluidity report must include file manual-review rows."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
     "sync_log_manual_review_rows",
     "Cloud-native fluidity report must summarize full-domain manual-review rows."
   );
@@ -2861,6 +2885,12 @@ function run() {
     syncShell,
     "Web Beta 同步门禁",
     "Sync UI must render the Web Beta sync fluidity gate."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "fileStatus: fileEmbedPendingStatus",
+    "Sync UI must pass file embed queue status into cloud-native fluidity reporting."
   );
   assertIncludes(
     files.syncShell,

@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import type { LocalPerformanceSnapshot } from "@/lib/performance/localPerformance";
 import type { CacheRebuildPreflightReceipt } from "@/lib/sync/cacheRebuildPreflightReceipt";
@@ -13,6 +14,7 @@ export type CloudNativeFluidityGateStatus = "pass" | "warn" | "block";
 export interface CloudNativeFluidityReportInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
+  fileStatus: PendingFileEmbedSyncStatus;
   syncSummary: SyncLogSummary | null;
   cloudMasterReconcile: CloudMasterReconcileReport;
   hotCacheWarmupPlan: HotCacheWarmupPlan;
@@ -86,6 +88,9 @@ export interface CloudNativeFluidityReport {
     database_pending_rows: number;
     page_failed_rows: number;
     database_failed_rows: number;
+    file_pending_rows: number;
+    file_failed_rows: number;
+    file_manual_review_rows: number;
     sync_log_pending_rows: number;
     sync_log_failed_rows: number;
     sync_log_manual_review_rows: number;
@@ -123,16 +128,22 @@ export function buildCloudNativeFluidityReport(
     input.databaseStatus.pending +
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
+  const filePendingRows = input.fileStatus.pending;
   const failedRows = Math.max(
-    input.pageStatus.failed + input.databaseStatus.failed,
+    input.pageStatus.failed + input.databaseStatus.failed + input.fileStatus.failed,
     input.syncSummary?.failed ?? 0
   );
   const manualReviewRows = Math.max(
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.pageStatus.manualReviewCount +
+      input.databaseStatus.manualReviewCount +
+      input.fileStatus.manualReviewCount,
     input.syncSummary?.manualReview ?? 0
   );
   const totalPendingRows =
-    pagePendingRows + databasePendingRows + (input.syncSummary?.pending ?? 0);
+    pagePendingRows +
+    databasePendingRows +
+    filePendingRows +
+    (input.syncSummary?.pending ?? 0);
   const hotCacheIndexRows = input.hotCacheLocalIndexSummary?.summary.rows ?? 0;
   const hotCacheRouteTargets = input.hotCacheWarmupPlan.summary.route_targets;
   const hotCacheReadyJobs = input.hotCacheWarmupPlan.summary.ready;
@@ -202,7 +213,7 @@ export function buildCloudNativeFluidityReport(
         manualReviewRows > 0
           ? `当前共有 ${manualReviewRows} 条记录需要人工处理；这些异常未清空前不能切换到云端主库。`
           : failedRows > 0
-          ? `当前共有 ${failedRows} 条待上传记录带失败回执；最近失败：${input.pageStatus.lastFailureMessage ?? input.databaseStatus.lastFailureMessage ?? "未记录原因"}。`
+          ? `当前共有 ${failedRows} 条待上传记录带失败回执；最近失败：${input.pageStatus.lastFailureMessage ?? input.databaseStatus.lastFailureMessage ?? input.fileStatus.lastFailureMessage ?? "未记录原因"}。`
           : totalPendingRows === 0
           ? "当前没有待上传队列，云端和本地更容易对齐。"
           : `当前共有 ${totalPendingRows} 条待上传/排队记录；这是本地级输入体验的缓冲区，不应被清理。`,
@@ -347,11 +358,15 @@ export function buildCloudNativeFluidityReport(
     gates,
     pagePendingRows,
     databasePendingRows,
+    filePendingRows,
     syncLogPendingRows: input.syncSummary?.pending ?? 0,
     pageFailedRows: input.pageStatus.failed,
     databaseFailedRows: input.databaseStatus.failed,
+    fileFailedRows: input.fileStatus.failed,
+    fileManualReviewRows: input.fileStatus.manualReviewCount,
     syncLogFailedRows: input.syncSummary?.failed ?? 0,
     syncLogManualReviewRows: input.syncSummary?.manualReview ?? 0,
+    totalManualReviewRows: manualReviewRows,
     hotCacheIndexRows,
     hotCacheRouteTargets,
     performanceSamples: input.performanceSnapshots.length,
@@ -395,6 +410,9 @@ export function buildCloudNativeFluidityReport(
       database_pending_rows: databasePendingRows,
       page_failed_rows: input.pageStatus.failed,
       database_failed_rows: input.databaseStatus.failed,
+      file_pending_rows: filePendingRows,
+      file_failed_rows: input.fileStatus.failed,
+      file_manual_review_rows: input.fileStatus.manualReviewCount,
       sync_log_pending_rows: input.syncSummary?.pending ?? 0,
       sync_log_failed_rows: input.syncSummary?.failed ?? 0,
       sync_log_manual_review_rows: input.syncSummary?.manualReview ?? 0,
@@ -416,8 +434,10 @@ export function buildCloudNativeFluidityReport(
     metrics: [
       metric("page-pending", "页面 pending", pagePendingRows, "rows", "0 条为最佳", pagePendingRows === 0 ? "pass" : "warn"),
       metric("database-pending", "数据库 pending", databasePendingRows, "rows", "0 条为最佳", databasePendingRows === 0 ? "pass" : "warn"),
+      metric("file-pending", "文件 pending", filePendingRows, "rows", "0 条为最佳", filePendingRows === 0 ? "pass" : "warn"),
       metric("page-failed-ack", "页面失败回执", input.pageStatus.failed, "rows", "0 条为最佳", input.pageStatus.failed === 0 ? "pass" : "warn"),
       metric("database-failed-ack", "数据库失败回执", input.databaseStatus.failed, "rows", "0 条为最佳", input.databaseStatus.failed === 0 ? "pass" : "warn"),
+      metric("file-failed-ack", "文件失败回执", input.fileStatus.failed, "rows", "0 条为最佳", input.fileStatus.failed === 0 ? "pass" : "warn"),
       metric("hot-cache-routes", "可预热入口", hotCacheRouteTargets, "routes", "大于 0 且已写索引", hotCacheIndexRows > 0 ? "pass" : "warn"),
       metric("hot-cache-index", "热缓存索引", hotCacheIndexRows, "routes", "运行预热后应大于 0", hotCacheIndexRows > 0 ? "pass" : "warn"),
       metric("performance-samples", "耗时样本", input.performanceSnapshots.length, "samples", `${MIN_PERFORMANCE_SAMPLES}+`, input.performanceSnapshots.length >= MIN_PERFORMANCE_SAMPLES ? "pass" : "warn"),
@@ -443,11 +463,15 @@ function buildWebBetaSyncGate(input: {
   gates: CloudNativeFluidityGate[];
   pagePendingRows: number;
   databasePendingRows: number;
+  filePendingRows: number;
   syncLogPendingRows: number;
   pageFailedRows: number;
   databaseFailedRows: number;
+  fileFailedRows: number;
+  fileManualReviewRows: number;
   syncLogFailedRows: number;
   syncLogManualReviewRows: number;
+  totalManualReviewRows: number;
   hotCacheIndexRows: number;
   hotCacheRouteTargets: number;
   performanceSamples: number;
@@ -457,11 +481,14 @@ function buildWebBetaSyncGate(input: {
   cacheRebuildBlockers: number;
 }): CloudNativeFluidityWebBetaSyncGate {
   const failedRows = Math.max(
-    input.pageFailedRows + input.databaseFailedRows,
+    input.pageFailedRows + input.databaseFailedRows + input.fileFailedRows,
     input.syncLogFailedRows
   );
   const pendingRows =
-    input.pagePendingRows + input.databasePendingRows + input.syncLogPendingRows;
+    input.pagePendingRows +
+    input.databasePendingRows +
+    input.filePendingRows +
+    input.syncLogPendingRows;
   const gateBlockers = input.gates
     .filter((gate) => gate.status === "block")
     .map((gate) => `${gate.title}: ${gate.next_action}`);
@@ -472,12 +499,12 @@ function buildWebBetaSyncGate(input: {
     ...gateBlockers,
     ...(failedRows > 0
       ? [
-          `仍有 ${failedRows} 条页面/数据库失败回执，真实云端主库启用前必须先确认重试或人工处理。`,
+          `仍有 ${failedRows} 条页面/数据库/文件失败回执，真实云端主库启用前必须先确认重试或人工处理。`,
         ]
       : []),
-    ...(input.syncLogManualReviewRows > 0
+    ...(input.totalManualReviewRows > 0
       ? [
-          `仍有 ${input.syncLogManualReviewRows} 条全域 sync_log 人工处理项，Web Beta 前必须先处理。`,
+          `仍有 ${input.totalManualReviewRows} 条页面/数据库/文件/sync_log 人工处理项，Web Beta 前必须先处理。`,
         ]
       : []),
     ...(input.cacheRebuildBlockers > 0
@@ -512,13 +539,14 @@ function buildWebBetaSyncGate(input: {
     evidence: [
       `页面 pending ${input.pagePendingRows} / failed ${input.pageFailedRows}`,
       `数据库 pending ${input.databasePendingRows} / failed ${input.databaseFailedRows}`,
+      `文件 pending ${input.filePendingRows} / failed ${input.fileFailedRows} / manual ${input.fileManualReviewRows}`,
       `sync_log pending ${input.syncLogPendingRows} / failed ${input.syncLogFailedRows} / manual ${input.syncLogManualReviewRows}`,
       `热缓存索引 ${input.hotCacheIndexRows} 行 / ${input.hotCacheRouteTargets} 个可预热入口`,
       `本机耗时样本 ${input.performanceSamples} 条，首屏 ${formatGateMs(input.averageLocalFirstMs)}，页面打开 ${formatGateMs(input.averagePageOpenMs)}，正文补齐 ${formatGateMs(input.averagePageBodyHydrationMs)}`,
     ],
     required_before_owner_review: [
       "云 workspace 已绑定，页面和数据库同步都开启。",
-      "页面/数据库失败回执为 0，pending 队列能稳定收到 ACK。",
+      "页面/数据库/文件失败回执为 0，pending 队列能稳定收到 ACK。",
       "常用入口热缓存索引已建立，刷新后先显示 metadata。",
       "本机首屏、页面打开和正文补齐耗时达到目标，或有清楚的优化剩余项。",
       "缓存重建预检没有 blocker，真实启用仍需 owner 二次确认。",
