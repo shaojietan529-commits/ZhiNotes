@@ -6398,6 +6398,18 @@ function run() {
       "PagePeekModal body saves must stay ordered so older saves cannot win over newer local input.",
     ],
     [
+      "const [localIconDraft, setLocalIconDraft] = useState<",
+      "PagePeekModal must keep icon changes visible immediately as local drafts.",
+    ],
+    [
+      "const localIconDraftRef = useRef<string | null | undefined>(undefined)",
+      "PagePeekModal must remember active local icon drafts so async hydration cannot overwrite user input.",
+    ],
+    [
+      "const iconSaveQueueRef = useRef<Promise<void>>(Promise.resolve())",
+      "PagePeekModal icon saves must stay ordered so older saves cannot win over newer local input.",
+    ],
+    [
       "preserveTitle: localTitleDraftRef.current !== null",
       "PagePeekModal metadata refreshes must preserve in-progress local title edits.",
     ],
@@ -6440,6 +6452,22 @@ function run() {
     [
       "contentSaveQueueRef.current.then(run, run)",
       "PagePeekModal content saves must queue behind previous content saves instead of racing.",
+    ],
+    [
+      "localIconDraftRef.current = icon",
+      "PagePeekModal icon changes must mark a protected local draft before background persistence starts.",
+    ],
+    [
+      "if (localIconDraftRef.current === icon) {\n          localIconDraftRef.current = undefined;",
+      "PagePeekModal icon draft protection must clear only after the latest matching save settles.",
+    ],
+    [
+      "iconSaveQueueRef.current.then(run, run)",
+      "PagePeekModal icon saves must queue behind previous icon saves instead of racing.",
+    ],
+    [
+      "localIconDraft !== undefined\n                      ? localIconDraft\n                      : effectivePage?.icon ?? null",
+      "PagePeekModal icon picker must render the local icon draft before older hydrated metadata.",
     ],
     [
       "schedulePeekTitleSave(next)",

@@ -129,6 +129,9 @@ export default function PagePeekModal({
   const [properties, setProperties] = useState<PageProperty[]>(() =>
     initialPeekPage ? parsePageProperties(initialPeekPage.properties) : []
   );
+  const [localIconDraft, setLocalIconDraft] = useState<
+    string | null | undefined
+  >(undefined);
   const [bodyHydrationStatus, setBodyHydrationStatus] = useState(() =>
     getPageBodyHydrationStatus(pageId)
   );
@@ -146,6 +149,8 @@ export default function PagePeekModal({
   const propertiesSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const localContentDraftRef = useRef<string | null>(null);
   const contentSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const localIconDraftRef = useRef<string | null | undefined>(undefined);
+  const iconSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const isSwitchingPeekPage = renderedPeekPageId !== pageId;
   const currentLoadedPage = page?.id === pageId ? page : null;
   const currentFallbackPage = fallbackPage?.id === pageId ? fallbackPage : null;
@@ -203,6 +208,8 @@ export default function PagePeekModal({
     peekOpenStartedAtIsoRef.current = new Date().toISOString();
     recordedPeekPerformancePageIdRef.current = null;
     readyNotifiedPageIdRef.current = null;
+    localIconDraftRef.current = undefined;
+    setLocalIconDraft(undefined);
     queueMicrotask(() => {
       const nextInitial = getInitialPeekPage(pageId, initialPage);
       applyPeekMetadataSnapshot(
@@ -525,30 +532,43 @@ export default function PagePeekModal({
     []
   );
 
+  const persistPeekIcon = useCallback(async (icon: string | null) => {
+    localIconDraftRef.current = icon;
+    setLocalIconDraft(icon);
+    const run = async () => {
+      const latest = latestPeekSaveRef.current;
+      try {
+        await persistPeekUpdate({
+          basePage: latest.basePage,
+          updates: { icon },
+          update: latest.update,
+          setFallbackPage,
+          upsertPages: latest.upsertPages,
+        });
+        latest.onChanged?.();
+      } finally {
+        if (localIconDraftRef.current === icon) {
+          localIconDraftRef.current = undefined;
+          setLocalIconDraft((current) =>
+            current === icon ? undefined : current
+          );
+        }
+      }
+    };
+    const queued = iconSaveQueueRef.current.then(run, run);
+    iconSaveQueueRef.current = queued.catch(() => undefined);
+    await queued;
+  }, []);
+
   const handleIconChange = useCallback(
-    async (icon: string) => {
-      await persistPeekUpdate({
-        basePage: effectivePage,
-        updates: { icon },
-        update,
-        setFallbackPage,
-        upsertPages,
-      });
-      onChanged?.();
-    },
-    [effectivePage, update, upsertPages, onChanged]
+    async (icon: string) => persistPeekIcon(icon),
+    [persistPeekIcon]
   );
 
-  const handleIconRemove = useCallback(async () => {
-    await persistPeekUpdate({
-      basePage: effectivePage,
-      updates: { icon: null },
-      update,
-      setFallbackPage,
-      upsertPages,
-    });
-    onChanged?.();
-  }, [effectivePage, update, upsertPages, onChanged]);
+  const handleIconRemove = useCallback(
+    async () => persistPeekIcon(null),
+    [persistPeekIcon]
+  );
 
   const handleContentUpdate = useCallback(
     async (html: string) => {
@@ -626,7 +646,11 @@ export default function PagePeekModal({
             <div className="mx-auto w-full max-w-4xl">
               <div className="mb-3 flex items-start gap-2">
                 <IconPicker
-                  currentIcon={effectivePage?.icon ?? null}
+                  currentIcon={
+                    localIconDraft !== undefined
+                      ? localIconDraft
+                      : effectivePage?.icon ?? null
+                  }
                   onSelect={handleIconChange}
                   onRemove={handleIconRemove}
                 />
