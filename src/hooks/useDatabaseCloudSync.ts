@@ -22,7 +22,9 @@ import {
   getPendingCloudDatabaseSyncStatus,
   isDatabaseSyncEnabled,
   reconcileDatabaseSync,
+  recordDatabaseSyncAuthRetryStatus,
   syncCloudDatabaseMetadataDelta,
+  type DatabaseSyncStatus,
   type PendingCloudDatabaseSyncStatus,
 } from "@/lib/database/accountDatabaseSync";
 import {
@@ -77,6 +79,14 @@ function getRetryStateFromAccountGate(
   status: AccountCloudSyncGateStatus
 ): DatabaseCloudSyncState {
   return status === "signed-out" ? "signed-out" : "error";
+}
+
+function getAuthRetryStatusFromAccountGate(
+  status: AccountCloudSyncGateStatus
+): DatabaseSyncStatus {
+  if (status === "signed-out") return "unauthenticated";
+  if (status === "unconfigured") return "unconfigured";
+  return "error";
 }
 
 function claimSyncLease(force = false): boolean {
@@ -140,11 +150,15 @@ export function useDatabaseCloudSync() {
     if (accountGate.status === "ready") {
       authRetryAfterRef.current = 0;
       authRetryStateRef.current = "signed-out";
+      recordDatabaseSyncAuthRetryStatus("ok");
       return true;
     }
     authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
     authRetryStateRef.current = getRetryStateFromAccountGate(
       accountGate.status
+    );
+    recordDatabaseSyncAuthRetryStatus(
+      getAuthRetryStatusFromAccountGate(accountGate.status)
     );
     setState(authRetryStateRef.current);
     void refreshPendingStatus();
@@ -204,6 +218,7 @@ export function useDatabaseCloudSync() {
         if (result.status === "ok") {
           authRetryAfterRef.current = 0;
           authRetryStateRef.current = "signed-out";
+          recordDatabaseSyncAuthRetryStatus("ok");
           setState("synced");
           setLastSyncAt(getLastDatabaseSyncAt());
           if (result.pulled > 0) {
@@ -218,18 +233,22 @@ export function useDatabaseCloudSync() {
         } else if (result.status === "unauthenticated") {
           authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
           authRetryStateRef.current = "error";
+          recordDatabaseSyncAuthRetryStatus("unauthenticated");
           setState("error");
         } else if (result.status === "unconfigured") {
           authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
           authRetryStateRef.current = "error";
+          recordDatabaseSyncAuthRetryStatus("unconfigured");
           setState("error");
         } else if (result.status === "disabled") {
           authRetryAfterRef.current = 0;
           authRetryStateRef.current = "signed-out";
+          recordDatabaseSyncAuthRetryStatus("disabled");
           setState("disabled");
         } else {
           authRetryAfterRef.current = 0;
           authRetryStateRef.current = "error";
+          recordDatabaseSyncAuthRetryStatus("error");
           setState("error");
         }
       } finally {
@@ -266,6 +285,7 @@ export function useDatabaseCloudSync() {
     if (result.status === "ok") {
       authRetryAfterRef.current = 0;
       authRetryStateRef.current = "signed-out";
+      recordDatabaseSyncAuthRetryStatus("ok");
       setState("synced");
       setLastSyncAt(getLastDatabaseSyncAt());
       if (result.pulled > 0) {
@@ -275,16 +295,20 @@ export function useDatabaseCloudSync() {
     } else if (result.status === "unauthenticated") {
       authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
       authRetryStateRef.current = "error";
+      recordDatabaseSyncAuthRetryStatus("unauthenticated");
       setState("error");
     } else if (result.status === "unconfigured") {
       authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
       authRetryStateRef.current = "error";
+      recordDatabaseSyncAuthRetryStatus("unconfigured");
       setState("error");
     } else if (result.status === "disabled") {
       authRetryStateRef.current = "signed-out";
+      recordDatabaseSyncAuthRetryStatus("disabled");
       setState("disabled");
     } else {
       authRetryStateRef.current = "error";
+      recordDatabaseSyncAuthRetryStatus("error");
       setState("error");
     }
     void refreshPendingStatus();

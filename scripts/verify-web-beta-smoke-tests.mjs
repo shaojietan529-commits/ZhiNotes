@@ -13672,6 +13672,18 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "export function recordPageSyncAuthRetryStatus",
+    "Page sync hook must be able to publish account auth retry state into pending metadata."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    'rememberAuthRetryStatus("error")',
+    "Page sync auth retry metadata must keep transient account errors visible."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "authRetryUntil: authRetry.until",
     "Smoke verifier must keep page auth retry retry-at metadata visible."
   );
@@ -14502,6 +14514,18 @@ function run() {
     accountDatabaseSync,
     "authRetryStatus: authRetry.status",
     "Database pending status must expose auth retry status metadata."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "export function recordDatabaseSyncAuthRetryStatus",
+    "Database sync hook must be able to publish account auth retry state into pending metadata."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    'rememberAuthRetryStatus("error")',
+    "Database sync auth retry metadata must keep transient account errors visible."
   );
   assertIncludes(
     files.accountDatabaseSync,

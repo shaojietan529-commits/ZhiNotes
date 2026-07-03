@@ -11557,6 +11557,14 @@ function run() {
       "Database pending status must expose auth retry status metadata.",
     ],
     [
+      "export function recordDatabaseSyncAuthRetryStatus",
+      "Database sync must expose a metadata-only helper for hooks to publish account auth retry state.",
+    ],
+    [
+      'rememberAuthRetryStatus("error")',
+      "Database sync auth retry state must keep transient account errors visible instead of looking idle.",
+    ],
+    [
       "authRetryUntil: authRetry.until",
       "Database pending status must expose auth retry retry-at metadata.",
     ],
@@ -23469,6 +23477,18 @@ function run() {
       accountPageSync,
       "authRetryStatus: authRetry.status",
       "Account page sync pending status must expose auth retry status metadata.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "export function recordPageSyncAuthRetryStatus",
+      "Account page sync must expose a metadata-only helper for hooks to publish account auth retry state.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      'rememberAuthRetryStatus("error")',
+      "Account page sync auth retry state must keep transient account errors visible instead of looking idle.",
     ],
     [
       files.accountPageSync,

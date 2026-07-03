@@ -657,6 +657,7 @@ async function call(body: Record<string, unknown>): Promise<
     return { ok: false, status: "unauthenticated" };
   }
   if (accountGate.status === "error") {
+    rememberAuthRetryStatus("error");
     return {
       ok: false,
       status: "error",
@@ -678,6 +679,7 @@ async function call(body: Record<string, unknown>): Promise<
     }
     if (res.status === 401) {
       probeStatus = "error";
+      rememberAuthRetryStatus("error");
       return {
         ok: false,
         status: "error",
@@ -687,6 +689,7 @@ async function call(body: Record<string, unknown>): Promise<
     }
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
+      rememberAuthRetryStatus("error");
       return {
         ok: false,
         status: "error",
@@ -697,6 +700,7 @@ async function call(body: Record<string, unknown>): Promise<
     return { ok: true, json };
   } catch (error) {
     probeStatus = "error";
+    rememberAuthRetryStatus("error");
     return {
       ok: false,
       status: "error",
@@ -1083,7 +1087,9 @@ async function waitForAuthRetryProbe(): Promise<DatabaseSyncStatus | null> {
   const probe = getAuthRetryProbe();
   if (!probe) return null;
   const status = await probe.catch((): AuthRetryProbeStatus => "ok");
-  return status === "unauthenticated" || status === "unconfigured"
+  return status === "unauthenticated" ||
+    status === "unconfigured" ||
+    status === "error"
     ? status
     : null;
 }
@@ -1123,7 +1129,11 @@ function setAuthRetryProbe(
 function rememberAuthRetryStatus(status: DatabaseSyncStatus): void {
   const previousStatus = authRetryStatus;
   const previousUntil = authRetryAfter;
-  if (status === "unauthenticated" || status === "unconfigured") {
+  if (
+    status === "unauthenticated" ||
+    status === "unconfigured" ||
+    status === "error"
+  ) {
     authRetryStatus = status;
     authRetryAfter = Date.now() + AUTH_RETRY_BACKOFF_MS;
     writeSyncStorage(
@@ -1159,7 +1169,8 @@ function readStoredAuthRetryStatus(): DatabaseSyncStatus | null {
     }
     if (
       parsed.status !== "unauthenticated" &&
-      parsed.status !== "unconfigured"
+      parsed.status !== "unconfigured" &&
+      parsed.status !== "error"
     ) {
       authRetryStatus = null;
       authRetryAfter = 0;
@@ -1175,6 +1186,12 @@ function readStoredAuthRetryStatus(): DatabaseSyncStatus | null {
     removeSyncStorage(AUTH_RETRY_KEY);
     return null;
   }
+}
+
+export function recordDatabaseSyncAuthRetryStatus(
+  status: DatabaseSyncStatus
+): void {
+  rememberAuthRetryStatus(status);
 }
 
 function getAuthRetrySnapshot(): {

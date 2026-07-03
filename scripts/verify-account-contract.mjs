@@ -2023,6 +2023,14 @@ check(
     pageCloudSyncHook.includes("authRetryAfterRef") &&
     pageCloudSyncHook.includes("authRetryStateRef") &&
     pageCloudSyncHook.includes("function getRetryStateFromAccountGate(") &&
+    pageCloudSyncHook.includes("function getAuthRetryStatusFromAccountGate(") &&
+    pageCloudSyncHook.includes("recordPageSyncAuthRetryStatus(") &&
+    pageCloudSyncHook.includes(
+      "getAuthRetryStatusFromAccountGate(accountGate.status)"
+    ) &&
+    pageSyncClient.includes("export function recordPageSyncAuthRetryStatus") &&
+    pageSyncClient.includes('status === "error"') &&
+    pageSyncClient.includes('rememberAuthRetryStatus("error")') &&
     pageCloudSyncHook.includes(
       'return status === "signed-out" ? "signed-out" : "error";'
     ) &&
@@ -2094,6 +2102,14 @@ check(
     databaseCloudSyncHook.includes("authRetryAfterRef") &&
     databaseCloudSyncHook.includes("authRetryStateRef") &&
     databaseCloudSyncHook.includes("function getRetryStateFromAccountGate(") &&
+    databaseCloudSyncHook.includes("function getAuthRetryStatusFromAccountGate(") &&
+    databaseCloudSyncHook.includes("recordDatabaseSyncAuthRetryStatus(") &&
+    databaseCloudSyncHook.includes(
+      "getAuthRetryStatusFromAccountGate(accountGate.status)"
+    ) &&
+    databaseSyncClient.includes("export function recordDatabaseSyncAuthRetryStatus") &&
+    databaseSyncClient.includes('status === "error"') &&
+    databaseSyncClient.includes('rememberAuthRetryStatus("error")') &&
     databaseCloudSyncHook.includes(
       'return status === "signed-out" ? "signed-out" : "error";'
     ) &&
