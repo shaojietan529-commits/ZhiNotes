@@ -6390,6 +6390,14 @@ function run() {
       "PagePeekModal property saves must stay ordered so older saves cannot win over newer local input.",
     ],
     [
+      "const localContentDraftRef = useRef<string | null>(null)",
+      "PagePeekModal must remember active local content drafts so rapid typing cannot be overwritten by stale saves.",
+    ],
+    [
+      "const contentSaveQueueRef = useRef<Promise<void>>(Promise.resolve())",
+      "PagePeekModal body saves must stay ordered so older saves cannot win over newer local input.",
+    ],
+    [
       "preserveTitle: localTitleDraftRef.current !== null",
       "PagePeekModal metadata refreshes must preserve in-progress local title edits.",
     ],
@@ -6420,6 +6428,18 @@ function run() {
     [
       "if (localPropertiesDraftRef.current === next) {\n            localPropertiesDraftRef.current = null;",
       "PagePeekModal property draft protection must clear only after the latest matching save settles.",
+    ],
+    [
+      "localContentDraftRef.current = html",
+      "PagePeekModal content changes must mark a protected local draft before background persistence starts.",
+    ],
+    [
+      "if (localContentDraftRef.current === html) {\n            localContentDraftRef.current = null;",
+      "PagePeekModal content draft protection must clear only after the latest matching save settles.",
+    ],
+    [
+      "contentSaveQueueRef.current.then(run, run)",
+      "PagePeekModal content saves must queue behind previous content saves instead of racing.",
     ],
     [
       "schedulePeekTitleSave(next)",

@@ -144,6 +144,8 @@ export default function PagePeekModal({
   const titleSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const localPropertiesDraftRef = useRef<PageProperty[] | null>(null);
   const propertiesSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const localContentDraftRef = useRef<string | null>(null);
+  const contentSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const isSwitchingPeekPage = renderedPeekPageId !== pageId;
   const currentLoadedPage = page?.id === pageId ? page : null;
   const currentFallbackPage = fallbackPage?.id === pageId ? fallbackPage : null;
@@ -550,16 +552,29 @@ export default function PagePeekModal({
 
   const handleContentUpdate = useCallback(
     async (html: string) => {
-      await persistPeekUpdate({
-        basePage: effectivePage,
-        updates: { content_text: html },
-        update,
-        setFallbackPage,
-        upsertPages,
-      });
-      onChanged?.();
+      localContentDraftRef.current = html;
+      const run = async () => {
+        const latest = latestPeekSaveRef.current;
+        try {
+          await persistPeekUpdate({
+            basePage: latest.basePage,
+            updates: { content_text: html },
+            update: latest.update,
+            setFallbackPage,
+            upsertPages: latest.upsertPages,
+          });
+          latest.onChanged?.();
+        } finally {
+          if (localContentDraftRef.current === html) {
+            localContentDraftRef.current = null;
+          }
+        }
+      };
+      const queued = contentSaveQueueRef.current.then(run, run);
+      contentSaveQueueRef.current = queued.catch(() => undefined);
+      await queued;
     },
-    [effectivePage, update, upsertPages, onChanged]
+    []
   );
 
   return (
