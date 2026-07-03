@@ -12092,6 +12092,10 @@ function run() {
       "Cloud upload reliability report must not read database row values.",
     ],
     [
+      "reads_file_names: false",
+      "Cloud upload reliability report must not read file names.",
+    ],
+    [
       "reads_file_bytes: false",
       "Cloud upload reliability report must not read file bytes.",
     ],
@@ -12122,6 +12126,30 @@ function run() {
     [
       "database-sync-enabled",
       "Cloud upload reliability report must gate on database sync enablement.",
+    ],
+    [
+      "fileStatus: PendingFileEmbedSyncStatus",
+      "Cloud upload reliability report must accept file embed queue status.",
+    ],
+    [
+      "file_sync_enabled",
+      "Cloud upload reliability report must expose file sync enablement.",
+    ],
+    [
+      "file_waiting_rows",
+      "Cloud upload reliability report must count pending file rows.",
+    ],
+    [
+      "file-embed-sync-visible",
+      "Cloud upload reliability report must gate on visible file embed queue state.",
+    ],
+    [
+      "input.fileStatus.failed",
+      "Cloud upload reliability report must include file sync failures.",
+    ],
+    [
+      "input.fileStatus.manualReviewCount",
+      "Cloud upload reliability report must include file sync manual-review rows.",
     ],
     [
       "pending-queue-durable",
@@ -14963,6 +14991,10 @@ function run() {
       "Sync UI must build the cloud upload reliability report.",
     ],
     [
+      "fileStatus: fileEmbedPendingStatus",
+      "Sync UI must pass file embed queue status into the cloud upload reliability report.",
+    ],
+    [
       "CloudUploadReliabilityPanel",
       "Sync UI must render the cloud upload reliability panel.",
     ],
@@ -14993,6 +15025,10 @@ function run() {
     [
       "safe_to_switch_device_now",
       "Sync UI must surface cross-device switch safety from the cloud upload reliability report.",
+    ],
+    [
+      "report.summary.file_waiting_rows",
+      "Sync UI must show file waiting rows in the cloud upload reliability summary.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);

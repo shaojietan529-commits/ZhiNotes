@@ -226,23 +226,46 @@ check(
     shell.includes("DATABASE_SYNC_STATUS_EVENT") &&
     shell.includes("SETTINGS_SYNC_STATUS_EVENT") &&
     shell.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
+    shell.includes("FILE_EMBED_SYNC_QUEUE_EVENT") &&
     shell.includes("SYNC_LOG_STATUS_EVENT") &&
     shell.includes("isAccountCloudUploadStatusStorageEvent") &&
     shell.includes("PAGE_SYNC_STORAGE_KEY_PREFIX") &&
     shell.includes("DATABASE_SYNC_STORAGE_KEY_PREFIX") &&
+    shell.includes("FILE_EMBED_SYNC_QUEUE_STORAGE_KEY") &&
     shell.includes("event.key?.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)") &&
     shell.includes("event.key?.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)") &&
     shell.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
     shell.includes("KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
     shell.includes("SYNC_LOG_STATUS_STORAGE_KEY") &&
     shell.includes('window.addEventListener("storage", handleStorage)') &&
+    shell.includes("fileEmbedPendingStatus") &&
+    shell.includes("fileStatus: fileEmbedPendingStatus") &&
+    shell.includes("report.summary.file_waiting_rows") &&
     shell.includes("safe_to_switch_device_now") &&
     shell.includes("账号重试") &&
     shell.includes("只读队列账本") &&
     shell.includes("不触发上传") &&
     shell.includes("pending 清零后最稳") &&
     shell.includes("refreshCloudUploadReliability"),
-  "AccountShell 应在账号页显示本地输入上云健康卡，并即时响应 page/database/settings/knowledge/sync_log 跨标签状态，不触发上传"
+  "AccountShell 应在账号页显示本地输入上云健康卡，并即时响应 page/database/file/settings/knowledge/sync_log 跨标签状态，不触发上传"
+);
+check(
+  cloudUploadReliabilityReport.includes("PendingFileEmbedSyncStatus") &&
+    cloudUploadReliabilityReport.includes(
+      "fileStatus: PendingFileEmbedSyncStatus"
+    ) &&
+    cloudUploadReliabilityReport.includes("file_sync_enabled") &&
+    cloudUploadReliabilityReport.includes("file_waiting_rows") &&
+    cloudUploadReliabilityReport.includes("file-embed-sync-visible") &&
+    cloudUploadReliabilityReport.includes("文件嵌入队列可见") &&
+    cloudUploadReliabilityReport.includes("input.fileStatus.pending") &&
+    cloudUploadReliabilityReport.includes("input.fileStatus.failed") &&
+    cloudUploadReliabilityReport.includes("input.fileStatus.manualReviewCount") &&
+    cloudUploadReliabilityReport.includes("input.fileStatus.oldestPendingQueuedAt") &&
+    cloudUploadReliabilityReport.includes("input.fileStatus.lastFailureMessage") &&
+    cloudUploadReliabilityReport.includes("reads_file_names: false") &&
+    cloudUploadReliabilityReport.includes("reads_file_bytes: false"),
+  "本地输入上云健康报告必须把文件嵌入队列纳入待上传、失败、人工复核和切换设备判断，但仍不能读取文件名或文件字节"
 );
 check(
   cloudUploadReliabilityReport.includes("reads_auth_retry_state: true") &&

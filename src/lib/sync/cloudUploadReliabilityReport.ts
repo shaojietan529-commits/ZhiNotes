@@ -1,5 +1,6 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
 import type { SyncLogSummary } from "@/lib/db/local/queries";
+import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import type { LocalWorkspaceIdentity } from "@/lib/sync/workspaceIdentity";
 
@@ -13,6 +14,7 @@ export type CloudUploadReliabilityGateStatus = "pass" | "warn" | "block";
 export interface CloudUploadReliabilityReportInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
+  fileStatus: PendingFileEmbedSyncStatus;
   syncSummary: SyncLogSummary | null;
   workspaceIdentity: LocalWorkspaceIdentity | null;
   generatedAt?: string;
@@ -65,11 +67,13 @@ export interface CloudUploadReliabilityReport {
     cloud_workspace_linked: boolean;
     page_sync_enabled: boolean;
     database_sync_enabled: boolean;
+    file_sync_enabled: boolean;
     local_input_buffered: boolean;
     safe_to_keep_typing: boolean;
     safe_to_switch_device_now: boolean;
     page_waiting_rows: number;
     database_waiting_rows: number;
+    file_waiting_rows: number;
     sync_log_pending_rows: number;
     total_waiting_rows: number;
     failed_rows: number;
@@ -102,15 +106,23 @@ export function buildCloudUploadReliabilityReport(
     input.databaseStatus.pending +
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
+  const fileWaitingRows = input.fileStatus.pending;
   const syncLogPendingRows = input.syncSummary?.pending ?? 0;
   const totalWaitingRows =
-    pageWaitingRows + databaseWaitingRows + syncLogPendingRows;
+    pageWaitingRows +
+    databaseWaitingRows +
+    fileWaitingRows +
+    syncLogPendingRows;
   const failedRows = Math.max(
-    input.pageStatus.failed + input.databaseStatus.failed,
+    input.pageStatus.failed +
+      input.databaseStatus.failed +
+      input.fileStatus.failed,
     input.syncSummary?.failed ?? 0
   );
   const manualReviewRows = Math.max(
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.pageStatus.manualReviewCount +
+      input.databaseStatus.manualReviewCount +
+      input.fileStatus.manualReviewCount,
     input.syncSummary?.manualReview ?? 0
   );
   const authRetryDomains = [
@@ -130,12 +142,14 @@ export function buildCloudUploadReliabilityReport(
   const oldestPendingQueuedAt = getOldestTimestamp([
     input.pageStatus.oldestPendingQueuedAt,
     input.databaseStatus.oldestPendingQueuedAt,
+    input.fileStatus.oldestPendingQueuedAt,
   ]);
   const oldestPendingAgeMs = getAgeMs(oldestPendingQueuedAt, generatedAt);
   const cloudWorkspaceLinked =
     input.workspaceIdentity?.cloud_status === "linked-alpha";
   const pageSyncEnabled = input.pageStatus.enabled;
   const databaseSyncEnabled = input.databaseStatus.enabled;
+  const fileSyncEnabled = input.fileStatus.enabled;
   const hasStalePending =
     totalWaitingRows > 0 &&
     oldestPendingAgeMs !== null &&
@@ -149,12 +163,16 @@ export function buildCloudUploadReliabilityReport(
     cloudWorkspaceLinked,
     pageSyncEnabled,
     databaseSyncEnabled,
+    fileSyncEnabled,
     pageWaitingRows,
     databaseWaitingRows,
+    fileWaitingRows,
     syncLogPendingRows,
     totalWaitingRows,
     failedRows,
     manualReviewRows,
+    fileFailedRows: input.fileStatus.failed,
+    fileManualReviewRows: input.fileStatus.manualReviewCount,
     authRetryActive,
     authRetryDomains,
     authRetryUntil,
@@ -165,6 +183,7 @@ export function buildCloudUploadReliabilityReport(
     oldestPendingAgeLabel: formatAge(oldestPendingAgeMs),
     pageLastFailure: input.pageStatus.lastFailureMessage,
     databaseLastFailure: input.databaseStatus.lastFailureMessage,
+    fileLastFailure: input.fileStatus.lastFailureMessage,
   });
   const blockers = gates.filter((gate) => gate.status === "block").length;
   const warnings = gates.filter((gate) => gate.status === "warn").length;
@@ -209,8 +228,10 @@ export function buildCloudUploadReliabilityReport(
       cloud_workspace_linked: cloudWorkspaceLinked,
       page_sync_enabled: pageSyncEnabled,
       database_sync_enabled: databaseSyncEnabled,
+      file_sync_enabled: fileSyncEnabled,
       local_input_buffered: true,
-      safe_to_keep_typing: pageSyncEnabled || databaseSyncEnabled,
+      safe_to_keep_typing:
+        pageSyncEnabled || databaseSyncEnabled || fileSyncEnabled,
       safe_to_switch_device_now:
         blockers === 0 &&
         totalWaitingRows === 0 &&
@@ -218,6 +239,7 @@ export function buildCloudUploadReliabilityReport(
         !authRetryActive,
       page_waiting_rows: pageWaitingRows,
       database_waiting_rows: databaseWaitingRows,
+      file_waiting_rows: fileWaitingRows,
       sync_log_pending_rows: syncLogPendingRows,
       total_waiting_rows: totalWaitingRows,
       failed_rows: failedRows,
@@ -250,12 +272,16 @@ function buildGates(input: {
   cloudWorkspaceLinked: boolean;
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
+  fileSyncEnabled: boolean;
   pageWaitingRows: number;
   databaseWaitingRows: number;
+  fileWaitingRows: number;
   syncLogPendingRows: number;
   totalWaitingRows: number;
   failedRows: number;
   manualReviewRows: number;
+  fileFailedRows: number;
+  fileManualReviewRows: number;
   authRetryActive: boolean;
   authRetryDomains: string[];
   authRetryUntil: string | null;
@@ -266,6 +292,7 @@ function buildGates(input: {
   oldestPendingAgeLabel: string;
   pageLastFailure: string | null;
   databaseLastFailure: string | null;
+  fileLastFailure: string | null;
 }): CloudUploadReliabilityGate[] {
   return [
     {
@@ -303,6 +330,31 @@ function buildGates(input: {
       next_action: input.databaseSyncEnabled
         ? "保持数据库同步开启，观察失败和人工复核阈值。"
         : "打开账号页开启数据库同步。",
+    },
+    {
+      id: "file-embed-sync-visible",
+      title: "文件嵌入队列可见",
+      status:
+        input.fileManualReviewRows > 0
+          ? "block"
+          : input.fileFailedRows > 0
+            ? "warn"
+            : input.fileSyncEnabled
+              ? "pass"
+              : "block",
+      evidence: input.fileSyncEnabled
+        ? `文件待上传 ${input.fileWaitingRows} 条，失败 ${input.fileFailedRows} 条，人工复核 ${input.fileManualReviewRows} 条。`
+        : "文件嵌入同步队列不可用，文件和报告只能留在本机。",
+      owner_visible_reason:
+        "文件和报告是投研资料的一部分；文件队列未清零时，换设备可能看不到同一份附件状态。",
+      next_action:
+        input.fileManualReviewRows > 0
+          ? "先处理文件人工复核；不要重建缓存或切换设备。"
+          : input.fileFailedRows > 0
+            ? "先手动补传文件失败队列；这只检查元数据，不读取文件内容。"
+            : input.fileWaitingRows > 0
+              ? "可以继续输入；等待文件队列补传完成后再跨设备交接。"
+              : "文件嵌入队列已清零，继续保持文件队列状态可见。",
     },
     {
       id: "account-auth-retry-visible",
@@ -356,7 +408,10 @@ function buildGates(input: {
         input.failedRows === 0
           ? "当前没有失败待上传记录。"
           : `失败 ${input.failedRows} 条；最近原因：${
-              input.pageLastFailure ?? input.databaseLastFailure ?? "未记录"
+              input.pageLastFailure ??
+              input.databaseLastFailure ??
+              input.fileLastFailure ??
+              "未记录"
             }。`,
       owner_visible_reason:
         "失败不能变成黑箱；超大记录、认证退避或网络错误必须留在队列里说明原因。",
@@ -396,7 +451,7 @@ function getNextAction(
     return "先完成云 workspace 绑定；本地输入仍会保留，但不能证明已进入云端主库。";
   }
   if (input.manualReviewRows > 0) {
-    return "先导出人工复核包，处理重复失败的页面或数据库记录。";
+    return "先导出人工复核包，处理重复失败的页面、数据库或文件记录。";
   }
   if (input.authRetryActive) {
     return "本地输入可继续；等待账号云端认证退避恢复，pending 清零前不要切换设备或重建缓存。";

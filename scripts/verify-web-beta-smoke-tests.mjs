@@ -4287,6 +4287,12 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "fileStatus: fileEmbedPendingStatus",
+    "Sync UI must pass file embed queue status into the cloud upload reliability report."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "CloudUploadReliabilityPanel",
     "Sync UI must render the cloud upload reliability panel."
   );
@@ -4307,6 +4313,12 @@ function run() {
     syncShell,
     "只读队列数量",
     "Sync UI must explain that the cloud upload reliability panel only reads queue metadata."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "report.summary.file_waiting_rows",
+    "Sync UI must show file waiting rows in the cloud upload reliability summary."
   );
   assertIncludes(
     files.localMetadataManifest,

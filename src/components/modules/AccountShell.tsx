@@ -359,15 +359,19 @@ export default function AccountShell() {
   }, [phase, refreshCloudUploadReliability]);
 
   const cloudUploadReliabilityReport = useMemo(() => {
-    if (!pagePendingStatus || !databasePendingStatus) return null;
+    if (!pagePendingStatus || !databasePendingStatus || !fileEmbedPendingStatus) {
+      return null;
+    }
     return buildCloudUploadReliabilityReport({
       pageStatus: pagePendingStatus,
       databaseStatus: databasePendingStatus,
+      fileStatus: fileEmbedPendingStatus,
       syncSummary,
       workspaceIdentity,
     });
   }, [
     databasePendingStatus,
+    fileEmbedPendingStatus,
     pagePendingStatus,
     syncSummary,
     workspaceIdentity,
@@ -1853,7 +1857,7 @@ function AccountCloudUploadReliabilityCard({
         <AccountCloudUploadReliabilityFact
           label="待上传"
           value={String(report.summary.total_waiting_rows)}
-          detail={`${report.summary.page_waiting_rows} 页面 · ${report.summary.database_waiting_rows} 数据库 · ${report.summary.sync_log_pending_rows} sync_log`}
+          detail={`${report.summary.page_waiting_rows} 页面 · ${report.summary.database_waiting_rows} 数据库 · ${report.summary.file_waiting_rows} 文件 · ${report.summary.sync_log_pending_rows} sync_log`}
         />
         <AccountCloudUploadReliabilityFact
           label="失败"

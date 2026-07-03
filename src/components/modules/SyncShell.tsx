@@ -2099,10 +2099,17 @@ function SyncDashboard() {
       buildCloudUploadReliabilityReport({
         pageStatus: pagePendingStatus,
         databaseStatus: databasePendingStatus,
+        fileStatus: fileEmbedPendingStatus,
         syncSummary,
         workspaceIdentity,
       }),
-    [databasePendingStatus, pagePendingStatus, syncSummary, workspaceIdentity]
+    [
+      databasePendingStatus,
+      fileEmbedPendingStatus,
+      pagePendingStatus,
+      syncSummary,
+      workspaceIdentity,
+    ]
   );
   const syncHandoffReadinessReceipt = useMemo(
     () =>
@@ -22429,7 +22436,7 @@ function CloudUploadReliabilityPanel({
         <CacheRebuildFact
           label="待上传"
           value={String(report.summary.total_waiting_rows)}
-          detail={`${report.summary.page_waiting_rows} 页面 · ${report.summary.database_waiting_rows} 数据库`}
+          detail={`${report.summary.page_waiting_rows} 页面 · ${report.summary.database_waiting_rows} 数据库 · ${report.summary.file_waiting_rows} 文件`}
         />
         <CacheRebuildFact
           label="失败"
