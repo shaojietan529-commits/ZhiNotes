@@ -394,6 +394,7 @@ check(doc.includes("ZHINOTES_ACCOUNT_ALLOWED_EMAILS"), "文档缺少环境变量
 // 5. Account-scoped portfolio sync: session-gated, share allowlist enforced
 const accountSync = read("src/app/api/portfolio/account-sync/route.ts");
 const portfolioAccountSyncClient = read("src/lib/portfolio/accountSync.ts");
+const portfolioPasscodeSyncClient = read("src/lib/portfolio/cloudSync.ts");
 for (const token of [
   "getAccountConfig",
   "readSessionToken",
@@ -422,6 +423,15 @@ check(
     portfolioAccountSyncClient.includes("clearTimeout(timeout)") &&
     portfolioAccountSyncClient.includes("组合同步请求超时；本地组合数据已保留，会稍后重试。"),
   "portfolio account-sync client 底层 fetch 必须可超时取消；超时只能进入可重试错误并明确本地组合数据已保留"
+);
+check(
+  portfolioPasscodeSyncClient.includes("PORTFOLIO_PASSCODE_SYNC_REQUEST_TIMEOUT_MS = 12000") &&
+    portfolioPasscodeSyncClient.includes("async function fetchPortfolioPasscodeSync") &&
+    portfolioPasscodeSyncClient.includes("const controller = new AbortController();") &&
+    portfolioPasscodeSyncClient.includes("signal: controller.signal") &&
+    portfolioPasscodeSyncClient.includes("controller.abort()") &&
+    portfolioPasscodeSyncClient.includes("clearTimeout(timeout)"),
+  "portfolio passcode fallback sync 底层 fetch 必须可超时取消，避免旧版组合云同步卡住本地使用"
 );
 
 // 6. Shell: viewing a shared portfolio is read-only and never pushes

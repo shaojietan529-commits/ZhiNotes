@@ -15,6 +15,7 @@ export interface CloudPortfolioData {
 }
 
 const PASSCODE_KEY = "zhinote.portfolio.syncPasscode.v1";
+const PORTFOLIO_PASSCODE_SYNC_REQUEST_TIMEOUT_MS = 12000;
 
 export function loadSyncPasscode(): string | null {
   if (typeof window === "undefined") return null;
@@ -43,11 +44,7 @@ export async function pullCloudData(
   passcode: string
 ): Promise<SyncResult<CloudPortfolioData | null>> {
   try {
-    const res = await fetch("/api/portfolio/sync", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "pull", passcode }),
-    });
+    const res = await fetchPortfolioPasscodeSync({ action: "pull", passcode });
     if (res.status === 501) return { status: "unconfigured" };
     if (res.status === 403) return { status: "unauthorized" };
     if (!res.ok) return { status: "error" };
@@ -64,10 +61,10 @@ export async function pushCloudData(
   data: CloudPortfolioData
 ): Promise<SyncResult<TagMap | null>> {
   try {
-    const res = await fetch("/api/portfolio/sync", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "push", passcode, data }),
+    const res = await fetchPortfolioPasscodeSync({
+      action: "push",
+      passcode,
+      data,
     });
     if (res.status === 501) return { status: "unconfigured" };
     if (res.status === 403) return { status: "unauthorized" };
@@ -82,5 +79,25 @@ export async function pushCloudData(
     };
   } catch {
     return { status: "error" };
+  }
+}
+
+async function fetchPortfolioPasscodeSync(
+  body: Record<string, unknown>
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    PORTFOLIO_PASSCODE_SYNC_REQUEST_TIMEOUT_MS
+  );
+  try {
+    return await fetch("/api/portfolio/sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
   }
 }

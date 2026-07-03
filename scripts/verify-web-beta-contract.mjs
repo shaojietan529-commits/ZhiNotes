@@ -181,6 +181,7 @@ const files = {
   accountClientSession: "src/lib/account/clientSession.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
   accountMeRoute: "src/app/api/account/me/route.ts",
+  portfolioPasscodeSync: "src/lib/portfolio/cloudSync.ts",
   accountPortfolioSync: "src/lib/portfolio/accountSync.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
@@ -725,6 +726,7 @@ function run() {
   const accountClientSession = readProjectFile(files.accountClientSession);
   const accountShell = readProjectFile(files.accountShell);
   const accountMeRoute = readProjectFile(files.accountMeRoute);
+  const portfolioPasscodeSync = readProjectFile(files.portfolioPasscodeSync);
   const accountPortfolioSync = readProjectFile(files.accountPortfolioSync);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
@@ -4925,6 +4927,36 @@ function run() {
     accountPortfolioSync,
     "组合同步请求超时；本地组合数据已保留，会稍后重试。",
     "Portfolio account-sync timeout errors must explicitly tell the user local portfolio data is preserved."
+  );
+  assertSourceIncludes(
+    files.portfolioPasscodeSync,
+    portfolioPasscodeSync,
+    "PORTFOLIO_PASSCODE_SYNC_REQUEST_TIMEOUT_MS = 12000",
+    "Legacy portfolio passcode sync requests must have a bounded timeout so old sync mode cannot freeze local portfolio use."
+  );
+  assertSourceIncludes(
+    files.portfolioPasscodeSync,
+    portfolioPasscodeSync,
+    "async function fetchPortfolioPasscodeSync",
+    "Legacy portfolio passcode sync must route pull and push through a shared timeout wrapper."
+  );
+  assertSourceIncludes(
+    files.portfolioPasscodeSync,
+    portfolioPasscodeSync,
+    "const controller = new AbortController();",
+    "Legacy portfolio passcode sync must be able to abort slow /api/portfolio/sync requests."
+  );
+  assertSourceIncludes(
+    files.portfolioPasscodeSync,
+    portfolioPasscodeSync,
+    "signal: controller.signal",
+    "Legacy portfolio passcode sync must pass the abort signal to the browser fetch call."
+  );
+  assertSourceIncludes(
+    files.portfolioPasscodeSync,
+    portfolioPasscodeSync,
+    "clearTimeout(timeout)",
+    "Legacy portfolio passcode sync request timeout timers must be cleared after fetch settles."
   );
   assertSourceExcludes(
     files.accountDatabaseSync,
