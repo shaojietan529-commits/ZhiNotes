@@ -215,6 +215,27 @@ export function useAccountCloudSyncCoordinator() {
       .filter((value): value is string => Boolean(value))
       .sort()
       .at(-1) ?? null;
+  const authRetryDomainLabel = [
+    pageSync.pendingStatus.authRetryStatus ? "页面" : null,
+    databaseSync.pendingStatus.authRetryStatus ? "数据库" : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join("/");
+  const authRetryUntil =
+    [
+      pageSync.pendingStatus.authRetryUntil,
+      databaseSync.pendingStatus.authRetryUntil,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null;
+  const authRetryUntilLabel =
+    formatLastSyncTime(authRetryUntil) ?? authRetryUntil;
+  const authRetryDetail = authRetryDomainLabel
+    ? `账号重试 ${authRetryDomainLabel}${
+        authRetryUntilLabel ? `，下次 ${authRetryUntilLabel}` : ""
+      }`
+    : null;
   const initializingEnabledDomain =
     (pageSync.pendingStatus.enabled && pageSync.state === "disabled") ||
     (databaseSync.pendingStatus.enabled && databaseSync.state === "disabled");
@@ -256,6 +277,7 @@ export function useAccountCloudSyncCoordinator() {
       globalSyncLogExtraPendingTotal > 0
         ? `其他本地队列 ${globalSyncLogExtraPendingTotal}（同步中心处理）`
         : null,
+      authRetryDetail,
       syncCenterVisibleOnlyPendingTotal > 0
         ? `同步中心待处理 ${syncCenterVisibleOnlyPendingTotal}`
         : null,
@@ -291,6 +313,7 @@ export function useAccountCloudSyncCoordinator() {
     }
     return `账号云同步已完成${details.length ? `：${details.join("，")}` : ""}`;
   }, [
+    authRetryDetail,
     databasePendingTotal,
     filePendingTotal,
     globalSyncLogExtraPendingTotal,
@@ -322,8 +345,12 @@ export function useAccountCloudSyncCoordinator() {
         otherPendingTotal: globalSyncLogExtraPendingTotal,
         fileFailedTotal: fileSync.status.failed,
         fileManualReviewTotal: fileSync.status.manualReviewCount,
+        authRetryDomainLabel,
+        authRetryUntilLabel,
       }),
     [
+      authRetryDomainLabel,
+      authRetryUntilLabel,
       databasePendingTotal,
       enabledDomainCount,
       filePendingTotal,

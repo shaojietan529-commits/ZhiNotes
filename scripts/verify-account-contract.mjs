@@ -3218,6 +3218,15 @@ check(
     accountCloudSyncCoordinator.includes(
       "fileManualReviewTotal: fileSync.status.manualReviewCount"
     ) &&
+    accountCloudSyncCoordinator.includes(
+      "pageSync.pendingStatus.authRetryStatus"
+    ) &&
+    accountCloudSyncCoordinator.includes(
+      "databaseSync.pendingStatus.authRetryStatus"
+    ) &&
+    accountCloudSyncCoordinator.includes("authRetryDomainLabel") &&
+    accountCloudSyncCoordinator.includes("authRetryUntilLabel") &&
+    accountCloudSyncCoordinator.includes("账号重试 ") &&
     accountCloudSyncCoordinator.includes("buildAccountLocalUseReadiness") &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
@@ -3249,6 +3258,10 @@ check(
     accountLocalUseReadiness.includes("fileFailedTotal") &&
     accountLocalUseReadiness.includes("fileManualReviewTotal") &&
     accountLocalUseReadiness.includes("fileQueueBlocksCloudHandoff") &&
+    accountLocalUseReadiness.includes("formatAuthRetryDetail") &&
+    accountLocalUseReadiness.includes("authRetryDomainLabel") &&
+    accountLocalUseReadiness.includes("authRetryUntilLabel") &&
+    accountLocalUseReadiness.includes("账号重试：") &&
     accountLocalUseReadiness.includes("reads_page_body_text: false") &&
     accountLocalUseReadiness.includes("reads_database_row_values: false") &&
     accountLocalUseReadiness.includes("reads_file_bytes: false") &&

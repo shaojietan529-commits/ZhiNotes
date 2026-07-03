@@ -72,6 +72,8 @@ interface AccountLocalUseReadinessInput {
   otherPendingTotal?: number;
   fileFailedTotal?: number;
   fileManualReviewTotal?: number;
+  authRetryDomainLabel?: string;
+  authRetryUntilLabel?: string | null;
 }
 
 function safeCount(value: number | undefined) {
@@ -153,13 +155,22 @@ function formatQueueBreakdown(breakdown: AccountLocalUseQueueBreakdown) {
   return parts.join("；");
 }
 
+function formatAuthRetryDetail(input: AccountLocalUseReadinessInput) {
+  const domainLabel = input.authRetryDomainLabel?.trim();
+  if (!domainLabel) return "";
+  return `账号重试：${domainLabel}${
+    input.authRetryUntilLabel ? `，下次 ${input.authRetryUntilLabel}` : ""
+  }`;
+}
+
 export function buildAccountLocalUseReadiness(
   input: AccountLocalUseReadinessInput
 ): AccountLocalUseReadiness {
   const queueBreakdown = buildAccountLocalUseQueueBreakdown(input);
   const queueDetail = formatQueueBreakdown(queueBreakdown);
+  const authRetryDetail = formatAuthRetryDetail(input);
   const withQueueDetail = (detail: string) =>
-    queueDetail ? `${detail}；${queueDetail}` : detail;
+    [detail, authRetryDetail, queueDetail].filter(Boolean).join("；");
   const base = {
     localInputCanContinue: true,
     queueBreakdown,
