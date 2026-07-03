@@ -2061,17 +2061,12 @@ export default function MeetingScheduleShell() {
   const openCreatedMeetingPage = useCallback(
     (page: Page) => {
       markMeetingForegroundInteraction();
+      const seededPage = prepareMeetingPageOpen(page, "meeting-create");
       setSelectedMeeting(null);
       setRunNowMessage("");
-      setPeekInitialPage(page);
-      setOpeningMeetingId(page.id);
-      setPeekPageId(page.id);
-      scheduleMeetingIdleTask(() => {
-        const seededPage = prepareMeetingPageOpen(page, "meeting-create");
-        setPeekInitialPage((current) =>
-          current?.id === page.id ? seededPage : current
-        );
-      }, 120);
+      setPeekInitialPage(seededPage);
+      setOpeningMeetingId(seededPage.id);
+      setPeekPageId(seededPage.id);
     },
     [markMeetingForegroundInteraction, prepareMeetingPageOpen]
   );

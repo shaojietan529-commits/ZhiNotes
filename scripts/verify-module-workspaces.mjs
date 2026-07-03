@@ -1470,8 +1470,9 @@ check(
     shells.schedule.includes("openPage(page, { source })") &&
     shells.schedule.includes("prepareMeetingPageOpen(page, source)") &&
     shells.schedule.includes('prepareMeetingPageOpen(page, "meeting-create")') &&
-    shells.schedule.includes("setPeekInitialPage(page)") &&
-    shells.schedule.includes("setPeekPageId(page.id)") &&
+    shells.schedule.includes('const seededPage = prepareMeetingPageOpen(page, "meeting-create");') &&
+    shells.schedule.includes("setPeekInitialPage(seededPage)") &&
+    shells.schedule.includes("setPeekPageId(seededPage.id)") &&
     shells.schedule.includes('status: "meeting-create-local-shell-requested"') &&
     shells.schedule.includes("local_handoff_seeded: 1") &&
     shells.schedule.includes("let seededPage = page") &&
@@ -1573,7 +1574,7 @@ check(
     shells.schedule.includes("MEETING_FOREGROUND_QUIET_WINDOW_MS") &&
     shells.schedule.includes("foregroundDelay + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS") &&
     shells.schedule.includes("foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS") &&
-    shells.schedule.includes("setPeekInitialPage(page);\n      setOpeningMeetingId(page.id);\n      setPeekPageId(page.id);\n      scheduleMeetingIdleTask(() => {") &&
+    shells.schedule.includes('const seededPage = prepareMeetingPageOpen(page, "meeting-create");\n      setSelectedMeeting(null);\n      setRunNowMessage("");\n      setPeekInitialPage(seededPage);') &&
     shells.schedule.includes("revealMeetingOnCalendar(optimisticPage);\n      scheduleOptimisticMeetingHotCacheWrite(") &&
     shells.schedule.includes("scheduleOptimisticMeetingHotCacheWrite(\n              finalPage") &&
     !shells.schedule.includes("writeOptimisticMeetingHotCache(optimisticPage, optimisticRootId);"),

@@ -1434,8 +1434,9 @@ check(
     meetingScheduleShell.includes('rememberPageRouteHandoff(seededPage, "meeting-open")') &&
     meetingScheduleShell.includes("function getMeetingPagePrimeSeed(page: Page)") &&
     meetingScheduleShell.includes('if (seededPage.content_text === "") return seededPage;') &&
-    meetingScheduleShell.includes("setPeekInitialPage(page)") &&
-    meetingScheduleShell.includes("setPeekPageId(page.id)") &&
+    meetingScheduleShell.includes('const seededPage = prepareMeetingPageOpen(page, "meeting-create");') &&
+    meetingScheduleShell.includes("setPeekInitialPage(seededPage)") &&
+    meetingScheduleShell.includes("setPeekPageId(seededPage.id)") &&
     meetingScheduleShell.includes('status: "meeting-create-local-shell-requested"') &&
     meetingScheduleShell.includes("local_handoff_seeded: 1") &&
     meetingScheduleShell.includes("<PagePeekModal") &&
@@ -1455,11 +1456,10 @@ check(
     !meetingScheduleShell.includes("onMouseEnter={() => warmMeetingPageContent(entry.page)}") &&
     !meetingScheduleShell.includes("warmMeetingPageContent(") &&
     meetingScheduleShell.includes("const openMeetingDetail = useCallback") &&
-    meetingScheduleShell.indexOf("setPeekPageId(page.id)") <
-      meetingScheduleShell.indexOf("prepareMeetingPageOpen(page, \"meeting-create\")") &&
-    meetingScheduleShell.includes("setPeekInitialPage((current) =>") &&
+    meetingScheduleShell.indexOf('prepareMeetingPageOpen(page, "meeting-create")') <
+      meetingScheduleShell.indexOf("setPeekPageId(seededPage.id)") &&
     meetingScheduleShell.includes("后台会继续保存到账号云端"),
-  "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后先弹出同页会议页面再空闲补 seed 并后台同步；完整页入口仍走本地优先，正文必须等 peek/full page 打开后按需补齐"
+  "MeetingScheduleShell 手动创建会议应有即时创建状态，成功后同步准备本地 seed 并先弹出同页会议页面，再后台同步；完整页入口仍走本地优先，正文必须等 peek/full page 打开后按需补齐"
 );
 check(
     meetingScheduleShell.includes("MEETING_CALENDAR_VISIBLE_LIMIT") &&

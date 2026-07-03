@@ -6823,13 +6823,12 @@ function run() {
     files.meetingScheduleShell,
     meetingScheduleShell,
     [
-      "setPeekInitialPage(page);",
-      "setOpeningMeetingId(page.id);",
-      "setPeekPageId(page.id);",
-      "scheduleMeetingIdleTask(() => {\n        const seededPage = prepareMeetingPageOpen(page, \"meeting-create\");",
-      "setPeekInitialPage((current) =>",
+      'const seededPage = prepareMeetingPageOpen(page, "meeting-create");',
+      "setPeekInitialPage(seededPage);",
+      "setOpeningMeetingId(seededPage.id);",
+      "setPeekPageId(seededPage.id);",
     ],
-    "Meeting manual/import created pages must show the peek target before idle-seeding fuller local metadata."
+    "Meeting manual/import created pages must synchronously seed the peek shell before the modal opens."
   );
   assertIncludes(
     files.meetingScheduleShell,
@@ -10130,8 +10129,8 @@ function run() {
   );
   for (const snippet of [
     "useLocalFirstPageNavigation",
-    "setPeekInitialPage(page)",
-    "setPeekPageId(page.id)",
+    "setPeekInitialPage(seededPage)",
+    "setPeekPageId(seededPage.id)",
     "<PagePeekModal",
     "initialPage={peekInitialPage}",
     "openPage(page, { source })",
@@ -10564,6 +10563,18 @@ function run() {
     meetingScheduleShell,
     "revealMeetingOnCalendar(optimisticPage)",
     "Meeting import/create must reveal the optimistic meeting in the calendar immediately."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    'const seededPage = prepareMeetingPageOpen(page, "meeting-create");',
+    "Meeting create/import peek must synchronously seed the local page shell before the modal opens."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "setPeekInitialPage(seededPage);",
+    "Meeting create/import peek must render from the local seed immediately instead of waiting for a delayed task."
   );
   assertIncludes(
     files.meetingScheduleShell,

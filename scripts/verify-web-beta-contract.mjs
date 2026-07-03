@@ -3345,13 +3345,12 @@ function run() {
     files.meetingScheduleShell,
     meetingScheduleShell,
     [
-      "setPeekInitialPage(page);",
-      "setOpeningMeetingId(page.id);",
-      "setPeekPageId(page.id);",
-      "scheduleMeetingIdleTask(() => {\n        const seededPage = prepareMeetingPageOpen(page, \"meeting-create\");",
-      "setPeekInitialPage((current) =>",
+      'const seededPage = prepareMeetingPageOpen(page, "meeting-create");',
+      "setPeekInitialPage(seededPage);",
+      "setOpeningMeetingId(seededPage.id);",
+      "setPeekPageId(seededPage.id);",
     ],
-    "Meeting manual/import created pages must show the peek target before idle-seeding fuller local metadata."
+    "Meeting manual/import created pages must synchronously seed the peek shell before the modal opens."
   );
   assertSourceExcludes(
     files.meetingScheduleShell,
@@ -6512,12 +6511,12 @@ function run() {
       "Meeting full-page openings must use the shared local-first page navigation path.",
     ],
     [
-      "setPeekInitialPage(page)",
-      "Meeting creation must seed the optimistic page into the same-page peek modal.",
+      "setPeekInitialPage(seededPage)",
+      "Meeting creation must seed the prepared local page into the same-page peek modal.",
     ],
     [
-      "setPeekPageId(page.id)",
-      "Meeting creation must open the same-page peek editor after handing off the optimistic page.",
+      "setPeekPageId(seededPage.id)",
+      "Meeting creation must open the same-page peek editor after handing off the prepared local page.",
     ],
     [
       "<PagePeekModal",
@@ -22254,7 +22253,7 @@ function run() {
     "markMeetingForegroundInteraction();",
     "foregroundDelay + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS",
     "foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS",
-    "setPeekInitialPage(page);\n      setOpeningMeetingId(page.id);\n      setPeekPageId(page.id);\n      scheduleMeetingIdleTask(() => {",
+    'const seededPage = prepareMeetingPageOpen(page, "meeting-create");\n      setSelectedMeeting(null);\n      setRunNowMessage("");\n      setPeekInitialPage(seededPage);',
   ]) {
     assertSourceIncludes(
       files.meetingScheduleShell,
