@@ -14327,6 +14327,22 @@ function run() {
       "Sync UI must render a stable local fluency diagnosis panel.",
     ],
     [
+      "sync-local-performance-readiness-note",
+      "Sync UI must surface local fluency readiness in the top operational strip.",
+    ],
+    [
+      "performanceDiagnosis={localPerformanceDiagnosis}",
+      "Sync operational strip must receive the same local fluency diagnosis as the detailed panel.",
+    ],
+    [
+      "data-local-performance-status={performanceDiagnosis.status}",
+      "Sync operational strip must expose local fluency status as a stable data attribute.",
+    ],
+    [
+      "本机流畅度",
+      "Sync operational strip must label local fluency in user-facing Chinese.",
+    ],
+    [
       "LOCAL_PERFORMANCE_DIAGNOSIS_TARGETS",
       "Sync UI must keep explicit local fluency targets beside the panel.",
     ],

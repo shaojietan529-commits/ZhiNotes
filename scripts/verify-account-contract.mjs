@@ -3000,6 +3000,16 @@ check(
     syncDashboardShell.includes("getSidebarReadinessMirrorDetail") &&
     syncDashboardShell.includes('data-testid="sync-sidebar-readiness-mirror"') &&
     syncDashboardShell.includes(
+      'data-testid="sync-local-performance-readiness-note"'
+    ) &&
+    syncDashboardShell.includes(
+      "data-local-performance-status={performanceDiagnosis.status}"
+    ) &&
+    syncDashboardShell.includes(
+      "performanceDiagnosis={localPerformanceDiagnosis}"
+    ) &&
+    syncDashboardShell.includes("本机流畅度") &&
+    syncDashboardShell.includes(
       "data-sidebar-readiness-next-action={readiness.nextAction}"
     ) &&
     syncDashboardShell.includes("左侧状态") &&

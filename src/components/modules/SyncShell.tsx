@@ -1593,6 +1593,10 @@ function SyncDashboard() {
   const [performanceSnapshots, setPerformanceSnapshots] = useState<
     LocalPerformanceSnapshot[]
   >([]);
+  const localPerformanceDiagnosis = useMemo(
+    () => buildLocalPerformanceDiagnosis(performanceSnapshots),
+    [performanceSnapshots]
+  );
 
   useEffect(() => {
     const refreshPerformanceSnapshots = () => {
@@ -6494,6 +6498,7 @@ function SyncDashboard() {
           failedTotal={syncLocalUseQueueSnapshot.failedTotal}
           manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
           pendingDomainRows={pendingDomainRows}
+          performanceDiagnosis={localPerformanceDiagnosis}
           onDrainAll={() => void handleDrainAllPendingPush()}
           onRetryPage={() => void handleRetryPagePendingPush()}
           onRetryDatabase={() => void handleRetryDatabasePendingPush()}
@@ -19885,6 +19890,7 @@ function SyncOperationalStatusStrip({
   failedTotal,
   manualReviewTotal,
   pendingDomainRows,
+  performanceDiagnosis,
   onDrainAll,
   onRetryPage,
   onRetryDatabase,
@@ -19897,6 +19903,7 @@ function SyncOperationalStatusStrip({
   failedTotal: number;
   manualReviewTotal: number;
   pendingDomainRows: PendingDomainRow[];
+  performanceDiagnosis: LocalPerformanceDiagnosis;
   onDrainAll: () => void;
   onRetryPage: () => void;
   onRetryDatabase: () => void;
@@ -19910,6 +19917,18 @@ function SyncOperationalStatusStrip({
   const sidebarReadinessMirrorDetail =
     getSidebarReadinessMirrorDetail(readiness);
   const fileQueueTotal = readiness.queueBreakdown.fileQueueTotal;
+  const performanceStatusDetail =
+    performanceDiagnosis.status === "needs-data"
+      ? "样本不足"
+      : performanceDiagnosis.status === "pass"
+        ? "首屏达标"
+        : "需优化";
+  const performanceTimingDetail =
+    performanceDiagnosis.slowestAverageMs === null
+      ? `${performanceDiagnosis.sampleCount}/3 samples`
+      : `${performanceDiagnosis.slowestLabel} · ${formatPerformanceMs(
+          performanceDiagnosis.slowestAverageMs
+        )}`;
   const visibleDomains = pendingDomainRows
     .filter(
       (row) =>
@@ -19934,6 +19953,9 @@ function SyncOperationalStatusStrip({
       data-local-input-can-continue={String(readiness.localInputCanContinue)}
       data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
+      data-local-performance-status={performanceDiagnosis.status}
+      data-local-performance-samples={performanceDiagnosis.sampleCount}
+      data-local-performance-slowest={performanceDiagnosis.slowestLabel}
       data-file-queue-total={fileQueueTotal}
       data-file-pending-total={readiness.queueBreakdown.filePendingTotal}
       data-file-failed-total={readiness.queueBreakdown.fileFailedTotal}
@@ -19999,6 +20021,32 @@ function SyncOperationalStatusStrip({
             </span>
             <span className="min-w-0 flex-1">
               {sidebarReadinessMirrorDetail}
+            </span>
+          </div>
+          <div
+            data-testid="sync-local-performance-readiness-note"
+            data-local-performance-status={performanceDiagnosis.status}
+            data-local-performance-samples={performanceDiagnosis.sampleCount}
+            data-local-performance-slowest={performanceDiagnosis.slowestLabel}
+            className="mt-2 flex flex-col gap-2 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="font-medium text-zinc-700 dark:text-zinc-200">
+                本机流畅度
+              </span>
+              <LocalPerformanceDiagnosisPill
+                status={performanceDiagnosis.status}
+              />
+              <span className="min-w-0">
+                {performanceDiagnosis.status === "needs-data"
+                  ? "打开 Daily / ZhiHui / 页面几次后会自动诊断。"
+                  : performanceDiagnosis.status === "pass"
+                    ? "最近入口耗时在本地级目标内。"
+                    : `最慢：${performanceTimingDetail}。`}
+              </span>
+            </div>
+            <span className="shrink-0 font-mono text-[10px] text-zinc-400">
+              {performanceStatusDetail} · {performanceTimingDetail}
             </span>
           </div>
         </div>
