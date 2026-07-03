@@ -3199,6 +3199,16 @@ check(
     sidebar.includes('data-sync-action=') &&
     sidebar.includes("data-sync-visible-label={accountSyncButtonLabel}") &&
     sidebar.includes('data-sync-target={accountSyncCenterTarget}') &&
+    sidebar.includes('data-testid="collapsed-sidebar-sync-status"') &&
+    sidebar.includes("getCollapsedSidebarSyncBadgeLabel") &&
+    sidebar.includes("getCollapsedSidebarSyncBadgeClass") &&
+    sidebar.includes("打开侧边栏；同步状态：${accountSyncButtonLabel}") &&
+    sidebar.includes("data-sync-pending-total={accountSync.pendingTotal}") &&
+    sidebar.includes("data-sync-failed-total={accountSync.failedTotal}") &&
+    sidebar.includes(
+      "data-sync-manual-review-total={accountSync.manualReviewTotal}"
+    ) &&
+    sidebar.includes("data-local-use-status={accountSync.localUseReadiness.status}") &&
     sidebar.includes('"open-sync-center"') &&
     sidebar.includes('"quick-sync"') &&
     sidebar.includes("/modules/sync#sync-upload-safety-panel") &&

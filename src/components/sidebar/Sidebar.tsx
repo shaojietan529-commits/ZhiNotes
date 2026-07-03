@@ -181,6 +181,71 @@ function getAccountSyncToneClass(state: AccountCloudSyncCoordinatorState) {
   }
 }
 
+function getCollapsedSidebarSyncBadgeLabel(accountSync: {
+  state: AccountCloudSyncCoordinatorState;
+  pendingTotal: number;
+  failedTotal: number;
+  manualReviewTotal: number;
+  localUseReadiness: AccountLocalUseReadiness;
+}) {
+  const attentionTotal =
+    accountSync.manualReviewTotal > 0
+      ? accountSync.manualReviewTotal
+      : accountSync.failedTotal > 0
+        ? accountSync.failedTotal
+        : accountSync.pendingTotal;
+  if (attentionTotal > 0) {
+    return attentionTotal > 99 ? "99+" : String(attentionTotal);
+  }
+  if (accountSync.localUseReadiness.status === "cloud-uncertain") return "…";
+  switch (accountSync.state) {
+    case "checking":
+    case "syncing":
+      return "…";
+    case "attention":
+    case "error":
+      return "!";
+    case "signed-out":
+      return "🔑";
+    case "disabled":
+      return "–";
+    case "queued":
+      return "↑";
+    case "synced":
+    default:
+      return "✓";
+  }
+}
+
+function getCollapsedSidebarSyncBadgeClass(accountSync: {
+  state: AccountCloudSyncCoordinatorState;
+  pendingTotal: number;
+  failedTotal: number;
+  manualReviewTotal: number;
+  localUseReadiness: AccountLocalUseReadiness;
+}) {
+  if (accountSync.manualReviewTotal > 0 || accountSync.failedTotal > 0) {
+    return "border-red-900/10 bg-red-500 text-white shadow-red-500/20";
+  }
+  if (
+    accountSync.pendingTotal > 0 ||
+    accountSync.localUseReadiness.status === "pending-upload"
+  ) {
+    return "border-amber-900/10 bg-amber-500 text-zinc-950 shadow-amber-500/20";
+  }
+  if (
+    accountSync.state === "checking" ||
+    accountSync.state === "syncing" ||
+    accountSync.localUseReadiness.status === "cloud-uncertain"
+  ) {
+    return "border-blue-900/10 bg-blue-500 text-white shadow-blue-500/20";
+  }
+  if (accountSync.state === "disabled" || accountSync.state === "signed-out") {
+    return "border-zinc-300 bg-zinc-100 text-zinc-600 shadow-black/10 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
+  }
+  return "border-emerald-900/10 bg-emerald-500 text-white shadow-emerald-500/20";
+}
+
 function getAccountSyncCenterTarget(accountSync: {
   failedTotal: number;
   manualReviewTotal: number;
@@ -1102,13 +1167,34 @@ export default function Sidebar() {
   };
 
   if (!sidebarOpen) {
+    const collapsedSidebarSyncBadgeLabel =
+      getCollapsedSidebarSyncBadgeLabel(accountSync);
+    const collapsedSidebarSyncBadgeClass =
+      getCollapsedSidebarSyncBadgeClass(accountSync);
     return (
       <button
         onClick={toggleSidebar}
-        className="fixed top-4 left-4 z-50 rounded-lg border border-transparent p-1.5 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-        title="打开侧边栏"
+        className="fixed left-4 top-4 z-50 rounded-lg border border-transparent p-1.5 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+        title={`打开侧边栏\n${accountSyncTitle}`}
+        aria-label={`打开侧边栏；同步状态：${accountSyncButtonLabel}`}
       >
         <ZhiNoteMark className="h-8 w-8" />
+        <span
+          data-testid="collapsed-sidebar-sync-status"
+          data-sync-state={accountSync.state}
+          data-sync-pending-total={accountSync.pendingTotal}
+          data-sync-failed-total={accountSync.failedTotal}
+          data-sync-manual-review-total={accountSync.manualReviewTotal}
+          data-sync-target={accountSyncCenterTarget}
+          data-sync-visible-label={accountSyncButtonLabel}
+          data-local-use-status={accountSync.localUseReadiness.status}
+        data-cache-rebuild-blocked={
+          accountSync.localUseReadiness.cacheRebuildBlocked
+        }
+          className={`absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[8px] font-semibold leading-none shadow-sm ${collapsedSidebarSyncBadgeClass}`}
+        >
+          {collapsedSidebarSyncBadgeLabel}
+        </span>
       </button>
     );
   }

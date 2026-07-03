@@ -9354,6 +9354,24 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
+    'data-testid="collapsed-sidebar-sync-status"',
+    "Collapsed sidebar must keep pending, failed, and manual-review sync state visible."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "getCollapsedSidebarSyncBadgeLabel",
+    "Collapsed sidebar sync badge must derive a compact visible label from queue safety state."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "data-sync-pending-total={accountSync.pendingTotal}",
+    "Collapsed sidebar sync badge must expose pending upload count for smoke checks."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
     "getAccountSyncButtonLabel",
     "Sidebar cloud-sync control must derive its visible label from queue safety, not only raw auth state."
   );

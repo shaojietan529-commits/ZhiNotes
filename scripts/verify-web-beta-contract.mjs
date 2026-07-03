@@ -23215,6 +23215,36 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      'data-testid="collapsed-sidebar-sync-status"',
+      "Collapsed sidebar must keep pending, failed, and manual-review sync state visible.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "getCollapsedSidebarSyncBadgeLabel",
+      "Collapsed sidebar sync badge must derive a compact visible label from queue safety state.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "getCollapsedSidebarSyncBadgeClass",
+      "Collapsed sidebar sync badge must retain danger, pending, syncing, signed-out, and synced tones.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "打开侧边栏；同步状态：${accountSyncButtonLabel}",
+      "Collapsed sidebar opener must announce the current sync status to assistive tech.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "data-sync-pending-total={accountSync.pendingTotal}",
+      "Collapsed sidebar sync badge must expose pending upload count for smoke checks.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "accountSyncShortLabel",
       "Sidebar cloud-sync control must show a human-readable sync status label.",
     ],
