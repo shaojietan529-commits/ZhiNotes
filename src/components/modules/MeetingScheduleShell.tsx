@@ -2083,6 +2083,19 @@ export default function MeetingScheduleShell() {
     );
   }, []);
 
+  const closeMeetingPeekModal = useCallback(() => {
+    const closingPageId = peekPageId;
+    setPeekPageId(null);
+    setPeekInitialPage(null);
+    if (!closingPageId) return;
+    setOpeningMeetingId((current) =>
+      current === closingPageId ? null : current
+    );
+    setOpeningDraft((current) =>
+      current?.pageId === closingPageId ? null : current
+    );
+  }, [peekPageId]);
+
   useEffect(() => {
     if (peekPageId) return;
     if (!openingMeetingId) return;
@@ -3398,10 +3411,7 @@ export default function MeetingScheduleShell() {
         <PagePeekModal
           pageId={peekPageId}
           initialPage={peekInitialPage}
-          onClose={() => {
-            setPeekPageId(null);
-            setPeekInitialPage(null);
-          }}
+          onClose={closeMeetingPeekModal}
           onOpenFull={(id) => {
             setOpeningDraft((current) =>
               current?.pageId === id ? null : current

@@ -1412,6 +1412,14 @@ function run() {
       "Daily note create fallback must let the user dismiss a stuck local draft opening state without deleting the local draft.",
     ],
     [
+      "closeDailyPeekModal",
+      "Daily peek close must clear matching opening feedback so dismissed local drafts do not look stuck.",
+    ],
+    [
+      "current?.pageId === closingPageId ? null : current",
+      "Daily peek close must clear only the matching local draft wait instead of clearing unrelated draft state.",
+    ],
+    [
       'data-testid="daily-opening-draft-toast"',
       "Daily note create fallback toast must be discoverable in UI smoke checks.",
     ],
@@ -5036,6 +5044,14 @@ function run() {
     [
       "cancelOpeningMeetingDraft",
       "Meeting create fallback must let the user dismiss a stuck local draft opening state without deleting the meeting trace.",
+    ],
+    [
+      "closeMeetingPeekModal",
+      "Meeting peek close must clear matching opening feedback so dismissed meeting drafts do not look stuck.",
+    ],
+    [
+      "current === closingPageId ? null : current",
+      "Meeting peek close must clear only the matching meeting opening wait instead of clearing unrelated state.",
     ],
     [
       'data-testid="meeting-opening-draft-toast"',

@@ -1843,6 +1843,19 @@ export default function DailyNotesShell() {
     );
   }, []);
 
+  const closeDailyPeekModal = useCallback(() => {
+    const closingPageId = peekPageId;
+    setPeekPageId(null);
+    setPeekInitialPage(null);
+    if (!closingPageId) return;
+    setOpeningNoteId((current) =>
+      current === closingPageId ? null : current
+    );
+    setOpeningDraft((current) =>
+      current?.pageId === closingPageId ? null : current
+    );
+  }, [peekPageId]);
+
   const cancelOpeningDailyNote = useCallback((pageId: string) => {
     setOpeningNoteId((current) => (current === pageId ? null : current));
     setPeekPageId((current) => (current === pageId ? null : current));
@@ -2601,11 +2614,7 @@ export default function DailyNotesShell() {
         <PagePeekModal
           pageId={peekPageId}
           initialPage={peekInitialPage}
-          onClose={() => {
-            setOpeningNoteId(null);
-            setPeekPageId(null);
-            setPeekInitialPage(null);
-          }}
+          onClose={closeDailyPeekModal}
           onOpenFull={(id) => {
             setOpeningNoteId(null);
             setOpeningDraft((current) =>
