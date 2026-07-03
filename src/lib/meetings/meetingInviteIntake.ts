@@ -245,7 +245,7 @@ function extractDatedLineTopic(text: string) {
 }
 
 const DATE_TIME_IN_LINE_PATTERN =
-  /[（(]?\s*(?:(?:20\d{2})\s*[\/.\-年]\s*)?\d{1,2}\s*[\/.\-月]\s*\d{1,2}\s*日?\s*(?:\([^)]+\)|（[^）]+）)?\s*(?:周[一二三四五六日天]\s*)?(?:[01]?\d|2[0-3])[:：][0-5]\d(?:\s*(?:-|–|—|至|到|~|to)\s*(?:[01]?\d|2[0-3])[:：][0-5]\d)?\s*[）)]?/gi;
+  /[（(]?\s*(?:(?:20\d{2})\s*[\/.\-年]\s*)?\d{1,2}\s*[\/.\-月]\s*\d{1,2}\s*日?\s*(?:\([^)]+\)|（[^）]+）)?\s*(?:周[一二三四五六日天]\s*)?(?:[01]?\d|2[0-3])[:：][0-5]\d(?:\s*(?:---|--|-|－|–|—|至|到|~|to)\s*(?:[01]?\d|2[0-3])[:：][0-5]\d)?\s*[）)]?/gi;
 
 function hasDateTime(line: string) {
   return (
@@ -262,7 +262,7 @@ function cleanTopicCandidate(value: string) {
     .replace(/^(?:专场|新财富)\s+/, "")
     .replace(/(?:。?敬请关注[！!]?)$/g, "")
     .replace(/^[^\p{L}\p{N}]+/u, "")
-    .replace(/[，。；;,|｜:：\-–—\s]+$/g, "")
+    .replace(/[，。；;,|｜:：\-－–—\s]+$/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -285,9 +285,9 @@ function isLikelyTopicCandidate(value: string) {
   if (/^(电子|通信|传媒|计算机|医药|消费|金融|汽车|机械|化工|有色|煤炭|地产)(\s+\+?\d+)?$/.test(candidate)) {
     return false;
   }
-  if (hasDateTime(candidate) && !/[｜|:：\-–—]/.test(candidate)) return false;
+  if (hasDateTime(candidate) && !/[｜|:：\-－–—]/.test(candidate)) return false;
   return (
-    /[｜|:：\-–—]/.test(candidate) ||
+    /[｜|:：\-－–—]/.test(candidate) ||
     /(证券|基金|资本|投研|策略|科技|行业|公司|交流|调研|路演|论坛|讨论|电话会|业绩会|如何|怎么看|看待|未来|机会|风险|当前|展望|复盘)/.test(candidate)
   );
 }
@@ -750,6 +750,7 @@ interface ClockHit {
 
 const TIME_PERIOD_PATTERN =
   "上午|下午|中午|晚上|凌晨|今晚|今早|今晨|明晚|明早|明晨|a\\.?m\\.?|p\\.?m\\.?";
+const TIME_RANGE_CONNECTOR_PATTERN = "---|--|-|－|–|—|~|至|到|to";
 
 // Parse the first clock in the text: optional Chinese period marker, then
 // HH:MM or H点(MM分)? or H点半 or H时MM分, with Chinese/AM/PM markers
@@ -817,7 +818,9 @@ function parseTimeRange(
   let endHour: number | null = null;
   let endMinute: number | null = null;
   const rest = text.slice(first.end);
-  const connector = rest.match(/^\s*点?\s*(?:-|--|---|~|至|到|to)\s*/i);
+  const connector = rest.match(
+    new RegExp(`^\\s*点?\\s*(?:${TIME_RANGE_CONNECTOR_PATTERN})\\s*`, "i")
+  );
   if (connector) {
     const afterConnector = rest.slice(connector[0].length);
     const second = parseClockAt(afterConnector);
@@ -868,7 +871,7 @@ function parseCompactHourRange(
 ): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
   const hourPattern = `[01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN}`;
   const re = new RegExp(
-    `(?:(${TIME_PERIOD_PATTERN})\\s*)?(${hourPattern})\\s*(?:---|--|-|~|至|到|to)\\s*(${hourPattern})\\s*(?:点|时)(半)?(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
+    `(?:(${TIME_PERIOD_PATTERN})\\s*)?(${hourPattern})\\s*(?:${TIME_RANGE_CONNECTOR_PATTERN})\\s*(${hourPattern})\\s*(?:点|时)(半)?(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
     "i"
   );
   const m = re.exec(text);

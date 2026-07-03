@@ -217,6 +217,16 @@ const cases = [
     expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
   },
   {
+    name: "Chinese relative day en dash colon range",
+    input: "会议主题：测试会议\n时间：明天15:00–16:00",
+    expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese relative day em dash range to bare end hour",
+    input: "会议主题：测试会议\n时间：明天15:00—16",
+    expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
     name: "Chinese relative day half-hour range to bare end hour",
     input: "会议主题：测试会议\n时间：明天15:30-16",
     expected: { date: "2026-07-05", time: "15:30", endTime: "16:00", durationMinutes: 30 },
@@ -227,8 +237,18 @@ const cases = [
     expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
   },
   {
+    name: "Chinese month-day fullwidth dash compact hour range",
+    input: "会议主题：测试会议\n时间：6月14日 9－10点",
+    expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
     name: "Chinese month-day colon range to bare end hour",
     input: "会议主题：测试会议\n时间：6月14日 9:30-10",
+    expected: { date: "2026-06-14", time: "09:30", endTime: "10:00", durationMinutes: 30 },
+  },
+  {
+    name: "Chinese month-day fullwidth dash colon range to bare end hour",
+    input: "会议主题：测试会议\n时间：6月14日 9：30－10",
     expected: { date: "2026-06-14", time: "09:30", endTime: "10:00", durationMinutes: 30 },
   },
   {
