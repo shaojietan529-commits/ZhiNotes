@@ -6382,12 +6382,28 @@ function run() {
       "PagePeekModal title saves must stay ordered so older saves cannot win over newer local input.",
     ],
     [
+      "const localPropertiesDraftRef = useRef<PageProperty[] | null>(null)",
+      "PagePeekModal must remember active local property drafts so async hydration cannot overwrite user input.",
+    ],
+    [
+      "const propertiesSaveQueueRef = useRef<Promise<void>>(Promise.resolve())",
+      "PagePeekModal property saves must stay ordered so older saves cannot win over newer local input.",
+    ],
+    [
       "preserveTitle: localTitleDraftRef.current !== null",
       "PagePeekModal metadata refreshes must preserve in-progress local title edits.",
     ],
     [
+      "preserveProperties: localPropertiesDraftRef.current !== null",
+      "PagePeekModal metadata refreshes must preserve in-progress local property edits.",
+    ],
+    [
       "if (localTitleDraftRef.current === null) {\n        setTitle(effectivePage.title);\n      }",
       "PagePeekModal body hydration must not reset a locally edited title while it is pending persistence.",
+    ],
+    [
+      "if (localPropertiesDraftRef.current === null) {\n        setProperties(parsePageProperties(effectivePage.properties));\n      }",
+      "PagePeekModal body hydration must not reset locally edited properties while they are pending persistence.",
     ],
     [
       "localTitleDraftRef.current = next",
@@ -6396,6 +6412,14 @@ function run() {
     [
       "if (localTitleDraftRef.current === next) {\n            localTitleDraftRef.current = null;",
       "PagePeekModal title draft protection must clear only after the latest matching save settles.",
+    ],
+    [
+      "localPropertiesDraftRef.current = next",
+      "PagePeekModal property changes must mark a protected local draft before background persistence starts.",
+    ],
+    [
+      "if (localPropertiesDraftRef.current === next) {\n            localPropertiesDraftRef.current = null;",
+      "PagePeekModal property draft protection must clear only after the latest matching save settles.",
     ],
     [
       "schedulePeekTitleSave(next)",

@@ -91,13 +91,15 @@ function applyPeekMetadataSnapshot(
   setFallbackPage: (page: Page | null) => void,
   setTitle: (title: string) => void,
   setProperties: (properties: PageProperty[]) => void,
-  options: { preserveTitle?: boolean } = {}
+  options: { preserveTitle?: boolean; preserveProperties?: boolean } = {}
 ) {
   setFallbackPage(page);
   if (!options.preserveTitle) {
     setTitle(page?.title ?? "");
   }
-  setProperties(page ? parsePageProperties(page.properties) : []);
+  if (!options.preserveProperties) {
+    setProperties(page ? parsePageProperties(page.properties) : []);
+  }
 }
 
 // A center modal that shows a page (title + properties + body) fully editable,
@@ -140,6 +142,8 @@ export default function PagePeekModal({
   const pendingTitleRef = useRef<string | null>(null);
   const localTitleDraftRef = useRef<string | null>(null);
   const titleSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const localPropertiesDraftRef = useRef<PageProperty[] | null>(null);
+  const propertiesSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const isSwitchingPeekPage = renderedPeekPageId !== pageId;
   const currentLoadedPage = page?.id === pageId ? page : null;
   const currentFallbackPage = fallbackPage?.id === pageId ? fallbackPage : null;
@@ -224,7 +228,10 @@ export default function PagePeekModal({
         setFallbackPage,
         setTitle,
         setProperties,
-        { preserveTitle: localTitleDraftRef.current !== null }
+        {
+          preserveTitle: localTitleDraftRef.current !== null,
+          preserveProperties: localPropertiesDraftRef.current !== null,
+        }
       );
       setMetadataLoading(false);
     };
@@ -268,7 +275,10 @@ export default function PagePeekModal({
             setFallbackPage,
             setTitle,
             setProperties,
-            { preserveTitle: localTitleDraftRef.current !== null }
+            {
+              preserveTitle: localTitleDraftRef.current !== null,
+              preserveProperties: localPropertiesDraftRef.current !== null,
+            }
           );
           upsertPages([metadata]);
         } else {
@@ -291,6 +301,7 @@ export default function PagePeekModal({
     queueMicrotask(() => {
       applyPeekMetadataSnapshot(page, setFallbackPage, setTitle, setProperties, {
         preserveTitle: localTitleDraftRef.current !== null,
+        preserveProperties: localPropertiesDraftRef.current !== null,
       });
     });
   }, [page]);
@@ -308,7 +319,9 @@ export default function PagePeekModal({
       if (localTitleDraftRef.current === null) {
         setTitle(effectivePage.title);
       }
-      setProperties(parsePageProperties(effectivePage.properties));
+      if (localPropertiesDraftRef.current === null) {
+        setProperties(parsePageProperties(effectivePage.properties));
+      }
     });
   }, [effectivePage, pageId]);
 
@@ -484,17 +497,30 @@ export default function PagePeekModal({
 
   const handlePropertiesChange = useCallback(
     async (next: PageProperty[]) => {
+      localPropertiesDraftRef.current = next;
       setProperties(next);
-      await persistPeekUpdate({
-        basePage: effectivePage,
-        updates: { properties: stringifyPageProperties(next) },
-        update,
-        setFallbackPage,
-        upsertPages,
-      });
-      onChanged?.();
+      const run = async () => {
+        const latest = latestPeekSaveRef.current;
+        try {
+          await persistPeekUpdate({
+            basePage: latest.basePage,
+            updates: { properties: stringifyPageProperties(next) },
+            update: latest.update,
+            setFallbackPage,
+            upsertPages: latest.upsertPages,
+          });
+          latest.onChanged?.();
+        } finally {
+          if (localPropertiesDraftRef.current === next) {
+            localPropertiesDraftRef.current = null;
+          }
+        }
+      };
+      const queued = propertiesSaveQueueRef.current.then(run, run);
+      propertiesSaveQueueRef.current = queued.catch(() => undefined);
+      await queued;
     },
-    [effectivePage, update, upsertPages, onChanged]
+    []
   );
 
   const handleIconChange = useCallback(
