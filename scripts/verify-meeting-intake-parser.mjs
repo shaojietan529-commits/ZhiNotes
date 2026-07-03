@@ -212,9 +212,24 @@ const cases = [
     expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
   },
   {
+    name: "Chinese relative day colon range to bare end hour",
+    input: "会议主题：测试会议\n时间：明天15:00-16",
+    expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese relative day half-hour range to bare end hour",
+    input: "会议主题：测试会议\n时间：明天15:30-16",
+    expected: { date: "2026-07-05", time: "15:30", endTime: "16:00", durationMinutes: 30 },
+  },
+  {
     name: "Chinese month-day compact hour range without period",
     input: "会议主题：测试会议\n时间：6月14日 9-10点",
     expected: { date: "2026-06-14", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese month-day colon range to bare end hour",
+    input: "会议主题：测试会议\n时间：6月14日 9:30-10",
+    expected: { date: "2026-06-14", time: "09:30", endTime: "10:00", durationMinutes: 30 },
   },
   {
     name: "Chinese split date and compact hour range",
@@ -229,6 +244,11 @@ const cases = [
   {
     name: "Chinese compact numeric hour range without date stays incomplete",
     input: "会议主题：测试会议\n时间：9-10点",
+    expected: { date: "", time: "", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "Chinese colon range without date stays incomplete",
+    input: "会议主题：测试会议\n时间：9:30-10",
     expected: { date: "", time: "", endTime: "", durationMinutes: null },
   },
   {

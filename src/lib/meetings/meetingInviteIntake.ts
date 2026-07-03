@@ -540,14 +540,18 @@ function findDate(
   const numericBare = text.match(
     /(?:^|[^\d.\-/])(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})(?!\d)(?!\s*(?:[\/\-\.]\d|[点时分]|[aApP]\.?[mM]\.?))/
   );
-  if (numericBare && validMonthDay(Number(numericBare[1]), Number(numericBare[2]))) {
+  if (
+    numericBare &&
+    !isNumericBareTimeFragment(text, numericBare) &&
+    validMonthDay(Number(numericBare[1]), Number(numericBare[2]))
+  ) {
     return {
       year: null,
       month: Number(numericBare[1]),
       day: Number(numericBare[2]),
     };
   }
-  if (numericBare) {
+  if (numericBare && !isNumericBareTimeFragment(text, numericBare)) {
     const day = Number(numericBare[1]);
     const month = Number(numericBare[2]);
     if (day > 12 && validMonthDay(month, day)) {
@@ -685,6 +689,18 @@ function findDate(
   return null;
 }
 
+function isNumericBareTimeFragment(text: string, match: RegExpMatchArray) {
+  const rawMatch = match[0] ?? "";
+  const firstNumber = match[1] ?? "";
+  const firstNumberOffset = rawMatch.indexOf(firstNumber);
+  if (firstNumberOffset <= 0) return false;
+
+  const prefixIndex = (match.index ?? 0) + firstNumberOffset - 1;
+  const prefix = text[prefixIndex] ?? "";
+  const prefixBefore = text[prefixIndex - 1] ?? "";
+  return /[:：]/.test(prefix) && /\d/.test(prefixBefore);
+}
+
 function daysUntilUpcomingWeekday(targetDow: number, currentDow: number) {
   let diff = targetDow - currentDow;
   if (diff < 0) diff += 7;
@@ -803,15 +819,47 @@ function parseTimeRange(
   const rest = text.slice(first.end);
   const connector = rest.match(/^\s*点?\s*(?:-|--|---|~|至|到|to)\s*/i);
   if (connector) {
-    const second = parseClockAt(rest.slice(connector[0].length));
+    const afterConnector = rest.slice(connector[0].length);
+    const second = parseClockAt(afterConnector);
     if (second && second.start === 0) {
       const endPeriod = second.period || first.period;
       endHour = applyChinesePeriod(second.rawHour, endPeriod);
       endMinute = second.minute;
+    } else {
+      const shortEnd = parseEndHourOnly(afterConnector, first.period, options);
+      if (shortEnd) {
+        endHour = shortEnd.hour;
+        endMinute = shortEnd.minute;
+      }
     }
   }
 
   return { hour: startHour, minute: first.minute, endHour, endMinute };
+}
+
+function parseEndHourOnly(
+  text: string,
+  defaultPeriod: string,
+  options: { allowCompactHourRange?: boolean } = {}
+): { hour: number; minute: number } | null {
+  if (!defaultPeriod && !options.allowCompactHourRange) return null;
+
+  const hourPattern = `[01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN}`;
+  const re = new RegExp(
+    `^(${hourPattern})(?!\\d)(?!\\s*[:：点时分日号])(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
+    "i"
+  );
+  const m = re.exec(text);
+  if (!m) return null;
+
+  const rawHour = parseClockNumber(m[1]);
+  if (rawHour === null || rawHour < 0 || rawHour > 23) return null;
+
+  const period = m[2] || defaultPeriod;
+  return {
+    hour: period ? applyChinesePeriod(rawHour, period) : rawHour,
+    minute: 0,
+  };
 }
 
 function parseCompactHourRange(
