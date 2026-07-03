@@ -14,9 +14,11 @@ import ts from "typescript";
 const root = process.cwd();
 const require = createRequire(import.meta.url);
 const parserPath = "src/lib/meetings/meetingInviteIntake.ts";
+const intakeRoutePath = "src/app/api/meetings/intake/route.ts";
 const fullParserPath = path.join(root, parserPath);
 
 const parser = loadParser(fullParserPath);
+const intakeRouteSource = readFileSync(path.join(root, intakeRoutePath), "utf8");
 
 const cases = [
   {
@@ -81,6 +83,11 @@ for (const testCase of cases) {
   }
 }
 
+for (const checkResult of verifyIntakeRouteContract(intakeRouteSource)) {
+  results.push(checkResult);
+  if (!checkResult.passed) errors.push(checkResult.message);
+}
+
 if (errors.length > 0) {
   console.error("verify:meeting-intake 失败：");
   for (const error of errors) console.error(`  - ${error}`);
@@ -92,7 +99,9 @@ console.log(
   JSON.stringify(
     {
       parser: parserPath,
+      route: intakeRoutePath,
       synthetic_cases: cases.length,
+      route_contract_checks: results.filter((result) => result.kind === "route-contract").length,
       fixed_now: "2026-07-04T10:00:00 local time",
       privacy_boundary:
         "Synthetic parser verification only. It does not read real meeting content, browser storage, page bodies, transcripts, join URLs, passcodes, cookies, credentials, cloud data, or file bytes.",
@@ -140,4 +149,75 @@ function loadParser(filePath) {
 
 function deepEqual(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function verifyIntakeRouteContract(source) {
+  const checks = [
+    {
+      name: "input length is bounded",
+      passed: source.includes("const MAX_INPUT_CHARS = 20_000"),
+      message: "intake route must keep pasted invite payloads bounded at 20,000 characters",
+    },
+    {
+      name: "fetched page text is bounded",
+      passed: source.includes("const MAX_FETCH_CHARS = 250_000"),
+      message: "intake route must cap fetched linked-page text before parsing",
+    },
+    {
+      name: "linked-page fetch is timed out",
+      passed:
+        source.includes("const FETCH_TIMEOUT_MS = 5_000") &&
+        source.includes("const controller = new AbortController();") &&
+        source.includes("signal: controller.signal") &&
+        source.includes("controller.abort()"),
+      message: "intake route must abort slow linked-page fetches instead of hanging import",
+    },
+    {
+      name: "fetch warning falls back to pasted content",
+      passed:
+        source.includes("fetchWarning") &&
+        source.includes("链接读取超时或失败，已优先使用粘贴内容解析。") &&
+        source.includes("parsed.meeting.warnings.push(fetchWarning)"),
+      message: "intake route must surface fetch failures as warnings while preserving pasted-content parsing",
+    },
+    {
+      name: "local and private network hosts are blocked",
+      passed:
+        source.includes("function isBlockedHost") &&
+        source.includes('host === "localhost"') &&
+        source.includes("host.endsWith(\".local\")") &&
+        source.includes("a === 10") &&
+        source.includes("a === 127") &&
+        source.includes("a === 192 && b === 168"),
+      message: "intake route must skip localhost and private-network links",
+    },
+    {
+      name: "raw invite is not stored",
+      passed: source.includes("storesRawInvite: false"),
+      message: "intake route privacy response must state that raw invite text is not stored",
+    },
+    {
+      name: "unsafe content types are skipped",
+      passed:
+        source.includes("content-type") &&
+        source.includes("!contentType.includes(\"text/html\")") &&
+        source.includes("!contentType.includes(\"text/plain\")"),
+      message: "intake route must only read text/html or text/plain linked pages",
+    },
+    {
+      name: "script/style/svg bodies are stripped",
+      passed:
+        source.includes("replace(/<script[\\s\\S]*?<\\/script>/gi") &&
+        source.includes("replace(/<style[\\s\\S]*?<\\/style>/gi") &&
+        source.includes("replace(/<svg[\\s\\S]*?<\\/svg>/gi"),
+      message: "intake route must strip script/style/svg content before readable-page extraction",
+    },
+  ];
+
+  return checks.map((check) => ({
+    kind: "route-contract",
+    name: check.name,
+    passed: check.passed,
+    message: check.message,
+  }));
 }
