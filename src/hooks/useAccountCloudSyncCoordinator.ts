@@ -14,6 +14,7 @@ import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus";
 import { buildAccountLocalUseReadiness } from "@/lib/sync/accountLocalUseReadiness";
 
 const COORDINATOR_PENDING_DRAIN_DELAY_MS = 900;
+const COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS = 30_000;
 
 export type AccountCloudSyncCoordinatorState =
   | "disabled"
@@ -251,7 +252,13 @@ export function useAccountCloudSyncCoordinator() {
       return `后台正在补传本地输入${details.length ? `：${details.join("，")}` : ""}${settingsNote}${knowledgeNote}`;
     }
     if (state === "attention") return `账号云同步需要处理${details.length ? `：${details.join("，")}` : ""}`;
-    if (state === "signed-out") return "账号云同步需要登录后继续";
+    if (state === "signed-out") {
+      return pendingTotal > 0
+        ? `账号云同步需要登录后继续；本地输入已保留，会低频检查登录状态${
+            details.length ? `：${details.join("，")}` : ""
+          }`
+        : "账号云同步需要登录后继续";
+    }
     if (state === "error") {
       return `账号云同步暂不可确认，稍后重试；本地输入已保留${
         details.length ? `：${details.join("，")}` : ""
@@ -297,14 +304,17 @@ export function useAccountCloudSyncCoordinator() {
     if (
       enabledDomainCount === 0 ||
       autoRetryableSyncWorkTotal <= 0 ||
-      state === "syncing" ||
-      state === "signed-out"
+      state === "syncing"
     ) {
       return;
     }
+    const retryDelayMs =
+      state === "signed-out"
+        ? COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS
+        : COORDINATOR_PENDING_DRAIN_DELAY_MS;
     const timer = window.setTimeout(() => {
       void syncNow();
-    }, COORDINATOR_PENDING_DRAIN_DELAY_MS);
+    }, retryDelayMs);
     return () => window.clearTimeout(timer);
   }, [autoRetryableSyncWorkTotal, enabledDomainCount, state, syncNow]);
 
