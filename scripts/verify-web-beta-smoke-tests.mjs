@@ -11431,6 +11431,18 @@ function run() {
   assertIncludes(
     files.meetingInviteIntake,
     meetingInviteIntake,
+    "(?:周|星期|礼拜)",
+    "Meeting invite parser must accept common Chinese weekday words beyond 周."
+  );
+  assertIncludes(
+    files.meetingInviteIntake,
+    meetingInviteIntake,
+    "\\s*个?\\s*",
+    "Meeting invite parser must accept phrases such as 下个星期一."
+  );
+  assertIncludes(
+    files.meetingInviteIntake,
+    meetingInviteIntake,
     "daysUntilNextChineseWeekday",
     "Meeting invite parser must calculate 下周 weekday dates with a dedicated Chinese-week helper."
   );

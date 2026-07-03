@@ -481,9 +481,9 @@ function findDate(
     };
   }
 
-  // Relative weekday: 本周一/下周三/这周五/周六/下周日
+  // Relative weekday: 本周一/下星期三/这礼拜五/周六/下个周日
   const relWeekday = text.match(
-    /(?:(本|这|下)\s*)?周\s*([一二三四五六日天])/
+    /(?:(本|这|下)\s*个?\s*)?(?:周|星期|礼拜)\s*([一二三四五六日天])/
   );
   if (relWeekday) {
     const prefix = relWeekday[1] ?? "";
