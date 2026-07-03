@@ -69,6 +69,7 @@ function storageKey(key: ModuleWorkspaceKey) {
 
 const PAGE_SYNC_ENABLED_KEY = "zhinote.pagesync.enabled";
 const CLOUD_MODULE_ROOT_CACHE_MS = 30 * 1000;
+const CLOUD_MODULE_ROOT_REQUEST_TIMEOUT_MS = 3500;
 
 let cloudModuleRootLookupInFlight:
   | Promise<Map<ModuleWorkspaceKey, RemotePageRecord>>
@@ -232,11 +233,7 @@ async function runCloudModuleRootLookup(): Promise<
   Map<ModuleWorkspaceKey, RemotePageRecord>
 > {
   try {
-    const res = await fetch("/api/pages/account-sync", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "module-roots" }),
-    });
+    const res = await fetchCloudModuleRootLookup();
     if (!res.ok) return new Map();
     const json = (await res.json().catch(() => ({}))) as { pages?: unknown };
     const pages = Array.isArray(json.pages)
@@ -258,6 +255,24 @@ async function runCloudModuleRootLookup(): Promise<
     return roots;
   } catch {
     return new Map();
+  }
+}
+
+async function fetchCloudModuleRootLookup(): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    CLOUD_MODULE_ROOT_REQUEST_TIMEOUT_MS
+  );
+  try {
+    return await fetch("/api/pages/account-sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "module-roots" }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
