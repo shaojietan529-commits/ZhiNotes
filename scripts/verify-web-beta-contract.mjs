@@ -181,6 +181,7 @@ const files = {
   accountClientSession: "src/lib/account/clientSession.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
   accountMeRoute: "src/app/api/account/me/route.ts",
+  accountPortfolioSync: "src/lib/portfolio/accountSync.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
@@ -724,6 +725,7 @@ function run() {
   const accountClientSession = readProjectFile(files.accountClientSession);
   const accountShell = readProjectFile(files.accountShell);
   const accountMeRoute = readProjectFile(files.accountMeRoute);
+  const accountPortfolioSync = readProjectFile(files.accountPortfolioSync);
   const accountPageSync = readProjectFile(files.accountPageSync);
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
   const pageBodyHydrationStatus = readProjectFile(
@@ -4863,6 +4865,42 @@ function run() {
     accountDatabaseSync,
     "数据库同步请求超时；本地输入已保留，会稍后重试。",
     "Database account-sync timeout errors must explicitly tell the user local input is preserved."
+  );
+  assertSourceIncludes(
+    files.accountPortfolioSync,
+    accountPortfolioSync,
+    "ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000",
+    "Portfolio account-sync requests must have a bounded timeout so slow cloud APIs do not leave local portfolio use hanging."
+  );
+  assertSourceIncludes(
+    files.accountPortfolioSync,
+    accountPortfolioSync,
+    "async function fetchAccountPortfolioSync",
+    "Portfolio account-sync must route every account-sync fetch through a shared timeout wrapper."
+  );
+  assertSourceIncludes(
+    files.accountPortfolioSync,
+    accountPortfolioSync,
+    "const controller = new AbortController();",
+    "Portfolio account-sync must be able to abort slow account-sync requests."
+  );
+  assertSourceIncludes(
+    files.accountPortfolioSync,
+    accountPortfolioSync,
+    "signal: controller.signal",
+    "Portfolio account-sync fetches must pass the abort signal to the browser fetch call."
+  );
+  assertSourceIncludes(
+    files.accountPortfolioSync,
+    accountPortfolioSync,
+    "clearTimeout(timeout)",
+    "Portfolio account-sync request timeout timers must be cleared after fetch settles."
+  );
+  assertSourceIncludes(
+    files.accountPortfolioSync,
+    accountPortfolioSync,
+    "组合同步请求超时；本地组合数据已保留，会稍后重试。",
+    "Portfolio account-sync timeout errors must explicitly tell the user local portfolio data is preserved."
   );
   assertSourceExcludes(
     files.accountDatabaseSync,

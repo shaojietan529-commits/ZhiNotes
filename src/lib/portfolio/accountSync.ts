@@ -6,6 +6,8 @@ import { checkAccountCloudSyncGate } from "@/lib/account/accountCloudSyncGate";
 import type { CloudPortfolioData } from "./cloudSync";
 import type { TagMap } from "./positionReport";
 
+const ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000;
+
 export type AccountSyncResult<T> =
   | { status: "ok"; data: T }
   | { status: "unauthenticated" }
@@ -28,11 +30,7 @@ async function call<T>(
           "账号状态暂时无法确认；组合数据仍保留在本地，稍后可重试。",
       };
     }
-    const res = await fetch("/api/portfolio/account-sync", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const res = await fetchAccountPortfolioSync(body);
     if (res.status === 501) return { status: "unconfigured" };
     if (res.status === 401) {
       return {
@@ -50,9 +48,43 @@ async function call<T>(
       };
     }
     return { status: "ok", data: pick(json) };
-  } catch {
-    return { status: "error" };
+  } catch (error) {
+    return {
+      status: "error",
+      message: isAbortError(error)
+        ? "组合同步请求超时；本地组合数据已保留，会稍后重试。"
+        : undefined,
+    };
   }
+}
+
+async function fetchAccountPortfolioSync(
+  body: Record<string, unknown>
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS
+  );
+  try {
+    return await fetch("/api/portfolio/account-sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
 }
 
 export function accountPullCloud(

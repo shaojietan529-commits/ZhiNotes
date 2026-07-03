@@ -406,6 +406,16 @@ check(
     !portfolioAccountSyncClient.includes('if (res.status === 401) return { status: "unauthenticated" }'),
   "portfolio account-sync client 应先复用共享账号 gate；具体同步接口 401 只能作为可重试错误，不能把组合同步误判为未登录"
 );
+check(
+  portfolioAccountSyncClient.includes("ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000") &&
+    portfolioAccountSyncClient.includes("async function fetchAccountPortfolioSync") &&
+    portfolioAccountSyncClient.includes("const controller = new AbortController();") &&
+    portfolioAccountSyncClient.includes("signal: controller.signal") &&
+    portfolioAccountSyncClient.includes("controller.abort()") &&
+    portfolioAccountSyncClient.includes("clearTimeout(timeout)") &&
+    portfolioAccountSyncClient.includes("组合同步请求超时；本地组合数据已保留，会稍后重试。"),
+  "portfolio account-sync client 底层 fetch 必须可超时取消；超时只能进入可重试错误并明确本地组合数据已保留"
+);
 
 // 6. Shell: viewing a shared portfolio is read-only and never pushes
 const board = read("src/components/modules/PortfolioBoardShell.tsx");
