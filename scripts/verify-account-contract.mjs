@@ -2794,6 +2794,17 @@ check(
   "同步中心应展示开发期稳定使用计划，把稳定入口、实验区、高风险 gate 和本地可继续状态放在一个 metadata-only 卡片里"
 );
 check(
+  syncDashboardShell.includes("SYNC_LOG_STATUS_STORAGE_KEY") &&
+    syncDashboardShell.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
+    syncDashboardShell.includes("KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
+    syncDashboardShell.includes("function isSyncStatusStorageEvent(") &&
+    syncDashboardShell.includes("event.key === SYNC_LOG_STATUS_STORAGE_KEY") &&
+    syncDashboardShell.includes("event.key === SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
+    syncDashboardShell.includes("event.key === KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
+    syncDashboardShell.includes("isSyncStatusStorageEvent(event)"),
+  "同步中心全域队列快照必须监听 content-free 跨 tab sync/status 时间戳，避免 settings、knowledge 或全域 sync_log 变化只能等轮询"
+);
+check(
   developmentStabilityPlan.includes(
     'format: "zhinote-development-stability-plan"'
   ) &&

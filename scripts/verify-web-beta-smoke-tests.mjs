@@ -13213,6 +13213,34 @@ function run() {
       "Sync UI global queue refresh must respond to the generic local sync_log status event.",
     ],
     [
+      "SYNC_LOG_STATUS_STORAGE_KEY",
+      "Sync UI global queue refresh must respond to cross-tab generic sync_log status timestamp hints.",
+    ],
+    [
+      "SETTINGS_SYNC_STATUS_STORAGE_KEY",
+      "Sync UI global queue refresh must respond to cross-tab settings sync status timestamp hints.",
+    ],
+    [
+      "KNOWLEDGE_SYNC_STATUS_STORAGE_KEY",
+      "Sync UI global queue refresh must respond to cross-tab knowledge sync status timestamp hints.",
+    ],
+    [
+      "function isSyncStatusStorageEvent(",
+      "Sync UI global queue refresh must centralize content-free sync status storage-event filtering.",
+    ],
+    [
+      "event.key === SYNC_LOG_STATUS_STORAGE_KEY",
+      "Sync UI global queue refresh must accept only the generic sync_log status storage key.",
+    ],
+    [
+      "event.key === SETTINGS_SYNC_STATUS_STORAGE_KEY",
+      "Sync UI global queue refresh must accept only the settings sync status storage key.",
+    ],
+    [
+      "event.key === KNOWLEDGE_SYNC_STATUS_STORAGE_KEY",
+      "Sync UI global queue refresh must accept only the knowledge sync status storage key.",
+    ],
+    [
       "window.addEventListener(PAGE_SYNC_STATUS_EVENT, scheduleSyncLogSnapshotRefresh)",
       "Sync UI global queue refresh must respond to page pending queue changes.",
     ],

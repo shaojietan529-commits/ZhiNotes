@@ -46,6 +46,7 @@ import {
   markWorkspaceSettingSyncLogEntriesFailed,
   markWorkspaceSettingSyncLogEntriesSynced,
   SYNC_LOG_STATUS_EVENT,
+  SYNC_LOG_STATUS_STORAGE_KEY,
   upsertWorkspaceSetting,
   type AccountSettingRecord,
   type ModuleSettingRecord,
@@ -548,8 +549,14 @@ import {
   type SyncReplayTestPlan,
   type SyncReplayTestStatus,
 } from "@/lib/sync/syncReplayTestPlan";
-import { SETTINGS_SYNC_STATUS_EVENT } from "@/lib/sync/settingsSyncStatus";
-import { KNOWLEDGE_SYNC_STATUS_EVENT } from "@/lib/sync/knowledgeSyncStatus";
+import {
+  SETTINGS_SYNC_STATUS_EVENT,
+  SETTINGS_SYNC_STATUS_STORAGE_KEY,
+} from "@/lib/sync/settingsSyncStatus";
+import {
+  KNOWLEDGE_SYNC_STATUS_EVENT,
+  KNOWLEDGE_SYNC_STATUS_STORAGE_KEY,
+} from "@/lib/sync/knowledgeSyncStatus";
 import {
   buildRestoreRollbackPlan,
   type RestoreRollbackPlan,
@@ -1729,7 +1736,11 @@ function SyncDashboard() {
     }
 
     function handleSyncLogStorageRefresh(event: StorageEvent) {
-      if (isPageSyncStorageEvent(event) || isDatabaseSyncStorageEvent(event)) {
+      if (
+        isPageSyncStorageEvent(event) ||
+        isDatabaseSyncStorageEvent(event) ||
+        isSyncStatusStorageEvent(event)
+      ) {
         scheduleSyncLogSnapshotRefresh();
       }
     }
@@ -26420,6 +26431,14 @@ function isPageSyncStorageEvent(event: StorageEvent): boolean {
 function isDatabaseSyncStorageEvent(event: StorageEvent): boolean {
   return Boolean(
     event.key && event.key.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)
+  );
+}
+
+function isSyncStatusStorageEvent(event: StorageEvent): boolean {
+  return (
+    event.key === SYNC_LOG_STATUS_STORAGE_KEY ||
+    event.key === SETTINGS_SYNC_STATUS_STORAGE_KEY ||
+    event.key === KNOWLEDGE_SYNC_STATUS_STORAGE_KEY
   );
 }
 

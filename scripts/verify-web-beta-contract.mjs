@@ -11543,6 +11543,34 @@ function run() {
       "onWarmup={() => void handleRunHotCacheWarmup()}",
       "Cloud sync control plane UI must route to the existing hot-cache warmup action.",
     ],
+    [
+      "SYNC_LOG_STATUS_STORAGE_KEY",
+      "SyncShell global queue refresh must respond to cross-tab generic sync_log status timestamp hints.",
+    ],
+    [
+      "SETTINGS_SYNC_STATUS_STORAGE_KEY",
+      "SyncShell global queue refresh must respond to cross-tab settings sync status timestamp hints.",
+    ],
+    [
+      "KNOWLEDGE_SYNC_STATUS_STORAGE_KEY",
+      "SyncShell global queue refresh must respond to cross-tab knowledge sync status timestamp hints.",
+    ],
+    [
+      "function isSyncStatusStorageEvent(",
+      "SyncShell global queue refresh must centralize content-free sync status storage-event filtering.",
+    ],
+    [
+      "event.key === SYNC_LOG_STATUS_STORAGE_KEY",
+      "SyncShell global queue refresh must accept only the generic sync_log status storage key.",
+    ],
+    [
+      "event.key === SETTINGS_SYNC_STATUS_STORAGE_KEY",
+      "SyncShell global queue refresh must accept only the settings sync status storage key.",
+    ],
+    [
+      "event.key === KNOWLEDGE_SYNC_STATUS_STORAGE_KEY",
+      "SyncShell global queue refresh must accept only the knowledge sync status storage key.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
