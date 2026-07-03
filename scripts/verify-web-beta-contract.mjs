@@ -2417,6 +2417,10 @@ function run() {
       "Daily calendar status must expose a user-facing first-paint label.",
     ],
     [
+      "日历壳已显示",
+      "Daily calendar empty-loading first paint must reassure that the calendar shell is already visible.",
+    ],
+    [
       '"empty-loading"',
       "Daily calendar first-paint state must make empty-but-loading screens explicit.",
     ],
@@ -2486,6 +2490,7 @@ function run() {
     ["localStorage", "Daily calendar status must not touch browser storage."],
     ["recordSyncChange", "Daily calendar status must not enter the upload queue."],
     ["INSERT INTO sync_log", "Daily calendar status must not write sync rows."],
+    ["等待 metadata", "Daily calendar empty-loading status must not imply that the visible shell is unavailable."],
   ]) {
     assertSourceExcludes(
       files.dailyCalendarLoadStatus,
@@ -2585,6 +2590,10 @@ function run() {
       "Meeting calendar status must expose a user-facing first-paint label.",
     ],
     [
+      "日历壳已显示",
+      "Meeting calendar empty-loading first paint must reassure that the calendar shell is already visible.",
+    ],
+    [
       '"empty-loading"',
       "Meeting calendar first-paint state must make empty-but-loading screens explicit.",
     ],
@@ -2677,6 +2686,7 @@ function run() {
     ["localStorage", "Meeting calendar status must not touch browser storage."],
     ["recordSyncChange", "Meeting calendar status must not enter the upload queue."],
     ["INSERT INTO sync_log", "Meeting calendar status must not write sync rows."],
+    ["等待 metadata", "Meeting calendar empty-loading status must not imply that the visible shell is unavailable."],
   ]) {
     assertSourceExcludes(
       files.meetingCalendarLoadStatus,
@@ -24915,6 +24925,12 @@ function run() {
       pageListLoadStatus,
       "buildPageListLoadStatusView",
       "Page list load status must use a reusable metadata-only view model.",
+    ],
+    [
+      files.pageListLoadStatus,
+      pageListLoadStatus,
+      "列表壳已显示",
+      "Page list empty-loading first paint must reassure that the sidebar shell is already visible.",
     ],
     [
       files.pageListLoadStatus,

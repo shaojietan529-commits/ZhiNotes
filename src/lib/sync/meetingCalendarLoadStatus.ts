@@ -142,7 +142,7 @@ function getMeetingCalendarFirstPaintLabel(
 ) {
   switch (state) {
     case "empty-loading":
-      return "等待 metadata";
+      return "日历壳已显示";
     case "visible-background":
       return "已先显示";
     case "visible-stable":

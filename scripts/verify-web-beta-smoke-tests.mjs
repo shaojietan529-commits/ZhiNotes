@@ -5122,6 +5122,10 @@ function run() {
       "Daily calendar status must expose a user-facing first-paint label.",
     ],
     [
+      "日历壳已显示",
+      "Daily calendar empty-loading first paint must reassure that the calendar shell is already visible.",
+    ],
+    [
       '"empty-loading"',
       "Daily calendar status must make empty-but-loading screens explicit.",
     ],
@@ -5206,6 +5210,7 @@ function run() {
     "localStorage",
     "recordSyncChange",
     "INSERT INTO sync_log",
+    "等待 metadata",
   ]) {
     if (dailyCalendarLoadStatus.includes(forbiddenDailyStatusSnippet)) {
       failures.push(
@@ -5323,6 +5328,10 @@ function run() {
       "Meeting calendar status must expose a user-facing first-paint label.",
     ],
     [
+      "日历壳已显示",
+      "Meeting calendar empty-loading first paint must reassure that the calendar shell is already visible.",
+    ],
+    [
       '"empty-loading"',
       "Meeting calendar status must make empty-but-loading screens explicit.",
     ],
@@ -5407,6 +5416,7 @@ function run() {
     "localStorage",
     "recordSyncChange",
     "INSERT INTO sync_log",
+    "等待 metadata",
   ]) {
     if (meetingCalendarLoadStatus.includes(forbiddenMeetingStatusSnippet)) {
       failures.push(
@@ -5738,6 +5748,10 @@ function run() {
       "Page list status must classify first paint for blank-list diagnostics.",
     ],
     [
+      "列表壳已显示",
+      "Page list empty-loading first paint must reassure that the sidebar shell is already visible.",
+    ],
+    [
       "Page list load status is metadata-only",
       "Page list load status must document its metadata-only privacy boundary.",
     ],
@@ -5834,6 +5848,7 @@ function run() {
     "window.localStorage",
     "recordSyncChange",
     "INSERT INTO sync_log",
+    "等待 metadata",
   ]) {
     if (pageListLoadStatus.includes(forbiddenPageListStatusSnippet)) {
       failures.push(

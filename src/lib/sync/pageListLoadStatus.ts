@@ -132,7 +132,7 @@ function getPageListFirstPaintState(
 function getPageListFirstPaintLabel(state: PageListFirstPaintState) {
   switch (state) {
     case "empty-loading":
-      return "等待 metadata";
+      return "列表壳已显示";
     case "visible-background":
       return "已先显示";
     case "visible-stable":
