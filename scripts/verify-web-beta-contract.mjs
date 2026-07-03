@@ -241,6 +241,9 @@ const files = {
   databaseRouteSkeleton: "src/components/database/DatabaseRouteSkeleton.tsx",
   inlineDatabaseNode: "src/components/editor/extensions/InlineDatabaseNode.tsx",
   filePreviewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
+  fileEmbedNode: "src/components/editor/extensions/FileEmbedNode.tsx",
+  filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
+  fileEmbedSyncClient: "src/lib/files/fileEmbedSyncClient.ts",
   breadcrumbBlockNode:
     "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
   compareShell: "src/components/comparison/CompareShell.tsx",
@@ -821,6 +824,9 @@ function run() {
   const databaseRouteSkeleton = readProjectFile(files.databaseRouteSkeleton);
   const inlineDatabaseNode = readProjectFile(files.inlineDatabaseNode);
   const filePreviewNode = readProjectFile(files.filePreviewNode);
+  const fileEmbedNode = readProjectFile(files.fileEmbedNode);
+  const filePreviewUpload = readProjectFile(files.filePreviewUpload);
+  const fileEmbedSyncClient = readProjectFile(files.fileEmbedSyncClient);
   const breadcrumbBlockNode = readProjectFile(files.breadcrumbBlockNode);
   const compareShell = readProjectFile(files.compareShell);
   const pageProperties = readProjectFile(files.pageProperties);
@@ -26884,6 +26890,80 @@ function run() {
     ],
   ]) {
     assertSourceExcludes(sourceLabel, source, forbiddenSnippet, message);
+  }
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "FILE_EMBED_SYNC_REQUEST_TIMEOUT_MS = 12000",
+      "File embed cloud sync must have a bounded browser-side timeout.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "class FileEmbedSyncRequestTimeoutError extends Error",
+      "File embed cloud sync timeouts must use a typed retryable error.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "async function fetchFileEmbedSyncWithTimeout",
+      "File embed cloud sync must route through one shared timeout wrapper.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "const controller = new AbortController();",
+      "File embed cloud sync must be abortable.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "signal: controller.signal",
+      "File embed cloud sync fetches must pass the abort signal.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "文件云同步请求超时；文件已保存在本地，可稍后重试。",
+      "File embed timeout copy must tell users the local file is preserved.",
+    ],
+    [
+      files.filePreviewUpload,
+      filePreviewUpload,
+      "fetchFileEmbedSyncWithTimeout({",
+      "File embed push must use the bounded sync helper.",
+    ],
+    [
+      files.fileEmbedNode,
+      fileEmbedNode,
+      "fetchFileEmbedSyncWithTimeout({",
+      "File embed pull must use the bounded sync helper.",
+    ],
+    [
+      files.fileEmbedNode,
+      fileEmbedNode,
+      "文件云端加载超时；本地页面保持可用，可稍后重试。",
+      "File embed pull timeout copy must keep the page usable.",
+    ],
+  ]) {
+    assertSourceIncludes(sourceLabel, source, snippet, message);
+  }
+  if ((fileEmbedSyncClient.match(/\bfetch\(/g) ?? []).length !== 1) {
+    fail(
+      `${files.fileEmbedSyncClient} must keep direct fetch usage centralized in fetchFileEmbedSyncWithTimeout.`
+    );
+  }
+  for (const [sourceLabel, source] of [
+    [files.filePreviewUpload, filePreviewUpload],
+    [files.fileEmbedNode, fileEmbedNode],
+  ]) {
+    assertSourceExcludes(
+      sourceLabel,
+      source,
+      'fetch("/api/files/embed-sync"',
+      "File embed push/pull must use fetchFileEmbedSyncWithTimeout instead of directly calling /api/files/embed-sync."
+    );
   }
   assertSourceExcludes(
     files.pageTree,

@@ -22,6 +22,7 @@ const files = {
   zipImportPreflight: "src/lib/files/zipImportPreflight.ts",
   structure: "src/lib/files/filePreviewStructure.ts",
   actionReceipts: "src/lib/files/filePreviewActionReceipts.ts",
+  fileEmbedSyncClient: "src/lib/files/fileEmbedSyncClient.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   editor: "src/components/editor/Editor.tsx",
   codeHighlight: "src/lib/codeHighlight.ts",
@@ -29,6 +30,7 @@ const files = {
   localStore: "src/lib/files/localStore.ts",
   fileLibrary: "src/lib/files/fileLibraryWorkbench.ts",
   previewNode: "src/components/editor/extensions/FilePreviewNode.tsx",
+  fileEmbedNode: "src/components/editor/extensions/FileEmbedNode.tsx",
   spreadsheet: "src/lib/files/spreadsheet.ts",
   spreadsheetLimits: "src/lib/files/spreadsheetLimits.ts",
   word: "src/lib/files/word.ts",
@@ -227,6 +229,7 @@ function run() {
   const zipImportPreflight = readProjectFile(files.zipImportPreflight);
   const structure = readProjectFile(files.structure);
   const actionReceipts = readProjectFile(files.actionReceipts);
+  const fileEmbedSyncClient = readProjectFile(files.fileEmbedSyncClient);
   const upload = readProjectFile(files.upload);
   const editor = readProjectFile(files.editor);
   const codeHighlight = readProjectFile(files.codeHighlight);
@@ -234,6 +237,7 @@ function run() {
   const localStore = readProjectFile(files.localStore);
   const fileLibrary = readProjectFile(files.fileLibrary);
   const previewNode = readProjectFile(files.previewNode);
+  const fileEmbedNode = readProjectFile(files.fileEmbedNode);
   const spreadsheet = readProjectFile(files.spreadsheet);
   const spreadsheetLimits = readProjectFile(files.spreadsheetLimits);
   const word = readProjectFile(files.word);
@@ -369,6 +373,91 @@ function run() {
     "accept: MARKDOWN_FILE_ACCEPT",
     "Markdown preview entrypoint should still restrict the picker to Markdown/Text."
   );
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "FILE_EMBED_SYNC_REQUEST_TIMEOUT_MS = 12000",
+      "File embed cloud sync must have a bounded browser-side timeout.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "class FileEmbedSyncRequestTimeoutError extends Error",
+      "File embed cloud sync timeouts must use a typed retryable error.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "async function fetchFileEmbedSyncWithTimeout",
+      "File embed cloud sync must route through one shared timeout wrapper.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "const controller = new AbortController();",
+      "File embed cloud sync must be abortable.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "signal: controller.signal",
+      "File embed cloud sync fetches must pass the abort signal.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "window.clearTimeout(timeout)",
+      "File embed cloud sync timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      "文件云同步请求超时；文件已保存在本地，可稍后重试。",
+      "File embed timeout copy must tell users the local file is preserved.",
+    ],
+    [
+      files.upload,
+      upload,
+      "fetchFileEmbedSyncWithTimeout({",
+      "Editor file embed push must use the bounded sync helper.",
+    ],
+    [
+      files.upload,
+      upload,
+      "文件云同步失败；文件仍保存在本地。",
+      "Editor file embed push failures must keep local-file-preserved copy.",
+    ],
+    [
+      files.fileEmbedNode,
+      fileEmbedNode,
+      "fetchFileEmbedSyncWithTimeout({",
+      "File embed pull must use the bounded sync helper.",
+    ],
+    [
+      files.fileEmbedNode,
+      fileEmbedNode,
+      "文件云端加载超时；本地页面保持可用，可稍后重试。",
+      "File embed pull timeout copy must keep the page usable.",
+    ],
+  ]) {
+    assertIncludes(sourceLabel, source, snippet, message);
+  }
+  if ((fileEmbedSyncClient.match(/\bfetch\(/g) ?? []).length !== 1) {
+    fail(
+      `${files.fileEmbedSyncClient} must keep direct fetch usage centralized in fetchFileEmbedSyncWithTimeout.`
+    );
+  }
+  for (const [sourceLabel, source] of [
+    [files.upload, upload],
+    [files.fileEmbedNode, fileEmbedNode],
+  ]) {
+    if (source.includes('fetch("/api/files/embed-sync"')) {
+      fail(
+        `${sourceLabel} must use fetchFileEmbedSyncWithTimeout instead of directly calling /api/files/embed-sync.`
+      );
+    }
+  }
   for (const snippet of [
     "recordInsertedFilePreviewReceipt",
     "getInsertedFilePreviewActionKind",

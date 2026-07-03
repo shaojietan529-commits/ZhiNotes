@@ -9,6 +9,10 @@ import {
   getStoredPageFile,
   type PageFileKind,
 } from "@/lib/files/localStore";
+import {
+  fetchFileEmbedSyncWithTimeout,
+  FileEmbedSyncRequestTimeoutError,
+} from "@/lib/files/fileEmbedSyncClient";
 
 function FileEmbedComponent({ node }: NodeViewProps) {
   const fileId = String(node.attrs.fileId || "");
@@ -34,10 +38,9 @@ function FileEmbedComponent({ node }: NodeViewProps) {
         setLoading(false);
         return;
       }
-      const res = await fetch("/api/files/embed-sync", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "pull", fileId }),
+      const res = await fetchFileEmbedSyncWithTimeout({
+        action: "pull",
+        fileId,
       });
       if (res.ok) {
         const data = (await res.json()) as {
@@ -54,8 +57,12 @@ function FileEmbedComponent({ node }: NodeViewProps) {
       } else {
         setError("文件加载失败");
       }
-    } catch {
-      setError("文件加载失败");
+    } catch (err) {
+      setError(
+        err instanceof FileEmbedSyncRequestTimeoutError
+          ? "文件云端加载超时；本地页面保持可用，可稍后重试。"
+          : "文件加载失败"
+      );
     } finally {
       setLoading(false);
     }

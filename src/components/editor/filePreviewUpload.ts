@@ -7,6 +7,10 @@ import {
   type StoredPageFile,
 } from "@/lib/files/localStore";
 import {
+  fetchFileEmbedSyncWithTimeout,
+  FileEmbedSyncRequestTimeoutError,
+} from "@/lib/files/fileEmbedSyncClient";
+import {
   appendFilePreviewActionReceipt,
   buildFilePreviewActionReceipt,
   type FilePreviewActionKind,
@@ -347,8 +351,12 @@ export async function insertFilesAsEmbeds(editor: Editor, files: File[]) {
           size: stored.size,
         })
         .run();
-      syncFileToCloud(stored).catch(() => {
-        // Cloud sync is best-effort; the file remains in local IndexedDB.
+      syncFileToCloud(stored).catch((err) => {
+        const message =
+          err instanceof FileEmbedSyncRequestTimeoutError
+            ? err.message
+            : "文件云同步失败；文件仍保存在本地。";
+        console.warn("[Zhinote] File cloud sync:", message);
       });
     } catch (err) {
       console.error("[Zhinote] Failed to embed file:", err);
@@ -357,19 +365,15 @@ export async function insertFilesAsEmbeds(editor: Editor, files: File[]) {
 }
 
 async function syncFileToCloud(stored: StoredPageFile) {
-  const res = await fetch("/api/files/embed-sync", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      action: "push",
-      fileId: stored.id,
-      fileName: stored.name,
-      mimeType: stored.mimeType,
-      kind: stored.kind,
-      size: stored.size,
-      dataUrl: stored.dataUrl,
-      textContent: stored.textContent ?? null,
-    }),
+  const res = await fetchFileEmbedSyncWithTimeout({
+    action: "push",
+    fileId: stored.id,
+    fileName: stored.name,
+    mimeType: stored.mimeType,
+    kind: stored.kind,
+    size: stored.size,
+    dataUrl: stored.dataUrl,
+    textContent: stored.textContent ?? null,
   });
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as {
