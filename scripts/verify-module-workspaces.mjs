@@ -717,7 +717,8 @@ check(
       "Local page create failed; using cloud draft fallback"
     ) &&
     cloudPageMutationsSource.includes("createCloudDraftFallbackPage") &&
-    cloudPageMutationsSource.includes('import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts"') &&
+    cloudPageMutationsSource.includes('} from "@/lib/pages/pendingPageDrafts"') &&
+    cloudPageMutationsSource.includes("rememberPendingPageDraft,") &&
     cloudPageMutationsSource.includes("rememberPendingPageDraft(page)") &&
     cloudPageMutationsSource.includes("owner_id: DEFAULT_OWNER_ID") &&
     cloudPageMutationsSource.includes("sync_version: 0") &&
@@ -1196,6 +1197,11 @@ check(
     pagePeekModal.includes("const localFirstSeedPage = currentFallbackPage ?? currentInitialPage") &&
     pagePeekModal.includes("const isOptimisticDraft = localFirstSeedPage?.content_text === \"\"") &&
     pagePeekModal.includes("initialPage={initialPage}") &&
+    pagePeekModal.includes('data-testid="page-peek-modal"') &&
+    pagePeekModal.includes('data-local-seed-state={hasEffectivePage ? "ready" : "loading"}') &&
+    pagePeekModal.includes('data-testid="page-peek-metadata-recovery-shell"') &&
+    pagePeekModal.includes('data-local-seed-state={seed ? "ready" : "loading"}') &&
+    pagePeekModal.includes("setEditorLoadRequested(true);\n        setMountedEditorPageId(pageId)") &&
     pagePeekModal.includes("PeekMetadataRecoveryShell") &&
     pagePeekModal.includes("新页面已在本机创建，完整编辑器正在载入。") &&
     pagePeekModal.includes("已先显示本地页面信息") &&

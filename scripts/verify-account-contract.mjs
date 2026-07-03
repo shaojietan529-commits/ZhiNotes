@@ -2218,6 +2218,13 @@ check(
     pagePeekModal.includes('surface: "peek"') &&
     pagePeekModal.includes("subscribePageBodyHydrationStatus(pageId, setBodyHydrationStatus)") &&
     pagePeekModal.includes("bodyHydrationLabel ??") &&
+    pagePeekModal.includes('data-testid="page-peek-modal"') &&
+    pagePeekModal.includes(
+      'data-local-seed-state={hasEffectivePage ? "ready" : "loading"}'
+    ) &&
+    pagePeekModal.includes('data-testid="page-peek-metadata-recovery-shell"') &&
+    pagePeekModal.includes('data-local-seed-state={seed ? "ready" : "loading"}') &&
+    pagePeekModal.includes("setEditorLoadRequested(true);\n        setMountedEditorPageId(pageId)") &&
     pagePeekModal.includes("setMountedEditorPageId(pageId)") &&
     pagePeekModal.includes("childPagesEnabled") &&
     pagePeekModal.includes("dynamic<IconPickerProps>(") &&

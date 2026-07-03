@@ -9451,6 +9451,30 @@ function run() {
       message
     );
   }
+  for (const [snippet, message] of [
+    [
+      'data-testid="page-peek-modal"',
+      "Full peek modal must expose a stable hook for local-first diagnostics after the lazy chunk loads.",
+    ],
+    [
+      'data-local-seed-state={hasEffectivePage ? "ready" : "loading"}',
+      "Full peek modal must expose whether local metadata survived the lazy-to-full modal handoff.",
+    ],
+    [
+      'data-testid="page-peek-metadata-recovery-shell"',
+      "Full peek modal metadata recovery shell must have a stable diagnostic hook.",
+    ],
+    [
+      'data-local-seed-state={seed ? "ready" : "loading"}',
+      "Full peek modal recovery shell must expose whether it found a local draft or metadata seed.",
+    ],
+    [
+      "setEditorLoadRequested(true);\n        setMountedEditorPageId(pageId)",
+      "Optimistic daily drafts must mount the editor and start the local page hook so early input follows the normal local-first save path.",
+    ],
+  ]) {
+    assertIncludes(files.pagePeekModal, pagePeekModal, snippet, message);
+  }
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,

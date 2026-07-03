@@ -10,10 +10,6 @@ import {
   listPagesForPriorityContentHydration,
   type RemotePageRecord,
 } from "@/lib/db/local/queries";
-import {
-  isCloudPagePendingSync,
-  syncCloudPageMetadataDelta,
-} from "@/lib/pages/accountPageSync";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   emitPageSnapshotsUpdated,
@@ -37,6 +33,8 @@ import {
   writePageListHotCacheSnapshot,
 } from "@/lib/sync/pageListHotCacheSnapshot";
 import type { Page } from "@/lib/utils/types";
+
+const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 interface UsePagesOptions {
   includeContent?: boolean;
@@ -305,18 +303,21 @@ function isPageListHotCacheFirstPaintPage(page: Page): boolean {
   );
 }
 
-function mergeCloudMetadataWithPendingLocalPages(cloudMetadata: Page[]): Page[] {
+function mergeCloudMetadataWithPendingLocalPages(
+  cloudMetadata: Page[],
+  isPendingSync: (pageId: string) => boolean
+): Page[] {
   const currentPages = useWorkspaceStore.getState().pages;
   const byId = new Map(cloudMetadata.map((page) => [page.id, page]));
   for (const current of currentPages) {
     const cloud = byId.get(current.id);
     if (!cloud) {
-      if (isCloudPagePendingSync(current.id)) {
+      if (isPendingSync(current.id)) {
         byId.set(current.id, current);
       }
       continue;
     }
-    const preferred = isCloudPagePendingSync(current.id) ? current : cloud;
+    const preferred = isPendingSync(current.id) ? current : cloud;
     byId.set(current.id, {
       ...preferred,
       content_text:
@@ -416,12 +417,19 @@ export function usePages(options: UsePagesOptions = {}) {
       requireLocalCacheCoverage: boolean;
     }) => {
       try {
+        const {
+          isCloudPagePendingSync,
+          syncCloudPageMetadataDelta,
+        } = await loadPageAccountSyncModule();
         const cloud = await syncCloudPageMetadataDelta(cloudOptions);
         if (!isCurrentRefresh()) return;
         if (cloud.status === "ok") {
           const cloudPages = cloud.pages.map(remoteMetadataToPage);
           if (cloud.fullRefresh && (!includeContent || metadataFirstContent)) {
-            all = mergeCloudMetadataWithPendingLocalPages(cloudPages);
+            all = mergeCloudMetadataWithPendingLocalPages(
+              cloudPages,
+              isCloudPagePendingSync
+            );
             cloudSnapshotAuthoritative = true;
             setPages(all);
             writePageListHotCacheSnapshot({

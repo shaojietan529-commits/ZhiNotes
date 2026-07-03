@@ -362,6 +362,7 @@ export default function PagePeekModal({
     if (!hasEffectivePage || editorMounted) return;
     if (isOptimisticDraft) {
       queueMicrotask(() => {
+        setEditorLoadRequested(true);
         setMountedEditorPageId(pageId);
       });
       return;
@@ -517,6 +518,12 @@ export default function PagePeekModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/25 p-4"
       onMouseDown={onClose}
       role="presentation"
+      data-testid="page-peek-modal"
+      data-local-seed-state={hasEffectivePage ? "ready" : "loading"}
+      data-optimistic-draft={isOptimisticDraft}
+      data-editor-mounted={editorMounted}
+      data-body-loading={bodyLoading}
+      data-metadata-loading={metadataLoading}
     >
       <div
         className="flex h-[85vh] w-[82vw] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-950"
@@ -631,7 +638,12 @@ function PeekMetadataRecoveryShell({
   const isOptimisticDraft = seed?.content_text === "";
 
   return (
-    <div className="mx-auto w-full max-w-4xl py-10">
+    <div
+      className="mx-auto w-full max-w-4xl py-10"
+      data-testid="page-peek-metadata-recovery-shell"
+      data-local-seed-state={seed ? "ready" : "loading"}
+      data-optimistic-draft={isOptimisticDraft}
+    >
       <div className="mb-5 flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-lg dark:bg-zinc-800">
           {seed?.icon || "📄"}
