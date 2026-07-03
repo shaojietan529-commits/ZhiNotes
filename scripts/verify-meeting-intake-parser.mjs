@@ -76,6 +76,21 @@ const cases = [
     input: "Meeting topic: Test meeting\nTime: Monday 12:00 AM - 1:00 AM",
     expected: { date: "2026-07-06", time: "00:00", endTime: "01:00", durationMinutes: 60 },
   },
+  {
+    name: "English tomorrow with trailing PM range",
+    input: "Meeting topic: Test meeting\nTime: tomorrow 4:00 PM - 5:30 PM",
+    expected: { date: "2026-07-05", time: "16:00", endTime: "17:30", durationMinutes: 90 },
+  },
+  {
+    name: "English today with AM single time",
+    input: "Meeting topic: Test meeting\nTime: today 9:30 AM",
+    expected: { date: "2026-07-04", time: "09:30", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "English day after tomorrow with noon range",
+    input: "Meeting topic: Test meeting\nTime: day after tomorrow 12:00 PM - 1:00 PM",
+    expected: { date: "2026-07-06", time: "12:00", endTime: "13:00", durationMinutes: 60 },
+  },
 ];
 
 const results = [];

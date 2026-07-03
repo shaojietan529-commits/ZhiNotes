@@ -516,6 +516,25 @@ function findDate(
     };
   }
 
+  // English relative dates: today / tomorrow / day after tomorrow.
+  const englishRelativeDay = text.match(/\b(day\s+after\s+tomorrow|tomorrow|today)\b/i);
+  if (englishRelativeDay) {
+    const now = new Date();
+    const normalized = englishRelativeDay[1].toLowerCase().replace(/\s+/g, " ");
+    const offsets: Record<string, number> = {
+      today: 0,
+      tomorrow: 1,
+      "day after tomorrow": 2,
+    };
+    const offset = offsets[normalized] ?? 0;
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    return {
+      year: target.getFullYear(),
+      month: target.getMonth() + 1,
+      day: target.getDate(),
+    };
+  }
+
   // Relative weekday: 本周一/下星期三/这礼拜五/周六/下个周日
   const relWeekday = text.match(
     /(?:(本|这|下)\s*个?\s*)?(?:周|星期|礼拜)\s*([一二三四五六日天])/
