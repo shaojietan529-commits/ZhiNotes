@@ -1407,6 +1407,18 @@ function run() {
       "openOpeningDailyNoteFullPage",
       "Daily note opening fallback must let the user jump to the full page without waiting on the modal.",
     ],
+    [
+      "cancelOpeningDailyDraft",
+      "Daily note create fallback must let the user dismiss a stuck local draft opening state without deleting the local draft.",
+    ],
+    [
+      'data-testid="daily-opening-draft-toast"',
+      "Daily note create fallback toast must be discoverable in UI smoke checks.",
+    ],
+    [
+      "收起等待",
+      "Daily note create fallback banner must make the dismiss action visible in Chinese UI.",
+    ],
   ]) {
     assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
   }

@@ -1849,6 +1849,15 @@ export default function DailyNotesShell() {
     setPeekInitialPage((current) => (current?.id === pageId ? null : current));
   }, []);
 
+  const cancelOpeningDailyDraft = useCallback((pageId: string) => {
+    setOpeningDraft((current) =>
+      current?.pageId === pageId ? null : current
+    );
+    setOpeningNoteId((current) => (current === pageId ? null : current));
+    setPeekPageId((current) => (current === pageId ? null : current));
+    setPeekInitialPage((current) => (current?.id === pageId ? null : current));
+  }, []);
+
   const openOpeningDailyNoteFullPage = useCallback(
     (pageId: string) => {
       openDailyNoteFullPageById(pageId);
@@ -2137,6 +2146,9 @@ export default function DailyNotesShell() {
                   mode={dailyCreateOpenMode}
                   onOpenFull={() =>
                     openOpeningDailyDraftFullPage(openingDraft.pageId)
+                  }
+                  onCancel={() =>
+                    cancelOpeningDailyDraft(openingDraft.pageId)
                   }
                 />
               )}
@@ -2618,6 +2630,7 @@ export default function DailyNotesShell() {
           dateKey={openingDraft.dateKey}
           mode={dailyCreateOpenMode}
           onOpenFull={() => openOpeningDailyDraftFullPage(openingDraft.pageId)}
+          onCancel={() => cancelOpeningDailyDraft(openingDraft.pageId)}
         />
       )}
       {openingExistingNote && (
@@ -3714,10 +3727,12 @@ function DailyOpeningDraftBanner({
   dateKey,
   mode,
   onOpenFull,
+  onCancel,
 }: {
   dateKey: string;
   mode: DailyCreateOpenMode;
   onOpenFull: () => void;
+  onCancel: () => void;
 }) {
   const message =
     mode === "peek"
@@ -3742,6 +3757,13 @@ function DailyOpeningDraftBanner({
         className="rounded border border-amber-300 px-2 py-1 font-medium transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/50"
       >
         {actionLabel}
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded px-2 py-1 font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/40"
+      >
+        收起等待
       </button>
     </div>
   );
@@ -3797,10 +3819,12 @@ function DailyOpeningDraftToast({
   dateKey,
   mode,
   onOpenFull,
+  onCancel,
 }: {
   dateKey: string;
   mode: DailyCreateOpenMode;
   onOpenFull: () => void;
+  onCancel: () => void;
 }) {
   return (
     <div className="pointer-events-none fixed bottom-5 right-5 z-40 max-w-sm px-4">
@@ -3815,13 +3839,22 @@ function DailyOpeningDraftToast({
             ? "弹窗正在准备，后台继续保存并同步。"
             : "正在进入完整页面，后台继续保存并同步。"}
         </div>
-        <button
-          type="button"
-          onClick={onOpenFull}
-          className="mt-2 rounded border border-amber-300 px-2 py-1 font-medium transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/50"
-        >
-          打开完整页面
-        </button>
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={onOpenFull}
+            className="rounded border border-amber-300 px-2 py-1 font-medium transition-colors hover:bg-amber-100 dark:border-amber-800 dark:hover:bg-amber-900/50"
+          >
+            打开完整页面
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded px-2 py-1 font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/40"
+          >
+            收起
+          </button>
+        </div>
       </div>
     </div>
   );
