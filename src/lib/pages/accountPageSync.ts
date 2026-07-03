@@ -62,6 +62,7 @@ const QUICK_INCREMENTAL_BATCH_LIMIT = 3;
 const METADATA_DELTA_THROTTLE_MS = 2500;
 const PAGE_LOOKUP_CACHE_MS = 4000;
 const PAGE_LOOKUP_CACHE_LIMIT = 60;
+const ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS = 12000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const AUTH_RETRY_PROBE_WINDOW_KEY = "__zhinotePageSyncAuthRetryProbe";
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
@@ -342,11 +343,7 @@ async function call(body: Record<string, unknown>): Promise<
   const finishAuthRetryProbe = startAuthRetryProbe();
   let probeStatus: AuthRetryProbeStatus = "ok";
   try {
-    const res = await fetch("/api/pages/account-sync", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const res = await fetchAccountPageSync(body);
     if (res.status === 501) {
       probeStatus = "unconfigured";
       rememberAuthRetryStatus("unconfigured");
@@ -371,11 +368,47 @@ async function call(body: Record<string, unknown>): Promise<
     }
     rememberAuthRetryStatus("ok");
     return { ok: true, json };
-  } catch {
-    return { ok: false, status: "error", message: "网络错误" };
+  } catch (error) {
+    probeStatus = "error";
+    return {
+      ok: false,
+      status: "error",
+      message: isAbortError(error)
+        ? "页面同步请求超时；本地输入已保留，会稍后重试。"
+        : "网络错误",
+    };
   } finally {
     finishAuthRetryProbe(probeStatus);
   }
+}
+
+async function fetchAccountPageSync(
+  body: Record<string, unknown>
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS
+  );
+  try {
+    return await fetch("/api/pages/account-sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
 }
 
 function isValidRemotePageId(value: string): boolean {

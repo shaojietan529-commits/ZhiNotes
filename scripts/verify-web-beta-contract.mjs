@@ -22435,6 +22435,42 @@ function run() {
     [
       files.accountPageSync,
       accountPageSync,
+      "ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS = 12000",
+      "Account page sync requests must have a bounded timeout so slow cloud APIs do not leave local use hanging.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "async function fetchAccountPageSync",
+      "Account page sync must route every account-sync fetch through a shared timeout wrapper.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "const controller = new AbortController();",
+      "Account page sync must be able to abort slow account-sync requests.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "signal: controller.signal",
+      "Account page sync fetches must pass the abort signal to the browser fetch call.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "clearTimeout(timeout)",
+      "Account page sync request timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "页面同步请求超时；本地输入已保留，会稍后重试。",
+      "Account page sync timeout errors must explicitly tell the user local input is preserved.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
       "export async function fetchMeetingCloudMetadata",
       "Account page sync must expose a shared meeting metadata helper.",
     ],

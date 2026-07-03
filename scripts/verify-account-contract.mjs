@@ -572,6 +572,16 @@ check(
     !databaseSyncClient.includes('probeStatus = "unauthenticated";\n      rememberAuthRetryStatus("unauthenticated");'),
   "页面/数据库同步底层客户端应先共享账号 gate，再访问具体 account-sync 路由；具体同步接口 401 只能作为可重试错误，不能把用户踢成未登录"
 );
+check(
+  pageSyncClient.includes("ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS = 12000") &&
+    pageSyncClient.includes("async function fetchAccountPageSync") &&
+    pageSyncClient.includes("const controller = new AbortController();") &&
+    pageSyncClient.includes("signal: controller.signal") &&
+    pageSyncClient.includes("controller.abort()") &&
+    pageSyncClient.includes("clearTimeout(timeout)") &&
+    pageSyncClient.includes("页面同步请求超时；本地输入已保留，会稍后重试。"),
+  "页面同步底层 fetch 必须可超时取消；超时只能进入可重试错误并明确本地输入已保留"
+);
 const coreManifestCompareReceipt = read(
   "src/lib/sync/coreManifestCompareReceipt.ts"
 );
