@@ -81,6 +81,7 @@ const STABLE_USE_MODULE_REGISTRY = "src/lib/modules/registry.ts";
 const DEVELOPMENT_STABILITY_PLAN = "src/lib/sync/developmentStabilityPlan.ts";
 const START_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_STABLE_ROUTE_BUDGET_MS = 5_000;
 const LOG_LIMIT = 16_000;
 
 async function main() {
@@ -119,12 +120,25 @@ async function main() {
           `${route.label} did not include expected route marker: ${route.expectedText}`
         );
       }
+      const maxDurationMs =
+        route.maxDurationMs ?? DEFAULT_STABLE_ROUTE_BUDGET_MS;
+      if (result.durationMs > maxDurationMs) {
+        throw new Error(
+          `${route.label} exceeded stable-use shell budget: ${Math.round(
+            result.durationMs
+          )}ms > ${maxDurationMs}ms`
+        );
+      }
       results.push({
         route: route.path,
         status: result.statusCode,
         durationMs: Math.round(result.durationMs),
+        maxDurationMs,
       });
     }
+    const slowestRoute = results
+      .slice()
+      .sort((a, b) => b.durationMs - a.durationMs)[0];
     console.log("Route smoke verification passed");
     console.log(
       JSON.stringify(
@@ -132,9 +146,12 @@ async function main() {
           mode: existingServer ? "existing-next-dev-http" : "next-dev-http",
           host: HOST,
           port,
+          stableUseShellBudgetMs: DEFAULT_STABLE_ROUTE_BUDGET_MS,
+          slowestRoute,
+          overBudgetRoutes: [],
           routes: results,
           privacyBoundary:
-            "This check requests only public route shells from a local Next.js server, reusing an already-running local dev server when available or starting a temporary one otherwise. It reads local module registry and development-stability route metadata only; it does not read browser storage, page bodies, database rows, file bytes, cookies, credentials, or cloud data.",
+            "This check requests only public route shells from a local Next.js server, reusing an already-running local dev server when available or starting a temporary one otherwise. It enforces a conservative stable-use shell response budget so Daily, ZhiHui, account, sync, module, database, knowledge, industry, portfolio, and page shells cannot silently regress into long blank loads. It reads local module registry and development-stability route metadata only; it does not read browser storage, page bodies, database rows, file bytes, cookies, credentials, or cloud data.",
         },
         null,
         2
