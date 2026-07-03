@@ -20,6 +20,7 @@ const CODE_TTL_SECONDS = 10 * 60; // 10 minutes
 const MAX_VERIFY_ATTEMPTS = 5;
 const MAX_SENDS_PER_WINDOW = 3;
 const SEND_WINDOW_SECONDS = 10 * 60;
+const ACCOUNT_SERVER_REQUEST_TIMEOUT_MS = 8000;
 
 export interface AccountRecord {
   id: string;
@@ -82,11 +83,33 @@ export function accountMissingEnv(): string[] {
   return missing;
 }
 
+async function fetchAccountServerRequestWithTimeout(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1]
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    ACCOUNT_SERVER_REQUEST_TIMEOUT_MS
+  );
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function kvGet(env: KvEnv, key: string): Promise<string | null> {
-  const res = await fetch(`${env.url}/get/${encodeURIComponent(key)}`, {
-    headers: { authorization: `Bearer ${env.token}` },
-    cache: "no-store",
-  });
+  const res = await fetchAccountServerRequestWithTimeout(
+    `${env.url}/get/${encodeURIComponent(key)}`,
+    {
+      headers: { authorization: `Bearer ${env.token}` },
+      cache: "no-store",
+    }
+  );
   if (!res.ok) throw new Error("kv get failed");
   const data = await res.json();
   return typeof data.result === "string" ? data.result : null;
@@ -98,7 +121,7 @@ async function kvSetEx(
   seconds: number,
   value: string
 ): Promise<void> {
-  const res = await fetch(
+  const res = await fetchAccountServerRequestWithTimeout(
     `${env.url}/setex/${encodeURIComponent(key)}/${seconds}`,
     {
       method: "POST",
@@ -114,19 +137,25 @@ export async function kvSet(
   key: string,
   value: string
 ): Promise<void> {
-  const res = await fetch(`${env.url}/set/${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${env.token}` },
-    body: value,
-  });
+  const res = await fetchAccountServerRequestWithTimeout(
+    `${env.url}/set/${encodeURIComponent(key)}`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.token}` },
+      body: value,
+    }
+  );
   if (!res.ok) throw new Error("kv set failed");
 }
 
 export async function kvDel(env: KvEnv, key: string): Promise<void> {
-  const res = await fetch(`${env.url}/del/${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${env.token}` },
-  });
+  const res = await fetchAccountServerRequestWithTimeout(
+    `${env.url}/del/${encodeURIComponent(key)}`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.token}` },
+    }
+  );
   if (!res.ok) throw new Error("kv del failed");
 }
 
@@ -234,19 +263,22 @@ export async function sendLoginCode(
     JSON.stringify({ hash: hashCode(email, code), attempts: 0 })
   );
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${config.resendApiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      from: config.emailFrom,
-      to: [email],
-      subject: "ZhiNotes 登录验证码",
-      text: `你的 ZhiNotes 登录验证码是：${code}\n\n10 分钟内有效。如果不是你本人操作，请忽略这封邮件。`,
-    }),
-  });
+  const res = await fetchAccountServerRequestWithTimeout(
+    "https://api.resend.com/emails",
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${config.resendApiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        from: config.emailFrom,
+        to: [email],
+        subject: "ZhiNotes 登录验证码",
+        text: `你的 ZhiNotes 登录验证码是：${code}\n\n10 分钟内有效。如果不是你本人操作，请忽略这封邮件。`,
+      }),
+    }
+  );
   if (!res.ok) {
     await kvDel(config.kv, `${CODE_KEY_PREFIX}${email}`);
     return { status: "email-failed" };

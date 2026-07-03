@@ -178,6 +178,7 @@ const files = {
     "src/lib/sync/accountModuleSettingsPendingSync.ts",
   workspaceSettingsRoute: "src/app/api/workspaces/[workspaceId]/settings/route.ts",
   accountCloudSyncGate: "src/lib/account/accountCloudSyncGate.ts",
+  accountServer: "src/lib/account/server.ts",
   accountClientSession: "src/lib/account/clientSession.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
   accountMeRoute: "src/app/api/account/me/route.ts",
@@ -723,6 +724,7 @@ function run() {
   );
   const workspaceSettingsRoute = readProjectFile(files.workspaceSettingsRoute);
   const accountCloudSyncGate = readProjectFile(files.accountCloudSyncGate);
+  const accountServer = readProjectFile(files.accountServer);
   const accountClientSession = readProjectFile(files.accountClientSession);
   const accountShell = readProjectFile(files.accountShell);
   const accountMeRoute = readProjectFile(files.accountMeRoute);
@@ -4778,6 +4780,55 @@ function run() {
   ) {
     fail(
       "Account /me PATCH must not clear the session cookie on a retryable missing-session check."
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "ACCOUNT_SERVER_REQUEST_TIMEOUT_MS = 8000",
+      "Account server upstream KV and email requests must have a shorter bounded timeout than the account shell action timeout.",
+    ],
+    [
+      "async function fetchAccountServerRequestWithTimeout",
+      "Account server upstream KV and Resend requests must route through a shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Account server upstream requests must be able to abort slow external services.",
+    ],
+    [
+      "signal: controller.signal",
+      "Account server upstream requests must pass the abort signal to fetch.",
+    ],
+    [
+      "clearTimeout(timeout)",
+      "Account server upstream timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      "fetchAccountServerRequestWithTimeout(\n    `${env.url}/get/",
+      "Account server KV get calls must use the bounded upstream helper.",
+    ],
+    [
+      "fetchAccountServerRequestWithTimeout(\n    `${env.url}/setex/",
+      "Account server KV setex calls must use the bounded upstream helper.",
+    ],
+    [
+      "fetchAccountServerRequestWithTimeout(\n    `${env.url}/set/",
+      "Account server KV set calls must use the bounded upstream helper.",
+    ],
+    [
+      "fetchAccountServerRequestWithTimeout(\n    `${env.url}/del/",
+      "Account server KV delete calls must use the bounded upstream helper.",
+    ],
+    [
+      'fetchAccountServerRequestWithTimeout(\n    "https://api.resend.com/emails"',
+      "Account server Resend email calls must use the bounded upstream helper.",
+    ],
+  ]) {
+    assertSourceIncludes(files.accountServer, accountServer, snippet, message);
+  }
+  if ((accountServer.match(/\bfetch\(/g) ?? []).length !== 1) {
+    fail(
+      "Account server must keep fetch usage centralized in fetchAccountServerRequestWithTimeout."
     );
   }
   assertSourceIncludes(

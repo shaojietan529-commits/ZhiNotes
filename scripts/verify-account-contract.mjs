@@ -45,6 +45,22 @@ check(
   !server.includes("console.log"),
   "server.ts 不应该有 console.log（避免泄露邮箱/验证码）"
 );
+check(
+  server.includes("ACCOUNT_SERVER_REQUEST_TIMEOUT_MS = 8000") &&
+    server.includes("async function fetchAccountServerRequestWithTimeout") &&
+    server.includes("const controller = new AbortController();") &&
+    server.includes("signal: controller.signal") &&
+    server.includes("clearTimeout(timeout)") &&
+    server.includes("fetchAccountServerRequestWithTimeout(\n    `${env.url}/get/") &&
+    server.includes("fetchAccountServerRequestWithTimeout(\n    `${env.url}/setex/") &&
+    server.includes("fetchAccountServerRequestWithTimeout(\n    `${env.url}/set/") &&
+    server.includes("fetchAccountServerRequestWithTimeout(\n    `${env.url}/del/") &&
+    server.includes(
+      'fetchAccountServerRequestWithTimeout(\n    "https://api.resend.com/emails"'
+    ) &&
+    (server.match(/\bfetch\(/g) ?? []).length === 1,
+  "server.ts 的 KV 和 Resend 外部请求必须统一走 8 秒超时 helper，账号接口不能因外部服务慢而长期挂起"
+);
 
 // 2. Routes: all gated, none log, cookie httpOnly
 const routes = [
