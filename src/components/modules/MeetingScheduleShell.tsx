@@ -140,6 +140,7 @@ const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
 const MEETING_PEEK_EDITOR_WARMUP_DELAY_MS = 1600;
 const MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2000;
 const MEETING_INTAKE_TIMEOUT_MS = 8000;
+const MEETING_AGENT_QUEUE_TIMEOUT_MS = 12000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
@@ -249,6 +250,39 @@ function getMeetingIntakeFailureMessage(error: unknown) {
     : error instanceof Error
       ? error.message
       : "读取会议信息失败。";
+}
+
+async function fetchMeetingAgentQueueWithTimeout(
+  body: Record<string, unknown>
+): Promise<Response> {
+  const controller = new AbortController();
+  let queueTimeoutId: number | null = window.setTimeout(() => {
+    controller.abort();
+  }, MEETING_AGENT_QUEUE_TIMEOUT_MS);
+  const clearQueueTimeout = () => {
+    if (queueTimeoutId === null) return;
+    window.clearTimeout(queueTimeoutId);
+    queueTimeoutId = null;
+  };
+
+  try {
+    return await fetch("/api/meetings/agent/jobs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify(body),
+    });
+  } finally {
+    clearQueueTimeout();
+  }
+}
+
+function getMeetingAgentQueueFailureMessage(error: unknown) {
+  return error instanceof Error && error.name === "AbortError"
+    ? "录制队列接口超时；会议页和日历已保留，可稍后重试接入 runner。"
+    : error instanceof Error
+      ? error.message
+      : "无法连接云端队列接口。";
 }
 
 interface CreateMeetingOptions {
@@ -4738,28 +4772,24 @@ async function enqueueMeetingRecordingRequest(
   }
 
   try {
-    const response = await fetch("/api/meetings/agent/jobs", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        runNow,
-        meeting: {
-          pageId: entry.page.id,
-          title: entry.page.title,
-          topic: entry.topic,
-          organizer: entry.organizer,
-          platform: normalizePlatform(entry.platform),
-          date: entry.dateKey,
-          time: entry.time,
-          joinUrl: entry.joinUrl,
-          meetingId: entry.meetingId,
-          passcode: entry.passcode,
-          recordingDevice: entry.recordingDevice || DEFAULT_RECORDING_DEVICE,
-          fallbackDevice: entry.fallbackDevice || DEFAULT_RECORDING_DEVICE,
-          transcriptionModel: entry.transcriptionModel || "qwen",
-          meetingPriority: entry.meetingPriority || "默认",
-        },
-      }),
+    const response = await fetchMeetingAgentQueueWithTimeout({
+      runNow,
+      meeting: {
+        pageId: entry.page.id,
+        title: entry.page.title,
+        topic: entry.topic,
+        organizer: entry.organizer,
+        platform: normalizePlatform(entry.platform),
+        date: entry.dateKey,
+        time: entry.time,
+        joinUrl: entry.joinUrl,
+        meetingId: entry.meetingId,
+        passcode: entry.passcode,
+        recordingDevice: entry.recordingDevice || DEFAULT_RECORDING_DEVICE,
+        fallbackDevice: entry.fallbackDevice || DEFAULT_RECORDING_DEVICE,
+        transcriptionModel: entry.transcriptionModel || "qwen",
+        meetingPriority: entry.meetingPriority || "默认",
+      },
     });
     const data = (await response.json().catch(() => ({}))) as {
       error?: string;
@@ -4782,7 +4812,7 @@ async function enqueueMeetingRecordingRequest(
     return {
       ok: false,
       status: "failed",
-      message: error instanceof Error ? error.message : "无法连接云端队列接口。",
+      message: getMeetingAgentQueueFailureMessage(error),
     };
   }
 }

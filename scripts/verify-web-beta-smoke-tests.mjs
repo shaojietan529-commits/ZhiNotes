@@ -10884,6 +10884,12 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
+    "const MEETING_AGENT_QUEUE_TIMEOUT_MS = 12000",
+    "Meeting runner queue requests must have a bounded wait so recording handoff cannot freeze the meeting workflow."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
     "signal: controller.signal",
     "Meeting import fetch must be abortable when the intake API is slow or unavailable."
   );
@@ -10910,6 +10916,24 @@ function run() {
     meetingScheduleShell,
     "fetchMeetingIntakeWithTimeout(inputText)",
     "Meeting retry parsing must use the bounded intake helper so review batches cannot hang on one slow request."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "fetchMeetingAgentQueueWithTimeout({",
+    "Meeting runner handoff must use the bounded queue helper instead of waiting on a direct fetch."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "getMeetingAgentQueueFailureMessage(error)",
+    "Meeting runner queue timeout failures must stay visible and recoverable."
+  );
+  assertIncludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "录制队列接口超时；会议页和日历已保留，可稍后重试接入 runner。",
+    "Meeting runner queue timeout must explicitly tell the user the meeting page and calendar were preserved."
   );
   for (const [snippet, message] of [
     [

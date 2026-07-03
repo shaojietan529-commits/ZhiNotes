@@ -1496,12 +1496,18 @@ check(
     !meetingScheduleShell.includes("const result = await pushCloudPages(records)") &&
     meetingScheduleShell.includes("disabled={intakeLoading || !intakeText.trim()}") &&
     meetingScheduleShell.includes("const MEETING_INTAKE_TIMEOUT_MS = 8000") &&
+    meetingScheduleShell.includes("const MEETING_AGENT_QUEUE_TIMEOUT_MS = 12000") &&
     meetingScheduleShell.includes("const controller = new AbortController();") &&
     meetingScheduleShell.includes("signal: controller.signal") &&
     meetingScheduleShell.includes("controller.abort();") &&
     meetingScheduleShell.includes("会议信息读取超时，已先保留会议痕迹。") &&
     meetingScheduleShell.includes("fetchMeetingIntakeWithTimeout(input)") &&
     meetingScheduleShell.includes("fetchMeetingIntakeWithTimeout(inputText)") &&
+    meetingScheduleShell.includes("fetchMeetingAgentQueueWithTimeout({") &&
+    meetingScheduleShell.includes("getMeetingAgentQueueFailureMessage(error)") &&
+    meetingScheduleShell.includes(
+      "录制队列接口超时；会议页和日历已保留，可稍后重试接入 runner。"
+    ) &&
     meetingScheduleShell.includes("type MeetingImportReceipt") &&
     meetingScheduleShell.includes("const [intakeReceipt, setIntakeReceipt]") &&
     meetingScheduleShell.includes("buildMeetingImportReceipt(") &&
