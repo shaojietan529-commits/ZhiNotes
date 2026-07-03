@@ -12778,6 +12778,22 @@ function run() {
       "Stable-use operating mode must expose staging-first experimental policy.",
     ],
     [
+      "pagePendingStatus.authRetryStatus",
+      "Sync center local-use readiness must include page account retry state.",
+    ],
+    [
+      "databasePendingStatus.authRetryStatus",
+      "Sync center local-use readiness must include database account retry state.",
+    ],
+    [
+      "authRetryDomainLabel",
+      "Sync center local-use readiness must surface the account retry domains.",
+    ],
+    [
+      "authRetryUntilLabel",
+      "Sync center local-use readiness must surface the next account retry time.",
+    ],
+    [
       "实验改动先本地 / staging",
       "Stable-use operating mode must make staging-first behavior visible in Chinese.",
     ],

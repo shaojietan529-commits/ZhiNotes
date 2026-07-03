@@ -3083,6 +3083,10 @@ check(
   syncDashboardShell.includes("DevelopmentStabilityPlanPanel") &&
     syncDashboardShell.includes("buildDevelopmentStabilityPlan") &&
     syncDashboardShell.includes("syncLocalUseQueueSnapshot") &&
+    syncDashboardShell.includes("pagePendingStatus.authRetryStatus") &&
+    syncDashboardShell.includes("databasePendingStatus.authRetryStatus") &&
+    syncDashboardShell.includes("authRetryDomainLabel") &&
+    syncDashboardShell.includes("authRetryUntilLabel") &&
     syncDashboardShell.includes('id="development-stability-plan-panel"') &&
     syncDashboardShell.includes(
       'data-testid="development-stability-plan-panel"'

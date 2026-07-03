@@ -2191,6 +2191,17 @@ function SyncDashboard() {
       (databasePendingStatus.enabled ? 1 : 0) +
       (settingsVisibleWork ? 1 : 0) +
       (knowledgeVisibleWork ? 1 : 0);
+    const authRetryDomainLabel = [
+      pagePendingStatus.authRetryStatus ? "页面" : null,
+      databasePendingStatus.authRetryStatus ? "数据库" : null,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join("/");
+    const authRetryUntil =
+      [pagePendingStatus.authRetryUntil, databasePendingStatus.authRetryUntil]
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null;
     return {
       pendingTotal,
       failedTotal,
@@ -2203,6 +2214,8 @@ function SyncDashboard() {
       knowledgePendingTotal: knowledgeWaiting,
       fileFailedTotal: fileEmbedPendingStatus.failed,
       fileManualReviewTotal: fileEmbedPendingStatus.manualReviewCount,
+      authRetryDomainLabel,
+      authRetryUntilLabel: authRetryUntil ? formatDate(authRetryUntil) : null,
     };
   }, [
     databasePendingStatus,
@@ -2239,6 +2252,8 @@ function SyncDashboard() {
       knowledgePendingTotal: syncLocalUseQueueSnapshot.knowledgePendingTotal,
       fileFailedTotal: syncLocalUseQueueSnapshot.fileFailedTotal,
       fileManualReviewTotal: syncLocalUseQueueSnapshot.fileManualReviewTotal,
+      authRetryDomainLabel: syncLocalUseQueueSnapshot.authRetryDomainLabel,
+      authRetryUntilLabel: syncLocalUseQueueSnapshot.authRetryUntilLabel,
     });
   }, [syncLocalUseQueueSnapshot]);
   const developmentStabilityPlan = useMemo(
