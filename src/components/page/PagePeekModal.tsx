@@ -132,6 +132,7 @@ export default function PagePeekModal({
   const [localIconDraft, setLocalIconDraft] = useState<
     string | null | undefined
   >(undefined);
+  const [peekLocalDraftVersion, setPeekLocalDraftVersion] = useState(0);
   const [bodyHydrationStatus, setBodyHydrationStatus] = useState(() =>
     getPageBodyHydrationStatus(pageId)
   );
@@ -151,6 +152,7 @@ export default function PagePeekModal({
   const contentSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const localIconDraftRef = useRef<string | null | undefined>(undefined);
   const iconSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const localDraftPageRef = useRef<Page | null>(initialPeekPage);
   const isSwitchingPeekPage = renderedPeekPageId !== pageId;
   const currentLoadedPage = page?.id === pageId ? page : null;
   const currentFallbackPage = fallbackPage?.id === pageId ? fallbackPage : null;
@@ -185,6 +187,17 @@ export default function PagePeekModal({
   const childPagesEnabled = editorMounted && childPagesReadyPageId === pageId;
   const bodyHydrationLabel =
     describePageBodyHydrationStatus(bodyHydrationStatus);
+  const hasActiveLocalDraft =
+    localTitleDraftRef.current !== null ||
+    pendingTitleRef.current !== null ||
+    localPropertiesDraftRef.current !== null ||
+    localContentDraftRef.current !== null ||
+    localIconDraftRef.current !== undefined;
+  const peekLocalSaveLabel = hasActiveLocalDraft
+    ? "本地已暂存，后台保存中"
+    : hasEffectivePage
+      ? "本地已保存，同步队列后台处理"
+      : "正在读取本地页面";
   const latestPeekSaveRef = useRef({
     basePage: effectivePage,
     update,
@@ -209,9 +222,12 @@ export default function PagePeekModal({
     recordedPeekPerformancePageIdRef.current = null;
     readyNotifiedPageIdRef.current = null;
     localIconDraftRef.current = undefined;
+    localDraftPageRef.current = getInitialPeekPage(pageId, initialPage);
+    setPeekLocalDraftVersion((version) => version + 1);
     setLocalIconDraft(undefined);
     queueMicrotask(() => {
       const nextInitial = getInitialPeekPage(pageId, initialPage);
+      localDraftPageRef.current = nextInitial;
       applyPeekMetadataSnapshot(
         nextInitial,
         setFallbackPage,
@@ -317,6 +333,15 @@ export default function PagePeekModal({
 
   useEffect(() => {
     if (!effectivePage) return;
+    if (
+      localTitleDraftRef.current === null &&
+      pendingTitleRef.current === null &&
+      localPropertiesDraftRef.current === null &&
+      localContentDraftRef.current === null &&
+      localIconDraftRef.current === undefined
+    ) {
+      localDraftPageRef.current = effectivePage;
+    }
     publishPageBodyHydrationStatus({
       pageId,
       phase:
@@ -371,6 +396,29 @@ export default function PagePeekModal({
       },
     });
   }, [effectivePage, isOptimisticDraft, metadataLoading, onReady, pageId]);
+
+  const rememberPeekLocalDraft = useCallback(
+    (updates: PeekPageUpdates) => {
+      const latest = latestPeekSaveRef.current;
+      const basePage =
+        localDraftPageRef.current?.id === pageId
+          ? localDraftPageRef.current
+          : latest.basePage;
+      if (!basePage) return null;
+      const nextPage: Page = {
+        ...basePage,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      };
+      localDraftPageRef.current = nextPage;
+      setFallbackPage(nextPage);
+      upsertPages([nextPage]);
+      rememberPendingPageDraft(nextPage);
+      setPeekLocalDraftVersion((version) => version + 1);
+      return nextPage;
+    },
+    [pageId, upsertPages]
+  );
 
   const handleOpenFullPage = useCallback(() => {
     const seed = effectivePage ?? getInitialPeekPage(pageId, initialPage);
@@ -448,6 +496,7 @@ export default function PagePeekModal({
         } finally {
           if (localTitleDraftRef.current === next) {
             localTitleDraftRef.current = null;
+            setPeekLocalDraftVersion((version) => version + 1);
           }
         }
       };
@@ -499,21 +548,24 @@ export default function PagePeekModal({
     (next: string) => {
       localTitleDraftRef.current = next;
       setTitle(next);
+      rememberPeekLocalDraft({ title: next });
       schedulePeekTitleSave(next);
     },
-    [schedulePeekTitleSave]
+    [rememberPeekLocalDraft, schedulePeekTitleSave]
   );
 
   const handlePropertiesChange = useCallback(
     async (next: PageProperty[]) => {
       localPropertiesDraftRef.current = next;
       setProperties(next);
+      const propertiesValue = stringifyPageProperties(next);
+      rememberPeekLocalDraft({ properties: propertiesValue });
       const run = async () => {
         const latest = latestPeekSaveRef.current;
         try {
           await persistPeekUpdate({
             basePage: latest.basePage,
-            updates: { properties: stringifyPageProperties(next) },
+            updates: { properties: propertiesValue },
             update: latest.update,
             setFallbackPage,
             upsertPages: latest.upsertPages,
@@ -522,6 +574,7 @@ export default function PagePeekModal({
         } finally {
           if (localPropertiesDraftRef.current === next) {
             localPropertiesDraftRef.current = null;
+            setPeekLocalDraftVersion((version) => version + 1);
           }
         }
       };
@@ -529,36 +582,41 @@ export default function PagePeekModal({
       propertiesSaveQueueRef.current = queued.catch(() => undefined);
       await queued;
     },
-    []
+    [rememberPeekLocalDraft]
   );
 
-  const persistPeekIcon = useCallback(async (icon: string | null) => {
-    localIconDraftRef.current = icon;
-    setLocalIconDraft(icon);
-    const run = async () => {
-      const latest = latestPeekSaveRef.current;
-      try {
-        await persistPeekUpdate({
-          basePage: latest.basePage,
-          updates: { icon },
-          update: latest.update,
-          setFallbackPage,
-          upsertPages: latest.upsertPages,
-        });
-        latest.onChanged?.();
-      } finally {
-        if (localIconDraftRef.current === icon) {
-          localIconDraftRef.current = undefined;
-          setLocalIconDraft((current) =>
-            current === icon ? undefined : current
-          );
+  const persistPeekIcon = useCallback(
+    async (icon: string | null) => {
+      localIconDraftRef.current = icon;
+      setLocalIconDraft(icon);
+      rememberPeekLocalDraft({ icon });
+      const run = async () => {
+        const latest = latestPeekSaveRef.current;
+        try {
+          await persistPeekUpdate({
+            basePage: latest.basePage,
+            updates: { icon },
+            update: latest.update,
+            setFallbackPage,
+            upsertPages: latest.upsertPages,
+          });
+          latest.onChanged?.();
+        } finally {
+          if (localIconDraftRef.current === icon) {
+            localIconDraftRef.current = undefined;
+            setLocalIconDraft((current) =>
+              current === icon ? undefined : current
+            );
+            setPeekLocalDraftVersion((version) => version + 1);
+          }
         }
-      }
-    };
-    const queued = iconSaveQueueRef.current.then(run, run);
-    iconSaveQueueRef.current = queued.catch(() => undefined);
-    await queued;
-  }, []);
+      };
+      const queued = iconSaveQueueRef.current.then(run, run);
+      iconSaveQueueRef.current = queued.catch(() => undefined);
+      await queued;
+    },
+    [rememberPeekLocalDraft]
+  );
 
   const handleIconChange = useCallback(
     async (icon: string) => persistPeekIcon(icon),
@@ -573,6 +631,7 @@ export default function PagePeekModal({
   const handleContentUpdate = useCallback(
     async (html: string) => {
       localContentDraftRef.current = html;
+      rememberPeekLocalDraft({ content_text: html });
       const run = async () => {
         const latest = latestPeekSaveRef.current;
         try {
@@ -587,6 +646,7 @@ export default function PagePeekModal({
         } finally {
           if (localContentDraftRef.current === html) {
             localContentDraftRef.current = null;
+            setPeekLocalDraftVersion((version) => version + 1);
           }
         }
       };
@@ -594,7 +654,7 @@ export default function PagePeekModal({
       contentSaveQueueRef.current = queued.catch(() => undefined);
       await queued;
     },
-    []
+    [rememberPeekLocalDraft]
   );
 
   return (
@@ -615,23 +675,46 @@ export default function PagePeekModal({
         role="dialog"
         aria-label="页面弹窗"
       >
-        <header className="flex items-center justify-end gap-1 border-b border-zinc-100 px-3 py-2 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={handleOpenFullPage}
-            className="rounded px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-            title="打开完整页面（⌘+回车）"
+        <header className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3 py-2 dark:border-zinc-800">
+          <div
+            className="flex min-w-0 items-center gap-2 text-xs text-zinc-400"
+            role="status"
+            aria-live="polite"
+            data-testid="page-peek-local-save-status"
+            data-local-draft-active={hasActiveLocalDraft}
+            data-local-draft-version={peekLocalDraftVersion}
           >
-            打开完整页面 ↗ <span className="ml-1 text-[10px] text-zinc-400">⌘⏎</span>
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            aria-label="关闭"
-          >
-            ✕
-          </button>
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                hasActiveLocalDraft
+                  ? "bg-amber-400"
+                  : hasEffectivePage
+                    ? "bg-emerald-400"
+                    : "bg-zinc-400"
+              }`}
+              aria-hidden="true"
+            />
+            <span className="truncate">{peekLocalSaveLabel}</span>
+          </div>
+          <div className="flex shrink-0 items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={handleOpenFullPage}
+              className="rounded px-2 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              title="打开完整页面（⌘+回车）"
+            >
+              打开完整页面 ↗{" "}
+              <span className="ml-1 text-[10px] text-zinc-400">⌘⏎</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-7 w-7 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              aria-label="关闭"
+            >
+              ✕
+            </button>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto px-10 py-6">

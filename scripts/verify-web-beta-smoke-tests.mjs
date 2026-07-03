@@ -6410,6 +6410,38 @@ function run() {
       "PagePeekModal icon saves must stay ordered so older saves cannot win over newer local input.",
     ],
     [
+      "const localDraftPageRef = useRef<Page | null>(initialPeekPage)",
+      "PagePeekModal must keep a cumulative local draft snapshot so rapid title/body/property edits merge instead of overwriting one another.",
+    ],
+    [
+      "const [peekLocalDraftVersion, setPeekLocalDraftVersion] = useState(0)",
+      "PagePeekModal must re-render local save status when short-lived pending drafts are written or settled.",
+    ],
+    [
+      "const rememberPeekLocalDraft = useCallback(",
+      "PagePeekModal must write short-lived local pending drafts before waiting on IndexedDB or cloud queues.",
+    ],
+    [
+      "rememberPendingPageDraft(nextPage)",
+      "PagePeekModal immediate local draft writes must use the same short-lived recovery layer as fallback persistence.",
+    ],
+    [
+      'data-testid="page-peek-local-save-status"',
+      "PagePeekModal must expose visible local save status in the peek header.",
+    ],
+    [
+      "data-local-draft-active={hasActiveLocalDraft}",
+      "PagePeekModal local save status must expose whether there are active unsynced local drafts.",
+    ],
+    [
+      "本地已暂存，后台保存中",
+      "PagePeekModal must tell the user when their edit is locally staged before background persistence finishes.",
+    ],
+    [
+      "本地已保存，同步队列后台处理",
+      "PagePeekModal must tell the user when local persistence has settled while cloud sync remains asynchronous.",
+    ],
+    [
       "preserveTitle: localTitleDraftRef.current !== null",
       "PagePeekModal metadata refreshes must preserve in-progress local title edits.",
     ],
@@ -6430,6 +6462,10 @@ function run() {
       "PagePeekModal title changes must mark a protected local draft before background persistence starts.",
     ],
     [
+      "rememberPeekLocalDraft({ title: next })",
+      "PagePeekModal title changes must be recoverable from the local pending draft layer before the debounce flushes.",
+    ],
+    [
       "if (localTitleDraftRef.current === next) {\n            localTitleDraftRef.current = null;",
       "PagePeekModal title draft protection must clear only after the latest matching save settles.",
     ],
@@ -6438,12 +6474,20 @@ function run() {
       "PagePeekModal property changes must mark a protected local draft before background persistence starts.",
     ],
     [
+      "rememberPeekLocalDraft({ properties: propertiesValue })",
+      "PagePeekModal property changes must be recoverable from the local pending draft layer before async persistence settles.",
+    ],
+    [
       "if (localPropertiesDraftRef.current === next) {\n            localPropertiesDraftRef.current = null;",
       "PagePeekModal property draft protection must clear only after the latest matching save settles.",
     ],
     [
       "localContentDraftRef.current = html",
       "PagePeekModal content changes must mark a protected local draft before background persistence starts.",
+    ],
+    [
+      "rememberPeekLocalDraft({ content_text: html })",
+      "PagePeekModal content changes must be recoverable from the local pending draft layer before async persistence settles.",
     ],
     [
       "if (localContentDraftRef.current === html) {\n            localContentDraftRef.current = null;",
@@ -6458,7 +6502,11 @@ function run() {
       "PagePeekModal icon changes must mark a protected local draft before background persistence starts.",
     ],
     [
-      "if (localIconDraftRef.current === icon) {\n          localIconDraftRef.current = undefined;",
+      "rememberPeekLocalDraft({ icon })",
+      "PagePeekModal icon changes must be recoverable from the local pending draft layer before async persistence settles.",
+    ],
+    [
+      "if (localIconDraftRef.current === icon) {\n            localIconDraftRef.current = undefined;",
       "PagePeekModal icon draft protection must clear only after the latest matching save settles.",
     ],
     [
