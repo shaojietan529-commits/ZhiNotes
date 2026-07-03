@@ -370,8 +370,8 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
   );
 
   const handleCreatePage = async () => {
-    const { createPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
-    const page = await createPageWithCloud({
+    const { createOptimisticPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
+    const page = createOptimisticPageWithCloud({
       title: trimmedQuery || "未命名",
     });
     upsertPages([page]);
@@ -380,8 +380,8 @@ export default function QuickSearch({ initialOpen = false }: QuickSearchProps) {
   };
 
   const handleCreateBlankPage = async () => {
-    const { createPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
-    const page = await createPageWithCloud();
+    const { createOptimisticPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
+    const page = createOptimisticPageWithCloud();
     upsertPages([page]);
     openPage(page, { source: "quick-search-create" });
     resetPalette();

@@ -1924,6 +1924,7 @@ check(
 );
 
 const pageShell = read("src/components/providers/PageShell.tsx");
+const cloudPageMutations = read("src/lib/pages/cloudPageMutations.ts");
 const pageRoute = read("src/app/(workspace)/page/[pageId]/page.tsx");
 const pageRouteLoading = read("src/app/(workspace)/page/[pageId]/loading.tsx");
 const pageRouteSkeleton = read("src/components/page/PageRouteSkeleton.tsx");
@@ -1988,7 +1989,12 @@ check(
   pageStructureMutationBody.includes(
     "collectMovedPageSnapshots(useWorkspaceStore.getState().pages, moved)"
   ) &&
+    pageStructureMutationBody.includes("createOptimisticPageWithCloud") &&
     pageStructureMutationBody.includes("upsertPages([child])") &&
+    pageStructureMutationBody.includes("void update({ content_text: html });") &&
+    pageStructureMutationBody.indexOf(
+      'openPage(child, { source: "child-page-create" })'
+    ) > pageStructureMutationBody.indexOf("void update({ content_text: html });") &&
     pageStructureMutationBody.includes("const optimisticDuplicate =") &&
     pageStructureMutationBody.includes("upsertPages([optimisticDuplicate])") &&
     pageStructureMutationBody.includes(
@@ -2000,7 +2006,22 @@ check(
     pageStructureMutationBody.includes("await remove()") &&
     !pageStructureMutationBody.includes("await refresh()") &&
     !pageShell.includes("const { refresh } = usePages({ autoLoad: false })"),
-  "PageShell 粘贴/移动/删除/创建子页面/复制页面必须局部 upsert；复制页面应先打开乐观副本，再后台写正文链接，不能在大批量页面后触发全量 metadata 刷新"
+  "PageShell 粘贴/移动/删除/创建子页面/复制页面必须局部 upsert；创建子页面应先打开乐观页面壳并后台保存父页面链接；复制页面应先打开乐观副本，再后台写正文链接，不能在大批量页面后触发全量 metadata 刷新"
+);
+check(
+  cloudPageMutations.includes("export function createOptimisticPageWithCloud") &&
+    cloudPageMutations.includes("const page = createCloudDraftFallbackPage(opts);") &&
+    cloudPageMutations.includes("rememberPendingPageDraft(page)") &&
+    cloudPageMutations.includes("publishCreatedPageSnapshot(page, \"optimistic-local\")") &&
+    cloudPageMutations.includes("void persistOptimisticCreatedPage(page, opts);") &&
+    cloudPageMutations.includes("return page;") &&
+    cloudPageMutations.includes("id: seed.id") &&
+    cloudPageMutations.includes("getExistingOptimisticPage(seed.id)") &&
+    cloudPageMutations.includes("writePageListHotCacheSnapshot") &&
+    cloudPageMutations.includes("clearPendingPageDraft(seed.id)") &&
+    cloudPageMutations.includes("void queuePageCloudPush(page).catch(() => undefined)") &&
+    cloudPageMutations.includes("void queuePageCloudPush(seed).catch(() => undefined)"),
+  "页面手动创建应同步返回本地乐观页面壳，用同一 id 后台落本地库并排队云同步；若本地插入竞态失败，应先读取已有同 id 页面，不能用空草稿覆盖用户输入"
 );
 check(
   !pageShell.includes("const pages = useWorkspaceStore((s) => s.pages)") &&
@@ -2278,6 +2299,12 @@ check(
 const localQueries = read("src/lib/db/local/queries.ts");
 const localSchema = read("src/lib/db/local/schema.ts");
 const localClient = read("src/lib/db/local/client.ts");
+check(
+  localQueries.includes("id?: string;") &&
+    localQueries.includes("const id = opts?.id ?? generateId();") &&
+    localQueries.includes("recordSyncChange("),
+  "本地 createPage 应允许乐观页面壳传入稳定 id，并继续写入 sync_log，避免点击新建后出现两个页面 id"
+);
 check(
   localQueries.includes("export async function getBlockCommentCount") &&
     localQueries.includes("SELECT COUNT(*) as count FROM block_comments") &&

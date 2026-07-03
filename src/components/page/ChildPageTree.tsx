@@ -139,8 +139,8 @@ export default function ChildPageTree({ pageId }: { pageId: string }) {
 
   const addChild = useCallback(
     async (parentId: string) => {
-      const { createPageWithCloud } = await loadPageMutationModule();
-      const child = await createPageWithCloud({ parentId });
+      const { createOptimisticPageWithCloud } = await loadPageMutationModule();
+      const child = createOptimisticPageWithCloud({ parentId });
       upsertPages([child]);
       setScopedSnapshot((current) => ({
         pageId,

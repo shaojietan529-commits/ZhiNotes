@@ -102,6 +102,7 @@ const files = {
   accountShell: "src/components/modules/AccountShell.tsx",
   accountMeRoute: "src/app/api/account/me/route.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  cloudPageMutations: "src/lib/pages/cloudPageMutations.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -551,6 +552,7 @@ function run() {
   const accountShell = readProjectFile(files.accountShell);
   const accountMeRoute = readProjectFile(files.accountMeRoute);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const cloudPageMutations = readProjectFile(files.cloudPageMutations);
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
@@ -15256,6 +15258,92 @@ function run() {
     sidebar,
     'openPage(page, { source: "sidebar-create" })',
     "Sidebar page creation must use local-first page navigation."
+  );
+  for (const [snippet, message] of [
+    [
+      "export function createOptimisticPageWithCloud",
+      "Page mutations must expose a synchronous optimistic page create for click-to-open flows.",
+    ],
+    [
+      "const page = createCloudDraftFallbackPage(opts);",
+      "Optimistic page creation must allocate a local page shell before local database work.",
+    ],
+    [
+      "void persistOptimisticCreatedPage(page, opts);",
+      "Optimistic page creation must persist the shell in the background.",
+    ],
+    [
+      "return page;",
+      "Optimistic page creation must return the shell synchronously.",
+    ],
+    [
+      "id: seed.id",
+      "Background local page creation must reuse the optimistic page id.",
+    ],
+    [
+      "getExistingOptimisticPage(seed.id)",
+      "Optimistic page creation must recover when an edit creates the local row before the insert finishes.",
+    ],
+    [
+      "writePageListHotCacheSnapshot",
+      "Optimistic page creation must refresh the page-list hot cache for fast refresh after create.",
+    ],
+  ]) {
+    assertIncludes(files.cloudPageMutations, cloudPageMutations, snippet, message);
+  }
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "id?: string;",
+    "Local page create must accept a caller-provided id for optimistic shells."
+  );
+  assertIncludes(
+    files.localQueries,
+    localQueries,
+    "const id = opts?.id ?? generateId();",
+    "Local page create must preserve optimistic ids instead of generating a second page id."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "createOptimisticPageWithCloud",
+    "Sidebar page creation must open from a synchronous optimistic page shell."
+  );
+  assertIncludes(
+    files.quickSearch,
+    quickSearch,
+    "createOptimisticPageWithCloud",
+    "Quick search page creation must open from a synchronous optimistic page shell."
+  );
+  assertIncludes(
+    files.pageTree,
+    pageTree,
+    "createOptimisticPageWithCloud",
+    "Sidebar child-page creation must open from a synchronous optimistic page shell."
+  );
+  assertIncludes(
+    files.notesShell,
+    notesShell,
+    "createOptimisticPageWithCloud",
+    "Notes blank-page creation must open from a synchronous optimistic page shell."
+  );
+  assertIncludes(
+    files.childPageTree,
+    childPageTree,
+    "createOptimisticPageWithCloud",
+    "Child page tree blank-page creation must open from a synchronous optimistic page shell."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "createOptimisticPageWithCloud",
+    "PageShell sub-page creation must open from a synchronous optimistic page shell."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "void update({ content_text: html });",
+    "PageShell sub-page creation must save the parent backlink in the background instead of blocking the child open."
   );
   assertIncludes(
     files.pageTree,

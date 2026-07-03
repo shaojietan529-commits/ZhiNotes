@@ -318,8 +318,8 @@ function NotesDashboard() {
     setBusyAction("blank-page");
     warmPagePeekModal();
     try {
-      const { createPageWithCloud } = await loadPageMutationModule();
-      const page = await createPageWithCloud({
+      const { createOptimisticPageWithCloud } = await loadPageMutationModule();
+      const page = createOptimisticPageWithCloud({
         title: "未命名研究笔记",
         icon: "NOTE",
       });

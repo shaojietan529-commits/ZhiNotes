@@ -145,8 +145,8 @@ function PageTreeItem({
 
   const handleAddChild = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const { createPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
-    const child = await createPageWithCloud({ parentId: page.id });
+    const { createOptimisticPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
+    const child = createOptimisticPageWithCloud({ parentId: page.id });
     onPageMutated([child]);
     setExpanded(true);
     onNavigate(child.id, child);

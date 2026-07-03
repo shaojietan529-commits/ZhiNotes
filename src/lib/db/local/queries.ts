@@ -1983,13 +1983,14 @@ export async function getPageForContentHydration(
 }
 
 export async function createPage(opts?: {
+  id?: string;
   title?: string;
   parentId?: string | null;
   icon?: string;
 }): Promise<Page> {
   const db = await getDb();
   const now = nowISO();
-  const id = generateId();
+  const id = opts?.id ?? generateId();
   // Notion-style: new pages start untitled; UIs render a "新页面" ghost
   // placeholder instead of storing a throwaway name the user must delete.
   const title = opts?.title ?? "";

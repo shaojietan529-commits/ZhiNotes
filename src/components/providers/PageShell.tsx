@@ -1218,14 +1218,15 @@ function PageContent({ pageId }: { pageId: string }) {
   const handleAddSubPage = useCallback(async () => {
     if (locked) return;
     try {
-      const { createPageWithCloud } = await loadPageMutationModule();
-      const child = await createPageWithCloud({ parentId: pageId });
+      const { createOptimisticPageWithCloud } = await loadPageMutationModule();
+      const child = createOptimisticPageWithCloud({ parentId: pageId });
       upsertPages([child]);
       // Insert a link to the sub-page in the parent editor
       const html = editorRef.current?.insertSubPageLink(child.id, child.title);
-      // Save immediately before navigating away (don't wait for debounce)
+      // Save the parent link in the background; the child page should open
+      // immediately from the local optimistic shell.
       if (html) {
-        await update({ content_text: html });
+        void update({ content_text: html });
       }
       openPage(child, { source: "child-page-create" });
     } catch (err) {

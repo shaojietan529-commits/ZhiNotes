@@ -9,8 +9,14 @@ import {
   movePage as moveLocalPage,
   updatePage as updateLocalPage,
 } from "@/lib/db/local/queries";
-import { rememberPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import {
+  clearPendingPageDraft,
+  rememberPendingPageDraft,
+} from "@/lib/pages/pendingPageDrafts";
+import { emitPageSnapshotsUpdated } from "@/lib/pages/pageUpdateBus";
+import { writePageListHotCacheSnapshot } from "@/lib/sync/pageListHotCacheSnapshot";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
 
 type CreatePageOptions = Parameters<typeof createLocalPage>[0];
@@ -30,6 +36,16 @@ export async function createPageWithCloud(
     rememberPendingPageDraft(page);
   }
   void queuePageCloudPush(page).catch(() => undefined);
+  return page;
+}
+
+export function createOptimisticPageWithCloud(
+  opts?: CreatePageOptions
+): Page {
+  const page = createCloudDraftFallbackPage(opts);
+  rememberPendingPageDraft(page);
+  publishCreatedPageSnapshot(page, "optimistic-local");
+  void persistOptimisticCreatedPage(page, opts);
   return page;
 }
 
@@ -113,10 +129,60 @@ async function queuePageSubtreePush(rootId: string): Promise<void> {
   }
 }
 
+async function persistOptimisticCreatedPage(
+  seed: Page,
+  opts?: CreatePageOptions
+): Promise<void> {
+  try {
+    const page = await createLocalPage({
+      ...opts,
+      id: seed.id,
+    });
+    publishCreatedPageSnapshot(page, "local-metadata");
+    clearPendingPageDraft(seed.id);
+    void queuePageCloudPush(page).catch(() => undefined);
+  } catch (error) {
+    const existing = await getExistingOptimisticPage(seed.id);
+    if (existing) {
+      publishCreatedPageSnapshot(existing, "local-metadata");
+      clearPendingPageDraft(seed.id);
+      void queuePageCloudPush(existing).catch(() => undefined);
+      return;
+    }
+    console.warn("Optimistic page local create failed; keeping draft fallback", error);
+    rememberPendingPageDraft(seed);
+    void queuePageCloudPush(seed).catch(() => undefined);
+  }
+}
+
+async function getExistingOptimisticPage(pageId: string): Promise<Page | null> {
+  try {
+    return await getPage(pageId);
+  } catch {
+    return null;
+  }
+}
+
+function publishCreatedPageSnapshot(
+  page: Page,
+  source: "optimistic-local" | "local-metadata"
+): void {
+  const store = useWorkspaceStore.getState();
+  store.upsertPages([page]);
+  writePageListHotCacheSnapshot({
+    pages: useWorkspaceStore.getState().pages,
+    source,
+  });
+  emitPageSnapshotsUpdated("cloud-push", [page]);
+}
+
 function createCloudDraftFallbackPage(opts?: CreatePageOptions): Page {
   const now = new Date().toISOString();
+  const parent = opts?.parentId
+    ? useWorkspaceStore.getState().getPageById(opts.parentId)
+    : null;
   return {
-    id: generateId(),
+    id: opts?.id ?? generateId(),
     owner_id: DEFAULT_OWNER_ID,
     parent_id: opts?.parentId ?? null,
     database_id: null,
@@ -127,7 +193,7 @@ function createCloudDraftFallbackPage(opts?: CreatePageOptions): Page {
     content_text: "",
     properties: null,
     position: Date.now(),
-    depth: opts?.parentId ? 1 : 0,
+    depth: parent ? parent.depth + 1 : opts?.parentId ? 1 : 0,
     created_at: now,
     updated_at: now,
     deleted_at: null,

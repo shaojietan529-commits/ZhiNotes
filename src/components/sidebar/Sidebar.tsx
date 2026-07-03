@@ -912,8 +912,8 @@ export default function Sidebar() {
 
   const handleNewPage = async () => {
     try {
-      const { createPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
-      const page = await createPageWithCloud();
+      const { createOptimisticPageWithCloud } = await import("@/lib/pages/cloudPageMutations");
+      const page = createOptimisticPageWithCloud();
       openPage(page, { source: "sidebar-create" });
     } catch (err) {
       console.error("[Zhinote] Failed to create page:", err);
