@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getSyncLogSummary,
   SYNC_LOG_STATUS_EVENT,
+  SYNC_LOG_STATUS_STORAGE_KEY,
   type SyncLogSummary,
 } from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -114,15 +115,21 @@ export function useGlobalSyncLogStatus() {
       if (document.visibilityState === "visible") void refresh();
     };
     const handleStatus = () => void refresh();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== SYNC_LOG_STATUS_STORAGE_KEY || !event.newValue) return;
+      void refresh();
+    };
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);
     window.addEventListener(SYNC_LOG_STATUS_EVENT, handleStatus);
+    window.addEventListener("storage", handleStorage);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
       window.removeEventListener(SYNC_LOG_STATUS_EVENT, handleStatus);
+      window.removeEventListener("storage", handleStorage);
       document.removeEventListener("visibilitychange", handleVisible);
     };
   }, [dbReady, refresh]);

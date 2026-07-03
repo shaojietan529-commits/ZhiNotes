@@ -12,11 +12,18 @@ import {
 import type { BlockComment, Page, PageComment, PageVersion } from "@/lib/utils/types";
 
 export const SYNC_LOG_STATUS_EVENT = "zhinote:sync-log-status";
+export const SYNC_LOG_STATUS_STORAGE_KEY = "zhinote:sync-log-status-updated";
 export const SYNC_LOG_MANUAL_REVIEW_FAILURE_THRESHOLD = 3;
 
 export function emitSyncLogStatusEvent(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(SYNC_LOG_STATUS_EVENT));
+  try {
+    // Cross-tab hint only: this stores a timestamp, never sync payloads or note content.
+    window.localStorage.setItem(SYNC_LOG_STATUS_STORAGE_KEY, String(Date.now()));
+  } catch {
+    // Status badges still refresh through same-tab events and polling if storage is unavailable.
+  }
 }
 
 export interface SyncLogSummary {

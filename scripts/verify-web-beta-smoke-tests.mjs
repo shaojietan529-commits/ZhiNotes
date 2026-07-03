@@ -8880,6 +8880,24 @@ function run() {
   assertIncludes(
     files.globalSyncLogStatusHook,
     globalSyncLogStatusHook,
+    "SYNC_LOG_STATUS_STORAGE_KEY",
+    "Global sync_log status hook must subscribe to the content-free cross-tab sync_log timestamp hint."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    'window.addEventListener("storage", handleStorage)',
+    "Global sync_log status hook must refresh when another tab changes the sync_log queue."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "event.key !== SYNC_LOG_STATUS_STORAGE_KEY",
+    "Global sync_log status hook must ignore unrelated localStorage churn."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
     "reads_sync_log_payloads: false",
     "Global sync_log status hook must stay metadata-only and never read sync_log payloads."
   );
@@ -8917,6 +8935,18 @@ function run() {
     [
       'SYNC_LOG_STATUS_EVENT = "zhinote:sync-log-status"',
       "Local sync_log mutations must expose one content-free global status event.",
+    ],
+    [
+      'SYNC_LOG_STATUS_STORAGE_KEY = "zhinote:sync-log-status-updated"',
+      "Local sync_log mutations must expose one content-free cross-tab timestamp hint.",
+    ],
+    [
+      "window.localStorage.setItem(SYNC_LOG_STATUS_STORAGE_KEY, String(Date.now()))",
+      "Local sync_log mutations must ping other tabs without storing sync payloads.",
+    ],
+    [
+      "never sync payloads or note content",
+      "Local sync_log cross-tab pings must document that they never store note content.",
     ],
     [
       "export function emitSyncLogStatusEvent",

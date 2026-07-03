@@ -2873,10 +2873,14 @@ check(
 check(
   globalSyncLogStatusHook.includes("getSyncLogSummary") &&
     globalSyncLogStatusHook.includes("SYNC_LOG_STATUS_EVENT") &&
+    globalSyncLogStatusHook.includes("SYNC_LOG_STATUS_STORAGE_KEY") &&
+    globalSyncLogStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
+    globalSyncLogStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
+    globalSyncLogStatusHook.includes("event.key !== SYNC_LOG_STATUS_STORAGE_KEY") &&
     globalSyncLogStatusHook.includes("reads_sync_log_payloads: false") &&
     globalSyncLogStatusHook.includes("uploads_workspace_data: false") &&
     globalSyncLogStatusHook.includes("mutates_sync_log: false"),
-  "全域 sync_log 状态 hook 必须只读本地队列元数据，并监听 content-free sync_log 状态事件"
+  "全域 sync_log 状态 hook 必须只读本地队列元数据，并监听 content-free sync_log 状态事件和跨 tab 提醒"
 );
 check(
   accountLocalUseReadiness.includes("localInputCanContinue: true") &&
@@ -3028,9 +3032,13 @@ check(
 );
 check(
   localQueries.includes('SYNC_LOG_STATUS_EVENT = "zhinote:sync-log-status"') &&
+    localQueries.includes('SYNC_LOG_STATUS_STORAGE_KEY = "zhinote:sync-log-status-updated"') &&
     localQueries.includes("export function emitSyncLogStatusEvent") &&
+    localQueries.includes("window.localStorage.setItem(SYNC_LOG_STATUS_STORAGE_KEY, String(Date.now()))") &&
+    localQueries.includes("Cross-tab hint only") &&
+    localQueries.includes("never sync payloads or note content") &&
     localQueries.includes("emitSyncLogStatusEvent();"),
-  "sync_log 新增、ack、失败和重试状态变化后应发出不含内容的全域刷新事件，让同步中心全域队列计数及时更新"
+  "sync_log 新增、ack、失败和重试状态变化后应发出不含内容的全域刷新事件和跨 tab 时间戳提醒，让同步中心全域队列计数及时更新"
 );
 check(
   localQueries.includes("emitKnowledgeSyncStatusEvent") &&
