@@ -20,6 +20,7 @@
     "verify:research-workflow": "node scripts/verify-research-workflow-contract.mjs",
     "verify:replay-harness": "node scripts/verify-replay-harness-safety.mjs",
     "verify:account": "node scripts/verify-account-contract.mjs",
+    "verify:local-use-readiness": "node scripts/verify-local-use-readiness.mjs",
     "verify:zhihui-glossary": "node scripts/verify-zhihui-glossary-contract.mjs",
     "verify:web-beta": "node scripts/verify-web-beta-contract.mjs",
     "verify:web-beta:smoke": "node scripts/verify-web-beta-smoke-tests.mjs",

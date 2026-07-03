@@ -14,6 +14,13 @@ const verificationCommands = [
       "Check account/session stability, transient-error fallback, and sync gates.",
   },
   {
+    id: "verify-local-use-readiness",
+    command: "npm run verify:local-use-readiness",
+    args: ["run", "verify:local-use-readiness"],
+    purpose:
+      "Check local input continuity, pending/failed/manual review visibility, and cache rebuild blockers.",
+  },
+  {
     id: "verify-module-workspaces",
     command: "npm run verify:module-workspaces",
     args: ["run", "verify:module-workspaces"],
@@ -179,6 +186,7 @@ function printReceipt(startedAt, results, status) {
     },
     p0_coverage: [
       "account session does not collapse on transient failures",
+      "local input continuity, pending/failed/manual review visibility, and cache rebuild blockers stay mirrored in sidebar and sync center",
       "module workspace roots stay routable and extensible",
       "module center stable-use status and registry-backed module contracts stay visible",
       "database views, import/export, and local-only button actions stay inside safe local boundaries",
