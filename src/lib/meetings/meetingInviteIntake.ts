@@ -538,7 +538,7 @@ function findDate(
 
   // Bare numeric date: 6/14, 6-14, 6.14 — guarded against longer number runs
   const numericBare = text.match(
-    /(?:^|[^\d.\-/])(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})(?![\/\-\.]\d)/
+    /(?:^|[^\d.\-/])(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})(?!\d)(?!\s*(?:[\/\-\.]\d|[点时分]|[aApP]\.?[mM]\.?))/
   );
   if (numericBare && validMonthDay(Number(numericBare[1]), Number(numericBare[2]))) {
     return {
@@ -732,15 +732,16 @@ interface ClockHit {
   end: number;
 }
 
+const TIME_PERIOD_PATTERN =
+  "上午|下午|中午|晚上|凌晨|今晚|今早|今晨|明晚|明早|明晨|a\\.?m\\.?|p\\.?m\\.?";
+
 // Parse the first clock in the text: optional Chinese period marker, then
 // HH:MM or H点(MM分)? or H点半 or H时MM分, with Chinese/AM/PM markers
 // either before or after the clock. English hour-only readings like "4 PM"
 // are accepted only when an AM/PM marker is present.
 function parseClockAt(text: string): ClockHit | null {
-  const periodPattern =
-    "上午|下午|中午|晚上|凌晨|今晚|今早|今晨|明晚|明早|明晨|a\\.?m\\.?|p\\.?m\\.?";
   const re = new RegExp(
-    `(?:(${periodPattern})\\s*)?([01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN})\\s*(?:(?:[:：]\\s*([0-5]\\d)\\s*点?)|(?:[点时]\\s*(?:(半)|((?:[0-5]?\\d|${CHINESE_NUMBER_PATTERN}))\\s*分?)?)|(?=(?:${periodPattern})\\b))(?:\\s*(${periodPattern}))?`,
+    `(?:(${TIME_PERIOD_PATTERN})\\s*)?([01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN})\\s*(?:(?:[:：]\\s*([0-5]\\d)\\s*点?)|(?:[点时]\\s*(?:(半)|((?:[0-5]?\\d|${CHINESE_NUMBER_PATTERN}))\\s*分?)?)|(?=(?:${TIME_PERIOD_PATTERN})\\b))(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
     "i"
   );
   const m = re.exec(text);
@@ -788,6 +789,9 @@ function findTime(
 function parseTimeRange(
   text: string
 ): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
+  const compactRange = parseCompactHourRange(text);
+  if (compactRange) return compactRange;
+
   const first = parseClockAt(text);
   if (!first) return null;
   const startHour = applyChinesePeriod(first.rawHour, first.period);
@@ -806,6 +810,41 @@ function parseTimeRange(
   }
 
   return { hour: startHour, minute: first.minute, endHour, endMinute };
+}
+
+function parseCompactHourRange(
+  text: string
+): { hour: number; minute: number; endHour: number | null; endMinute: number | null } | null {
+  const hourPattern = `[01]?\\d|2[0-3]|${CHINESE_NUMBER_PATTERN}`;
+  const re = new RegExp(
+    `(?:(${TIME_PERIOD_PATTERN})\\s*)(${hourPattern})\\s*(?:-|--|---|~|至|到|to)\\s*(${hourPattern})\\s*(?:点|时)(半)?(?:\\s*(${TIME_PERIOD_PATTERN}))?`,
+    "i"
+  );
+  const m = re.exec(text);
+  if (!m) return null;
+
+  const period = m[1] || m[5] || "";
+  if (!period) return null;
+
+  const startHour = parseClockNumber(m[2]);
+  const endHour = parseClockNumber(m[3]);
+  if (
+    startHour === null ||
+    endHour === null ||
+    startHour < 0 ||
+    startHour > 23 ||
+    endHour < 0 ||
+    endHour > 23
+  ) {
+    return null;
+  }
+
+  return {
+    hour: applyChinesePeriod(startHour, period),
+    minute: 0,
+    endHour: applyChinesePeriod(endHour, period),
+    endMinute: m[4] === "半" ? 30 : 0,
+  };
 }
 
 function inferYearForMonthDay(month: number, day: number) {

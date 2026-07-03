@@ -177,14 +177,39 @@ const cases = [
     expected: { date: "2026-07-04", time: "20:00", endTime: "21:00", durationMinutes: 60 },
   },
   {
+    name: "Chinese tonight compact hour range without first 点",
+    input: "会议主题：测试会议\n时间：今晚8-9点",
+    expected: { date: "2026-07-04", time: "20:00", endTime: "21:00", durationMinutes: 60 },
+  },
+  {
     name: "Chinese tomorrow night compact relative time",
     input: "会议主题：测试会议\n时间：明晚8点-9点",
+    expected: { date: "2026-07-05", time: "20:00", endTime: "21:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese tomorrow night compact hour range without first 点",
+    input: "会议主题：测试会议\n时间：明晚8-9点",
     expected: { date: "2026-07-05", time: "20:00", endTime: "21:00", durationMinutes: 60 },
   },
   {
     name: "Chinese tomorrow morning compact relative time",
     input: "会议主题：测试会议\n时间：明早九点半",
     expected: { date: "2026-07-05", time: "09:30", endTime: "", durationMinutes: null },
+  },
+  {
+    name: "Chinese tomorrow morning compact hour range",
+    input: "会议主题：测试会议\n时间：明早9-10点",
+    expected: { date: "2026-07-05", time: "09:00", endTime: "10:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese relative day compact afternoon hour range",
+    input: "会议主题：测试会议\n时间：明天下午3-4点",
+    expected: { date: "2026-07-05", time: "15:00", endTime: "16:00", durationMinutes: 60 },
+  },
+  {
+    name: "Chinese compact hour range without date is not a fake date",
+    input: "会议主题：测试会议\n时间：下午3-4点",
+    expected: { date: "", time: "", endTime: "", durationMinutes: null },
   },
   {
     name: "Chinese tomorrow noon remains supported",
