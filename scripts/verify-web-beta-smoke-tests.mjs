@@ -6374,6 +6374,30 @@ function run() {
       "PagePeekModal must retain the latest pending title until blur, route change, or debounce flush.",
     ],
     [
+      "const localTitleDraftRef = useRef<string | null>(null)",
+      "PagePeekModal must remember active local title drafts so async hydration cannot overwrite user input.",
+    ],
+    [
+      "const titleSaveQueueRef = useRef<Promise<void>>(Promise.resolve())",
+      "PagePeekModal title saves must stay ordered so older saves cannot win over newer local input.",
+    ],
+    [
+      "preserveTitle: localTitleDraftRef.current !== null",
+      "PagePeekModal metadata refreshes must preserve in-progress local title edits.",
+    ],
+    [
+      "if (localTitleDraftRef.current === null) {\n        setTitle(effectivePage.title);\n      }",
+      "PagePeekModal body hydration must not reset a locally edited title while it is pending persistence.",
+    ],
+    [
+      "localTitleDraftRef.current = next",
+      "PagePeekModal title changes must mark a protected local draft before background persistence starts.",
+    ],
+    [
+      "if (localTitleDraftRef.current === next) {\n            localTitleDraftRef.current = null;",
+      "PagePeekModal title draft protection must clear only after the latest matching save settles.",
+    ],
+    [
       "schedulePeekTitleSave(next)",
       "PagePeekModal title changes must update the UI immediately and queue persistence in the background.",
     ],

@@ -90,10 +90,13 @@ function applyPeekMetadataSnapshot(
   page: Page | null,
   setFallbackPage: (page: Page | null) => void,
   setTitle: (title: string) => void,
-  setProperties: (properties: PageProperty[]) => void
+  setProperties: (properties: PageProperty[]) => void,
+  options: { preserveTitle?: boolean } = {}
 ) {
   setFallbackPage(page);
-  setTitle(page?.title ?? "");
+  if (!options.preserveTitle) {
+    setTitle(page?.title ?? "");
+  }
   setProperties(page ? parsePageProperties(page.properties) : []);
 }
 
@@ -135,6 +138,8 @@ export default function PagePeekModal({
   const readyNotifiedPageIdRef = useRef<string | null>(null);
   const titleSaveTimerRef = useRef<number | null>(null);
   const pendingTitleRef = useRef<string | null>(null);
+  const localTitleDraftRef = useRef<string | null>(null);
+  const titleSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const isSwitchingPeekPage = renderedPeekPageId !== pageId;
   const currentLoadedPage = page?.id === pageId ? page : null;
   const currentFallbackPage = fallbackPage?.id === pageId ? fallbackPage : null;
@@ -218,7 +223,8 @@ export default function PagePeekModal({
         nextInitial,
         setFallbackPage,
         setTitle,
-        setProperties
+        setProperties,
+        { preserveTitle: localTitleDraftRef.current !== null }
       );
       setMetadataLoading(false);
     };
@@ -261,7 +267,8 @@ export default function PagePeekModal({
             metadata,
             setFallbackPage,
             setTitle,
-            setProperties
+            setProperties,
+            { preserveTitle: localTitleDraftRef.current !== null }
           );
           upsertPages([metadata]);
         } else {
@@ -282,7 +289,9 @@ export default function PagePeekModal({
   useEffect(() => {
     if (!page) return;
     queueMicrotask(() => {
-      applyPeekMetadataSnapshot(page, setFallbackPage, setTitle, setProperties);
+      applyPeekMetadataSnapshot(page, setFallbackPage, setTitle, setProperties, {
+        preserveTitle: localTitleDraftRef.current !== null,
+      });
     });
   }, [page]);
 
@@ -296,7 +305,9 @@ export default function PagePeekModal({
       metadataOnly: effectivePage.content_text == null,
     });
     queueMicrotask(() => {
-      setTitle(effectivePage.title);
+      if (localTitleDraftRef.current === null) {
+        setTitle(effectivePage.title);
+      }
       setProperties(parsePageProperties(effectivePage.properties));
     });
   }, [effectivePage, pageId]);
@@ -401,15 +412,26 @@ export default function PagePeekModal({
 
   const persistPeekTitleNow = useCallback(
     async (next: string) => {
-      const latest = latestPeekSaveRef.current;
-      await persistPeekUpdate({
-        basePage: latest.basePage,
-        updates: { title: next },
-        update: latest.update,
-        setFallbackPage,
-        upsertPages: latest.upsertPages,
-      });
-      latest.onChanged?.();
+      const run = async () => {
+        const latest = latestPeekSaveRef.current;
+        try {
+          await persistPeekUpdate({
+            basePage: latest.basePage,
+            updates: { title: next },
+            update: latest.update,
+            setFallbackPage,
+            upsertPages: latest.upsertPages,
+          });
+          latest.onChanged?.();
+        } finally {
+          if (localTitleDraftRef.current === next) {
+            localTitleDraftRef.current = null;
+          }
+        }
+      };
+      const queued = titleSaveQueueRef.current.then(run, run);
+      titleSaveQueueRef.current = queued.catch(() => undefined);
+      await queued;
     },
     []
   );
@@ -453,6 +475,7 @@ export default function PagePeekModal({
 
   const handleTitleChange = useCallback(
     (next: string) => {
+      localTitleDraftRef.current = next;
       setTitle(next);
       schedulePeekTitleSave(next);
     },
