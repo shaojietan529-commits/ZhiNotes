@@ -9879,6 +9879,67 @@ function run() {
     'id="database-pending-upload-queue"',
     "Sync module must provide a stable anchor for the database pending upload queue."
   );
+  for (const [snippet, message] of [
+    [
+      "SYNC_CLOUD_API_REQUEST_TIMEOUT_MS = 12000",
+      "SyncShell cloud API requests must have a bounded browser-side timeout.",
+    ],
+    [
+      "class SyncCloudApiRequestTimeoutError extends Error",
+      "SyncShell cloud API timeouts must use a typed retryable error.",
+    ],
+    [
+      "async function fetchSyncCloudApiWithTimeout",
+      "SyncShell cloud API requests must route through one shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "SyncShell cloud API requests must be abortable.",
+    ],
+    [
+      "signal: controller.signal",
+      "SyncShell cloud API fetches must pass the abort signal.",
+    ],
+    [
+      "云端请求超时；本地输入和待上传队列已保留，可稍后重试。",
+      "SyncShell cloud API timeout copy must tell users local input and pending queues are preserved.",
+    ],
+    [
+      'fetchSyncCloudApiWithTimeout("/api/web-beta/environment-preflight")',
+      "SyncShell environment preflight must use the bounded cloud API helper.",
+    ],
+    [
+      'fetchSyncCloudApiWithTimeout(\n        "/api/auth/login/start"',
+      "SyncShell login-start action must use the bounded cloud API helper.",
+    ],
+    [
+      'fetchSyncCloudApiWithTimeout(\n        "/api/auth/session"',
+      "SyncShell session-check action must use the bounded cloud API helper.",
+    ],
+    [
+      'fetchSyncCloudApiWithTimeout("/api/workspaces"',
+      "SyncShell workspace actions must use the bounded cloud API helper.",
+    ],
+    [
+      "fetchSyncCloudApiWithTimeout(\n        `/api/workspaces/${workspaceId}/bootstrap`",
+      "SyncShell workspace bootstrap action must use the bounded cloud API helper.",
+    ],
+    [
+      "fetchSyncCloudApiWithTimeout(\n            `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`",
+      "SyncShell settings upload actions must use the bounded cloud API helper.",
+    ],
+    [
+      "fetchSyncCloudApiWithTimeout(\n        `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`",
+      "SyncShell settings pull actions must use the bounded cloud API helper.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  if ((syncShell.match(/\bfetch\(/g) ?? []).length !== 1) {
+    failures.push(
+      "SyncShell must keep direct fetch usage centralized in fetchSyncCloudApiWithTimeout."
+    );
+  }
   assertIncludes(
     files.sidebar,
     sidebar,

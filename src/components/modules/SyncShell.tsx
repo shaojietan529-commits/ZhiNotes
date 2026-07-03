@@ -598,6 +598,7 @@ const DATABASE_SYNC_STORAGE_KEY_PREFIX = "zhinote.databasesync.";
 const SYNC_DASHBOARD_PENDING_REFRESH_MS = 5000;
 const SYNC_DASHBOARD_IDLE_REFRESH_MS = 30 * 1000;
 const SYNC_LOG_SNAPSHOT_REFRESH_DEBOUNCE_MS = 250;
+const SYNC_CLOUD_API_REQUEST_TIMEOUT_MS = 12000;
 
 const loadWorkspaceBackupModule = () => import("@/lib/export/workspaceBackup");
 type SyncQueueAction =
@@ -1644,7 +1645,7 @@ function SyncDashboard() {
           getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY),
           getHotCacheLocalIndexSummary(),
           getPendingCloudDatabaseSyncStatus(),
-          fetch("/api/web-beta/environment-preflight")
+          fetchSyncCloudApiWithTimeout("/api/web-beta/environment-preflight")
             .then((response) => {
               if (!response.ok) {
                 throw new Error("Environment preflight failed.");
@@ -3206,16 +3207,19 @@ function SyncDashboard() {
     setBusyCloudAction("login");
     setCloudMessage(null);
     try {
-      const response = await fetch("/api/auth/login/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          redirectTo: `${window.location.origin}/auth/callback`,
-        }),
-      });
+      const response = await fetchSyncCloudApiWithTimeout(
+        "/api/auth/login/start",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            redirectTo: `${window.location.origin}/auth/callback`,
+          }),
+        }
+      );
       const body = await readCloudApiBody(response);
 
       if (!response.ok) {
@@ -3262,12 +3266,15 @@ function SyncDashboard() {
     setBusyCloudAction("session");
     setCloudMessage(null);
     try {
-      const response = await fetch("/api/auth/session", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${cloudSession.accessToken}`,
-        },
-      });
+      const response = await fetchSyncCloudApiWithTimeout(
+        "/api/auth/session",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${cloudSession.accessToken}`,
+          },
+        }
+      );
       const body = await readCloudApiBody(response);
 
       if (!response.ok) {
@@ -3330,7 +3337,7 @@ function SyncDashboard() {
     setBusyCloudAction("list-workspaces");
     setCloudMessage(null);
     try {
-      const response = await fetch("/api/workspaces", {
+      const response = await fetchSyncCloudApiWithTimeout("/api/workspaces", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${cloudSession.accessToken}`,
@@ -3357,7 +3364,8 @@ function SyncDashboard() {
         setCloudWorkspace(workspaces[0]);
       }
       setCloudBootstrapProof((current) =>
-        current && workspaces.some((workspace) => workspace.id === current.workspace_id)
+        current &&
+        workspaces.some((workspace) => workspace.id === current.workspace_id)
           ? current
           : null
       );
@@ -3396,7 +3404,7 @@ function SyncDashboard() {
     setBusyCloudAction("workspace");
     setCloudMessage(null);
     try {
-      const response = await fetch("/api/workspaces", {
+      const response = await fetchSyncCloudApiWithTimeout("/api/workspaces", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${cloudSession.accessToken}`,
@@ -3472,12 +3480,15 @@ function SyncDashboard() {
     setBusyCloudAction("bootstrap");
     setCloudMessage(null);
     try {
-      const response = await fetch(`/api/workspaces/${workspaceId}/bootstrap`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${cloudSession.accessToken}`,
-        },
-      });
+      const response = await fetchSyncCloudApiWithTimeout(
+        `/api/workspaces/${workspaceId}/bootstrap`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${cloudSession.accessToken}`,
+          },
+        }
+      );
       const body = await readCloudApiBody(response);
 
       if (!response.ok) {
@@ -3974,7 +3985,7 @@ function SyncDashboard() {
 
         let response: Response;
         try {
-          response = await fetch(
+          response = await fetchSyncCloudApiWithTimeout(
             `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
             {
               method: "PATCH",
@@ -4137,7 +4148,7 @@ function SyncDashboard() {
 
         let response: Response;
         try {
-          response = await fetch(
+          response = await fetchSyncCloudApiWithTimeout(
             `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
             {
               method: "PATCH",
@@ -4178,7 +4189,7 @@ function SyncDashboard() {
 
         let response: Response;
         try {
-          response = await fetch(
+          response = await fetchSyncCloudApiWithTimeout(
             `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
             {
               method: "PATCH",
@@ -4317,7 +4328,7 @@ function SyncDashboard() {
       setAccountModuleSettingsSyncMessage(
         "正在从云端读取账号/模块设置元数据..."
       );
-      const response = await fetch(
+      const response = await fetchSyncCloudApiWithTimeout(
         `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
         {
           method: "GET",
@@ -4437,7 +4448,7 @@ function SyncDashboard() {
       }
 
       setHotCacheSaveMessage("正在从云端读取工作区设置元数据...");
-      const response = await fetch(
+      const response = await fetchSyncCloudApiWithTimeout(
         `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
         {
           method: "GET",
@@ -26242,6 +26253,44 @@ function formatBytes(bytes: number) {
   return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${
     units[unitIndex]
   }`;
+}
+
+class SyncCloudApiRequestTimeoutError extends Error {
+  timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super("云端请求超时；本地输入和待上传队列已保留，可稍后重试。");
+    this.name = "SyncCloudApiRequestTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+async function fetchSyncCloudApiWithTimeout(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1]
+): Promise<Response> {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeout = window.setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, SYNC_CLOUD_API_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (didTimeout) {
+      throw new SyncCloudApiRequestTimeoutError(
+        SYNC_CLOUD_API_REQUEST_TIMEOUT_MS
+      );
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 async function readCloudApiBody(response: Response) {
