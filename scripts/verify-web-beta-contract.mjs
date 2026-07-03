@@ -1236,8 +1236,36 @@ function run() {
       "The page route skeleton must render the handed-off title while the full page shell loads.",
     ],
     [
+      'data-testid="page-route-loading-shell"',
+      "The page route skeleton must expose a stable hook for local-first loading diagnostics.",
+    ],
+    [
+      "data-local-seed-state={localSeedState}",
+      "The page route skeleton must expose whether local metadata is visible during loading.",
+    ],
+    [
+      "data-local-first-stage={",
+      "The page route skeleton must expose the current local-first loading stage.",
+    ],
+    [
+      'data-testid="page-route-local-first-status"',
+      "The page route skeleton must show a visible local-first loading status.",
+    ],
+    [
       "已接收页面，正在加载编辑器",
       "The page route skeleton must tell the owner that the target page has already been received locally.",
+    ],
+    [
+      "本地已接收",
+      "The page route skeleton must confirm when local metadata is already available.",
+    ],
+    [
+      "后台同步继续",
+      "The page route skeleton must reassure users that cloud sync continues in the background.",
+    ],
+    [
+      "标题和属性已经来自本地缓存，正文编辑器会接着出现。",
+      "The page route skeleton must explain why metadata appears before the editor chunk.",
     ],
   ]) {
     assertSourceIncludes(files.pageRouteSkeleton, pageRouteSkeleton, snippet, message);
@@ -6444,8 +6472,20 @@ function run() {
       "Lazy peek modal fallback must expose a stable test hook for cold-load diagnostics.",
     ],
     [
-      'data-local-seed-state={seed ? "ready" : "loading"}',
+      'const localSeedState = seed ? "ready" : "loading";',
+      "Lazy peek modal fallback must derive a stable local seed state before rendering.",
+    ],
+    [
+      "data-local-seed-state={localSeedState}",
       "Lazy peek modal fallback must expose whether local metadata is visible during cold-load diagnostics.",
+    ],
+    [
+      'data-local-first-stage={seed ? "metadata-visible" : "metadata-loading"}',
+      "Lazy peek modal fallback must expose the current local-first loading stage.",
+    ],
+    [
+      'data-testid="page-peek-local-first-status"',
+      "Lazy peek modal fallback must show a visible local-first loading status.",
     ],
     [
       "data-optimistic-draft={isOptimisticDraft}",
@@ -6478,6 +6518,14 @@ function run() {
     [
       "已先显示本地页面信息",
       "Lazy peek modal fallback must visibly confirm local metadata is already shown.",
+    ],
+    [
+      "弹窗壳已打开",
+      "Lazy peek modal fallback must immediately confirm that the modal shell is open.",
+    ],
+    [
+      "编辑器加载中",
+      "Lazy peek modal fallback must tell users the editor is still loading without implying data loss.",
     ],
     [
       "onReady?.(pageId)",

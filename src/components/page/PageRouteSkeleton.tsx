@@ -26,9 +26,17 @@ export default function PageRouteSkeleton({
   const previewTitle = preview?.title?.trim();
   const previewIcon = preview?.icon?.trim() || "📄";
   const previewProperties = getPreviewProperties(preview?.properties);
+  const localSeedState = previewTitle ? "ready" : "loading";
 
   return (
-    <div className="flex min-h-screen bg-white text-zinc-950 dark:bg-[#050505] dark:text-zinc-100">
+    <div
+      data-testid="page-route-loading-shell"
+      data-local-seed-state={localSeedState}
+      data-local-first-stage={
+        previewTitle ? "metadata-visible" : "metadata-loading"
+      }
+      className="flex min-h-screen bg-white text-zinc-950 dark:bg-[#050505] dark:text-zinc-100"
+    >
       <aside className="hidden w-64 shrink-0 border-r border-zinc-200 bg-zinc-50/90 p-4 dark:border-zinc-800 dark:bg-zinc-950/90 md:block">
         <div className="mb-8 h-9 w-36 rounded bg-zinc-200 dark:bg-zinc-800" />
         <div className="mb-7 h-11 rounded-lg bg-zinc-200/80 dark:bg-zinc-800/80" />
@@ -49,6 +57,16 @@ export default function PageRouteSkeleton({
           <p className="mb-5 text-xs text-zinc-500 dark:text-zinc-400">
             {message}
           </p>
+          <div
+            data-testid="page-route-local-first-status"
+            className="mb-5 inline-flex flex-wrap items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/70 dark:text-zinc-400"
+          >
+            <span className="font-medium text-zinc-700 dark:text-zinc-200">
+              {previewTitle ? "本地已接收" : "读取本地缓存"}
+            </span>
+            <span>编辑器加载中</span>
+            <span>后台同步继续</span>
+          </div>
           {previewTitle ? (
             <div className="mb-5">
               <div className="flex min-w-0 items-center gap-3">
@@ -118,6 +136,11 @@ export default function PageRouteSkeleton({
               <div className="h-3 w-4/5 rounded bg-zinc-200/50 dark:bg-zinc-800/60" />
               <div className="h-3 w-2/3 rounded bg-zinc-200/50 dark:bg-zinc-800/60" />
             </div>
+            <p className="mt-5 text-xs text-zinc-400">
+              {previewTitle
+                ? "标题和属性已经来自本地缓存，正文编辑器会接着出现。"
+                : "先建立页面壳，再补齐本地缓存和云端回填。"}
+            </p>
           </div>
         </section>
       </main>

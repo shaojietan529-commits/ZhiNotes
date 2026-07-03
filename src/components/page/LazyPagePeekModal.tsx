@@ -102,6 +102,7 @@ function LocalFirstPeekLoadingShell({
   const title = seed ? displayPageTitle(seed.title) : "正在打开页面";
   const propertyCount = seed ? parsePageProperties(seed.properties).length : 0;
   const isOptimisticDraft = seed?.content_text === "";
+  const localSeedState = seed ? "ready" : "loading";
   const openFullFromLoadingShell = useCallback(() => {
     if (seed) prepareLocalFirstPageNavigation(seed, "page-open");
     onOpenFull(pageId);
@@ -166,7 +167,8 @@ function LocalFirstPeekLoadingShell({
     >
       <div
         data-testid="page-peek-loading-shell"
-        data-local-seed-state={seed ? "ready" : "loading"}
+        data-local-seed-state={localSeedState}
+        data-local-first-stage={seed ? "metadata-visible" : "metadata-loading"}
         data-optimistic-draft={isOptimisticDraft}
         className="flex h-[85vh] w-[82vw] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-950"
         role="dialog"
@@ -193,6 +195,16 @@ function LocalFirstPeekLoadingShell({
         </header>
         <div className="flex-1 px-10 py-8">
           <div className="mx-auto w-full max-w-4xl">
+            <div
+              data-testid="page-peek-local-first-status"
+              className="mb-5 inline-flex flex-wrap items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/70 dark:text-zinc-400"
+            >
+              <span className="font-medium text-zinc-700 dark:text-zinc-200">
+                {seed ? "本地已接收" : "读取本地缓存"}
+              </span>
+              <span>弹窗壳已打开</span>
+              <span>编辑器加载中</span>
+            </div>
             <div className="mb-5 flex items-start gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-lg dark:bg-zinc-800">
                 {seed?.icon || "📄"}

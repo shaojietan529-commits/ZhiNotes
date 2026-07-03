@@ -1553,7 +1553,14 @@ function run() {
     "PAGE_ROUTE_PREVIEW_PROPERTY_LIMIT = 2",
     "function parsePreviewProperties",
     "PAGE_ROUTE_PREVIEW_PROPERTY_ICONS",
+    'data-testid="page-route-loading-shell"',
+    "data-local-seed-state={localSeedState}",
+    "data-local-first-stage={",
+    'data-testid="page-route-local-first-status"',
     "已接收页面，正在加载编辑器",
+    "本地已接收",
+    "后台同步继续",
+    "标题和属性已经来自本地缓存，正文编辑器会接着出现。",
   ]) {
     assertIncludes(
       files.pageRouteSkeleton,
@@ -10006,8 +10013,20 @@ function run() {
       "Lazy peek modal fallback must expose a stable test hook for cold-load diagnostics.",
     ],
     [
-      'data-local-seed-state={seed ? "ready" : "loading"}',
+      'const localSeedState = seed ? "ready" : "loading";',
+      "Lazy peek modal fallback must derive a stable local seed state before rendering.",
+    ],
+    [
+      "data-local-seed-state={localSeedState}",
       "Lazy peek modal fallback must expose whether local metadata is visible during cold-load diagnostics.",
+    ],
+    [
+      'data-local-first-stage={seed ? "metadata-visible" : "metadata-loading"}',
+      "Lazy peek modal fallback must expose the current local-first loading stage.",
+    ],
+    [
+      'data-testid="page-peek-local-first-status"',
+      "Lazy peek modal fallback must show a visible local-first loading status.",
     ],
     [
       "data-optimistic-draft={isOptimisticDraft}",
@@ -10040,6 +10059,14 @@ function run() {
     [
       "已先显示本地页面信息",
       "Lazy peek modal fallback must visibly confirm local metadata is already shown.",
+    ],
+    [
+      "弹窗壳已打开",
+      "Lazy peek modal fallback must immediately confirm that the modal shell is open.",
+    ],
+    [
+      "编辑器加载中",
+      "Lazy peek modal fallback must tell users the editor is still loading without implying data loss.",
     ],
     [
       "onReady?.(pageId)",
