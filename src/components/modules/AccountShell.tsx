@@ -27,6 +27,7 @@ import {
 } from "@/lib/pages/accountPageSync";
 import {
   notifyAccountProfileUpdated,
+  formatClientAccountLabel,
   type ClientAccountInfo,
 } from "@/lib/account/clientProfile";
 import {
@@ -1028,7 +1029,7 @@ export default function AccountShell() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                      已登录：{account.display_name}
+                      已登录：{formatClientAccountLabel(account)}
                     </p>
                     <p className="text-xs text-zinc-400">
                       {account.email_hint} · 注册于{" "}

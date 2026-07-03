@@ -109,6 +109,7 @@ check(
 // 3. Login page: unconfigured state, no auto-send
 const shell = read("src/components/modules/AccountShell.tsx");
 const accountClientSession = read("src/lib/account/clientSession.ts");
+const accountClientProfile = read("src/lib/account/clientProfile.ts");
 const accountCloudSyncGate = read("src/lib/account/accountCloudSyncGate.ts");
 const hotCacheRouteWarmup = read("src/lib/sync/hotCacheRouteWarmup.ts");
 const hotCacheRouteWarmupHook = read("src/hooks/useHotCacheRouteWarmup.ts");
@@ -146,8 +147,17 @@ for (const body of effectBodies) {
 check(
   shell.includes("fetchAccountSession({ force: true })") &&
     shell.includes("clearAccountSessionCache") &&
-    shell.includes("rememberLastAuthenticatedAccount"),
+    shell.includes("rememberLastAuthenticatedAccount") &&
+    shell.includes("formatClientAccountLabel(account)"),
   "AccountShell 应通过共享账号状态 helper 检查会话，并在登录/改名/退出后刷新缓存；成功登录或改名后要重写最近登录账号兜底"
+);
+check(
+  accountClientProfile.includes("export function formatClientAccountLabel") &&
+    accountClientProfile.includes("account?.display_name?.trim()") &&
+    accountClientProfile.includes("account?.email_hint?.trim()") &&
+    accountClientProfile.indexOf("const displayName") <
+      accountClientProfile.indexOf("const emailHint"),
+  "账号显示名 helper 必须用户名优先、邮箱提示兜底，最后才显示“账号”，避免已登录账号因空用户名看起来像登出"
 );
 check(
   shell.includes("buildCloudUploadReliabilityReport") &&
@@ -3145,6 +3155,7 @@ check(
 check(
   sidebar.includes("fetchAccountSession") &&
     sidebar.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    sidebar.includes("formatClientAccountLabel") &&
     sidebar.includes("getLastAuthenticatedAccount") &&
     sidebar.includes("getLastKnownAccountLabel") &&
     sidebar.includes('window.addEventListener("storage", handleAccountStorage)') &&
@@ -3160,6 +3171,7 @@ check(
     sidebar.includes("getAccountSessionFallbackReason") &&
     sidebar.includes("session.stale") &&
     sidebar.includes("session.staleReason") &&
+    sidebar.includes("setAccountLabel(formatClientAccountLabel(session.account))") &&
     sidebar.includes('data-testid="account-session-stale-fallback"') &&
     sidebar.includes('data-account-session-fallback="stale"') &&
     sidebar.includes("账号云端确认中，本地可继续") &&

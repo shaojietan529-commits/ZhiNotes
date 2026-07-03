@@ -34,6 +34,7 @@ import {
 } from "@/lib/db/local/queries";
 import {
   ACCOUNT_PROFILE_UPDATED_EVENT,
+  formatClientAccountLabel,
 } from "@/lib/account/clientProfile";
 import {
   ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
@@ -476,7 +477,7 @@ function getAccountSyncInlineSummary(accountSync: {
 }
 
 function getLastKnownAccountLabel() {
-  return getLastAuthenticatedAccount()?.display_name || "账号";
+  return formatClientAccountLabel(getLastAuthenticatedAccount());
 }
 
 function getAccountSessionFallbackReason(
@@ -848,7 +849,7 @@ export default function Sidebar() {
     try {
       const session = await fetchAccountSession();
       if (session.authenticated && session.account) {
-        setAccountLabel(session.account.display_name || "账号");
+        setAccountLabel(formatClientAccountLabel(session.account));
         setAccountSessionFallback(
           session.stale
             ? {
