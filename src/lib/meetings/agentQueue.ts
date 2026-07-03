@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 const QUEUE_KEY = "zhinotes:zhihui:agent-jobs";
 const MAX_QUEUE_ITEMS = 200;
 const MAX_PAYLOAD_BYTES = 64 * 1024;
+const MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000;
 
 export interface MeetingAgentQueueJob {
   id: string;
@@ -14,6 +15,17 @@ export interface MeetingAgentQueueJob {
 interface KvEnv {
   url: string;
   token: string;
+}
+
+export class MeetingAgentQueueTimeoutError extends Error {
+  status = 504;
+  timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`ZhiHui agent queue request timed out after ${timeoutMs}ms`);
+    this.name = "MeetingAgentQueueTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
 }
 
 export function getMeetingAgentQueueConfig():
@@ -86,10 +98,13 @@ export async function ackMeetingAgentJobs(
 }
 
 async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
-  const res = await fetch(`${kv.url}/get/${encodeURIComponent(QUEUE_KEY)}`, {
-    headers: { authorization: `Bearer ${kv.token}` },
-    cache: "no-store",
-  });
+  const res = await fetchMeetingAgentQueueWithTimeout(
+    `${kv.url}/get/${encodeURIComponent(QUEUE_KEY)}`,
+    {
+      headers: { authorization: `Bearer ${kv.token}` },
+      cache: "no-store",
+    }
+  );
   if (!res.ok) throw new Error("kv_get_failed");
   const data = await res.json();
   if (typeof data.result !== "string" || !data.result) return [];
@@ -103,12 +118,43 @@ async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
 }
 
 async function writeQueue(kv: KvEnv, jobs: MeetingAgentQueueJob[]) {
-  const res = await fetch(`${kv.url}/set/${encodeURIComponent(QUEUE_KEY)}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${kv.token}` },
-    body: JSON.stringify(jobs),
-  });
+  const res = await fetchMeetingAgentQueueWithTimeout(
+    `${kv.url}/set/${encodeURIComponent(QUEUE_KEY)}`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${kv.token}` },
+      body: JSON.stringify(jobs),
+    }
+  );
   if (!res.ok) throw new Error("kv_set_failed");
+}
+
+async function fetchMeetingAgentQueueWithTimeout(
+  url: string,
+  init: RequestInit
+) {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeout = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (didTimeout) {
+      throw new MeetingAgentQueueTimeoutError(
+        MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function isQueueJob(value: unknown): value is MeetingAgentQueueJob {

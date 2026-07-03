@@ -24,6 +24,9 @@ const read = (rel) => {
 };
 
 const route = read("src/app/api/glossary/route.ts");
+const agentQueue = read("src/lib/meetings/agentQueue.ts");
+const jobsRoute = read("src/app/api/meetings/agent/jobs/route.ts");
+const ackRoute = read("src/app/api/meetings/agent/jobs/ack/route.ts");
 for (const token of [
   "getMeetingAgentQueueConfig",
   "authorizeMeetingAgent",
@@ -33,6 +36,39 @@ for (const token of [
   check(route.includes(token), `glossary route 缺少 ${token}`);
 }
 check(!route.includes("console."), "glossary route 不应该写日志");
+for (const token of [
+  "MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000",
+  "export class MeetingAgentQueueTimeoutError extends Error",
+  "async function fetchMeetingAgentQueueWithTimeout",
+  "const controller = new AbortController();",
+  "signal: controller.signal",
+  "throw new MeetingAgentQueueTimeoutError",
+  "clearTimeout(timeout)",
+  "fetchMeetingAgentQueueWithTimeout(\n    `${kv.url}/get/",
+  "fetchMeetingAgentQueueWithTimeout(\n    `${kv.url}/set/",
+]) {
+  check(agentQueue.includes(token), `agent queue 缺少 ${token}`);
+}
+check(
+  (agentQueue.match(/\bfetch\(/g) ?? []).length === 1,
+  "agent queue 的 KV get/set 必须统一走 8 秒超时 helper，不能直接分散 fetch"
+);
+for (const token of [
+  "MeetingAgentQueueTimeoutError",
+  "zhihui-agent-queue-timeout",
+  "会议页和日历本地数据不受影响",
+  "timeout_ms: error.timeoutMs",
+]) {
+  check(jobsRoute.includes(token), `jobs route 缺少 ${token}`);
+}
+for (const token of [
+  "MeetingAgentQueueTimeoutError",
+  "zhihui-agent-queue-timeout",
+  "不会清空未确认任务",
+  "timeout_ms: error.timeoutMs",
+]) {
+  check(ackRoute.includes(token), `jobs ack route 缺少 ${token}`);
+}
 
 const helper = read("src/lib/meetings/glossary.ts");
 for (const token of [

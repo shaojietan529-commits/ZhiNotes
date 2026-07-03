@@ -9,6 +9,7 @@ import {
   enqueueMeetingAgentJob,
   getMeetingAgentQueueConfig,
   listMeetingAgentJobs,
+  MeetingAgentQueueTimeoutError,
 } from "@/lib/meetings/agentQueue";
 
 export const dynamic = "force-dynamic";
@@ -42,14 +43,21 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const limit = Number(url.searchParams.get("limit") ?? "25");
-  const jobs = await listMeetingAgentJobs(config.kv, Number.isFinite(limit) ? limit : 25);
-  return NextResponse.json({
-    jobs,
-    privacy: {
-      requires_agent_token: true,
-      payload_may_include_meeting_credentials: true,
-    },
-  });
+  try {
+    const jobs = await listMeetingAgentJobs(
+      config.kv,
+      Number.isFinite(limit) ? limit : 25
+    );
+    return NextResponse.json({
+      jobs,
+      privacy: {
+        requires_agent_token: true,
+        payload_may_include_meeting_credentials: true,
+      },
+    });
+  } catch (error) {
+    return meetingAgentQueueErrorResponse(error);
+  }
 }
 
 export async function POST(request: Request) {
@@ -92,34 +100,65 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const job = await enqueueMeetingAgentJob(queueConfig.kv, {
-    job_type: JOB_TYPE,
-    payload: {
-      schema: "zhinote.zhihui.meeting-recording-request.v1",
-      source: {
-        type: "zhinote_schedule_page",
-        account_id: account.id,
-        account_email_hash_only: true,
-      },
-      meeting: parsed.meeting,
-      target_runner_id: runnerIdForRecordingDevice(parsed.meeting.recording_device),
-      fallback_runner_id: runnerIdForRecordingDevice(parsed.meeting.fallback_device),
-      priority: parsed.meeting.priority,
-      routing: {
+  try {
+    const job = await enqueueMeetingAgentJob(queueConfig.kv, {
+      job_type: JOB_TYPE,
+      payload: {
+        schema: "zhinote.zhihui.meeting-recording-request.v1",
+        source: {
+          type: "zhinote_schedule_page",
+          account_id: account.id,
+          account_email_hash_only: true,
+        },
+        meeting: parsed.meeting,
         target_runner_id: runnerIdForRecordingDevice(parsed.meeting.recording_device),
         fallback_runner_id: runnerIdForRecordingDevice(parsed.meeting.fallback_device),
-        meeting_account_key: meetingAccountKey(parsed.meeting.platform),
+        priority: parsed.meeting.priority,
+        routing: {
+          target_runner_id: runnerIdForRecordingDevice(
+            parsed.meeting.recording_device
+          ),
+          fallback_runner_id: runnerIdForRecordingDevice(
+            parsed.meeting.fallback_device
+          ),
+          meeting_account_key: meetingAccountKey(parsed.meeting.platform),
+        },
+        run_now: body.runNow === true,
       },
-      run_now: body.runNow === true,
-    },
-  });
+    });
 
-  return NextResponse.json({
-    ok: true,
-    job_id: job.id,
-    status: "queued",
-    run_now: body.runNow === true,
-  });
+    return NextResponse.json({
+      ok: true,
+      job_id: job.id,
+      status: "queued",
+      run_now: body.runNow === true,
+    });
+  } catch (error) {
+    return meetingAgentQueueErrorResponse(error);
+  }
+}
+
+function meetingAgentQueueErrorResponse(error: unknown) {
+  if (error instanceof MeetingAgentQueueTimeoutError) {
+    return NextResponse.json(
+      {
+        error: "zhihui-agent-queue-timeout",
+        message:
+          "ZhiHui 云端任务队列请求超时；会议页和日历本地数据不受影响，可稍后重试接入 runner。",
+        timeout_ms: error.timeoutMs,
+      },
+      { status: error.status }
+    );
+  }
+
+  return NextResponse.json(
+    {
+      error: "zhihui-agent-queue-failed",
+      message:
+        "ZhiHui 云端任务队列暂时不可用；会议页和日历本地数据不受影响。",
+    },
+    { status: 502 }
+  );
 }
 
 function parseMeeting(value: unknown):

@@ -3,6 +3,7 @@ import {
   ackMeetingAgentJobs,
   authorizeMeetingAgent,
   getMeetingAgentQueueConfig,
+  MeetingAgentQueueTimeoutError,
 } from "@/lib/meetings/agentQueue";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,28 @@ export async function POST(request: Request) {
   const jobIds = Array.isArray(body.job_ids)
     ? body.job_ids.filter((item): item is string => typeof item === "string")
     : [];
-  const acknowledged = await ackMeetingAgentJobs(config.kv, jobIds);
-  return NextResponse.json({ acknowledged });
+  try {
+    const acknowledged = await ackMeetingAgentJobs(config.kv, jobIds);
+    return NextResponse.json({ acknowledged });
+  } catch (error) {
+    if (error instanceof MeetingAgentQueueTimeoutError) {
+      return NextResponse.json(
+        {
+          error: "zhihui-agent-queue-timeout",
+          message:
+            "ZhiHui 云端任务队列确认超时；runner 可稍后重试，不会清空未确认任务。",
+          timeout_ms: error.timeoutMs,
+        },
+        { status: error.status }
+      );
+    }
+    return NextResponse.json(
+      {
+        error: "zhihui-agent-queue-ack-failed",
+        message:
+          "ZhiHui 云端任务队列确认失败；runner 可稍后重试，不会清空未确认任务。",
+      },
+      { status: 502 }
+    );
+  }
 }
