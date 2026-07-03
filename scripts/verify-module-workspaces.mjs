@@ -217,6 +217,9 @@ for (const token of [
   "createDailyCalendarLoadStatus",
   "DailyCalendarLoadStatusStrip",
   'data-testid="daily-calendar-load-status"',
+  "data-first-paint-state={view.firstPaintState}",
+  "data-visible-notes={view.visibleNotes}",
+  "data-background-active={view.backgroundActive}",
   "dailyCalendarEmptyLoadHint",
   'data-testid="daily-calendar-empty-load-hint"',
   "data-load-phase={view.phase}",
@@ -232,6 +235,14 @@ for (const token of [
 check(
   dailyCalendarLoadStatus.includes("DailyCalendarLoadPhase") &&
     dailyCalendarLoadStatus.includes("buildDailyCalendarLoadStatusView") &&
+    dailyCalendarLoadStatus.includes("DailyCalendarFirstPaintState") &&
+    dailyCalendarLoadStatus.includes("firstPaintState") &&
+    dailyCalendarLoadStatus.includes("firstPaintLabel") &&
+    dailyCalendarLoadStatus.includes('"empty-loading"') &&
+    dailyCalendarLoadStatus.includes('"visible-background"') &&
+    dailyCalendarLoadStatus.includes('"visible-stable"') &&
+    dailyCalendarLoadStatus.includes('"empty-stable"') &&
+    dailyCalendarLoadStatus.includes("首屏") &&
     dailyCalendarLoadStatus.includes("visibleNotes") &&
     dailyCalendarLoadStatus.includes("visibleDays") &&
     dailyCalendarLoadStatus.includes("热缓存") &&
@@ -252,6 +263,9 @@ for (const token of [
   "createMeetingCalendarLoadStatus",
   "MeetingCalendarLoadStatusStrip",
   'data-testid="meeting-calendar-load-status"',
+  "data-first-paint-state={view.firstPaintState}",
+  "data-visible-meetings={view.visibleMeetings}",
+  "data-background-active={view.backgroundActive}",
   "meetingCalendarEmptyLoadHint",
   'data-testid="meeting-calendar-empty-load-hint"',
   "data-load-phase={view.phase}",
@@ -266,8 +280,16 @@ for (const token of [
   );
 }
 check(
-  meetingCalendarLoadStatus.includes("MeetingCalendarLoadPhase") &&
+    meetingCalendarLoadStatus.includes("MeetingCalendarLoadPhase") &&
     meetingCalendarLoadStatus.includes("buildMeetingCalendarLoadStatusView") &&
+    meetingCalendarLoadStatus.includes("MeetingCalendarFirstPaintState") &&
+    meetingCalendarLoadStatus.includes("firstPaintState") &&
+    meetingCalendarLoadStatus.includes("firstPaintLabel") &&
+    meetingCalendarLoadStatus.includes('"empty-loading"') &&
+    meetingCalendarLoadStatus.includes('"visible-background"') &&
+    meetingCalendarLoadStatus.includes('"visible-stable"') &&
+    meetingCalendarLoadStatus.includes('"empty-stable"') &&
+    meetingCalendarLoadStatus.includes("首屏") &&
     meetingCalendarLoadStatus.includes("visibleMeetings") &&
     meetingCalendarLoadStatus.includes("visibleDays") &&
     meetingCalendarLoadStatus.includes("热缓存") &&

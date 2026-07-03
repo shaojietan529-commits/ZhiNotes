@@ -15,6 +15,12 @@ export type MeetingCalendarLoadTone =
   | "success"
   | "warning";
 
+export type MeetingCalendarFirstPaintState =
+  | "empty-loading"
+  | "visible-background"
+  | "visible-stable"
+  | "empty-stable";
+
 export interface MeetingCalendarLoadStatusState {
   phase: MeetingCalendarLoadPhase;
   visibleMeetings: number;
@@ -31,6 +37,13 @@ export interface MeetingCalendarLoadStatusView {
   label: string;
   detail: string;
   tone: MeetingCalendarLoadTone;
+  visibleMeetings: number;
+  visibleDays: number;
+  cloudLoading: boolean;
+  backgroundActive: boolean;
+  staleCloud: boolean;
+  firstPaintState: MeetingCalendarFirstPaintState;
+  firstPaintLabel: string;
   ariaLabel: string;
   chips: Array<{ label: string; value: string }>;
   steps: Array<{
@@ -65,7 +78,10 @@ export function buildMeetingCalendarLoadStatusView(
   state: MeetingCalendarLoadStatusState
 ): MeetingCalendarLoadStatusView {
   const phaseMeta = meetingCalendarLoadPhaseMeta(state);
+  const firstPaintState = getMeetingCalendarFirstPaintState(state);
+  const firstPaintLabel = getMeetingCalendarFirstPaintLabel(firstPaintState);
   const chips = [
+    { label: "首屏", value: firstPaintLabel },
     { label: "来源", value: phaseMeta.source },
     { label: "可见会议", value: String(state.visibleMeetings) },
     { label: "有会议日期", value: String(state.visibleDays) },
@@ -84,8 +100,16 @@ export function buildMeetingCalendarLoadStatusView(
     label: phaseMeta.label,
     detail: state.message ?? phaseMeta.detail,
     tone: phaseMeta.tone,
+    visibleMeetings: state.visibleMeetings,
+    visibleDays: state.visibleDays,
+    cloudLoading: state.cloudLoading,
+    backgroundActive: state.backgroundActive,
+    staleCloud: state.staleCloud,
+    firstPaintState,
+    firstPaintLabel,
     ariaLabel: [
       phaseMeta.label,
+      `首屏${firstPaintLabel}`,
       state.message ?? phaseMeta.detail,
       `可见会议 ${state.visibleMeetings}`,
       `有会议日期 ${state.visibleDays}`,
@@ -98,6 +122,33 @@ export function buildMeetingCalendarLoadStatusView(
     steps: buildMeetingCalendarLoadSteps(state),
     privacyBoundary: MEETING_CALENDAR_LOAD_PRIVACY_BOUNDARY,
   };
+}
+
+function getMeetingCalendarFirstPaintState(
+  state: MeetingCalendarLoadStatusState
+): MeetingCalendarFirstPaintState {
+  const hasVisibleMetadata = state.visibleMeetings > 0 || state.visibleDays > 0;
+  const backgroundWorking = state.cloudLoading || state.backgroundActive;
+  if (!hasVisibleMetadata && backgroundWorking) return "empty-loading";
+  if (hasVisibleMetadata && backgroundWorking) return "visible-background";
+  if (hasVisibleMetadata) return "visible-stable";
+  return "empty-stable";
+}
+
+function getMeetingCalendarFirstPaintLabel(
+  state: MeetingCalendarFirstPaintState
+) {
+  switch (state) {
+    case "empty-loading":
+      return "等待 metadata";
+    case "visible-background":
+      return "已先显示";
+    case "visible-stable":
+      return "已稳定";
+    case "empty-stable":
+    default:
+      return "暂无会议";
+  }
 }
 
 function meetingCalendarLoadPhaseMeta(

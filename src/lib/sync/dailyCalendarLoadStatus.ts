@@ -17,6 +17,12 @@ export type DailyCalendarLoadTone =
   | "success"
   | "warning";
 
+export type DailyCalendarFirstPaintState =
+  | "empty-loading"
+  | "visible-background"
+  | "visible-stable"
+  | "empty-stable";
+
 export interface DailyCalendarLoadStatusState {
   phase: DailyCalendarLoadPhase;
   visibleNotes: number;
@@ -33,6 +39,13 @@ export interface DailyCalendarLoadStatusView {
   label: string;
   detail: string;
   tone: DailyCalendarLoadTone;
+  visibleNotes: number;
+  visibleDays: number;
+  cloudLoading: boolean;
+  backgroundActive: boolean;
+  staleCloud: boolean;
+  firstPaintState: DailyCalendarFirstPaintState;
+  firstPaintLabel: string;
   ariaLabel: string;
   chips: Array<{ label: string; value: string }>;
   steps: Array<{
@@ -67,7 +80,10 @@ export function buildDailyCalendarLoadStatusView(
   state: DailyCalendarLoadStatusState
 ): DailyCalendarLoadStatusView {
   const phaseMeta = dailyCalendarLoadPhaseMeta(state);
+  const firstPaintState = getDailyCalendarFirstPaintState(state);
+  const firstPaintLabel = getDailyCalendarFirstPaintLabel(firstPaintState);
   const chips = [
+    { label: "首屏", value: firstPaintLabel },
     { label: "来源", value: phaseMeta.source },
     { label: "可见纪要", value: String(state.visibleNotes) },
     { label: "有内容日期", value: String(state.visibleDays) },
@@ -86,8 +102,16 @@ export function buildDailyCalendarLoadStatusView(
     label: phaseMeta.label,
     detail: state.message ?? phaseMeta.detail,
     tone: phaseMeta.tone,
+    visibleNotes: state.visibleNotes,
+    visibleDays: state.visibleDays,
+    cloudLoading: state.cloudLoading,
+    backgroundActive: state.backgroundActive,
+    staleCloud: state.staleCloud,
+    firstPaintState,
+    firstPaintLabel,
     ariaLabel: [
       phaseMeta.label,
+      `首屏${firstPaintLabel}`,
       state.message ?? phaseMeta.detail,
       `可见纪要 ${state.visibleNotes}`,
       `有内容日期 ${state.visibleDays}`,
@@ -100,6 +124,33 @@ export function buildDailyCalendarLoadStatusView(
     steps: buildDailyCalendarLoadSteps(state),
     privacyBoundary: DAILY_CALENDAR_LOAD_PRIVACY_BOUNDARY,
   };
+}
+
+function getDailyCalendarFirstPaintState(
+  state: DailyCalendarLoadStatusState
+): DailyCalendarFirstPaintState {
+  const hasVisibleMetadata = state.visibleNotes > 0 || state.visibleDays > 0;
+  const backgroundWorking = state.cloudLoading || state.backgroundActive;
+  if (!hasVisibleMetadata && backgroundWorking) return "empty-loading";
+  if (hasVisibleMetadata && backgroundWorking) return "visible-background";
+  if (hasVisibleMetadata) return "visible-stable";
+  return "empty-stable";
+}
+
+function getDailyCalendarFirstPaintLabel(
+  state: DailyCalendarFirstPaintState
+) {
+  switch (state) {
+    case "empty-loading":
+      return "等待 metadata";
+    case "visible-background":
+      return "已先显示";
+    case "visible-stable":
+      return "已稳定";
+    case "empty-stable":
+    default:
+      return "暂无条目";
+  }
 }
 
 function dailyCalendarLoadPhaseMeta(state: DailyCalendarLoadStatusState): {

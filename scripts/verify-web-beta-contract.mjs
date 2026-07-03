@@ -2337,6 +2337,30 @@ function run() {
       "Daily calendar load status must be built through a reusable view model.",
     ],
     [
+      "DailyCalendarFirstPaintState",
+      "Daily calendar status must classify whether first paint is empty, visible but background-loading, visible-stable, or empty-stable.",
+    ],
+    [
+      "firstPaintState",
+      "Daily calendar status must expose a first-paint diagnostic state.",
+    ],
+    [
+      "firstPaintLabel",
+      "Daily calendar status must expose a user-facing first-paint label.",
+    ],
+    [
+      '"empty-loading"',
+      "Daily calendar first-paint state must make empty-but-loading screens explicit.",
+    ],
+    [
+      '"visible-background"',
+      "Daily calendar first-paint state must make visible-but-background-refreshing screens explicit.",
+    ],
+    [
+      "首屏",
+      "Daily calendar status must show first-paint state in the visible chips.",
+    ],
+    [
       "visibleNotes",
       "Daily calendar status must show visible note counts without reading note bodies.",
     ],
@@ -2420,6 +2444,18 @@ function run() {
       "Meeting calendar status strip must be discoverable in UI smoke checks.",
     ],
     [
+      "data-first-paint-state={view.firstPaintState}",
+      "Meeting calendar status strip must expose first-paint state for blank-screen diagnostics.",
+    ],
+    [
+      "data-visible-meetings={view.visibleMeetings}",
+      "Meeting calendar status strip must expose visible meeting count without reading meeting bodies.",
+    ],
+    [
+      "data-background-active={view.backgroundActive}",
+      "Meeting calendar status strip must expose background refresh state without blocking interaction.",
+    ],
+    [
       "meetingCalendarEmptyLoadHint",
       "Meeting calendar must show a visible empty-grid loading hint while hot-cache, local index, or cloud metadata is still being checked.",
     ],
@@ -2455,6 +2491,30 @@ function run() {
     [
       "buildMeetingCalendarLoadStatusView",
       "Meeting calendar load status must be built through a reusable view model.",
+    ],
+    [
+      "MeetingCalendarFirstPaintState",
+      "Meeting calendar status must classify whether first paint is empty, visible but background-loading, visible-stable, or empty-stable.",
+    ],
+    [
+      "firstPaintState",
+      "Meeting calendar status must expose a first-paint diagnostic state.",
+    ],
+    [
+      "firstPaintLabel",
+      "Meeting calendar status must expose a user-facing first-paint label.",
+    ],
+    [
+      '"empty-loading"',
+      "Meeting calendar first-paint state must make empty-but-loading screens explicit.",
+    ],
+    [
+      '"visible-background"',
+      "Meeting calendar first-paint state must make visible-but-background-refreshing screens explicit.",
+    ],
+    [
+      "首屏",
+      "Meeting calendar status must show first-paint state in the visible chips.",
     ],
     [
       "visibleMeetings",
@@ -2726,6 +2786,22 @@ function run() {
     [
       "已先显示本机热缓存",
       "Daily notes must surface the local hot cache first-paint path.",
+    ],
+    [
+      'data-testid="daily-calendar-load-status"',
+      "Daily calendar status strip must be discoverable in UI checks.",
+    ],
+    [
+      "data-first-paint-state={view.firstPaintState}",
+      "Daily calendar status strip must expose first-paint state for blank-screen diagnostics.",
+    ],
+    [
+      "data-visible-notes={view.visibleNotes}",
+      "Daily calendar status strip must expose visible note count without reading note bodies.",
+    ],
+    [
+      "data-background-active={view.backgroundActive}",
+      "Daily calendar status strip must expose background refresh state without blocking interaction.",
     ],
     [
       "dailyCalendarEmptyLoadHint",

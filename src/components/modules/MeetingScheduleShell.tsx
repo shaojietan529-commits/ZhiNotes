@@ -4754,6 +4754,13 @@ function MeetingCalendarLoadStatusStrip({
     <div
       data-testid="meeting-calendar-load-status"
       data-load-phase={view.phase}
+      data-first-paint-state={view.firstPaintState}
+      data-first-paint-label={view.firstPaintLabel}
+      data-visible-meetings={view.visibleMeetings}
+      data-visible-days={view.visibleDays}
+      data-cloud-loading={view.cloudLoading}
+      data-background-active={view.backgroundActive}
+      data-stale-cloud={view.staleCloud}
       aria-label={view.ariaLabel}
       title={view.privacyBoundary}
       className={`mt-3 max-w-3xl border-y px-0 py-2 text-xs ${meetingCalendarLoadToneClass(

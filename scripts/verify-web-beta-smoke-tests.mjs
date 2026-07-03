@@ -4945,6 +4945,30 @@ function run() {
       "Daily calendar load status must be built through a reusable view model.",
     ],
     [
+      "DailyCalendarFirstPaintState",
+      "Daily calendar status must classify first paint for blank-screen diagnostics.",
+    ],
+    [
+      "firstPaintState",
+      "Daily calendar status must expose a first-paint diagnostic state.",
+    ],
+    [
+      "firstPaintLabel",
+      "Daily calendar status must expose a user-facing first-paint label.",
+    ],
+    [
+      '"empty-loading"',
+      "Daily calendar status must make empty-but-loading screens explicit.",
+    ],
+    [
+      '"visible-background"',
+      "Daily calendar status must make visible-but-background-refreshing screens explicit.",
+    ],
+    [
+      "首屏",
+      "Daily calendar status must show first-paint state in visible chips.",
+    ],
+    [
       "visibleNotes",
       "Daily calendar status must show visible note counts without reading note bodies.",
     ],
@@ -4976,6 +5000,22 @@ function run() {
     assertIncludes(files.dailyCalendarLoadStatus, dailyCalendarLoadStatus, snippet, message);
   }
   for (const [snippet, message] of [
+    [
+      'data-testid="daily-calendar-load-status"',
+      "Daily calendar status strip must be discoverable in UI smoke checks.",
+    ],
+    [
+      "data-first-paint-state={view.firstPaintState}",
+      "Daily calendar status strip must expose first-paint state for smoke checks.",
+    ],
+    [
+      "data-visible-notes={view.visibleNotes}",
+      "Daily calendar status strip must expose visible note count for smoke checks.",
+    ],
+    [
+      "data-background-active={view.backgroundActive}",
+      "Daily calendar status strip must expose background refresh state for smoke checks.",
+    ],
     [
       "dailyCalendarEmptyLoadHint",
       "Daily calendar must show a visible empty-grid loading hint while hot-cache, local index, or cloud metadata is still being checked.",
@@ -5024,6 +5064,18 @@ function run() {
     [
       'data-testid="meeting-calendar-load-status"',
       "Meeting calendar status strip must be discoverable in UI smoke checks.",
+    ],
+    [
+      "data-first-paint-state={view.firstPaintState}",
+      "Meeting calendar status strip must expose first-paint state for smoke checks.",
+    ],
+    [
+      "data-visible-meetings={view.visibleMeetings}",
+      "Meeting calendar status strip must expose visible meeting count for smoke checks.",
+    ],
+    [
+      "data-background-active={view.backgroundActive}",
+      "Meeting calendar status strip must expose background refresh state for smoke checks.",
     ],
     [
       "meetingCalendarEmptyLoadHint",
@@ -5080,6 +5132,30 @@ function run() {
     [
       "buildMeetingCalendarLoadStatusView",
       "Meeting calendar load status must be built through a reusable view model.",
+    ],
+    [
+      "MeetingCalendarFirstPaintState",
+      "Meeting calendar status must classify first paint for blank-screen diagnostics.",
+    ],
+    [
+      "firstPaintState",
+      "Meeting calendar status must expose a first-paint diagnostic state.",
+    ],
+    [
+      "firstPaintLabel",
+      "Meeting calendar status must expose a user-facing first-paint label.",
+    ],
+    [
+      '"empty-loading"',
+      "Meeting calendar status must make empty-but-loading screens explicit.",
+    ],
+    [
+      '"visible-background"',
+      "Meeting calendar status must make visible-but-background-refreshing screens explicit.",
+    ],
+    [
+      "首屏",
+      "Meeting calendar status must show first-paint state in visible chips.",
     ],
     [
       "visibleMeetings",

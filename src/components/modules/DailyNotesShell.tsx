@@ -3648,6 +3648,13 @@ function DailyCalendarLoadStatusStrip({
     <div
       data-testid="daily-calendar-load-status"
       data-load-phase={view.phase}
+      data-first-paint-state={view.firstPaintState}
+      data-first-paint-label={view.firstPaintLabel}
+      data-visible-notes={view.visibleNotes}
+      data-visible-days={view.visibleDays}
+      data-cloud-loading={view.cloudLoading}
+      data-background-active={view.backgroundActive}
+      data-stale-cloud={view.staleCloud}
       aria-label={view.ariaLabel}
       title={view.privacyBoundary}
       className={`mt-3 border-y px-0 py-2 text-xs ${dailyCalendarLoadToneClass(
