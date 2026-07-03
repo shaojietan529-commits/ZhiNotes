@@ -7940,6 +7940,24 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
+    "PAGE_CLOUD_BODY_STATUS_FALLBACK_MS = 3200",
+    "Page opening must keep slow cloud body feedback bounded so users can keep editing."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "scheduleCloudBodyFallbackStatus({",
+    "Page opening must publish a local-only fallback status while slow cloud body hydration continues."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
+    "cancelFallbackStatus();",
+    "Page opening must clear the slow cloud body feedback timer after hydration settles."
+  );
+  assertIncludes(
+    files.usePage,
+    usePage,
     "const pageCloudHydrationQueue = new Map<string, PageCloudHydrationState>()",
     "Page opening must coalesce duplicate page cloud hydration requests by page and surface."
   );

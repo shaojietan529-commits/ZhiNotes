@@ -1690,6 +1690,9 @@ check(
     usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
+    usePageHook.includes("PAGE_CLOUD_BODY_STATUS_FALLBACK_MS = 3200") &&
+    usePageHook.includes("scheduleCloudBodyFallbackStatus({") &&
+    usePageHook.includes("cancelFallbackStatus();") &&
     usePageHook.includes("const pageCloudHydrationQueue = new Map<string, PageCloudHydrationState>()") &&
     usePageHook.includes("queuePageCloudHydration({") &&
     usePageHook.includes("const existing = pageCloudHydrationQueue.get(key);") &&

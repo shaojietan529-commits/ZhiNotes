@@ -44,6 +44,7 @@ import { usePageRecordRevision } from "@/hooks/usePageRevision";
 import type { Page } from "@/lib/utils/types";
 
 const PAGE_CLOUD_HYDRATION_IDLE_MS = 700;
+const PAGE_CLOUD_BODY_STATUS_FALLBACK_MS = 3200;
 const PAGE_LOCAL_BODY_HYDRATION_IDLE_MS = 220;
 const PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_DELAY_MS = 24;
 const PAGE_INTERACTIVE_LOCAL_BODY_HYDRATION_IDLE_MS = 80;
@@ -461,6 +462,29 @@ function getPageForegroundNow(): number {
   return Date.now();
 }
 
+function scheduleCloudBodyFallbackStatus(input: {
+  pageId: string;
+  surface: PageBodyHydrationSurface;
+  getLocalPage: () => Page | null;
+}): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  let cancelled = false;
+  const timer = window.setTimeout(() => {
+    if (cancelled) return;
+    if (input.getLocalPage()?.content_text != null) return;
+    publishPageBodyHydrationStatus({
+      pageId: input.pageId,
+      phase: "unavailable",
+      surface: input.surface,
+      metadataOnly: true,
+    });
+  }, PAGE_CLOUD_BODY_STATUS_FALLBACK_MS);
+  return () => {
+    cancelled = true;
+    window.clearTimeout(timer);
+  };
+}
+
 async function deletePageWithCloud(id: string): Promise<void> {
   let snapshot: Page | null = null;
   try {
@@ -617,6 +641,11 @@ async function refreshPageFromCloud(
     surface,
     metadataOnly: getLocalPage()?.content_text == null,
   });
+  const cancelFallbackStatus = scheduleCloudBodyFallbackStatus({
+    pageId,
+    surface,
+    getLocalPage,
+  });
   try {
     const cloud = await fetchCloudPageByIdWithAccountSync(pageId);
     const latestLocalPage = getLocalPage();
@@ -647,6 +676,8 @@ async function refreshPageFromCloud(
         metadataOnly: true,
       });
     }
+  } finally {
+    cancelFallbackStatus();
   }
 }
 

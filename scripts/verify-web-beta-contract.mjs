@@ -3786,6 +3786,18 @@ function run() {
       "usePage must keep the cloud hydration idle timeout explicit and bounded.",
     ],
     [
+      "PAGE_CLOUD_BODY_STATUS_FALLBACK_MS = 3200",
+      "usePage must keep slow cloud body feedback bounded so page opens do not look stuck.",
+    ],
+    [
+      "scheduleCloudBodyFallbackStatus({",
+      "usePage must schedule a local-only fallback status while slow cloud body hydration continues.",
+    ],
+    [
+      "cancelFallbackStatus();",
+      "usePage must clear the cloud body fallback status timer after cloud hydration settles.",
+    ],
+    [
       "const pageCloudHydrationQueue = new Map<string, PageCloudHydrationState>()",
       "usePage must coalesce duplicate page cloud hydration requests by page and surface.",
     ],
