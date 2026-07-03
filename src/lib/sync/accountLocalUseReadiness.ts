@@ -23,6 +23,7 @@ export interface AccountLocalUseReadiness {
   localInputCanContinue: true;
   cloudHandoffReady: boolean;
   cacheRebuildBlocked: boolean;
+  queueBreakdown: AccountLocalUseQueueBreakdown;
   label: string;
   detail: string;
   nextAction: string;
@@ -35,6 +36,19 @@ export interface AccountLocalUseReadiness {
   };
 }
 
+export interface AccountLocalUseQueueBreakdown {
+  pagePendingTotal: number;
+  databasePendingTotal: number;
+  filePendingTotal: number;
+  settingsPendingTotal: number;
+  knowledgePendingTotal: number;
+  otherPendingTotal: number;
+  fileFailedTotal: number;
+  fileManualReviewTotal: number;
+  fileQueueTotal: number;
+  fileQueueBlocksCloudHandoff: boolean;
+}
+
 const LOCAL_USE_READINESS_BOUNDARY: AccountLocalUseReadiness["boundary"] = {
   reads_page_body_text: false,
   reads_database_row_values: false,
@@ -43,16 +57,112 @@ const LOCAL_USE_READINESS_BOUNDARY: AccountLocalUseReadiness["boundary"] = {
   mutates_workspace_data: false,
 };
 
-export function buildAccountLocalUseReadiness(input: {
+interface AccountLocalUseReadinessInput {
   state: AccountCloudSyncReadinessState;
   pendingTotal: number;
   failedTotal: number;
   manualReviewTotal: number;
   retryableFailedTotal: number;
   enabledDomainCount: number;
-}): AccountLocalUseReadiness {
+  pagePendingTotal?: number;
+  databasePendingTotal?: number;
+  filePendingTotal?: number;
+  settingsPendingTotal?: number;
+  knowledgePendingTotal?: number;
+  otherPendingTotal?: number;
+  fileFailedTotal?: number;
+  fileManualReviewTotal?: number;
+}
+
+function safeCount(value: number | undefined) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.trunc(value ?? 0));
+}
+
+function buildAccountLocalUseQueueBreakdown(
+  input: AccountLocalUseReadinessInput
+): AccountLocalUseQueueBreakdown {
+  const pagePendingTotal = safeCount(input.pagePendingTotal);
+  const databasePendingTotal = safeCount(input.databasePendingTotal);
+  const filePendingTotal = safeCount(input.filePendingTotal);
+  const settingsPendingTotal = safeCount(input.settingsPendingTotal);
+  const knowledgePendingTotal = safeCount(input.knowledgePendingTotal);
+  const providedOtherPendingTotal = safeCount(input.otherPendingTotal);
+  const classifiedPendingTotal =
+    pagePendingTotal +
+    databasePendingTotal +
+    filePendingTotal +
+    settingsPendingTotal +
+    knowledgePendingTotal +
+    providedOtherPendingTotal;
+  const otherPendingTotal =
+    providedOtherPendingTotal +
+    Math.max(safeCount(input.pendingTotal) - classifiedPendingTotal, 0);
+  const fileFailedTotal = safeCount(input.fileFailedTotal);
+  const fileManualReviewTotal = safeCount(input.fileManualReviewTotal);
+  const fileQueueTotal =
+    filePendingTotal + fileFailedTotal + fileManualReviewTotal;
+
+  return {
+    pagePendingTotal,
+    databasePendingTotal,
+    filePendingTotal,
+    settingsPendingTotal,
+    knowledgePendingTotal,
+    otherPendingTotal,
+    fileFailedTotal,
+    fileManualReviewTotal,
+    fileQueueTotal,
+    fileQueueBlocksCloudHandoff: fileQueueTotal > 0,
+  };
+}
+
+function formatQueueBreakdown(breakdown: AccountLocalUseQueueBreakdown) {
+  const pendingParts = [
+    breakdown.pagePendingTotal > 0
+      ? `页面 ${breakdown.pagePendingTotal}`
+      : null,
+    breakdown.databasePendingTotal > 0
+      ? `数据库 ${breakdown.databasePendingTotal}`
+      : null,
+    breakdown.filePendingTotal > 0
+      ? `文件 ${breakdown.filePendingTotal}`
+      : null,
+    breakdown.settingsPendingTotal > 0
+      ? `设置 ${breakdown.settingsPendingTotal}`
+      : null,
+    breakdown.knowledgePendingTotal > 0
+      ? `知识库 ${breakdown.knowledgePendingTotal}`
+      : null,
+    breakdown.otherPendingTotal > 0 ? `其他 ${breakdown.otherPendingTotal}` : null,
+  ].filter(Boolean);
+  const fileAttentionParts = [
+    breakdown.fileFailedTotal > 0
+      ? `文件失败 ${breakdown.fileFailedTotal}`
+      : null,
+    breakdown.fileManualReviewTotal > 0
+      ? `文件需确认 ${breakdown.fileManualReviewTotal}`
+      : null,
+  ].filter(Boolean);
+  const parts = [
+    pendingParts.length > 0 ? `队列分布：${pendingParts.join(" / ")}` : null,
+    fileAttentionParts.length > 0
+      ? `文件队列：${fileAttentionParts.join(" / ")}`
+      : null,
+  ].filter(Boolean);
+  return parts.join("；");
+}
+
+export function buildAccountLocalUseReadiness(
+  input: AccountLocalUseReadinessInput
+): AccountLocalUseReadiness {
+  const queueBreakdown = buildAccountLocalUseQueueBreakdown(input);
+  const queueDetail = formatQueueBreakdown(queueBreakdown);
+  const withQueueDetail = (detail: string) =>
+    queueDetail ? `${detail}；${queueDetail}` : detail;
   const base = {
     localInputCanContinue: true,
+    queueBreakdown,
     boundary: LOCAL_USE_READINESS_BOUNDARY,
   } as const;
 
@@ -72,7 +182,7 @@ export function buildAccountLocalUseReadiness(input: {
       cloudHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续写作，先处理同步队列",
-      detail: detail || "同步队列需要处理；本地输入仍保留。",
+      detail: withQueueDetail(detail || "同步队列需要处理；本地输入仍保留。"),
       nextAction:
         "打开同步中心处理 failed / manual review，清零前不要重建本地缓存或做云端交接。",
     };
@@ -85,7 +195,9 @@ export function buildAccountLocalUseReadiness(input: {
       cloudHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续写作，等待上传",
-      detail: `${input.pendingTotal} 项本地变更已保留，正在等待后台上传或手动同步。`,
+      detail: withQueueDetail(
+        `${input.pendingTotal} 项本地变更已保留，正在等待后台上传或手动同步。`
+      ),
       nextAction:
         "继续写作可以；重建本地缓存或切换云端主库前，先让 pending 队列清零。",
     };

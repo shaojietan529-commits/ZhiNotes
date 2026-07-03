@@ -1630,6 +1630,18 @@ export default function Sidebar() {
           data-cache-rebuild-blocked={
             accountSync.localUseReadiness.cacheRebuildBlocked
           }
+          data-file-queue-total={
+            accountSync.localUseReadiness.queueBreakdown.fileQueueTotal
+          }
+          data-file-pending-total={
+            accountSync.localUseReadiness.queueBreakdown.filePendingTotal
+          }
+          data-file-failed-total={
+            accountSync.localUseReadiness.queueBreakdown.fileFailedTotal
+          }
+          data-file-manual-review-total={
+            accountSync.localUseReadiness.queueBreakdown.fileManualReviewTotal
+          }
           data-local-use-next-action={accountSync.localUseReadiness.nextAction}
           className="mt-1 flex flex-wrap gap-1 px-3"
           title={`${accountSync.localUseReadiness.detail} ${accountSync.localUseReadiness.nextAction}`}

@@ -71,6 +71,16 @@ check(
   "所有账号/同步临时状态都必须允许继续本地输入"
 );
 check(
+  readiness.includes("queueBreakdown: AccountLocalUseQueueBreakdown") &&
+    readiness.includes("filePendingTotal") &&
+    readiness.includes("fileFailedTotal") &&
+    readiness.includes("fileManualReviewTotal") &&
+    readiness.includes("fileQueueBlocksCloudHandoff") &&
+    readiness.includes("队列分布：") &&
+    readiness.includes("文件队列："),
+  "本地可用性规则必须显式拆分文件队列，并把文件 pending/failed/manual review 纳入云端交接和缓存重建保护"
+);
+check(
   readiness.includes("input.failedTotal > 0 || input.manualReviewTotal > 0") &&
     readiness.includes('status: "needs-review"') &&
     readiness.includes("cloudHandoffReady: false") &&
@@ -118,6 +128,10 @@ for (const snippet of [
   "data-local-input-can-continue",
   "data-cloud-handoff-ready",
   "data-cache-rebuild-blocked",
+  "data-file-queue-total",
+  "data-file-pending-total",
+  "data-file-failed-total",
+  "data-file-manual-review-total",
   "先别重建缓存",
   "本地可写",
 ]) {
@@ -131,13 +145,19 @@ for (const snippet of [
   'data-testid="sync-operational-status-strip"',
   'data-testid="sync-local-use-readiness-panel"',
   'data-testid="sync-sidebar-readiness-mirror"',
+  'data-testid="sync-file-queue-readiness-note"',
   "data-local-input-can-continue",
   "data-cloud-handoff-ready",
   "data-cache-rebuild-blocked",
+  "data-file-queue-total",
+  "data-file-pending-total",
+  "data-file-failed-total",
+  "data-file-manual-review-total",
   "当前使用安全",
   "可以继续写",
   "补传待上传",
   "查看详细队列",
+  "文件队列已计入本地可用性和缓存重建保护",
   "不读取页面正文、数据库行值、文件 bytes",
 ]) {
   check(syncShell.includes(snippet), `同步中心缺少本地可用性提示：${snippet}`);
@@ -171,6 +191,7 @@ console.log(
       cloud_failures_do_not_block_local_input: true,
       pending_blocks_cache_rebuild: true,
       failed_manual_review_visible: true,
+      file_queue_breakdown_visible: true,
       sidebar_mirror: true,
       sync_center_mirror: true,
       metadata_only: true,

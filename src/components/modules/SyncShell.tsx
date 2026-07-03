@@ -2167,6 +2167,11 @@ function SyncDashboard() {
       failedTotal,
       manualReviewTotal,
       enabledDomainCount,
+      pagePendingTotal: pageWaiting,
+      databasePendingTotal: databaseWaiting,
+      filePendingTotal: fileWaiting,
+      fileFailedTotal: fileEmbedPendingStatus.failed,
+      fileManualReviewTotal: fileEmbedPendingStatus.manualReviewCount,
     };
   }, [
     databasePendingStatus,
@@ -2196,6 +2201,11 @@ function SyncDashboard() {
           syncLocalUseQueueSnapshot.manualReviewTotal
       ),
       enabledDomainCount: syncLocalUseQueueSnapshot.enabledDomainCount,
+      pagePendingTotal: syncLocalUseQueueSnapshot.pagePendingTotal,
+      databasePendingTotal: syncLocalUseQueueSnapshot.databasePendingTotal,
+      filePendingTotal: syncLocalUseQueueSnapshot.filePendingTotal,
+      fileFailedTotal: syncLocalUseQueueSnapshot.fileFailedTotal,
+      fileManualReviewTotal: syncLocalUseQueueSnapshot.fileManualReviewTotal,
     });
   }, [syncLocalUseQueueSnapshot]);
   const developmentStabilityPlan = useMemo(
@@ -19899,6 +19909,7 @@ function SyncOperationalStatusStrip({
     getSidebarReadinessMirrorLabel(readiness);
   const sidebarReadinessMirrorDetail =
     getSidebarReadinessMirrorDetail(readiness);
+  const fileQueueTotal = readiness.queueBreakdown.fileQueueTotal;
   const visibleDomains = pendingDomainRows
     .filter(
       (row) =>
@@ -19923,6 +19934,12 @@ function SyncOperationalStatusStrip({
       data-local-input-can-continue={String(readiness.localInputCanContinue)}
       data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
+      data-file-queue-total={fileQueueTotal}
+      data-file-pending-total={readiness.queueBreakdown.filePendingTotal}
+      data-file-failed-total={readiness.queueBreakdown.fileFailedTotal}
+      data-file-manual-review-total={
+        readiness.queueBreakdown.fileManualReviewTotal
+      }
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -19945,6 +19962,17 @@ function SyncOperationalStatusStrip({
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             {readiness.detail} {readiness.nextAction}
           </p>
+          {fileQueueTotal > 0 ? (
+            <p
+              data-testid="sync-file-queue-readiness-note"
+              className="mt-2 max-w-3xl rounded-md bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+            >
+              文件队列已计入本地可用性和缓存重建保护：文件{" "}
+              {readiness.queueBreakdown.filePendingTotal} 待上传 /{" "}
+              {readiness.queueBreakdown.fileFailedTotal} 失败 /{" "}
+              {readiness.queueBreakdown.fileManualReviewTotal} 需确认。
+            </p>
+          ) : null}
           <div
             data-testid="sync-sidebar-readiness-mirror"
             data-local-use-status={readiness.status}
@@ -20408,6 +20436,11 @@ function SyncLocalUseReadinessPanel({
       row.inFlight > 0
   );
   const activeDomainLabels = activeDomainRows.map((row) => row.label);
+  const fileQueueTotal = readiness.queueBreakdown.fileQueueTotal;
+  const fileQueueDetail =
+    fileQueueTotal > 0
+      ? `${readiness.queueBreakdown.filePendingTotal} 待上传 / ${readiness.queueBreakdown.fileFailedTotal} 失败 / ${readiness.queueBreakdown.fileManualReviewTotal} 人工`
+      : "暂无文件待处理";
   const activeDomainDetail =
     activeDomainLabels.length > 0
       ? activeDomainLabels.slice(0, 4).join(" / ")
@@ -20446,6 +20479,11 @@ function SyncLocalUseReadinessPanel({
           ? `${activeDomainDetail} / +${activeDomainLabels.length - 4}`
           : activeDomainDetail,
     },
+    {
+      label: "文件队列",
+      value: `${fileQueueTotal} 项`,
+      detail: fileQueueDetail,
+    },
   ];
 
   return (
@@ -20458,6 +20496,12 @@ function SyncLocalUseReadinessPanel({
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
       data-active-sync-domain-count={activeDomainRows.length}
       data-active-sync-domain-labels={activeDomainLabels.join(",")}
+      data-file-queue-total={fileQueueTotal}
+      data-file-pending-total={readiness.queueBreakdown.filePendingTotal}
+      data-file-failed-total={readiness.queueBreakdown.fileFailedTotal}
+      data-file-manual-review-total={
+        readiness.queueBreakdown.fileManualReviewTotal
+      }
       className="space-y-3"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -20495,7 +20539,7 @@ function SyncLocalUseReadinessPanel({
           </button>
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-7">
         {facts.map((fact) => (
           <div
             key={fact.label}

@@ -3169,11 +3169,16 @@ check(
     accountCloudSyncCoordinator.includes("pageVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("databaseVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("settingsVisibleSyncWork") &&
-	    accountCloudSyncCoordinator.includes("knowledgeVisibleSyncWork") &&
+    accountCloudSyncCoordinator.includes("knowledgeVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("globalSyncLogVisibleSyncWork") &&
-	    accountCloudSyncCoordinator.includes("autoRetryableSyncWorkTotal") &&
-	    accountCloudSyncCoordinator.includes("retryableFailedTotal") &&
-	    accountCloudSyncCoordinator.includes("enabledDomainCount") &&
+    accountCloudSyncCoordinator.includes("autoRetryableSyncWorkTotal") &&
+    accountCloudSyncCoordinator.includes("retryableFailedTotal") &&
+    accountCloudSyncCoordinator.includes("enabledDomainCount") &&
+    accountCloudSyncCoordinator.includes("filePendingTotal") &&
+    accountCloudSyncCoordinator.includes("fileFailedTotal: fileSync.status.failed") &&
+    accountCloudSyncCoordinator.includes(
+      "fileManualReviewTotal: fileSync.status.manualReviewCount"
+    ) &&
     accountCloudSyncCoordinator.includes("buildAccountLocalUseReadiness") &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
@@ -3199,6 +3204,12 @@ check(
   accountLocalUseReadiness.includes("localInputCanContinue: true") &&
     accountLocalUseReadiness.includes("cloudHandoffReady") &&
     accountLocalUseReadiness.includes("cacheRebuildBlocked") &&
+    accountLocalUseReadiness.includes("queueBreakdown") &&
+    accountLocalUseReadiness.includes("AccountLocalUseQueueBreakdown") &&
+    accountLocalUseReadiness.includes("filePendingTotal") &&
+    accountLocalUseReadiness.includes("fileFailedTotal") &&
+    accountLocalUseReadiness.includes("fileManualReviewTotal") &&
+    accountLocalUseReadiness.includes("fileQueueBlocksCloudHandoff") &&
     accountLocalUseReadiness.includes("reads_page_body_text: false") &&
     accountLocalUseReadiness.includes("reads_database_row_values: false") &&
     accountLocalUseReadiness.includes("reads_file_bytes: false") &&
@@ -3209,6 +3220,7 @@ check(
     accountLocalUseReadiness.includes("可继续写作，等待上传") &&
     accountLocalUseReadiness.includes("可继续写作，云端暂不可确认") &&
     accountLocalUseReadiness.includes("可继续写作，云端交接已就绪") &&
+    accountLocalUseReadiness.includes("文件队列：") &&
     accountLocalUseReadiness.includes("清零前不要重建本地缓存或做云端交接"),
   "账号本地可用性判定应是共享 metadata-only 规则，侧边栏和同步中心必须复用同一套可继续输入、云端交接和缓存重建阻断口径"
 );
