@@ -8367,6 +8367,24 @@ function run() {
     "Page cloud sync must centralize account gate handling for initial, foreground, and recovery syncs."
   );
   assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "function getRetryStateFromAccountGate(",
+    "Page cloud sync must distinguish true shared-gate sign-out from retryable account uncertainty."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'return status === "signed-out" ? "signed-out" : "error";',
+    "Page cloud sync must show unconfigured/error account-gate states as cloud uncertainty, not sign-out."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'result.status === "unauthenticated") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";',
+    "Page cloud sync must show domain-route unauthenticated results as retryable cloud uncertainty after the shared gate."
+  );
+  assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
     "checkAccountCloudSyncGate",
@@ -8395,6 +8413,24 @@ function run() {
     databaseCloudSync,
     "gateAccountSync",
     "Database cloud sync must centralize account gate handling for initial, foreground, and recovery syncs."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "function getRetryStateFromAccountGate(",
+    "Database cloud sync must distinguish true shared-gate sign-out from retryable account uncertainty."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'return status === "signed-out" ? "signed-out" : "error";',
+    "Database cloud sync must show unconfigured/error account-gate states as cloud uncertainty, not sign-out."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'result.status === "unauthenticated") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";',
+    "Database cloud sync must show domain-route unauthenticated results as retryable cloud uncertainty after the shared gate."
   );
   assertIncludes(
     files.accountCloudSyncCoordinator,

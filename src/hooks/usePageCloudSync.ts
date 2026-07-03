@@ -8,7 +8,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-import { checkAccountCloudSyncGate } from "@/lib/account/accountCloudSyncGate";
+import {
+  checkAccountCloudSyncGate,
+  type AccountCloudSyncGateStatus,
+} from "@/lib/account/accountCloudSyncGate";
 import {
   getLocalCacheRecoverySignal,
   LOCAL_CACHE_RECOVERY_EVENT,
@@ -71,6 +74,12 @@ export type PageCloudSyncState =
   | "synced"
   | "signed-out"
   | "error";
+
+function getRetryStateFromAccountGate(
+  status: AccountCloudSyncGateStatus
+): PageCloudSyncState {
+  return status === "signed-out" ? "signed-out" : "error";
+}
 
 function claimSyncLease(force = false): boolean {
   if (typeof window === "undefined") return false;
@@ -135,8 +144,9 @@ export function usePageCloudSync() {
       return true;
     }
     authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
-    authRetryStateRef.current =
-      accountGate.status === "error" ? "error" : "signed-out";
+    authRetryStateRef.current = getRetryStateFromAccountGate(
+      accountGate.status
+    );
     setState(authRetryStateRef.current);
     refreshPendingStatus();
     return false;
@@ -192,8 +202,8 @@ export function usePageCloudSync() {
         setLastSyncAt(getLastPageSyncAt());
       } else if (result.status === "unauthenticated") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
-        authRetryStateRef.current = "signed-out";
-        setState("signed-out");
+        authRetryStateRef.current = "error";
+        setState("error");
       } else if (result.status === "unconfigured") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
@@ -245,8 +255,8 @@ export function usePageCloudSync() {
       void runSync({ quick: true, forceLease: true });
     } else if (result.status === "unauthenticated") {
       authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
-      authRetryStateRef.current = "signed-out";
-      setState("signed-out");
+      authRetryStateRef.current = "error";
+      setState("error");
     } else if (result.status === "unconfigured") {
       authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
       authRetryStateRef.current = "error";

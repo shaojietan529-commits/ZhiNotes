@@ -1727,13 +1727,23 @@ check(
   pageCloudSyncHook.includes("AUTH_RETRY_BACKOFF_MS") &&
     pageCloudSyncHook.includes("authRetryAfterRef") &&
     pageCloudSyncHook.includes("authRetryStateRef") &&
+    pageCloudSyncHook.includes("function getRetryStateFromAccountGate(") &&
+    pageCloudSyncHook.includes(
+      'return status === "signed-out" ? "signed-out" : "error";'
+    ) &&
+    pageCloudSyncHook.includes(
+      "authRetryStateRef.current = getRetryStateFromAccountGate("
+    ) &&
     pageCloudSyncHook.includes("setState(authRetryStateRef.current)") &&
     pageCloudSyncHook.includes('result.status === "unauthenticated"') &&
+    pageCloudSyncHook.includes(
+      'result.status === "unauthenticated") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";'
+    ) &&
     pageCloudSyncHook.includes('result.status === "unconfigured"') &&
     pageCloudSyncHook.includes(
       'result.status === "unconfigured") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";'
     ),
-  "页面同步在未登录/未配置时应短期退避；账号/网络临时错误退避不能显示成未登录，避免误导用户以为账号掉线"
+  "页面同步应短期退避；只有共享账号 gate 明确 signed-out 才能显示未登录，具体同步接口认证失败必须显示成云端暂不可确认，避免误导用户以为账号掉线"
 );
 check(
   pageCloudSyncHook.includes("getPendingCloudPageSyncStatus") &&
@@ -1788,13 +1798,23 @@ check(
   databaseCloudSyncHook.includes("AUTH_RETRY_BACKOFF_MS") &&
     databaseCloudSyncHook.includes("authRetryAfterRef") &&
     databaseCloudSyncHook.includes("authRetryStateRef") &&
+    databaseCloudSyncHook.includes("function getRetryStateFromAccountGate(") &&
+    databaseCloudSyncHook.includes(
+      'return status === "signed-out" ? "signed-out" : "error";'
+    ) &&
+    databaseCloudSyncHook.includes(
+      "authRetryStateRef.current = getRetryStateFromAccountGate("
+    ) &&
     databaseCloudSyncHook.includes("setState(authRetryStateRef.current)") &&
     databaseCloudSyncHook.includes('result.status === "unauthenticated"') &&
+    databaseCloudSyncHook.includes(
+      'result.status === "unauthenticated") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";'
+    ) &&
     databaseCloudSyncHook.includes('result.status === "unconfigured"') &&
     databaseCloudSyncHook.includes(
       'result.status === "unconfigured") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";'
     ),
-  "数据库同步在未登录/未配置时应短期退避；账号/网络临时错误退避不能显示成未登录，避免误导用户以为账号掉线"
+  "数据库同步应短期退避；只有共享账号 gate 明确 signed-out 才能显示未登录，具体同步接口认证失败必须显示成云端暂不可确认，避免误导用户以为账号掉线"
 );
 check(
   databaseCloudSyncHook.includes("DATABASE_SYNC_STATUS_EVENT") &&
