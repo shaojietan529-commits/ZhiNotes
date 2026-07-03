@@ -2975,6 +2975,14 @@ function run() {
       "云端已确认",
       "Local-first cloud input plan must define a cloud-confirmed user state.",
     ],
+    [
+      "本地缓冲",
+      "Local-first cloud input plan must present auth/cloud uncertainty as a local buffer, not a forced relogin state.",
+    ],
+    [
+      "本地已保存，云端确认恢复后自动重试。",
+      "Local-first cloud input plan must tell users saved local input will retry after cloud confirmation recovers.",
+    ],
   ]) {
     assertIncludes(
       files.localFirstCloudInputPlan,
@@ -2983,6 +2991,12 @@ function run() {
       message
     );
   }
+  assertExcludes(
+    files.localFirstCloudInputPlan,
+    localFirstCloudInputPlan,
+    "恢复登录后再同步",
+    "Local-first cloud input plan must not imply temporary cloud uncertainty requires relogin."
+  );
   for (const [snippet, message] of [
     [
       "buildLocalFirstCloudInputPlan",

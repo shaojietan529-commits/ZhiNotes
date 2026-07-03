@@ -423,9 +423,9 @@ function buildUiStates(): LocalFirstCloudInputUiState[] {
     },
     {
       id: "offline-buffer",
-      label: "离线缓冲",
-      when_to_show: "未登录、未配置、认证重试或同步关闭。",
-      copy: "本地已保存，恢复登录后再同步。",
+      label: "本地缓冲",
+      when_to_show: "未登录、未配置、认证重试、云端暂不可确认或同步关闭。",
+      copy: "本地已保存，云端确认恢复后自动重试。",
       blocks_navigation: false,
       blocks_cache_rebuild: true,
     },
