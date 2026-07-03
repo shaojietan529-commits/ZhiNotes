@@ -8,6 +8,7 @@ import {
 import {
   buildEmptySettingsCloudSyncStatus,
   SETTINGS_SYNC_STATUS_EVENT,
+  SETTINGS_SYNC_STATUS_STORAGE_KEY,
   summarizeSettingsCloudSyncStatus,
   type SettingsCloudSyncStatus,
 } from "@/lib/sync/settingsSyncStatus";
@@ -75,15 +76,23 @@ export function useSettingsCloudSyncStatus() {
       }
       void refresh();
     };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY || !event.newValue) {
+        return;
+      }
+      void refresh();
+    };
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);
     window.addEventListener(SETTINGS_SYNC_STATUS_EVENT, handleStatus);
+    window.addEventListener("storage", handleStorage);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
       window.removeEventListener(SETTINGS_SYNC_STATUS_EVENT, handleStatus);
+      window.removeEventListener("storage", handleStorage);
       document.removeEventListener("visibilitychange", handleVisible);
     };
   }, [dbReady, refresh]);

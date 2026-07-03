@@ -1,4 +1,5 @@
 export const KNOWLEDGE_SYNC_STATUS_EVENT = "zhinote:knowledge-sync-status";
+export const KNOWLEDGE_SYNC_STATUS_STORAGE_KEY = "zhinote:knowledge-sync-status-updated";
 export const KNOWLEDGE_SYNC_MANUAL_REVIEW_FAILURE_THRESHOLD = 3;
 
 export type KnowledgeSyncTableName =
@@ -204,4 +205,13 @@ export function emitKnowledgeSyncStatusEvent(
       { detail }
     )
   );
+  try {
+    // Cross-tab hint only: this stores a timestamp, never comment bodies, link targets, version snapshots, or sync payloads.
+    window.localStorage.setItem(
+      KNOWLEDGE_SYNC_STATUS_STORAGE_KEY,
+      String(Date.now())
+    );
+  } catch {
+    // Status badges still refresh through same-tab events and polling if storage is unavailable.
+  }
 }

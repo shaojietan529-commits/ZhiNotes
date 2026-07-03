@@ -4865,6 +4865,36 @@ function run() {
     "Settings cloud sync status hook must refresh promptly after settings queue metadata changes."
   );
   assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "SETTINGS_SYNC_STATUS_STORAGE_KEY",
+    "Settings cloud sync status hook must subscribe to the content-free cross-tab timestamp hint."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    'window.addEventListener("storage", handleStorage)',
+    "Settings cloud sync status hook must refresh when another tab changes settings sync metadata."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY",
+    "Settings cloud sync status hook must ignore unrelated localStorage churn."
+  );
+  assertSourceIncludes(
+    files.settingsSyncStatus,
+    settingsSyncStatus,
+    'SETTINGS_SYNC_STATUS_STORAGE_KEY = "zhinote:settings-sync-status-updated"',
+    "Settings sync status must expose a content-free cross-tab timestamp hint."
+  );
+  assertSourceIncludes(
+    files.settingsSyncStatus,
+    settingsSyncStatus,
+    "never setting values or sync payloads",
+    "Settings sync status cross-tab hint must document that it never stores setting values."
+  );
+  assertSourceIncludes(
     files.settingsSyncStatus,
     settingsSyncStatus,
     "reads_sync_log_metadata: true",
@@ -4893,6 +4923,36 @@ function run() {
     knowledgeCloudSyncStatusHook,
     "KNOWLEDGE_SYNC_STATUS_EVENT",
     "Knowledge sync status hook must refresh promptly after comment/version/link queue metadata changes."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "KNOWLEDGE_SYNC_STATUS_STORAGE_KEY",
+    "Knowledge sync status hook must subscribe to the content-free cross-tab timestamp hint."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    'window.addEventListener("storage", handleStorage)',
+    "Knowledge sync status hook must refresh when another tab changes knowledge sync metadata."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY",
+    "Knowledge sync status hook must ignore unrelated localStorage churn."
+  );
+  assertSourceIncludes(
+    files.knowledgeSyncStatus,
+    knowledgeSyncStatus,
+    'KNOWLEDGE_SYNC_STATUS_STORAGE_KEY = "zhinote:knowledge-sync-status-updated"',
+    "Knowledge sync status must expose a content-free cross-tab timestamp hint."
+  );
+  assertSourceIncludes(
+    files.knowledgeSyncStatus,
+    knowledgeSyncStatus,
+    "never comment bodies, link targets, version snapshots, or sync payloads",
+    "Knowledge sync status cross-tab hint must document that it never stores knowledge content."
   );
   assertSourceIncludes(
     files.globalSyncLogStatusHook,

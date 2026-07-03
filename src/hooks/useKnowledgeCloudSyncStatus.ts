@@ -5,6 +5,7 @@ import { getPendingKnowledgeSyncLogEntries } from "@/lib/db/local/queries";
 import {
   buildEmptyKnowledgeCloudSyncStatus,
   KNOWLEDGE_SYNC_STATUS_EVENT,
+  KNOWLEDGE_SYNC_STATUS_STORAGE_KEY,
   summarizeKnowledgeCloudSyncStatus,
   type KnowledgeCloudSyncStatus,
 } from "@/lib/sync/knowledgeSyncStatus";
@@ -64,15 +65,23 @@ export function useKnowledgeCloudSyncStatus() {
       }
       void refresh();
     };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY || !event.newValue) {
+        return;
+      }
+      void refresh();
+    };
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);
     window.addEventListener(KNOWLEDGE_SYNC_STATUS_EVENT, handleStatus);
+    window.addEventListener("storage", handleStorage);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
       window.removeEventListener(KNOWLEDGE_SYNC_STATUS_EVENT, handleStatus);
+      window.removeEventListener("storage", handleStorage);
       document.removeEventListener("visibilitychange", handleVisible);
     };
   }, [dbReady, refresh]);

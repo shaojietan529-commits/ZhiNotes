@@ -1,4 +1,5 @@
 export const SETTINGS_SYNC_STATUS_EVENT = "zhinote:settings-sync-status";
+export const SETTINGS_SYNC_STATUS_STORAGE_KEY = "zhinote:settings-sync-status-updated";
 export const SETTINGS_SYNC_MANUAL_REVIEW_FAILURE_THRESHOLD = 3;
 
 export type SettingsSyncTableName =
@@ -192,4 +193,13 @@ export function emitSettingsSyncStatusEvent(
       { detail }
     )
   );
+  try {
+    // Cross-tab hint only: this stores a timestamp, never setting values or sync payloads.
+    window.localStorage.setItem(
+      SETTINGS_SYNC_STATUS_STORAGE_KEY,
+      String(Date.now())
+    );
+  } catch {
+    // Status badges still refresh through same-tab events and polling if storage is unavailable.
+  }
 }

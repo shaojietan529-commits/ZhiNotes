@@ -2984,6 +2984,10 @@ check(
       "getPendingAccountModuleSettingSyncLogEntries"
     ) &&
     settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_EVENT") &&
+    settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
+    settingsCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
+    settingsCloudSyncStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
+    settingsCloudSyncStatusHook.includes("event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
     settingsCloudSyncStatusHook.includes(
       "summarizeSettingsCloudSyncStatus"
     ) &&
@@ -2994,6 +2998,9 @@ check(
 );
 check(
   settingsSyncStatus.includes("SETTINGS_SYNC_STATUS_EVENT") &&
+    settingsSyncStatus.includes('SETTINGS_SYNC_STATUS_STORAGE_KEY =') &&
+    settingsSyncStatus.includes("window.localStorage.setItem(") &&
+    settingsSyncStatus.includes("never setting values or sync payloads") &&
     settingsSyncStatus.includes("reads_sync_log_metadata: true") &&
     settingsSyncStatus.includes("reads_workspace_settings_values: false") &&
     settingsSyncStatus.includes("reads_account_settings_values: false") &&
@@ -3006,6 +3013,10 @@ check(
 check(
   knowledgeCloudSyncStatusHook.includes("getPendingKnowledgeSyncLogEntries") &&
     knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
+    knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
+    knowledgeCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
+    knowledgeCloudSyncStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
+    knowledgeCloudSyncStatusHook.includes("event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
     knowledgeCloudSyncStatusHook.includes("summarizeKnowledgeCloudSyncStatus") &&
     knowledgeCloudSyncStatusHook.includes(
       "KNOWLEDGE_STATUS_REFRESH_INTERVAL_MS"
@@ -3014,6 +3025,11 @@ check(
 );
 check(
   knowledgeSyncStatus.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
+    knowledgeSyncStatus.includes('KNOWLEDGE_SYNC_STATUS_STORAGE_KEY =') &&
+    knowledgeSyncStatus.includes("window.localStorage.setItem(") &&
+    knowledgeSyncStatus.includes(
+      "never comment bodies, link targets, version snapshots, or sync payloads"
+    ) &&
     knowledgeSyncStatus.includes("reads_sync_log_metadata: true") &&
     knowledgeSyncStatus.includes("reads_wiki_link_targets: false") &&
     knowledgeSyncStatus.includes("reads_comment_bodies: false") &&
