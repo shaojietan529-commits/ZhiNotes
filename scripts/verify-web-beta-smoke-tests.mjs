@@ -3347,6 +3347,24 @@ function run() {
     "safe_to_switch_device_now",
     "Sync upload drain receipt must state whether cross-device switching is safe after drain."
   );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "fileResult: SyncUploadDrainResultSnapshot",
+    "Sync upload drain receipt must include file queue drain results."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    'domain: "files"',
+    "Sync upload drain receipt must include a file queue domain."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "file_waiting_rows_after",
+    "Sync upload drain receipt must summarize file waiting rows after drain."
+  );
   for (const [snippet, message] of [
     [
       'format: "zhinote-sync-ack-retry-ledger-contract"',
@@ -13470,6 +13488,36 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "fileStatus: fileEmbedPendingStatus",
+    "Sync UI cache rebuild preflight must include file embed queue status."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "fileStatus: PendingFileEmbedSyncStatus",
+    "Cache rebuild preflight receipt must receive file embed queue status."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "file_pending_rows",
+    "Cache rebuild preflight receipt must summarize file pending rows."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "file_failed_rows",
+    "Cache rebuild preflight receipt must summarize file failed rows."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "file_manual_review_rows",
+    "Cache rebuild preflight receipt must summarize file manual-review rows."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "前往账号页重建缓存",
     "Sync UI must hand cache rebuilds off to the account page confirmation flow."
   );
@@ -13952,6 +14000,30 @@ function run() {
     syncManualReviewPacket,
     "manual_review_sample_ids_or_keys",
     "Manual review packet must surface metadata-only repeated failure samples."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "reads_file_ids: true",
+    "Manual review packet must include metadata-only file ids."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "file_manual_review_count",
+    "Manual review packet must include file manual-review counts."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    "file_failed_count",
+    "Manual review packet must include file failed counts."
+  );
+  assertIncludes(
+    files.syncManualReviewPacket,
+    syncManualReviewPacket,
+    'domain: "files"',
+    "Manual review packet must include a file sync domain."
   );
   assertIncludes(
     files.syncManualReviewPacket,

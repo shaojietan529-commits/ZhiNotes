@@ -10801,6 +10801,10 @@ function run() {
       "Sync UI manual review packets must include full-domain sync_log manual-review counts.",
     ],
     [
+      "fileStatus: fileEmbedPendingStatus",
+      "Sync UI manual review packets must include file embed queue status.",
+    ],
+    [
       "manual-review-packet",
       "Sync UI must track manual review packet export as its own busy state.",
     ],
@@ -10871,6 +10875,10 @@ function run() {
     [
       "syncHandoffReadinessReceipt",
       "Sync UI must reuse the same handoff receipt for visible status and export.",
+    ],
+    [
+      "fileStatus: fileEmbedPendingStatus",
+      "Sync UI cache rebuild preflight must include file embed queue status.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
@@ -11200,6 +11208,22 @@ function run() {
       "Manual review packet must surface metadata-only repeated failure samples.",
     ],
     [
+      "reads_file_ids: true",
+      "Manual review packet must include metadata-only file ids.",
+    ],
+    [
+      "file_manual_review_count",
+      "Manual review packet must include file manual-review counts.",
+    ],
+    [
+      "file_failed_count",
+      "Manual review packet must include file failed counts.",
+    ],
+    [
+      'domain: "files"',
+      "Manual review packet must include a file sync domain.",
+    ],
+    [
       "can_retry_before_owner_review",
       "Manual review packet must tell whether retry is safe before owner review.",
     ],
@@ -11328,6 +11352,22 @@ function run() {
     [
       "total_sync_log_manual_review_rows",
       "Cache rebuild preflight receipt must include full-domain sync_log manual-review counts.",
+    ],
+    [
+      "fileStatus: PendingFileEmbedSyncStatus",
+      "Cache rebuild preflight receipt must receive file embed queue status.",
+    ],
+    [
+      "file_pending_rows",
+      "Cache rebuild preflight receipt must summarize file pending rows.",
+    ],
+    [
+      "file_failed_rows",
+      "Cache rebuild preflight receipt must summarize file failed rows.",
+    ],
+    [
+      "file_manual_review_rows",
+      "Cache rebuild preflight receipt must summarize file manual-review rows.",
     ],
     [
       "blocked-manifest-mismatch",
@@ -12742,6 +12782,26 @@ function run() {
     [
       "buildSyncUploadDrainReceipt",
       "Sync upload drain receipt builder must be exported.",
+    ],
+    [
+      "fileResult: SyncUploadDrainResultSnapshot",
+      "Sync upload drain receipt must include file queue drain results.",
+    ],
+    [
+      'domain: "files"',
+      "Sync upload drain receipt must include a file queue domain.",
+    ],
+    [
+      "file_waiting_rows_after",
+      "Sync upload drain receipt must summarize file waiting rows after drain.",
+    ],
+    [
+      "file_failed_rows_after",
+      "Sync upload drain receipt must summarize file failed rows after drain.",
+    ],
+    [
+      "file_manual_review_rows_after",
+      "Sync upload drain receipt must summarize file manual-review rows after drain.",
     ],
   ]) {
     assertSourceIncludes(

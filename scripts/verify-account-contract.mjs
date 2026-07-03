@@ -2911,6 +2911,10 @@ check(
     ) &&
     cacheRebuildPreflightReceipt.includes("cloud_manifest_is_source_of_truth") &&
     cacheRebuildPreflightReceipt.includes("local_pending_edits_block_rebuild") &&
+    cacheRebuildPreflightReceipt.includes("fileStatus: PendingFileEmbedSyncStatus") &&
+    cacheRebuildPreflightReceipt.includes("file_pending_rows") &&
+    cacheRebuildPreflightReceipt.includes("file_failed_rows") &&
+    cacheRebuildPreflightReceipt.includes("file_manual_review_rows") &&
     cacheRebuildPreflightReceipt.includes("clears_local_cache: false") &&
     cacheRebuildPreflightReceipt.includes("uploads_workspace_data: false") &&
     cacheRebuildPreflightReceipt.includes(

@@ -36,6 +36,9 @@ export interface PendingFileEmbedSyncStatus {
   pending: number;
   failed: number;
   manualReviewCount: number;
+  failureCountTotal: number;
+  maxFailureCount: number;
+  manualReviewFailureThreshold: number;
   oldestPendingQueuedAt: string | null;
   lastAttemptAt: string | null;
   lastFailureAt: string | null;
@@ -52,6 +55,7 @@ export interface DrainFileEmbedSyncQueueResult {
   failed: number;
   manualReview: number;
   missingLocalFiles: number;
+  message?: string;
 }
 
 export function markFileEmbedCloudSyncAttempt(file: StoredPageFile): void {
@@ -109,6 +113,15 @@ export function getPendingFileEmbedSyncStatus(): PendingFileEmbedSyncStatus {
     pending: pending.length,
     failed: failed.length,
     manualReviewCount: manualReview.length,
+    failureCountTotal: entries.reduce(
+      (sum, entry) => sum + entry.failureCount,
+      0
+    ),
+    maxFailureCount: entries.reduce(
+      (max, entry) => Math.max(max, entry.failureCount),
+      0
+    ),
+    manualReviewFailureThreshold: FILE_EMBED_MANUAL_REVIEW_FAILURE_THRESHOLD,
     oldestPendingQueuedAt: oldestDate(pending.map((entry) => entry.queuedAt)),
     lastAttemptAt: newestDate(
       entries.map((entry) => entry.lastAttemptAt).filter(Boolean)

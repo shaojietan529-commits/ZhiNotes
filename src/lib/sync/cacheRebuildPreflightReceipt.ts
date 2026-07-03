@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import type { CloudMasterReconcileReport } from "@/lib/sync/cloudMasterReconcile";
 import type { CoreManifestCompareReceipt } from "@/lib/sync/coreManifestCompareReceipt";
@@ -18,6 +19,7 @@ export type CacheRebuildPreflightGateStatus = "pass" | "warn" | "block";
 export interface CacheRebuildPreflightReceiptInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
+  fileStatus: PendingFileEmbedSyncStatus;
   totalSyncPending: number;
   totalSyncFailed?: number;
   totalSyncManualReview?: number;
@@ -64,11 +66,15 @@ export interface CacheRebuildPreflightReceipt {
     cloud_workspace_linked: boolean;
     page_sync_enabled: boolean;
     database_sync_enabled: boolean;
+    file_sync_enabled: boolean;
     page_pending_rows: number;
     page_in_memory_queued_rows: number;
     database_pending_rows: number;
     database_in_memory_queued_rows: number;
     database_sync_log_pending_rows: number;
+    file_pending_rows: number;
+    file_failed_rows: number;
+    file_manual_review_rows: number;
     total_sync_log_pending_rows: number;
     total_sync_log_failed_rows: number;
     total_sync_log_manual_review_rows: number;
@@ -100,16 +106,22 @@ export function buildCacheRebuildPreflightReceipt(
     input.databaseStatus.pending +
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
+  const filePendingRows = input.fileStatus.pending;
   const hasPending =
     pagePendingRows > 0 ||
     databasePendingRows > 0 ||
+    filePendingRows > 0 ||
     input.totalSyncPending > 0;
   const failedRows = Math.max(
-    input.pageStatus.failed + input.databaseStatus.failed,
+    input.pageStatus.failed +
+      input.databaseStatus.failed +
+      input.fileStatus.failed,
     input.totalSyncFailed ?? 0
   );
   const manualReviewRows = Math.max(
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.pageStatus.manualReviewCount +
+      input.databaseStatus.manualReviewCount +
+      input.fileStatus.manualReviewCount,
     input.totalSyncManualReview ?? 0
   );
   const hasSyncReview = failedRows > 0 || manualReviewRows > 0;
@@ -131,22 +143,26 @@ export function buildCacheRebuildPreflightReceipt(
     },
     {
       id: "sync-enabled",
-      title: "页面和数据库同步已启用",
+      title: "页面、数据库和文件同步已启用",
       status:
-        input.pageStatus.enabled && input.databaseStatus.enabled
+        input.pageStatus.enabled &&
+        input.databaseStatus.enabled &&
+        input.fileStatus.enabled
           ? "pass"
           : "block",
-      evidence: `页面同步：${input.pageStatus.enabled ? "开启" : "关闭"}；数据库同步：${input.databaseStatus.enabled ? "开启" : "关闭"}。`,
+      evidence: `页面同步：${input.pageStatus.enabled ? "开启" : "关闭"}；数据库同步：${input.databaseStatus.enabled ? "开启" : "关闭"}；文件同步：${input.fileStatus.enabled ? "开启" : "关闭"}。`,
       next_action:
-        input.pageStatus.enabled && input.databaseStatus.enabled
+        input.pageStatus.enabled &&
+        input.databaseStatus.enabled &&
+        input.fileStatus.enabled
           ? "继续检查待上传队列。"
-          : "先在账号页开启页面/数据库同步，并确认隐私边界。",
+          : "先在账号页开启页面/数据库/文件同步，并确认隐私边界。",
     },
     {
       id: "pending-queues-empty",
       title: "本地待上传队列已清空",
       status: hasPending ? "block" : "pass",
-      evidence: `页面 pending ${pagePendingRows} 条；数据库 pending ${databasePendingRows} 条；全局 sync_log pending ${input.totalSyncPending} 条。`,
+      evidence: `页面 pending ${pagePendingRows} 条；数据库 pending ${databasePendingRows} 条；文件 pending ${filePendingRows} 条；全局 sync_log pending ${input.totalSyncPending} 条。`,
       next_action: hasPending
         ? "先补传或明确处理待上传变更；pending 未清空前不要清理本地缓存。"
         : "待上传队列为空，可以继续检查 manifest 对账结果。",
@@ -155,7 +171,7 @@ export function buildCacheRebuildPreflightReceipt(
       id: "sync-review-clear",
       title: "失败和人工处理队列已清空",
       status: hasSyncReview ? "block" : "pass",
-      evidence: `失败 ${failedRows} 条；人工处理 ${manualReviewRows} 条；全局 sync_log failed ${input.totalSyncFailed ?? 0} 条，manual review ${input.totalSyncManualReview ?? 0} 条。`,
+      evidence: `失败 ${failedRows} 条；人工处理 ${manualReviewRows} 条；文件 failed ${input.fileStatus.failed} 条，manual review ${input.fileStatus.manualReviewCount} 条；全局 sync_log failed ${input.totalSyncFailed ?? 0} 条，manual review ${input.totalSyncManualReview ?? 0} 条。`,
       next_action: hasSyncReview
         ? "先补传失败队列或导出处理包；失败/人工处理未清空前不要重建本地缓存。"
         : "没有失败或人工处理队列，可以继续检查 manifest 对账结果。",
@@ -193,6 +209,7 @@ export function buildCacheRebuildPreflightReceipt(
     cloudWorkspaceLinked,
     pageSyncEnabled: input.pageStatus.enabled,
     databaseSyncEnabled: input.databaseStatus.enabled,
+    fileSyncEnabled: input.fileStatus.enabled,
     hasPending,
     hasSyncReview,
     coreManifestReceipt: input.coreManifestReceipt,
@@ -203,8 +220,12 @@ export function buildCacheRebuildPreflightReceipt(
     cloud_workspace_linked: cloudWorkspaceLinked,
     page_sync_enabled: input.pageStatus.enabled,
     database_sync_enabled: input.databaseStatus.enabled,
+    file_sync_enabled: input.fileStatus.enabled,
     page_pending_rows: pagePendingRows,
     database_pending_rows: databasePendingRows,
+    file_pending_rows: filePendingRows,
+    file_failed_rows: input.fileStatus.failed,
+    file_manual_review_rows: input.fileStatus.manualReviewCount,
     total_sync_log_pending_rows: input.totalSyncPending,
     total_sync_log_failed_rows: input.totalSyncFailed ?? 0,
     total_sync_log_manual_review_rows: input.totalSyncManualReview ?? 0,
@@ -248,11 +269,15 @@ export function buildCacheRebuildPreflightReceipt(
       cloud_workspace_linked: cloudWorkspaceLinked,
       page_sync_enabled: input.pageStatus.enabled,
       database_sync_enabled: input.databaseStatus.enabled,
+      file_sync_enabled: input.fileStatus.enabled,
       page_pending_rows: pagePendingRows,
       page_in_memory_queued_rows: input.pageStatus.queued,
       database_pending_rows: input.databaseStatus.pending,
       database_in_memory_queued_rows: input.databaseStatus.queued,
       database_sync_log_pending_rows: input.databaseStatus.syncLogPending,
+      file_pending_rows: filePendingRows,
+      file_failed_rows: input.fileStatus.failed,
+      file_manual_review_rows: input.fileStatus.manualReviewCount,
       total_sync_log_pending_rows: input.totalSyncPending,
       total_sync_log_failed_rows: input.totalSyncFailed ?? 0,
       total_sync_log_manual_review_rows: input.totalSyncManualReview ?? 0,
@@ -280,12 +305,17 @@ function getPreflightStatus(input: {
   cloudWorkspaceLinked: boolean;
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
+  fileSyncEnabled: boolean;
   hasPending: boolean;
   hasSyncReview: boolean;
   coreManifestReceipt: CoreManifestCompareReceipt | null;
 }): CacheRebuildPreflightStatus {
   if (!input.cloudWorkspaceLinked) return "blocked-cloud-workspace";
-  if (!input.pageSyncEnabled || !input.databaseSyncEnabled) {
+  if (
+    !input.pageSyncEnabled ||
+    !input.databaseSyncEnabled ||
+    !input.fileSyncEnabled
+  ) {
     return "blocked-disabled";
   }
   if (input.hasPending) return "blocked-pending";
@@ -306,7 +336,7 @@ function getNextAction(status: CacheRebuildPreflightStatus): string {
     case "blocked-cloud-workspace":
       return "先登录并连接云工作区；没有云主库证据时不能重建本机缓存。";
     case "blocked-disabled":
-      return "先开启页面/数据库同步，并确认隐私边界。";
+      return "先开启页面/数据库/文件同步，并确认隐私边界。";
     case "blocked-pending":
       return "先补传或处理本地 pending 变更；未上传输入不能被缓存重建隐藏。";
     case "blocked-sync-review":

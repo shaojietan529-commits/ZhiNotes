@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 
 export type SyncUploadDrainStatus =
@@ -18,17 +19,20 @@ export interface SyncUploadDrainResultSnapshot {
 export interface SyncUploadDrainReceiptInput {
   beforePageStatus: PendingCloudPageSyncStatus;
   beforeDatabaseStatus: PendingCloudDatabaseSyncStatus;
+  beforeFileStatus: PendingFileEmbedSyncStatus;
   beforeSyncLogPending: number;
   afterPageStatus: PendingCloudPageSyncStatus;
   afterDatabaseStatus: PendingCloudDatabaseSyncStatus;
+  afterFileStatus: PendingFileEmbedSyncStatus;
   afterSyncLogPending: number;
   pageResult: SyncUploadDrainResultSnapshot;
   databaseResult: SyncUploadDrainResultSnapshot;
+  fileResult: SyncUploadDrainResultSnapshot;
   generatedAt?: string;
 }
 
 export interface SyncUploadDrainDomainReceipt {
-  domain: "pages" | "databases";
+  domain: "pages" | "databases" | "files";
   label: string;
   enabled: boolean;
   result_status: string;
@@ -79,6 +83,9 @@ export interface SyncUploadDrainReceipt {
     failed_rows_after: number;
     manual_review_rows_after: number;
     sync_log_pending_after: number;
+    file_waiting_rows_after: number;
+    file_failed_rows_after: number;
+    file_manual_review_rows_after: number;
     queue_reduced: boolean;
     safe_to_switch_device_now: boolean;
     blockers: number;
@@ -96,19 +103,38 @@ export function buildSyncUploadDrainReceipt(
   const pageAfter = getPageWaitingRows(input.afterPageStatus);
   const databaseBefore = getDatabaseWaitingRows(input.beforeDatabaseStatus);
   const databaseAfter = getDatabaseWaitingRows(input.afterDatabaseStatus);
+  const fileBefore = getFileWaitingRows(input.beforeFileStatus);
+  const fileAfter = getFileWaitingRows(input.afterFileStatus);
   const waitingBefore =
-    pageBefore + databaseBefore + Math.max(0, input.beforeSyncLogPending);
+    pageBefore +
+    databaseBefore +
+    fileBefore +
+    Math.max(0, input.beforeSyncLogPending);
   const waitingAfter =
-    pageAfter + databaseAfter + Math.max(0, input.afterSyncLogPending);
+    pageAfter +
+    databaseAfter +
+    fileAfter +
+    Math.max(0, input.afterSyncLogPending);
   const failedRowsAfter =
-    input.afterPageStatus.failed + input.afterDatabaseStatus.failed;
+    input.afterPageStatus.failed +
+    input.afterDatabaseStatus.failed +
+    input.afterFileStatus.failed;
   const manualReviewRowsAfter =
     input.afterPageStatus.manualReviewCount +
-    input.afterDatabaseStatus.manualReviewCount;
-  const pushedRecords = input.pageResult.pushed + input.databaseResult.pushed;
-  const pulledRecords = input.pageResult.pulled + input.databaseResult.pulled;
+    input.afterDatabaseStatus.manualReviewCount +
+    input.afterFileStatus.manualReviewCount;
+  const pushedRecords =
+    input.pageResult.pushed +
+    input.databaseResult.pushed +
+    input.fileResult.pushed;
+  const pulledRecords =
+    input.pageResult.pulled +
+    input.databaseResult.pulled +
+    input.fileResult.pulled;
   const skippedRecords =
-    (input.pageResult.skipped ?? 0) + (input.databaseResult.skipped ?? 0);
+    (input.pageResult.skipped ?? 0) +
+    (input.databaseResult.skipped ?? 0) +
+    (input.fileResult.skipped ?? 0);
   const domains: SyncUploadDrainDomainReceipt[] = [
     {
       domain: "pages",
@@ -143,6 +169,25 @@ export function buildSyncUploadDrainReceipt(
       last_failure_message_after: input.afterDatabaseStatus.lastFailureMessage,
       message: input.databaseResult.message ?? null,
     },
+    {
+      domain: "files",
+      label: "文件",
+      enabled: input.afterFileStatus.enabled,
+      result_status: input.fileResult.status,
+      pushed: input.fileResult.pushed,
+      pulled: input.fileResult.pulled,
+      skipped: input.fileResult.skipped ?? 0,
+      waiting_rows_before: fileBefore,
+      waiting_rows_after: fileAfter,
+      failed_rows_after: input.afterFileStatus.failed,
+      manual_review_rows_after: input.afterFileStatus.manualReviewCount,
+      queue_cleared:
+        fileAfter === 0 &&
+        input.afterFileStatus.failed === 0 &&
+        input.afterFileStatus.manualReviewCount === 0,
+      last_failure_message_after: input.afterFileStatus.lastFailureMessage,
+      message: input.fileResult.message ?? null,
+    },
   ];
   const disabledDomains = domains.filter((domain) => !domain.enabled).length;
   const blockedStatuses = domains.filter(
@@ -172,7 +217,7 @@ export function buildSyncUploadDrainReceipt(
     generated_at: generatedAt,
     status,
     privacy_boundary:
-      "This receipt is generated locally after a user-triggered pending-queue upload attempt. It summarizes page/database queue counts, timestamps, failure counts, failure messages, and the action result. The upload action only uses explicit pending rows from existing sync queues; the receipt itself does not read or export page bodies, database row values, comments, file bytes, secrets, tokens, or raw workspace content. It does not clear or rebuild local cache, enable sync, or enable AI.",
+      "This receipt is generated locally after a user-triggered pending-queue upload attempt. It summarizes page/database/file queue counts, timestamps, failure counts, failure messages, and the action result. The upload action only uses explicit pending rows from existing sync queues; the receipt itself does not read or export page bodies, database row values, comments, file bytes, secrets, tokens, or raw workspace content. It does not clear or rebuild local cache, enable sync, or enable AI.",
     boundary: {
       local_receipt_only: true,
       triggered_upload_from_pending_queue: true,
@@ -201,6 +246,9 @@ export function buildSyncUploadDrainReceipt(
       failed_rows_after: failedRowsAfter,
       manual_review_rows_after: manualReviewRowsAfter,
       sync_log_pending_after: Math.max(0, input.afterSyncLogPending),
+      file_waiting_rows_after: fileAfter,
+      file_failed_rows_after: input.afterFileStatus.failed,
+      file_manual_review_rows_after: input.afterFileStatus.manualReviewCount,
       queue_reduced: waitingAfter < waitingBefore,
       safe_to_switch_device_now: safeToSwitchDeviceNow,
       blockers,
@@ -228,6 +276,10 @@ function getDatabaseWaitingRows(
   return status.pending + status.queued + status.syncLogPending;
 }
 
+function getFileWaitingRows(status: PendingFileEmbedSyncStatus): number {
+  return status.pending;
+}
+
 function getStatus(input: {
   blockers: number;
   warnings: number;
@@ -248,16 +300,16 @@ function getNextAction(input: {
   safeToSwitchDeviceNow: boolean;
 }): string {
   if (input.safeToSwitchDeviceNow) {
-    return "补传后队列已清空，当前适合切换设备或继续推进本地热缓存重建。";
+    return "补传后页面、数据库、文件队列已清空，当前适合切换设备或继续推进本地热缓存重建。";
   }
   if (input.disabledDomains > 0) {
-    return "先到账号页确认页面和数据库同步都已开启；关闭的域不会进入自动上云。";
+    return "先到账号页确认页面、数据库和文件同步都已开启；关闭的域不会进入自动上云。";
   }
   if (input.blockedStatuses > 0) {
     return "补传动作未完全成功，先检查登录、网络、云端配置和最近失败原因。";
   }
   if (input.manualReviewRowsAfter > 0) {
-    return "存在反复失败的记录，导出处理包并按 page id 或 database key 做人工排查。";
+    return "存在反复失败的记录，导出处理包并按 page id、database key 或 file id 做人工排查。";
   }
   if (input.failedRowsAfter > 0) {
     return "仍有失败回执，先查看最近失败原因；不要在失败未清理前重建本地缓存。";

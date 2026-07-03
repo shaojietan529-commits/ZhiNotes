@@ -2005,6 +2005,7 @@ function SyncDashboard() {
       buildCacheRebuildPreflightReceipt({
         pageStatus: pagePendingStatus,
         databaseStatus: databasePendingStatus,
+        fileStatus: fileEmbedPendingStatus,
         totalSyncPending: syncSummary?.pending ?? 0,
         totalSyncFailed: syncSummary?.failed ?? 0,
         totalSyncManualReview: syncSummary?.manualReview ?? 0,
@@ -2016,6 +2017,7 @@ function SyncDashboard() {
       cloudMasterReconcile,
       coreManifestCompareReport,
       databasePendingStatus,
+      fileEmbedPendingStatus,
       localMetadataManifest,
       pagePendingStatus,
       syncSummary?.failed,
@@ -4594,6 +4596,7 @@ function SyncDashboard() {
         buildSyncManualReviewPacket({
           pageStatus: pagePendingStatus,
           databaseStatus: databasePendingStatus,
+          fileStatus: fileEmbedPendingStatus,
           totalSyncPending: syncSummary?.pending ?? 0,
           totalSyncFailed: syncSummary?.failed ?? 0,
           totalSyncManualReview: syncSummary?.manualReview ?? 0,
@@ -4652,6 +4655,7 @@ function SyncDashboard() {
         getSyncLogSummary(),
       ]);
       const beforePageStatus = getPendingCloudPageSyncStatus();
+      const beforeFileStatus = getPendingFileEmbedSyncStatus();
 
       const pageResult: SyncUploadDrainResultSnapshot = await reconcilePageSync({
         quick: true,
@@ -4714,12 +4718,24 @@ function SyncDashboard() {
       const receipt = buildSyncUploadDrainReceipt({
         beforePageStatus,
         beforeDatabaseStatus,
+        beforeFileStatus,
         beforeSyncLogPending: beforeSyncLogSummary.pending,
         afterPageStatus,
         afterDatabaseStatus,
+        afterFileStatus,
         afterSyncLogPending: nextSyncSummary.pending,
         pageResult,
         databaseResult,
+        fileResult: {
+          status:
+            fileResult.failed > 0 || fileResult.manualReview > 0
+              ? "needs-attention"
+              : "ok",
+          pushed: fileResult.synced,
+          pulled: 0,
+          skipped: fileResult.missingLocalFiles,
+          message: fileResult.message,
+        },
       });
       const fileQueueClear =
         afterFileStatus.pending === 0 &&

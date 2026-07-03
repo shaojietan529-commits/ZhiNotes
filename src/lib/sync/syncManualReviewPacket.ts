@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 
 export type SyncManualReviewPacketStatus =
@@ -11,6 +12,7 @@ export type SyncManualReviewPacketStatus =
 export interface SyncManualReviewPacketInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
+  fileStatus: PendingFileEmbedSyncStatus;
   totalSyncPending: number;
   totalSyncFailed?: number;
   totalSyncManualReview?: number;
@@ -18,7 +20,7 @@ export interface SyncManualReviewPacketInput {
 }
 
 export interface SyncManualReviewDomain {
-  domain: "pages" | "databases";
+  domain: "pages" | "databases" | "files";
   label: string;
   status: SyncManualReviewPacketStatus;
   enabled: boolean;
@@ -53,6 +55,7 @@ export interface SyncManualReviewPacket {
     reads_queue_counts: true;
     reads_page_ids: true;
     reads_database_keys: true;
+    reads_file_ids: true;
     reads_failure_counts: true;
     reads_failure_messages: true;
     reads_page_body_text: false;
@@ -75,14 +78,17 @@ export interface SyncManualReviewPacket {
     manual_review_required: boolean;
     page_manual_review_count: number;
     database_manual_review_count: number;
+    file_manual_review_count: number;
     sync_log_manual_review_count: number;
     total_manual_review_count: number;
     page_failed_count: number;
     database_failed_count: number;
+    file_failed_count: number;
     sync_log_failed_count: number;
     total_failed_count: number;
     page_max_failure_count: number;
     database_max_failure_count: number;
+    file_max_failure_count: number;
     total_sync_log_pending: number;
     can_retry_before_owner_review: boolean;
     cache_rebuild_should_wait: boolean;
@@ -98,19 +104,25 @@ export function buildSyncManualReviewPacket(
   const generatedAt = input.generatedAt ?? new Date().toISOString();
   const pageDomain = buildPageDomain(input.pageStatus);
   const databaseDomain = buildDatabaseDomain(input.databaseStatus);
+  const fileDomain = buildFileDomain(input.fileStatus);
   const syncLogManualReviewCount = input.totalSyncManualReview ?? 0;
   const syncLogFailedCount = input.totalSyncFailed ?? 0;
   const totalManualReviewCount = Math.max(
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.pageStatus.manualReviewCount +
+      input.databaseStatus.manualReviewCount +
+      input.fileStatus.manualReviewCount,
     syncLogManualReviewCount
   );
   const totalFailedCount = Math.max(
-    input.pageStatus.failed + input.databaseStatus.failed,
+    input.pageStatus.failed +
+      input.databaseStatus.failed +
+      input.fileStatus.failed,
     syncLogFailedCount
   );
   const status = getPacketStatus({
     pageDomain,
     databaseDomain,
+    fileDomain,
     totalManualReviewCount,
     totalFailedCount,
   });
@@ -119,6 +131,7 @@ export function buildSyncManualReviewPacket(
     status,
     page: pageDomain,
     database: databaseDomain,
+    file: fileDomain,
     total_sync_log_pending: input.totalSyncPending,
     sync_log_failed_count: syncLogFailedCount,
     sync_log_manual_review_count: syncLogManualReviewCount,
@@ -132,12 +145,13 @@ export function buildSyncManualReviewPacket(
     generated_at: generatedAt,
     status,
     privacy_note:
-      "Generated locally from sync queue metadata only. This packet contains counts, page ids, database/field/row/view keys, timestamps, failure counts, and recent failure messages. It does not read or export page body text, page Yjs data, database row values, comments, file names, file bytes, secrets, holdings, trading plans, prompts, tokens, cookies, or credentials; it does not send network requests, upload workspace data, clear local cache, or enable sync/AI.",
+      "Generated locally from sync queue metadata only. This packet contains counts, page ids, database/field/row/view keys, file ids, timestamps, failure counts, and recent failure messages. It does not read or export page body text, page Yjs data, database row values, comments, file names, file bytes, secrets, holdings, trading plans, prompts, tokens, cookies, or credentials; it does not send network requests, upload workspace data, clear local cache, or enable sync/AI.",
     boundary: {
       local_packet_only: true,
       reads_queue_counts: true,
       reads_page_ids: true,
       reads_database_keys: true,
+      reads_file_ids: true,
       reads_failure_counts: true,
       reads_failure_messages: true,
       reads_page_body_text: false,
@@ -160,14 +174,17 @@ export function buildSyncManualReviewPacket(
       manual_review_required: totalManualReviewCount > 0,
       page_manual_review_count: input.pageStatus.manualReviewCount,
       database_manual_review_count: input.databaseStatus.manualReviewCount,
+      file_manual_review_count: input.fileStatus.manualReviewCount,
       sync_log_manual_review_count: syncLogManualReviewCount,
       total_manual_review_count: totalManualReviewCount,
       page_failed_count: input.pageStatus.failed,
       database_failed_count: input.databaseStatus.failed,
+      file_failed_count: input.fileStatus.failed,
       sync_log_failed_count: syncLogFailedCount,
       total_failed_count: totalFailedCount,
       page_max_failure_count: input.pageStatus.maxFailureCount,
       database_max_failure_count: input.databaseStatus.maxFailureCount,
+      file_max_failure_count: input.fileStatus.maxFailureCount,
       total_sync_log_pending: input.totalSyncPending,
       can_retry_before_owner_review: totalManualReviewCount === 0,
       cache_rebuild_should_wait:
@@ -175,7 +192,7 @@ export function buildSyncManualReviewPacket(
         totalFailedCount > 0 ||
         input.totalSyncPending > 0,
     },
-    domains: [pageDomain, databaseDomain],
+    domains: [pageDomain, databaseDomain, fileDomain],
     owner_actions: buildOwnerActions({
       totalManualReviewCount,
       totalFailedCount,
@@ -200,6 +217,40 @@ export function buildSyncManualReviewPacket(
       "signed_urls",
       "cloud_connection_strings",
     ],
+  };
+}
+
+function buildFileDomain(
+  status: PendingFileEmbedSyncStatus
+): SyncManualReviewDomain {
+  const pending = status.pending;
+  const domainStatus = getDomainStatus({
+    enabled: status.enabled,
+    pending,
+    failed: status.failed,
+    manualReviewCount: status.manualReviewCount,
+  });
+  return {
+    domain: "files",
+    label: "文件同步",
+    status: domainStatus,
+    enabled: status.enabled,
+    pending: status.pending,
+    queued: 0,
+    sync_log_pending: 0,
+    failed: status.failed,
+    failure_count_total: status.failureCountTotal,
+    max_failure_count: status.maxFailureCount,
+    manual_review_count: status.manualReviewCount,
+    manual_review_failure_threshold: status.manualReviewFailureThreshold,
+    pending_sample_ids_or_keys: status.pendingSampleIds,
+    failed_sample_ids_or_keys: status.failedSampleIds,
+    manual_review_sample_ids_or_keys: status.manualReviewSampleIds,
+    oldest_pending_queued_at: status.oldestPendingQueuedAt,
+    last_attempt_at: status.lastAttemptAt,
+    last_failure_at: status.lastFailureAt,
+    last_failure_message: status.lastFailureMessage,
+    next_action: getDomainNextAction(domainStatus, "file id"),
   };
 }
 
@@ -290,6 +341,7 @@ function getDomainStatus(input: {
 function getPacketStatus(input: {
   pageDomain: SyncManualReviewDomain;
   databaseDomain: SyncManualReviewDomain;
+  fileDomain: SyncManualReviewDomain;
   totalManualReviewCount: number;
   totalFailedCount: number;
 }): SyncManualReviewPacketStatus {
@@ -297,13 +349,15 @@ function getPacketStatus(input: {
   if (input.totalFailedCount > 0) return "retry-watch";
   if (
     input.pageDomain.status === "sync-disabled" ||
-    input.databaseDomain.status === "sync-disabled"
+    input.databaseDomain.status === "sync-disabled" ||
+    input.fileDomain.status === "sync-disabled"
   ) {
     return "sync-disabled";
   }
   if (
     input.pageDomain.status === "pending" ||
-    input.databaseDomain.status === "pending"
+    input.databaseDomain.status === "pending" ||
+    input.fileDomain.status === "pending"
   ) {
     return "pending";
   }
@@ -336,7 +390,7 @@ function buildOwnerActions(input: {
 }) {
   if (input.totalManualReviewCount > 0) {
     return [
-      "Review manual_review_sample_ids_or_keys and last_failure_message.",
+      "Review manual_review_sample_ids_or_keys and last_failure_message for page id, database key, or file id.",
       "Do not clear local cache or rebuild from cloud until repeated failures are understood.",
       "Retry only after auth, network, route, or schema cause is identified.",
     ];
