@@ -598,8 +598,8 @@ function run() {
     [
       files.syncShell,
       syncShell,
-      "const fileQueueClear =",
-      "Sync center handoff copy must not mark all queues clear while files remain pending.",
+      "receipt.summary.file_waiting_rows_after",
+      "Sync center handoff copy must use receipt-level file queue counts instead of double-counting files.",
     ],
   ]) {
     assertIncludes(sourceLabel, source, snippet, message);

@@ -4737,12 +4737,7 @@ function SyncDashboard() {
           message: fileResult.message,
         },
       });
-      const fileQueueClear =
-        afterFileStatus.pending === 0 &&
-        afterFileStatus.failed === 0 &&
-        afterFileStatus.manualReviewCount === 0;
-      const allQueuesClear =
-        receipt.summary.safe_to_switch_device_now && fileQueueClear;
+      const allQueuesClear = receipt.summary.safe_to_switch_device_now;
 
       setPagePendingStatus(afterPageStatus);
       setDatabasePendingStatus(afterDatabaseStatus);
@@ -4764,7 +4759,7 @@ function SyncDashboard() {
       setSyncDrainMessage(
         allQueuesClear
           ? `补传全部完成：页面、数据库和文件待上传队列已清空，当前适合切换设备。`
-          : `补传全部已运行：仍有 ${receipt.summary.waiting_rows_after + afterFileStatus.pending} 条待上传、${receipt.summary.failed_rows_after + afterFileStatus.failed} 条失败、${receipt.summary.manual_review_rows_after + afterFileStatus.manualReviewCount} 条需人工处理。文件补传成功 ${fileResult.synced} 个。${receipt.next_action}`
+          : `补传全部已运行：仍有 ${receipt.summary.waiting_rows_after} 条待上传、${receipt.summary.failed_rows_after} 条失败、${receipt.summary.manual_review_rows_after} 条需人工处理；其中文件待上传 ${receipt.summary.file_waiting_rows_after} 个、失败 ${receipt.summary.file_failed_rows_after} 个、人工处理 ${receipt.summary.file_manual_review_rows_after} 个。文件补传成功 ${fileResult.synced} 个。${receipt.next_action}`
       );
     } catch (err) {
       console.error("[Zhinote] Failed to drain pending sync queues:", err);
