@@ -114,11 +114,67 @@ const STABLE_USE_ENTRYPOINTS: DevelopmentStabilitySurface[] = [
     ["模块入口来自 registry", "稳定/实验状态可见", "新增模块不重构主入口"]
   ),
   stableSurface(
+    "notes",
+    "笔记与 Page",
+    "/modules/notes",
+    "笔记模块入口已进入 P0 route smoke，页面正文仍走本地优先和按需加载。",
+    ["页面入口可快速打开", "本地草稿优先保存", "云失败不阻止写作"]
+  ),
+  stableSurface(
     "databases",
     "数据库模块",
     "/modules/databases",
     "数据库 workbench 和本地优先入口已进入 P0 route smoke。",
     ["本地编辑优先", "云失败进入 pending", "缓存重建受队列 gate 保护"]
+  ),
+  stableSurface(
+    "reports",
+    "报告库",
+    "/modules/reports",
+    "报告库 shell 已进入 P0 route smoke；文件上传、AI 解读和外部资源加载继续 gated。",
+    ["报告入口先可打开", "本地报告 metadata 可见", "上传和 AI 仍需确认"]
+  ),
+  stableSurface(
+    "files",
+    "文件库",
+    "/modules/files",
+    "文件库 shell 已进入 P0 route smoke；真实文件 bytes 不参与稳定性计划读取。",
+    ["文件 metadata 先可见", "文件内容不自动外传", "云文件同步仍需 owner gate"]
+  ),
+  stableSurface(
+    "company-research",
+    "公司研究",
+    "/modules/company-research",
+    "公司研究 shell 已进入 P0 route smoke；公司页关系补全继续按模块化流程推进。",
+    ["公司研究入口稳定", "公司 page 关系可继续补齐", "自动写关系前先复核"]
+  ),
+  stableSurface(
+    "meetings-module",
+    "会议模块",
+    "/modules/meetings",
+    "会议模块 shell 已进入 P0 route smoke；录音、转写上传和自动关系写回继续 gated。",
+    ["会议入口先可打开", "会议 tracker 本地优先", "录音和转写上传需确认"]
+  ),
+  stableSurface(
+    "portfolio-module",
+    "组合模块",
+    "/modules/portfolio",
+    "组合模块 shell 已进入 P0 route smoke；真实持仓外部连接继续 gated。",
+    ["组合模块入口稳定", "本地 tracker 优先", "券商/邮件连接不自动开启"]
+  ),
+  stableSurface(
+    "projects",
+    "投研项目",
+    "/modules/projects",
+    "投研项目 shell 已进入 P0 route smoke；跨模块自动写关系继续 owner-gated。",
+    ["项目入口先可打开", "项目页本地优先创建", "跨模块写入先预览"]
+  ),
+  stableSurface(
+    "research-graph",
+    "研究图谱",
+    "/modules/research-graph",
+    "研究图谱 shell 已进入 P0 route smoke；批量补链和云端图谱同步继续 gated。",
+    ["图谱入口稳定", "关系覆盖率 metadata 可见", "批量补链先预览"]
   ),
   stableSurface(
     "knowledge-base",
@@ -230,7 +286,7 @@ export function buildDevelopmentStabilityPlan(input: {
     development_channel: "private-alpha-stable-use",
     local_app_can_continue_now: true,
     stable_version_policy:
-      "把高频写作、每日纪要、会议、数据库、知识库、产业链、账号和同步中心保留在稳定使用区；Web Beta、真实云同步、AI、批量写回和缓存重建继续放在 owner-gated 实验区。",
+      "把高频写作、每日纪要、会议、数据库、报告、文件、公司研究、投研项目、研究图谱、知识库、产业链、账号和同步中心保留在稳定使用区；Web Beta、真实云同步、AI、批量写回和缓存重建继续放在 owner-gated 实验区。",
     privacy_note:
       "This plan is generated locally from route catalog metadata and sync queue counts only. It does not read page body text, database row values, file names, file bytes, secrets, tokens, cookies, holdings, trading plans, or cloud payload bodies; it does not send network requests, upload workspace data, clear cache, enable sync, or enable AI.",
     boundary: DEVELOPMENT_STABILITY_BOUNDARY,

@@ -53,6 +53,48 @@ const ROUTES = [
     expectedText: "ZhiNote",
   },
   {
+    path: "/modules/reports",
+    label: "report module shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
+    path: "/modules/files",
+    label: "file module shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
+    path: "/modules/company-research",
+    label: "company research module shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
+    path: "/modules/meetings",
+    label: "meeting module shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
+    path: "/modules/portfolio",
+    label: "portfolio module shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
+    path: "/modules/projects",
+    label: "project module shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
+    path: "/modules/research-graph",
+    label: "research graph module shell",
+    expectedStatus: 200,
+    expectedText: "ZhiNote",
+  },
+  {
     path: "/knowledge-base",
     label: "knowledge base shell",
     expectedStatus: 200,
@@ -79,6 +121,8 @@ const ROUTES = [
 ];
 const STABLE_USE_MODULE_REGISTRY = "src/lib/modules/registry.ts";
 const DEVELOPMENT_STABILITY_PLAN = "src/lib/sync/developmentStabilityPlan.ts";
+const STABLE_USE_USAGE_TIER_MARKER = 'usageTier: "stable-use"';
+const BETA_HARDENING_USAGE_TIER_MARKER = 'usageTier: "beta-hardening"';
 const START_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const DEFAULT_STABLE_ROUTE_BUDGET_MS = 5_000;
@@ -86,6 +130,7 @@ const LOG_LIMIT = 16_000;
 
 async function main() {
   assertStableUseModuleRoutesCovered();
+  assertBetaHardeningModuleRoutesCovered();
   assertDevelopmentStabilityRoutesCovered();
   const existingServer = await findExistingDevServer();
   const port = existingServer?.port ?? (await findFreePort());
@@ -146,7 +191,7 @@ async function main() {
       overBudgetRoutes,
       routes: results,
       privacyBoundary:
-        "This check requests only public route shells from a local Next.js server, reusing an already-running local dev server when available or starting a temporary one otherwise. It enforces a conservative stable-use shell response budget and reports every over-budget route together so Daily, ZhiHui, account, sync, module, database, knowledge, industry, portfolio, and page shells cannot silently regress into long blank loads. It reads local module registry and development-stability route metadata only; it does not read browser storage, page bodies, database rows, file bytes, cookies, credentials, or cloud data.",
+        "This check requests only public route shells from a local Next.js server, reusing an already-running local dev server when available or starting a temporary one otherwise. It enforces a conservative stable-use shell response budget and reports every over-budget route together so Daily, ZhiHui, account, sync, module, database, report, file, company research, meeting, project, research graph, knowledge, industry, portfolio, and page shells cannot silently regress into long blank loads. It reads local module registry and development-stability route metadata only; it does not read browser storage, page bodies, database rows, file bytes, cookies, credentials, or cloud data.",
     };
     if (overBudgetRoutes.length > 0) {
       console.error("Route smoke verification failed");
@@ -212,6 +257,25 @@ function assertStableUseModuleRoutesCovered() {
   }
 }
 
+function assertBetaHardeningModuleRoutesCovered() {
+  const registrySource = readFileSync(
+    path.join(process.cwd(), STABLE_USE_MODULE_REGISTRY),
+    "utf8"
+  );
+  const betaHardeningModuleRoutes = extractBetaHardeningModuleRoutes(registrySource);
+  const smokedRoutes = new Set(ROUTES.map((route) => route.path));
+  const missingRoutes = betaHardeningModuleRoutes.filter(
+    (module) => !smokedRoutes.has(module.route)
+  );
+  if (missingRoutes.length > 0) {
+    throw new Error(
+      `Beta-hardening module routes missing from route smoke: ${missingRoutes
+        .map((module) => `${module.id}:${module.route}`)
+        .join(", ")}`
+    );
+  }
+}
+
 function assertDevelopmentStabilityRoutesCovered() {
   const planSource = readFileSync(
     path.join(process.cwd(), DEVELOPMENT_STABILITY_PLAN),
@@ -232,6 +296,20 @@ function assertDevelopmentStabilityRoutesCovered() {
 }
 
 function extractStableUseModuleRoutes(registrySource) {
+  return extractModuleRoutesByUsageTier(
+    registrySource,
+    STABLE_USE_USAGE_TIER_MARKER
+  );
+}
+
+function extractBetaHardeningModuleRoutes(registrySource) {
+  return extractModuleRoutesByUsageTier(
+    registrySource,
+    BETA_HARDENING_USAGE_TIER_MARKER
+  );
+}
+
+function extractModuleRoutesByUsageTier(registrySource, usageTierMarker) {
   const moduleArray = extractPlatformModulesArray(registrySource);
   return [
     ...moduleArray.matchAll(/\{\s*id:\s*"([^"]+)"[\s\S]*?\n\s*\},/g),
@@ -242,10 +320,10 @@ function extractStableUseModuleRoutes(registrySource) {
       return {
         id: match[1],
         route,
-        stableUse: block.includes('usageTier: "stable-use"'),
+        matchesUsageTier: block.includes(usageTierMarker),
       };
     })
-    .filter((module) => module.stableUse && module.route);
+    .filter((module) => module.matchesUsageTier && module.route);
 }
 
 function extractDevelopmentStabilityRoutes(planSource) {

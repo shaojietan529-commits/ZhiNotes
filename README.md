@@ -1686,8 +1686,9 @@ The first cloud phase is a private alpha, not full sync:
   workbench/import-export/button-action safety, Daily/ZhiHui local-first smoke
   contracts, editor shortcuts/page creation, file preview readiness, ZhiHui
   glossary privacy checks, and localhost-only route shell checks for account,
-  sync center, module hub, database module, knowledge base, industry chain,
-  calendar, portfolio, and page entrypoints. It prints a local receipt, does
+  sync center, module hub, database, report, file, company research, meeting,
+  project, research graph, knowledge base, industry chain, calendar, portfolio,
+  and page entrypoints. It prints a local receipt, does
   not deploy, connect cloud services, upload workspace data, enable sync,
   enable AI, or read private page bodies, database values, file names, file
   bytes, holdings, trading plans, or secrets.
