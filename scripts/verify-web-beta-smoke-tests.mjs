@@ -13694,6 +13694,12 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "fileStatus: fileEmbedPendingStatus",
+    "Sync UI handoff readiness must include file embed queue status."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "handoff-readiness",
     "Sync UI must track handoff readiness export as its own busy state."
   );
@@ -13734,6 +13740,18 @@ function run() {
     "Sync UI must reuse the same handoff receipt for visible status and export."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    'label: "文件队列"',
+    "Sync upload safety panel must show file queue counts."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handoffReceipt.summary.file_pending_rows",
+    "Sync UI handoff readiness summary must show file pending rows."
+  );
+  assertIncludes(
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
     'format: "zhinote-sync-handoff-readiness-receipt"',
@@ -13756,6 +13774,24 @@ function run() {
     syncHandoffReadinessReceipt,
     "safe_to_open_other_device",
     "Handoff readiness receipt must tell whether another device can safely open the workspace."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "fileStatus: PendingFileEmbedSyncStatus",
+    "Handoff readiness receipt must accept file embed queue status."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "file_pending_rows",
+    "Handoff readiness receipt must include file pending rows."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "file-pending-drained",
+    "Handoff readiness receipt must block cross-device handoff while file rows are pending."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,

@@ -2116,6 +2116,7 @@ function SyncDashboard() {
       buildSyncHandoffReadinessReceipt({
         pageStatus: pagePendingStatus,
         databaseStatus: databasePendingStatus,
+        fileStatus: fileEmbedPendingStatus,
         totalSyncPending: syncSummary?.pending ?? 0,
         totalSyncFailed: syncSummary?.failed ?? 0,
         totalSyncManualReview: syncSummary?.manualReview ?? 0,
@@ -2123,6 +2124,7 @@ function SyncDashboard() {
       }),
     [
       databasePendingStatus,
+      fileEmbedPendingStatus,
       pagePendingStatus,
       syncSummary?.failed,
       syncSummary?.manualReview,
@@ -10921,6 +10923,7 @@ function SyncDashboard() {
               <SyncUploadSafetyPanel
                 pageStatus={pagePendingStatus}
                 databaseStatus={databasePendingStatus}
+                fileStatus={fileEmbedPendingStatus}
                 totalSyncPending={syncSummary?.pending ?? 0}
                 totalSyncFailed={syncSummary?.failed ?? 0}
                 totalSyncManualReview={syncSummary?.manualReview ?? 0}
@@ -20503,6 +20506,7 @@ function SyncLocalUseReadinessPanel({
 function SyncUploadSafetyPanel({
   pageStatus,
   databaseStatus,
+  fileStatus,
   totalSyncPending,
   totalSyncFailed,
   totalSyncManualReview,
@@ -20519,6 +20523,7 @@ function SyncUploadSafetyPanel({
 }: {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
+  fileStatus: PendingFileEmbedSyncStatus;
   totalSyncPending: number;
   totalSyncFailed: number;
   totalSyncManualReview: number;
@@ -20538,12 +20543,15 @@ function SyncUploadSafetyPanel({
     databaseStatus.pending +
     databaseStatus.queued +
     databaseStatus.syncLogPending;
+  const fileWaiting = fileStatus.pending;
   const failed = Math.max(
-    pageStatus.failed + databaseStatus.failed,
+    pageStatus.failed + databaseStatus.failed + fileStatus.failed,
     totalSyncFailed
   );
   const manualReviewCount = Math.max(
-    pageStatus.manualReviewCount + databaseStatus.manualReviewCount,
+    pageStatus.manualReviewCount +
+      databaseStatus.manualReviewCount +
+      fileStatus.manualReviewCount,
     totalSyncManualReview
   );
   const pageHealth = getSyncQueueHealth({
@@ -20564,13 +20572,24 @@ function SyncUploadSafetyPanel({
     manualReviewFailureThreshold: databaseStatus.manualReviewFailureThreshold,
     oldestPendingQueuedAt: databaseStatus.oldestPendingQueuedAt,
   });
-  const longestWaitingQueue = getLongestWaitingQueue([pageHealth, databaseHealth]);
-  const hasStaleQueue = [pageHealth, databaseHealth].some((queue) =>
+  const fileHealth = getSyncQueueHealth({
+    domain: "文件",
+    enabled: fileStatus.enabled,
+    waiting: fileWaiting,
+    failed: fileStatus.failed,
+    manualReviewCount: fileStatus.manualReviewCount,
+    manualReviewFailureThreshold: 3,
+    oldestPendingQueuedAt: fileStatus.oldestPendingQueuedAt,
+  });
+  const queueHealthRows = [pageHealth, databaseHealth, fileHealth];
+  const longestWaitingQueue = getLongestWaitingQueue(queueHealthRows);
+  const hasStaleQueue = queueHealthRows.some((queue) =>
     ["watch", "stale"].includes(queue.level)
   );
   const disabledDomains = [
     pageStatus.enabled ? null : "页面",
     databaseStatus.enabled ? null : "数据库",
+    fileStatus.enabled ? null : "文件",
   ].filter(Boolean) as string[];
   const verdict: SyncUploadSafetyVerdict =
     manualReviewCount > 0
@@ -20579,7 +20598,7 @@ function SyncUploadSafetyPanel({
       ? "retry"
       : hasStaleQueue
         ? "stale"
-      : pageWaiting + databaseWaiting + totalSyncPending > 0
+      : pageWaiting + databaseWaiting + fileWaiting + totalSyncPending > 0
         ? "pending"
         : disabledDomains.length > 0
           ? "disabled"
@@ -20609,9 +20628,9 @@ function SyncUploadSafetyPanel({
       : verdict === "retry"
       ? "先补传失败队列；如果仍失败，查看最近失败原因，避免本地输入长期停在待上传状态。"
       : verdict === "stale"
-        ? "先补传页面和数据库 pending queue；如果同一批内容仍显示长时间未上传，保留样本 id/key 和最近失败原因进入人工排查，不要重建缓存。"
+        ? "先补传页面、数据库和文件 pending queue；如果同一批内容仍显示长时间未上传，保留样本 id/key 和最近失败原因进入人工排查，不要重建缓存。"
       : verdict === "pending"
-        ? "先补传页面和数据库 pending queue，确认 counts 清零后再做缓存重建或跨设备切换。"
+        ? "先补传页面、数据库和文件 pending queue，确认 counts 清零后再做缓存重建或跨设备切换。"
         : verdict === "disabled"
           ? `先到账号页开启${disabledDomains.join("、")}同步；未开启的域不会自动上传。`
           : "当前没有待上传或失败队列，可以继续推进云端主库、热缓存和冲突处理。";
@@ -20637,6 +20656,16 @@ function SyncUploadSafetyPanel({
             : "数据库同步关闭",
     },
     {
+      label: "文件队列",
+      value: `${fileWaiting} 条`,
+      detail:
+        fileStatus.failed > 0
+          ? `${fileStatus.failed} 条失败待重试`
+          : fileStatus.enabled
+            ? "本地文件嵌入待补传"
+            : "文件队列不可用",
+    },
+    {
       label: "全域 sync_log",
       value: `${totalSyncPending} 条`,
       detail: `${totalSyncFailed} 失败 / ${totalSyncManualReview} 人工；只统计表名、row id 和时间戳`,
@@ -20647,16 +20676,17 @@ function SyncUploadSafetyPanel({
       detail:
         pageStatus.lastFailureMessage ||
         databaseStatus.lastFailureMessage ||
+        fileStatus.lastFailureMessage ||
         "暂无最近失败原因",
     },
     {
       label: "人工处理",
       value: `${manualReviewCount} 条`,
-      detail: `页面最高失败 ${pageStatus.maxFailureCount} 次，数据库最高失败 ${databaseStatus.maxFailureCount} 次；sync_log 人工 ${totalSyncManualReview} 条。`,
+      detail: `页面最高失败 ${pageStatus.maxFailureCount} 次，数据库最高失败 ${databaseStatus.maxFailureCount} 次；文件人工 ${fileStatus.manualReviewCount} 条，sync_log 人工 ${totalSyncManualReview} 条。`,
     },
     {
       label: "队列健康",
-      value: `${pageHealth.label} / ${databaseHealth.label}`,
+      value: `${pageHealth.label} / ${databaseHealth.label} / ${fileHealth.label}`,
       detail:
         "基于 oldestPendingQueuedAt、lastFailureAt 和 counts 判断滞留风险。",
     },
@@ -20845,9 +20875,10 @@ function SyncUploadSafetyPanel({
             value={`${
               handoffReceipt.summary.page_pending_rows +
               handoffReceipt.summary.database_pending_rows +
+              handoffReceipt.summary.file_pending_rows +
               handoffReceipt.summary.total_sync_log_pending_rows
             } 条`}
-            detail={`页面 ${handoffReceipt.summary.page_pending_rows} · 数据库 ${handoffReceipt.summary.database_pending_rows}`}
+            detail={`页面 ${handoffReceipt.summary.page_pending_rows} · 数据库 ${handoffReceipt.summary.database_pending_rows} · 文件 ${handoffReceipt.summary.file_pending_rows}`}
           />
           <CacheRebuildFact
             label="最早 pending"

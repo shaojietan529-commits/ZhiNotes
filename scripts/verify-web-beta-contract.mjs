@@ -10829,6 +10829,10 @@ function run() {
       "Sync UI handoff readiness must include full-domain sync_log manual-review counts.",
     ],
     [
+      "fileStatus: fileEmbedPendingStatus",
+      "Sync UI handoff readiness must include file embed queue status.",
+    ],
+    [
       "handoff-readiness",
       "Sync UI must track handoff readiness export as its own busy state.",
     ],
@@ -10847,6 +10851,18 @@ function run() {
     [
       "ready_for_cross_device_handoff",
       "Sync UI must show the live cross-device handoff readiness boolean.",
+    ],
+    [
+      "fileStatus: PendingFileEmbedSyncStatus",
+      "Sync upload safety panel must receive file embed queue status.",
+    ],
+    [
+      "label: \"文件队列\"",
+      "Sync upload safety panel must show file queue counts.",
+    ],
+    [
+      "handoffReceipt.summary.file_pending_rows",
+      "Sync UI handoff readiness summary must show file pending rows.",
     ],
     [
       "safe_to_open_other_device",
@@ -10900,6 +10916,22 @@ function run() {
     [
       "ready_for_cross_device_handoff",
       "Handoff readiness receipt must explicitly mark cross-device handoff readiness.",
+    ],
+    [
+      "fileStatus: PendingFileEmbedSyncStatus",
+      "Handoff readiness receipt must accept file embed queue status.",
+    ],
+    [
+      "file_sync_enabled",
+      "Handoff readiness receipt must expose file queue readiness.",
+    ],
+    [
+      "file_pending_rows",
+      "Handoff readiness receipt must include file pending rows.",
+    ],
+    [
+      "file-pending-drained",
+      "Handoff readiness receipt must block cross-device handoff while file rows are pending.",
     ],
     [
       "safe_to_open_other_device",

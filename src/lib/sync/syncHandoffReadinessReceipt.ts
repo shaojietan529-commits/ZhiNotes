@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import type { LocalWorkspaceIdentity } from "@/lib/sync/workspaceIdentity";
 
@@ -19,6 +20,7 @@ export type SyncHandoffReadinessGateStatus = "pass" | "warn" | "block";
 export interface SyncHandoffReadinessReceiptInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
+  fileStatus: PendingFileEmbedSyncStatus;
   totalSyncPending: number;
   totalSyncFailed?: number;
   totalSyncManualReview?: number;
@@ -78,6 +80,7 @@ export interface SyncHandoffReadinessReceipt {
     cloud_workspace_linked: boolean;
     page_sync_enabled: boolean;
     database_sync_enabled: boolean;
+    file_sync_enabled: boolean;
     workspace_fingerprint: string | null;
     device_fingerprint: string | null;
     cloud_workspace_fingerprint: string | null;
@@ -86,6 +89,7 @@ export interface SyncHandoffReadinessReceipt {
     database_pending_rows: number;
     database_in_memory_queued_rows: number;
     database_sync_log_pending_rows: number;
+    file_pending_rows: number;
     total_sync_log_pending_rows: number;
     failed_rows: number;
     manual_review_rows: number;
@@ -110,23 +114,28 @@ export function buildSyncHandoffReadinessReceipt(
     input.databaseStatus.pending +
     input.databaseStatus.queued +
     input.databaseStatus.syncLogPending;
+  const filePendingRows = input.fileStatus.pending;
   const failedRows = Math.max(
-    input.pageStatus.failed + input.databaseStatus.failed,
+    input.pageStatus.failed + input.databaseStatus.failed + input.fileStatus.failed,
     input.totalSyncFailed ?? 0
   );
   const manualReviewRows = Math.max(
-    input.pageStatus.manualReviewCount + input.databaseStatus.manualReviewCount,
+    input.pageStatus.manualReviewCount +
+      input.databaseStatus.manualReviewCount +
+      input.fileStatus.manualReviewCount,
     input.totalSyncManualReview ?? 0
   );
   const oldestPendingQueuedAt = getOldestTimestamp([
     input.pageStatus.oldestPendingQueuedAt,
     input.databaseStatus.oldestPendingQueuedAt,
+    input.fileStatus.oldestPendingQueuedAt,
   ]);
   const oldestPendingAgeMs = getAgeMs(oldestPendingQueuedAt, generatedAt);
   const oldestPendingAgeLabel = formatAge(oldestPendingAgeMs);
   const hasPending =
     pagePendingRows > 0 ||
     databasePendingRows > 0 ||
+    filePendingRows > 0 ||
     input.totalSyncPending > 0;
   const hasStalePending =
     hasPending &&
@@ -140,10 +149,12 @@ export function buildSyncHandoffReadinessReceipt(
     input.workspaceIdentity?.cloud_status === "linked-alpha";
   const pageSyncEnabled = input.pageStatus.enabled;
   const databaseSyncEnabled = input.databaseStatus.enabled;
+  const fileSyncEnabled = input.fileStatus.enabled;
   const status = getHandoffStatus({
     cloudWorkspaceLinked,
     pageSyncEnabled,
     databaseSyncEnabled,
+    fileSyncEnabled,
     hasPending,
     hasStalePending,
     failedRows,
@@ -167,8 +178,10 @@ export function buildSyncHandoffReadinessReceipt(
     cloudWorkspaceLinked,
     pageSyncEnabled,
     databaseSyncEnabled,
+    fileSyncEnabled,
     pagePendingRows,
     databasePendingRows,
+    filePendingRows,
     totalSyncPending: input.totalSyncPending,
     failedRows,
     manualReviewRows,
@@ -188,6 +201,7 @@ export function buildSyncHandoffReadinessReceipt(
     cloud_workspace_fingerprint: cloudWorkspaceFingerprint,
     page_pending_rows: pagePendingRows,
     database_pending_rows: databasePendingRows,
+    file_pending_rows: filePendingRows,
     total_sync_log_pending_rows: input.totalSyncPending,
     failed_rows: failedRows,
     manual_review_rows: manualReviewRows,
@@ -240,6 +254,7 @@ export function buildSyncHandoffReadinessReceipt(
       cloud_workspace_linked: cloudWorkspaceLinked,
       page_sync_enabled: pageSyncEnabled,
       database_sync_enabled: databaseSyncEnabled,
+      file_sync_enabled: fileSyncEnabled,
       workspace_fingerprint: workspaceFingerprint,
       device_fingerprint: deviceFingerprint,
       cloud_workspace_fingerprint: cloudWorkspaceFingerprint,
@@ -248,6 +263,7 @@ export function buildSyncHandoffReadinessReceipt(
       database_pending_rows: input.databaseStatus.pending,
       database_in_memory_queued_rows: input.databaseStatus.queued,
       database_sync_log_pending_rows: input.databaseStatus.syncLogPending,
+      file_pending_rows: filePendingRows,
       total_sync_log_pending_rows: input.totalSyncPending,
       failed_rows: failedRows,
       manual_review_rows: manualReviewRows,
@@ -268,8 +284,10 @@ function buildGates(input: {
   cloudWorkspaceLinked: boolean;
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
+  fileSyncEnabled: boolean;
   pagePendingRows: number;
   databasePendingRows: number;
+  filePendingRows: number;
   totalSyncPending: number;
   failedRows: number;
   manualReviewRows: number;
@@ -310,6 +328,15 @@ function buildGates(input: {
         : "先到账号页开启数据库同步；否则本机数据库修改不会上传到云端。",
     },
     {
+      id: "file-embed-sync-enabled",
+      title: "文件嵌入队列可见",
+      status: input.fileSyncEnabled ? "pass" : "block",
+      evidence: `文件嵌入队列：${input.fileSyncEnabled ? "可见" : "不可用"}。`,
+      next_action: input.fileSyncEnabled
+        ? "继续检查文件 pending 队列。"
+        : "先恢复文件嵌入队列状态；否则文件和报告不会可靠出现在其他设备。",
+    },
+    {
       id: "page-pending-drained",
       title: "页面 pending 队列已清空",
       status: input.pagePendingRows > 0 ? "block" : "pass",
@@ -328,6 +355,16 @@ function buildGates(input: {
         input.databasePendingRows > 0
           ? "先补传数据库队列；未上传数据库修改不能在其他设备可靠出现。"
           : "数据库待上传队列为空。",
+    },
+    {
+      id: "file-pending-drained",
+      title: "文件 pending 队列已清空",
+      status: input.filePendingRows > 0 ? "block" : "pass",
+      evidence: `文件 pending ${input.filePendingRows} 条。`,
+      next_action:
+        input.filePendingRows > 0
+          ? "先补传文件队列；未上传文件或报告不能在其他设备可靠出现。"
+          : "文件待上传队列为空。",
     },
     {
       id: "full-domain-sync-log-drained",
@@ -387,13 +424,14 @@ function getHandoffStatus(input: {
   cloudWorkspaceLinked: boolean;
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
+  fileSyncEnabled: boolean;
   hasPending: boolean;
   hasStalePending: boolean;
   failedRows: number;
   manualReviewRows: number;
 }): SyncHandoffReadinessStatus {
   if (!input.cloudWorkspaceLinked) return "blocked-local-only";
-  if (!input.pageSyncEnabled || !input.databaseSyncEnabled) {
+  if (!input.pageSyncEnabled || !input.databaseSyncEnabled || !input.fileSyncEnabled) {
     return "blocked-sync-disabled";
   }
   if (input.manualReviewRows > 0) return "blocked-manual-review";
@@ -410,7 +448,7 @@ function getNextAction(status: SyncHandoffReadinessStatus): string {
     case "blocked-local-only":
       return "先登录并连接云工作区；local-only 状态下没有云端接力目标。";
     case "blocked-sync-disabled":
-      return "先到账号页开启页面和数据库同步，再重新生成接力收据。";
+      return "先到账号页开启页面、数据库和文件队列同步，再重新生成接力收据。";
     case "blocked-manual-review":
       return "先导出处理包并解决反复失败项；不要在问题未确认前换设备接力。";
     case "blocked-failed":
@@ -433,7 +471,9 @@ function buildOwnerActions(status: SyncHandoffReadinessStatus) {
     return ["Connect this workspace to a cloud workspace before handoff."];
   }
   if (status === "blocked-sync-disabled") {
-    return ["Enable page and database sync from the Account page after owner confirmation."];
+    return [
+      "Enable page, database, and file queue sync from the Account page after owner confirmation.",
+    ];
   }
   if (status === "blocked-manual-review") {
     return ["Export the manual review packet and inspect repeated failure samples before handoff."];
