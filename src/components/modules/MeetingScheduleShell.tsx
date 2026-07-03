@@ -3314,13 +3314,14 @@ export default function MeetingScheduleShell() {
                       data-local-draft-created={
                         createButtonState === "local-draft-opened"
                       }
+                      data-create-affordance="persistent"
                       disabled={creatingMeetingDateKey !== null}
                       onPointerEnter={warmMeetingPeekOpen}
                       onPointerDown={(event) => addMeetingOnPointerDown(event, key)}
                       onMouseDown={(event) => addMeetingOnMouseDown(event, key)}
                       onFocus={warmMeetingPeekOpen}
                       onClick={() => void quickCreateMeetingForDate(key)}
-                      className="text-zinc-300 opacity-0 transition-opacity hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:text-zinc-200"
+                      className="text-zinc-300 opacity-50 transition-opacity hover:text-zinc-600 hover:opacity-100 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-60 group-hover:opacity-100 dark:hover:text-zinc-200"
                       title="在这天加会议"
                     >
                       {creatingMeetingDateKey === key || isOpeningDraft

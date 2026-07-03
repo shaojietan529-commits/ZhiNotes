@@ -10206,6 +10206,12 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    'data-create-affordance="persistent"',
+    "Daily calendar date-cell + controls must stay subtly visible so users can find the + button."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "aria-busy=",
     "Daily + controls must tell assistive tools when local draft creation or opening is in progress."
   );
@@ -10557,6 +10563,7 @@ function run() {
     "data-create-state={formCreateButtonState}",
     "data-create-state={createButtonState}",
     "data-local-draft-created={",
+    'data-create-affordance="persistent"',
   ]) {
     assertIncludes(
       files.meetingScheduleShell,

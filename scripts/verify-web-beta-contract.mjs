@@ -6611,6 +6611,12 @@ function run() {
     "onFocus={warmDailyCreateOpenPath}",
     "Daily calendar + controls must warm the selected create-open path on keyboard focus before opening."
   );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'data-create-affordance="persistent"',
+    "Daily calendar date-cell + controls must stay subtly visible so create affordance is not missed."
+  );
   assertSourceExcludes(
     files.dailyNotesShell,
     dailyNotesShell,
@@ -6931,6 +6937,10 @@ function run() {
     [
       "data-local-draft-created={",
       "Meeting create controls must expose when a local draft has already opened before cloud persistence completes.",
+    ],
+    [
+      'data-create-affordance="persistent"',
+      "Meeting calendar date-cell + controls must stay subtly visible so create affordance is not missed.",
     ],
     [
       "onFocus={warmMeetingPeekOpen}",

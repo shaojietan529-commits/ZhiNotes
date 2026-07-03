@@ -2408,13 +2408,14 @@ export default function DailyNotesShell() {
                       data-local-draft-created={
                         createButtonState === "local-draft-opened"
                       }
+                      data-create-affordance="persistent"
                       disabled={creatingDateKey !== null}
                       onPointerEnter={warmDailyCreateOpenPath}
                       onPointerDown={(event) => addNoteOnPointerDown(event, key)}
                       onMouseDown={(event) => addNoteOnMouseDown(event, key)}
                       onFocus={warmDailyCreateOpenPath}
                       onClick={() => void addNote(key)}
-                      className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                      className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-50 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 hover:opacity-100 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-60 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title={getDailyCreateButtonTitle(
                         key,
                         createButtonState,
