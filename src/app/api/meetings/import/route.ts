@@ -10,23 +10,49 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const failureBoundary = {
+  source: "zhihui-meeting-import",
+  accountSessionUnaffected: true,
+  localUseCanContinue: true,
+  rawMeetingContentEchoed: false,
+};
+
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
     return NextResponse.json(
-      { error: "ZhiHui meeting import not configured", missing_env: config.missing },
+      importFailurePayload({
+        code: "zhihui_meeting_import_not_configured",
+        error: "ZhiHui meeting import not configured",
+        retryable: false,
+        details: { missing_env: config.missing },
+      }),
       { status: 501 }
     );
   }
   if (!authorizeMeetingAgent(request, config.agentToken)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      importFailurePayload({
+        code: "zhihui_agent_unauthorized",
+        error: "unauthorized",
+        retryable: false,
+      }),
+      { status: 401 }
+    );
   }
 
   let payload: unknown;
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+    return NextResponse.json(
+      importFailurePayload({
+        code: "invalid_json",
+        error: "invalid JSON",
+        retryable: false,
+      }),
+      { status: 400 }
+    );
   }
 
   try {
@@ -48,13 +74,43 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof MeetingImportError) {
       return NextResponse.json(
-        { error: error.message, details: error.details ?? null },
+        importFailurePayload({
+          code: "meeting_import_validation_failed",
+          error: error.message,
+          retryable: error.status >= 500,
+          details: error.details ?? null,
+        }),
         { status: error.status }
       );
     }
     return NextResponse.json(
-      { error: "ZhiHui meeting import failed" },
+      importFailurePayload({
+        code: "zhihui_meeting_import_failed",
+        error: "ZhiHui meeting import failed",
+        retryable: true,
+      }),
       { status: 502 }
     );
   }
+}
+
+function importFailurePayload({
+  code,
+  error,
+  retryable,
+  details = null,
+}: {
+  code: string;
+  error: string;
+  retryable: boolean;
+  details?: Record<string, unknown> | null;
+}) {
+  return {
+    ok: false,
+    code,
+    error,
+    retryable,
+    details,
+    ...failureBoundary,
+  };
 }

@@ -184,6 +184,26 @@ expect(
   "import route should return the calendar visibility receipt"
 );
 expect(
+  importRouteSource.includes("function importFailurePayload") &&
+    importRouteSource.includes("ok: false") &&
+    importRouteSource.includes("accountSessionUnaffected: true") &&
+    importRouteSource.includes("localUseCanContinue: true") &&
+    importRouteSource.includes("rawMeetingContentEchoed: false"),
+  "import route failures should be structured and must not look like account sign-out or lost local input"
+);
+for (const expectedFailureCode of [
+  "zhihui_meeting_import_not_configured",
+  "zhihui_agent_unauthorized",
+  "invalid_json",
+  "meeting_import_validation_failed",
+  "zhihui_meeting_import_failed",
+]) {
+  expect(
+    importRouteSource.includes(expectedFailureCode),
+    `import route should expose stable failure code ${expectedFailureCode}`
+  );
+}
+expect(
   accountSyncClientSource.includes('"daily-calendar-metadata"'),
   "client sync helper should request daily calendar metadata"
 );
@@ -246,6 +266,7 @@ console.log(
       affected_calendars: result.calendar.affectedCalendars,
       metadata_actions: result.calendar.metadataActions,
       calendar_recognizable_page_records: true,
+      structured_failure_contract: true,
       downstream_cache_refresh_contract: true,
       privacy_boundary:
         "Synthetic in-memory KV verification only. It does not connect real cloud storage, read browser storage, page bodies, real meeting content, transcripts, join URLs, passcodes, cookies, credentials, or file bytes.",
