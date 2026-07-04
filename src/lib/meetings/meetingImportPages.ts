@@ -99,6 +99,10 @@ export interface MeetingImportResult {
   calendar: {
     source: "meeting-agent-import";
     dateKey: string;
+    affectedCalendars: Array<"daily" | "meeting">;
+    metadataActions: Array<
+      "daily-calendar-metadata" | "meeting-calendar-metadata"
+    >;
     dailyPageId: string;
     meetingPageId: string;
     minutesPageId: string;
@@ -238,6 +242,11 @@ export async function importMeetingArtifactToPages(
     calendar: {
       source: "meeting-agent-import",
       dateKey: meeting.date,
+      affectedCalendars: ["daily", "meeting"],
+      metadataActions: [
+        "daily-calendar-metadata",
+        "meeting-calendar-metadata",
+      ],
       dailyPageId: dailyPage.id,
       meetingPageId: meetingPage.id,
       minutesPageId: minutesPage.id,

@@ -77,6 +77,17 @@ expect(result.meeting.time === "10:00-11:00", "result should expose normalized m
 expect(result.meeting.platform === "Zoom", "result should expose normalized meeting platform");
 expect(result.calendar.source === "meeting-agent-import", "calendar receipt should identify the import source");
 expect(result.calendar.dateKey === "2026-06-14", "calendar receipt should expose the meeting date key");
+expect(
+  Array.isArray(result.calendar.affectedCalendars) &&
+    result.calendar.affectedCalendars.join(",") === "daily,meeting",
+  "calendar receipt should identify both daily and meeting calendar surfaces"
+);
+expect(
+  Array.isArray(result.calendar.metadataActions) &&
+    result.calendar.metadataActions.join(",") ===
+      "daily-calendar-metadata,meeting-calendar-metadata",
+  "calendar receipt should identify both metadata refresh actions"
+);
 expect(result.calendar.dailyPageId === result.dailyPageId, "calendar receipt should include daily page id");
 expect(result.calendar.meetingPageId === result.meetingPageId, "calendar receipt should include meeting page id");
 expect(result.calendar.minutesPageId === result.minutesPageId, "calendar receipt should include minutes page id");
@@ -119,18 +130,38 @@ expect(
   "import route should return the calendar visibility receipt"
 );
 expect(
+  accountSyncClientSource.includes('"daily-calendar-metadata"'),
+  "client sync helper should request daily calendar metadata"
+);
+expect(
   accountSyncClientSource.includes('action: "meeting-calendar-metadata"'),
   "client sync helper should request meeting calendar metadata"
+);
+expect(
+  accountSyncRouteSource.includes('body.action === "daily-calendar-metadata"'),
+  "account sync route should expose daily calendar metadata"
 );
 expect(
   accountSyncRouteSource.includes('body.action === "meeting-calendar-metadata"'),
   "account sync route should expose meeting calendar metadata"
 );
 expect(
+  /async function getDailyCalendarMetadata[\s\S]*refreshDailyCalendarCacheFromChangeLog/.test(
+    accountSyncRouteSource
+  ),
+  "daily metadata should attempt a change-log refresh before full rebuild"
+);
+expect(
   /async function getMeetingCalendarMetadata[\s\S]*refreshMeetingCalendarCacheFromChangeLog/.test(
     accountSyncRouteSource
   ),
   "meeting metadata should attempt a change-log refresh before full rebuild"
+);
+expect(
+  /async function refreshDailyCalendarCacheFromChangeLog[\s\S]*readChangedPageRecordsFromChangeLog[\s\S]*updateDailyCalendarCacheWithRecords[\s\S]*writeDailyCalendarCache/.test(
+    accountSyncRouteSource
+  ),
+  "daily metadata change-log refresh should read changed ids, update cache records, and persist the cache"
 );
 expect(
   /async function refreshMeetingCalendarCacheFromChangeLog[\s\S]*readChangedPageRecordsFromChangeLog[\s\S]*updateMeetingCalendarCacheWithRecords[\s\S]*writeMeetingCalendarCache/.test(
@@ -158,6 +189,8 @@ console.log(
       change_log_entries: changeLog?.length ?? 0,
       changed_page_ids: result.calendar.changedPageIds.length,
       calendar_date_key: result.calendar.dateKey,
+      affected_calendars: result.calendar.affectedCalendars,
+      metadata_actions: result.calendar.metadataActions,
       downstream_cache_refresh_contract: true,
       privacy_boundary:
         "Synthetic in-memory KV verification only. It does not connect real cloud storage, read browser storage, page bodies, real meeting content, transcripts, join URLs, passcodes, cookies, credentials, or file bytes.",
