@@ -69,6 +69,11 @@ const indexKey = "zhinotes:pagesync:index:owner@example.com";
 const changeLogKey = "zhinotes:pagesync:changes:owner@example.com";
 const index = parseJson(kvStore.get(indexKey));
 const changeLog = parseJson(kvStore.get(changeLogKey));
+const dailyRootRecord = pageRecord(result.dailyRootId);
+const zhihuiRootRecord = pageRecord(result.zhihuiRootId);
+const dailyRecord = pageRecord(result.dailyPageId);
+const meetingRecord = pageRecord(result.meetingPageId);
+const minutesRecord = pageRecord(result.minutesPageId);
 
 expect(result.importId === "synthetic-meeting-fingerprint", "import id should use the content fingerprint");
 expect(result.dailyPageId && result.meetingPageId && result.minutesPageId, "result should expose all created page ids");
@@ -105,6 +110,55 @@ for (const id of result.calendar.changedPageIds) {
   );
 }
 
+expect(
+  dailyRootRecord?.title === "每日纪要" &&
+    dailyRootRecord.parent_id === null &&
+    dailyRootRecord.icon === "📅",
+  "import should create or reuse a recognizable daily calendar root"
+);
+expect(
+  zhihuiRootRecord?.title === "ZhiHui" &&
+    zhihuiRootRecord.parent_id === null &&
+    zhihuiRootRecord.icon === "🗓️",
+  "import should create or reuse a recognizable ZhiHui calendar root"
+);
+expect(
+  dailyRecord?.parent_id === result.dailyRootId &&
+    dailyRecord.title === "2026-06-14" &&
+    propertyValue(dailyRecord, "日期") === "2026-06-14",
+  "daily page should be nested under 每日纪要 and expose the 日期 property"
+);
+expect(
+  typeof dailyRecord?.content_text === "string" &&
+    dailyRecord.content_text.includes(`data-id="${result.minutesPageId}"`),
+  "daily page should mention the imported minutes page"
+);
+expect(
+  meetingRecord?.parent_id === result.zhihuiRootId &&
+    propertyValue(meetingRecord, "日期") === "2026-06-14" &&
+    propertyValue(meetingRecord, "时间") === "10:00-11:00" &&
+    propertyValue(meetingRecord, "会议痕迹") === "已完成" &&
+    propertyValue(meetingRecord, "时间状态") === "已识别" &&
+    propertyValue(meetingRecord, "导入来源") === "meeting-agent",
+  "meeting page should be nested under ZhiHui and expose calendar-recognizable properties"
+);
+expect(
+  minutesRecord?.parent_id === result.dailyPageId &&
+    propertyValue(minutesRecord, "日期") === "2026-06-14" &&
+    propertyValue(minutesRecord, "导入来源") === "meeting-agent" &&
+    typeof minutesRecord.content_text === "string" &&
+    minutesRecord.content_text.includes(`/page/${result.meetingPageId}`),
+  "minutes page should be nested under the daily page and link back to the meeting page"
+);
+expect(
+  new Set(result.calendar.changedPageIds).size === 5 &&
+    result.calendar.changedPageIds.includes(result.dailyRootId) &&
+    result.calendar.changedPageIds.includes(result.zhihuiRootId) &&
+    result.calendar.changedPageIds.includes(result.dailyPageId) &&
+    result.calendar.changedPageIds.includes(result.meetingPageId) &&
+    result.calendar.changedPageIds.includes(result.minutesPageId),
+  "calendar receipt should name every page needed for metadata-first refresh"
+);
 expect(
   changeLog?.every((entry) => {
     const keys = Object.keys(entry).sort().join(",");
@@ -191,6 +245,7 @@ console.log(
       calendar_date_key: result.calendar.dateKey,
       affected_calendars: result.calendar.affectedCalendars,
       metadata_actions: result.calendar.metadataActions,
+      calendar_recognizable_page_records: true,
       downstream_cache_refresh_contract: true,
       privacy_boundary:
         "Synthetic in-memory KV verification only. It does not connect real cloud storage, read browser storage, page bodies, real meeting content, transcripts, join URLs, passcodes, cookies, credentials, or file bytes.",
@@ -211,6 +266,20 @@ function parseJson(value) {
   } catch {
     return null;
   }
+}
+
+function pageRecord(id) {
+  return parseJson(kvStore.get(pageRecordKey(id)));
+}
+
+function pageRecordKey(id) {
+  return `zhinotes:pagesync:page:owner@example.com:${id}`;
+}
+
+function propertyValue(record, name) {
+  const properties = parseJson(record?.properties);
+  if (!Array.isArray(properties)) return "";
+  return properties.find((property) => property?.name === name)?.value ?? "";
 }
 
 function loadImporter(fullPath) {
