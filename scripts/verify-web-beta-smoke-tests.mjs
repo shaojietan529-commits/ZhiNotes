@@ -9842,6 +9842,26 @@ function run() {
     "applyMeetingPageUpdatePayloads(",
     "Meeting calendar must apply lightweight metadata immediately after relevant cross-tab updates."
   );
+  for (const [snippet, message] of [
+    [
+      "applyMeetingPageUpdatePayloads(\n        meetingPayloads,",
+      "Meeting calendar must apply lightweight page-update payloads without reloading full page bodies.",
+    ],
+    [
+      "rootId: meetingRootId",
+      "Meeting calendar must keep page-update payload hot-cache writes scoped to the ZhiHui root.",
+    ],
+    [
+      "message.reason === \"cloud-pull\"\n              ? \"cloud-metadata\"\n              : \"optimistic-local\"",
+      "Meeting calendar must label payload hot-cache writes by cloud vs local source.",
+    ],
+    [
+      "source: hotCache.source",
+      "Meeting calendar must refresh the meeting hot cache after page-update payload metadata changes.",
+    ],
+  ]) {
+    assertIncludes(files.meetingScheduleShell, meetingScheduleShell, snippet, message);
+  }
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,

@@ -1542,7 +1542,11 @@ check(
     !meetingScheduleShell.includes("await refresh()") &&
     !meetingScheduleShell.includes("void refresh()") &&
     meetingScheduleShell.includes("upsertMeetingInView(updatedPage)") &&
-    meetingScheduleShell.includes("scheduleOptimisticMeetingHotCacheWrite(updatedPage, rootId, 160)"),
+    meetingScheduleShell.includes("scheduleOptimisticMeetingHotCacheWrite(updatedPage, rootId, 160)") &&
+    meetingScheduleShell.includes("applyMeetingPageUpdatePayloads(\n        meetingPayloads,") &&
+    meetingScheduleShell.includes("rootId: meetingRootId") &&
+    meetingScheduleShell.includes("message.reason === \"cloud-pull\"\n              ? \"cloud-metadata\"\n              : \"optimistic-local\"") &&
+    meetingScheduleShell.includes("source: hotCache.source"),
   "MeetingScheduleShell 创建、导入和状态更新应局部刷新会议日历与热缓存，不能挂 usePages 或全局页面 refresh"
 );
 check(

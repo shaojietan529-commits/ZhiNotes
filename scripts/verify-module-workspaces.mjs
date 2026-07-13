@@ -1549,6 +1549,9 @@ check(
     shells.schedule.includes("return queueMeetingCloudRecords(records)") &&
     shells.schedule.includes("function queueMeetingCloudRecords") &&
     shells.schedule.includes("queueCloudPagePush(record)") &&
+    shells.schedule.includes("applyMeetingPageUpdatePayloads(\n        meetingPayloads,") &&
+    shells.schedule.includes("rootId: meetingRootId") &&
+    shells.schedule.includes("source: hotCache.source") &&
     !shells.schedule.includes("const result = await pushCloudPages(records)") &&
     !shells.schedule.includes("): Promise<CreateMeetingResult> =>") &&
     shells.schedule.includes("后台会继续保存到账号云端") &&

@@ -55,6 +55,7 @@ import {
   meetingHotCacheSnapshotPageToPage,
   readMeetingHotCacheSnapshot,
   readMeetingHotCacheSnapshotsForRange,
+  type MeetingHotCacheSnapshot,
   writeMeetingHotCacheSnapshot,
 } from "@/lib/sync/meetingHotCacheSnapshot";
 import {
@@ -1423,7 +1424,14 @@ export default function MeetingScheduleShell() {
         setMeetings,
         meetingsRef,
         viewMonth,
-        deletedTombstoneRef.current
+        deletedTombstoneRef.current,
+        {
+          rootId: meetingRootId,
+          source:
+            message.reason === "cloud-pull"
+              ? "cloud-metadata"
+              : "optimistic-local",
+        }
       );
       scheduleLocalMetadataRefresh();
     });
@@ -3968,7 +3976,11 @@ function applyMeetingPageUpdatePayloads(
   setMeetings: (updater: (current: Page[]) => Page[]) => void,
   meetingsRef: { current: Page[] },
   viewMonth: Date,
-  tombstone: Set<string>
+  tombstone: Set<string>,
+  hotCache?: {
+    rootId: string | null;
+    source: MeetingHotCacheSnapshot["source"];
+  }
 ): void {
   const visibleRange = buildMonthGrid(viewMonth);
   const startDate = toDateKey(visibleRange[0].date);
@@ -4012,6 +4024,15 @@ function applyMeetingPageUpdatePayloads(
         endDate
       );
       meetingsRef.current = selection.pages;
+      if (hotCache) {
+        writeMeetingHotCacheSnapshot({
+          startDate,
+          endDate,
+          rootId: hotCache.rootId,
+          pages: selection.pages,
+          source: hotCache.source,
+        });
+      }
       return selection.pages;
     });
   });
