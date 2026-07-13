@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { buildMeetingAgentQueueReceiptTiming } from "@/lib/meetings/agentQueueReceipts";
+import {
+  buildMeetingAgentQueueFailureStatus,
+  buildMeetingAgentQueuePendingStatus,
+  buildMeetingAgentQueueReceiptTiming,
+} from "@/lib/meetings/agentQueueReceipts";
 import {
   ackMeetingAgentJobs,
   authorizeMeetingAgent,
@@ -172,6 +176,11 @@ export async function POST(request: Request) {
       normalizedAckLeases.requestedLeaseCount,
       ackHealth
     );
+    const queuePendingStatus = buildMeetingAgentQueuePendingStatus({
+      queueDepth: ackResult.queueDepth,
+      attentionRequired: ackHealth.attentionRequired,
+      manualReviewRequired: hasUnconfirmedJobs,
+    });
     return ackJson({
       ok: true,
       acknowledged: ackResult.acknowledged,
@@ -195,6 +204,7 @@ export async function POST(request: Request) {
           : "acknowledged_existing_jobs",
       ackContract: "lease_aware",
       manualReviewRequired: hasUnconfirmedJobs,
+      manualReviewJobCount: unconfirmedJobCount,
       unconfirmedJobsPreserved: hasUnconfirmedJobs,
       queueDepth: ackResult.queueDepth,
       maxQueueItems: ackResult.maxQueueItems,
@@ -204,6 +214,7 @@ export async function POST(request: Request) {
       attentionRequired: ackHealth.attentionRequired,
       attentionReason: ackHealth.attentionReason,
       reclaimableLeaseCount: ackHealth.reclaimableLeaseCount,
+      ...queuePendingStatus,
       ...ackReceiptTimingFields(queueReceipt),
       queueReceipt,
       ...ackContinuityReceipt,
@@ -630,6 +641,12 @@ function ackFailurePayload({
     nextAction,
   });
   const receiptTiming = ackReceiptTimingFields(failureReceipt);
+  const queueFailureStatus = buildMeetingAgentQueueFailureStatus({
+    retryable,
+    queueWriteAttempted,
+    partialQueueWritePossible,
+    manualReviewRequired,
+  });
 
   return {
     ok: false,
@@ -646,7 +663,9 @@ function ackFailurePayload({
     highRiskWriteGated: true,
     failureStatus,
     manualReviewRequired,
+    manualReviewJobCount: manualReviewRequired ? 1 : 0,
     nextAction,
+    ...queueFailureStatus,
     ...receiptTiming,
     ackFailureReceipt: failureReceipt,
     ...ackFailureBoundary,
@@ -697,6 +716,13 @@ function ackFailureReceipt({
     manualReviewRequired,
     highRiskWriteGated: true,
     unconfirmedJobsPreserved: true,
+    manualReviewJobCount: manualReviewRequired ? 1 : 0,
+    ...buildMeetingAgentQueueFailureStatus({
+      retryable,
+      queueWriteAttempted,
+      partialQueueWritePossible,
+      manualReviewRequired,
+    }),
     nextAction,
   };
 }
@@ -753,6 +779,12 @@ function queueAckReceipt(
     attentionReason: ackHealth.attentionReason,
     reclaimableLeaseCount: ackHealth.reclaimableLeaseCount,
     manualReviewRequired: preservedCount > 0,
+    manualReviewJobCount: preservedCount,
+    ...buildMeetingAgentQueuePendingStatus({
+      queueDepth: ackResult.queueDepth,
+      attentionRequired: ackHealth.attentionRequired,
+      manualReviewRequired: preservedCount > 0,
+    }),
     nextAction:
       preservedCount > 0
         ? "review_missing_or_lease_mismatched_jobs"

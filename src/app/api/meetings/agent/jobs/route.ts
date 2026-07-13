@@ -5,7 +5,11 @@ import {
   readSessionToken,
 } from "@/lib/account/server";
 import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
-import { buildMeetingAgentQueueReceiptTiming } from "@/lib/meetings/agentQueueReceipts";
+import {
+  buildMeetingAgentQueueFailureStatus,
+  buildMeetingAgentQueuePendingStatus,
+  buildMeetingAgentQueueReceiptTiming,
+} from "@/lib/meetings/agentQueueReceipts";
 import {
   authorizeMeetingAgent,
   enqueueMeetingAgentJob,
@@ -112,6 +116,10 @@ export async function GET(request: Request) {
     );
     const queueHealth = queueListHealth(queueResult);
     const queueReceipt = queueListReceipt(queueResult, queueHealth);
+    const queuePendingStatus = buildMeetingAgentQueuePendingStatus({
+      queueDepth: queueResult.queueDepth,
+      attentionRequired: queueHealth.attentionRequired,
+    });
     return queueJson({
       ok: true,
       status: "ready",
@@ -143,6 +151,8 @@ export async function GET(request: Request) {
       attentionReason: queueHealth.attentionReason,
       reclaimableLeaseCount: queueHealth.reclaimableLeaseCount,
       manualReviewRequired: false,
+      manualReviewJobCount: 0,
+      ...queuePendingStatus,
       ackContract: "lease_aware",
       ackRequiresLease: queueResult.claimMode,
       ackLeaseSource: queueResult.claimMode ? "job.lease.lease_id" : null,
@@ -288,6 +298,10 @@ export async function POST(request: Request) {
       { runNow: body.runNow === true },
       enqueueHealth
     );
+    const queuePendingStatus = buildMeetingAgentQueuePendingStatus({
+      queueDepth: enqueueResult.queueDepth,
+      attentionRequired: enqueueHealth.attentionRequired,
+    });
 
     return queueJson({
       ok: true,
@@ -317,6 +331,8 @@ export async function POST(request: Request) {
       attentionReason: enqueueHealth.attentionReason,
       reclaimableLeaseCount: 0,
       manualReviewRequired: false,
+      manualReviewJobCount: 0,
+      ...queuePendingStatus,
       ...queueReceiptTimingFields(queueReceipt),
       queueReceipt,
       ...queueContinuityReceipt,
@@ -426,6 +442,11 @@ function queueListReceipt(
     attentionReason: queueHealth.attentionReason,
     reclaimableLeaseCount: queueHealth.reclaimableLeaseCount,
     manualReviewRequired: false,
+    manualReviewJobCount: 0,
+    ...buildMeetingAgentQueuePendingStatus({
+      queueDepth: queueResult.queueDepth,
+      attentionRequired: queueHealth.attentionRequired,
+    }),
     ackContract: "lease_aware",
     ackRequiresLease: queueResult.claimMode,
     ackLeaseSource: queueResult.claimMode ? "job.lease.lease_id" : null,
@@ -483,6 +504,11 @@ function queueEnqueueReceipt(
     attentionReason: queueHealth.attentionReason,
     reclaimableLeaseCount: 0,
     manualReviewRequired: false,
+    manualReviewJobCount: 0,
+    ...buildMeetingAgentQueuePendingStatus({
+      queueDepth: enqueueResult.queueDepth,
+      attentionRequired: queueHealth.attentionRequired,
+    }),
     nextAction: enqueueResult.deduplicated
       ? "wait_for_existing_job"
       : "wait_for_runner_ack",
@@ -588,6 +614,12 @@ function queueFailurePayload({
     nextAction,
   });
   const receiptTiming = queueReceiptTimingFields(failureReceipt);
+  const queueFailureStatus = buildMeetingAgentQueueFailureStatus({
+    retryable,
+    queueWriteAttempted,
+    partialQueueWritePossible,
+    manualReviewRequired,
+  });
 
   return {
     ok: false,
@@ -604,7 +636,9 @@ function queueFailurePayload({
     highRiskWriteGated: true,
     failureStatus,
     manualReviewRequired,
+    manualReviewJobCount: manualReviewRequired ? 1 : 0,
     nextAction,
+    ...queueFailureStatus,
     ...receiptTiming,
     queueFailureReceipt: failureReceipt,
     ...queueFailureBoundary,
@@ -654,6 +688,13 @@ function queueFailureReceipt({
     requiresUserConfirmation: manualReviewRequired,
     manualReviewRequired,
     highRiskWriteGated: true,
+    manualReviewJobCount: manualReviewRequired ? 1 : 0,
+    ...buildMeetingAgentQueueFailureStatus({
+      retryable,
+      queueWriteAttempted,
+      partialQueueWritePossible,
+      manualReviewRequired,
+    }),
     nextAction,
   };
 }

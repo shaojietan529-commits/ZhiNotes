@@ -1098,7 +1098,14 @@ Current local actions:
   return. Poll, enqueue, and ACK responses also surface `queueHealth`,
   `attentionRequired`, `attentionReason`, and `reclaimableLeaseCount` so
   sync-center UI can show queue pressure or reclaimable expired leases without
-  inspecting every job. ACK responses use `attentionReason:
+  inspecting every job. They also mirror sync-center status fields
+  (`syncCenterStatus`, `pendingAgentJobCount`, `pendingRunnerAckCount`,
+  `failedAgentJobCount`, `pendingWriteCount`, `failedWriteCount`,
+  `localPendingWrite`, `safeToContinueLocalUse`) at the top level and inside
+  the metadata-only queue receipt. This lets the UI distinguish an idle queue,
+  queued runner work, retryable unknown writes, and manual review without
+  reading meeting content or treating queue trouble as an account sign-out.
+  ACK responses use `attentionReason:
   "ack_unconfirmed_jobs_preserved"` when missing or lease-mismatched jobs need
   manual review. Queue responses also mirror receipt timing at the top level
   (`pollMode`, `recommendedNextPollMs`, `recommendedNextPollAt`,
