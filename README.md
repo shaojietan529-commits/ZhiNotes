@@ -1089,7 +1089,10 @@ Current local actions:
   `job_leases` map of `{ job_id: lease_id }`. Claim responses also mark
   `ackContract: "lease_aware"`, `ackRequiresLease: true`, and
   `ackLeaseSource: "job.lease.lease_id"` so runners know exactly which value to
-  return. The server keeps job-id-only ACK compatibility only for jobs that have
+  return. Poll responses also surface `queueHealth`, `attentionRequired`,
+  `attentionReason`, and `reclaimableLeaseCount` so sync-center UI can show
+  queue pressure or reclaimable expired leases without inspecting every job.
+  The server keeps job-id-only ACK compatibility only for jobs that have
   never been leased. Once a job carries a `lease.lease_id`, ACK deletes it only
   when the supplied lease id matches. Missing, lease-less, or mismatched ACKs
   are preserved and surfaced as manual-review metadata, so another device or

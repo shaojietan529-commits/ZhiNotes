@@ -110,6 +110,7 @@ export async function GET(request: Request) {
       Number.isFinite(limit) ? limit : 25,
       claimMode ? { claim: true, runnerId } : {}
     );
+    const queueHealth = queueListHealth(queueResult);
     return queueJson({
       ok: true,
       status: "ready",
@@ -136,11 +137,16 @@ export async function GET(request: Request) {
       expiredLeaseJobs: queueResult.expiredLeaseJobs,
       leaseDurationMs: queueResult.leaseDurationMs,
       leaseExpiresAt: queueResult.leaseExpiresAt,
+      queueHealth: queueHealth.queueHealth,
+      attentionRequired: queueHealth.attentionRequired,
+      attentionReason: queueHealth.attentionReason,
+      reclaimableLeaseCount: queueHealth.reclaimableLeaseCount,
+      manualReviewRequired: false,
       ackContract: "lease_aware",
       ackRequiresLease: queueResult.claimMode,
       ackLeaseSource: queueResult.claimMode ? "job.lease.lease_id" : null,
       runnerIdEchoed: false,
-      queueReceipt: queueListReceipt(queueResult),
+      queueReceipt: queueListReceipt(queueResult, queueHealth),
       ...queueContinuityReceipt,
       privacy: {
         requires_agent_token: true,
@@ -308,7 +314,7 @@ export async function POST(request: Request) {
   }
 }
 
-function queueListReceipt(queueResult: {
+type QueueListReceiptInput = {
   queueDepth: number;
   maxQueueItems: number;
   requestedLimit: number;
@@ -324,7 +330,26 @@ function queueListReceipt(queueResult: {
   expiredLeaseJobs: number;
   leaseDurationMs: number | null;
   leaseExpiresAt: string | null;
-}) {
+};
+
+function queueListHealth(queueResult: QueueListReceiptInput) {
+  const attentionReason = queueResult.queueAlmostFull
+    ? "queue_almost_full"
+    : queueResult.expiredLeaseJobs > 0
+      ? "expired_leases_reclaimable"
+      : null;
+  return {
+    queueHealth: attentionReason ? "attention_recommended" : "healthy",
+    attentionRequired: attentionReason !== null,
+    attentionReason,
+    reclaimableLeaseCount: queueResult.expiredLeaseJobs,
+  };
+}
+
+function queueListReceipt(
+  queueResult: QueueListReceiptInput,
+  queueHealth = queueListHealth(queueResult)
+) {
   return {
     ...queueReceiptBase,
     ...buildMeetingAgentQueueReceiptTiming({
@@ -349,6 +374,11 @@ function queueListReceipt(queueResult: {
     expiredLeaseJobs: queueResult.expiredLeaseJobs,
     leaseDurationMs: queueResult.leaseDurationMs,
     leaseExpiresAt: queueResult.leaseExpiresAt,
+    queueHealth: queueHealth.queueHealth,
+    attentionRequired: queueHealth.attentionRequired,
+    attentionReason: queueHealth.attentionReason,
+    reclaimableLeaseCount: queueHealth.reclaimableLeaseCount,
+    manualReviewRequired: false,
     ackContract: "lease_aware",
     ackRequiresLease: queueResult.claimMode,
     ackLeaseSource: queueResult.claimMode ? "job.lease.lease_id" : null,
