@@ -2521,8 +2521,9 @@ check(
     ) &&
     pageShell.includes("EMPTY_PAGE_SYNC_STATUS") &&
     pageShell.includes(
-      "const { getPendingCloudPageSyncStatus, isCloudPagePendingSync } ="
+      "getCloudPageSyncItemStatus,"
     ) &&
+    pageShell.includes("getCloudPageSyncItemStatus(pageId)") &&
     pageShell.includes("scheduleStatusRefresh") &&
     pageShell.includes("function isPageSyncStorageEvent(") &&
     pageShell.includes("event.key.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)") &&
@@ -2549,7 +2550,7 @@ check(
     pageSaveLocalOnlyIndex >
       pageCloudSaveStatus.indexOf("if (input.status.failed > 0)") &&
     pageSaveLocalOnlyIndex >
-      pageCloudSaveStatus.indexOf("if (input.currentPagePending)") &&
+      pageCloudSaveStatus.indexOf("if (currentPagePending)") &&
     pageSaveLocalOnlyIndex >
       pageCloudSaveStatus.indexOf("if (totalPending > 0)") &&
     pageSaveAuthRetryIndex > pageCloudSaveStatus.indexOf("if (pageManualReview)") &&
@@ -2559,7 +2560,7 @@ check(
     pageSaveAuthRetryIndex >
       pageCloudSaveStatus.indexOf("if (input.status.failed > 0)") &&
     pageSaveAuthRetryIndex >
-      pageCloudSaveStatus.indexOf("if (input.currentPagePending)") &&
+      pageCloudSaveStatus.indexOf("if (currentPagePending)") &&
     pageSaveAuthRetryIndex > pageCloudSaveStatus.indexOf("if (totalPending > 0)") &&
     pageSaveAuthRetryIndex > pageSaveLocalOnlyIndex &&
     pageCloudSaveStatus.includes(
@@ -2631,6 +2632,9 @@ check(
     pagePeekModal.includes("const titleSaveTimerRef = useRef<number | null>(null)") &&
     pagePeekModal.includes("const pendingTitleRef = useRef<string | null>(null)") &&
     pagePeekModal.includes("const persistPeekTitleNow = useCallback") &&
+    pagePeekModal.includes("getCloudPageSyncItemStatus(pageId)") &&
+    pagePeekModal.includes("data-cloud-sync-state={peekCloudSyncStatus.state}") &&
+    pagePeekModal.includes("本地已保存，云端确认中") &&
     pagePeekModal.includes("schedulePeekTitleSave(next)") &&
     pagePeekModal.includes("onBlur={() => void flushPeekTitleSave()}") &&
     pagePeekModal.includes("rememberPendingPageDraft(nextPage)") &&

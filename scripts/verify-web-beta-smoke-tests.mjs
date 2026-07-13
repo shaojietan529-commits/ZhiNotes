@@ -7009,6 +7009,22 @@ function run() {
       "PagePeekModal local save status must expose whether there are active unsynced local drafts.",
     ],
     [
+      "getCloudPageSyncItemStatus(pageId)",
+      "PagePeekModal must read the exact current-page cloud sync state without uploading.",
+    ],
+    [
+      "data-cloud-sync-state={peekCloudSyncStatus.state}",
+      "PagePeekModal local save status must expose the exact cloud sync state for the current page.",
+    ],
+    [
+      "本地已保存，云端确认中",
+      "PagePeekModal must tell the user when the local save is waiting for cloud acknowledgement.",
+    ],
+    [
+      "本地已保存，云端同步失败",
+      "PagePeekModal must tell the user when the current page is saved locally but cloud upload failed.",
+    ],
+    [
       "本地已暂存，后台保存中",
       "PagePeekModal must tell the user when their edit is locally staged before background persistence finishes.",
     ],
@@ -10096,6 +10112,12 @@ function run() {
     "export function isCloudPagePendingSync",
     "Page sync client must expose a read-only current-page pending check."
   );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "export function getCloudPageSyncItemStatus",
+    "Page sync client must expose a read-only exact current-page queue state."
+  );
   for (const [snippet, message] of [
     [
       "buildPageCloudSaveStatus",
@@ -10108,6 +10130,10 @@ function run() {
     [
       "current-page-failed",
       "Page save status model must prioritize current page sync failure.",
+    ],
+    [
+      "currentPageSyncStatus",
+      "Page save status model must use an exact current-page sync status instead of relying only on queue samples.",
     ],
     [
       "global-page-failed",
@@ -10140,7 +10166,7 @@ function run() {
       "if (pageFailed)",
       "if (input.status.manualReviewCount > 0)",
       "if (input.status.failed > 0)",
-      "if (input.currentPagePending)",
+      "if (currentPagePending)",
       "if (totalPending > 0)",
       "if (!input.status.enabled)",
       "if (input.status.authRetryStatus)",
@@ -10152,6 +10178,12 @@ function run() {
     pageShell,
     "isCloudPagePendingSync(pageId)",
     "Page shell sync badge must distinguish the currently open page from unrelated pending uploads."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "getCloudPageSyncItemStatus(pageId)",
+    "Page shell sync badge must classify the current page with exact pending / failed / manual-review state."
   );
   assertIncludes(
     files.pageCloudSaveStatus,

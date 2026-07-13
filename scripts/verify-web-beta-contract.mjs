@@ -6257,7 +6257,7 @@ function run() {
       "if (pageFailed)",
       "if (input.status.manualReviewCount > 0)",
       "if (input.status.failed > 0)",
-      "if (input.currentPagePending)",
+      "if (currentPagePending)",
       "if (totalPending > 0)",
       "if (!input.status.enabled)",
       "if (input.status.authRetryStatus)",

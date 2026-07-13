@@ -146,6 +146,28 @@ export interface PendingCloudPageSyncStatus {
   lastSyncAt: string | null;
 }
 
+export type CloudPageSyncItemState =
+  | "synced"
+  | "queued"
+  | "pending"
+  | "failed"
+  | "manual-review";
+
+export interface CloudPageSyncItemStatus {
+  pageId: string;
+  state: CloudPageSyncItemState;
+  pending: boolean;
+  queued: boolean;
+  failed: boolean;
+  manualReview: boolean;
+  failureCount: number;
+  lastAttemptAt: string | null;
+  lastFailureAt: string | null;
+  lastFailureMessage: string | null;
+  authRetryStatus: PageSyncStatus | null;
+  authRetryUntil: string | null;
+}
+
 interface PendingCloudPushMetaEntry {
   queuedAt: string;
   lastAttemptAt?: string;
@@ -1932,6 +1954,60 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
 export function isCloudPagePendingSync(pageId: string): boolean {
   if (!isValidRemotePageId(pageId)) return false;
   return queuedCloudPush.has(pageId) || getPendingCloudPushIds().includes(pageId);
+}
+
+export function getCloudPageSyncItemStatus(
+  pageId: string
+): CloudPageSyncItemStatus {
+  const authRetry = getAuthRetrySnapshot();
+  if (!isValidRemotePageId(pageId)) {
+    return {
+      pageId,
+      state: "synced",
+      pending: false,
+      queued: false,
+      failed: false,
+      manualReview: false,
+      failureCount: 0,
+      lastAttemptAt: null,
+      lastFailureAt: null,
+      lastFailureMessage: null,
+      authRetryStatus: authRetry.status,
+      authRetryUntil: authRetry.until,
+    };
+  }
+
+  const pending = getPendingCloudPushIds().includes(pageId);
+  const queued = queuedCloudPush.has(pageId);
+  const meta = getPendingCloudPushMeta()[pageId];
+  const failureCount = meta?.failureCount ?? 0;
+  const failed = pending && Boolean(meta?.lastError);
+  const manualReview =
+    failed && failureCount >= PENDING_CLOUD_PAGE_MANUAL_REVIEW_FAILURE_COUNT;
+  const state: CloudPageSyncItemState = manualReview
+    ? "manual-review"
+    : failed
+      ? "failed"
+      : queued
+        ? "queued"
+        : pending
+          ? "pending"
+          : "synced";
+
+  return {
+    pageId,
+    state,
+    pending,
+    queued,
+    failed,
+    manualReview,
+    failureCount,
+    lastAttemptAt: meta?.lastAttemptAt ?? null,
+    lastFailureAt: meta?.lastFailureAt ?? null,
+    lastFailureMessage: meta?.lastError ?? null,
+    authRetryStatus: authRetry.status,
+    authRetryUntil: authRetry.until,
+  };
 }
 
 function emitPageSyncStatusChanged(): void {

@@ -644,8 +644,9 @@ check(
     ) &&
     pageShell.includes("EMPTY_PAGE_SYNC_STATUS") &&
     pageShell.includes(
-      "const { getPendingCloudPageSyncStatus, isCloudPagePendingSync } ="
+      "getCloudPageSyncItemStatus,"
     ) &&
+    pageShell.includes("getCloudPageSyncItemStatus(pageId)") &&
     !pageShell.includes("import {\n  getPendingCloudPageSyncStatus") &&
     pageShell.includes("getPendingCloudPageSyncStatus") &&
     pageShell.includes("isCloudPagePendingSync(pageId)") &&

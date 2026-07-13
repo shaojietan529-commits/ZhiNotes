@@ -1,4 +1,7 @@
-import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
+import type {
+  CloudPageSyncItemStatus,
+  PendingCloudPageSyncStatus,
+} from "@/lib/pages/accountPageSync";
 
 export type PageCloudSaveStatusId =
   | "local-only"
@@ -20,6 +23,7 @@ export type PageCloudSaveStatusTone =
 
 export interface PageCloudSaveStatusInput {
   currentPagePending: boolean;
+  currentPageSyncStatus?: CloudPageSyncItemStatus | null;
   pageId: string;
   status: PendingCloudPageSyncStatus;
 }
@@ -44,10 +48,19 @@ export function buildPageCloudSaveStatus(
   input: PageCloudSaveStatusInput
 ): PageCloudSaveStatusView {
   const totalPending = input.status.pending + input.status.queued;
-  const pageFailed = input.status.failedSampleIds.includes(input.pageId);
-  const pageManualReview = input.status.manualReviewSampleIds.includes(
-    input.pageId
-  );
+  const pageState = input.currentPageSyncStatus?.state ?? null;
+  const currentPagePending =
+    input.currentPagePending ||
+    pageState === "queued" ||
+    pageState === "pending";
+  const pageFailed =
+    pageState === "failed" ||
+    (!input.currentPageSyncStatus &&
+      input.status.failedSampleIds.includes(input.pageId));
+  const pageManualReview =
+    pageState === "manual-review" ||
+    (!input.currentPageSyncStatus &&
+      input.status.manualReviewSampleIds.includes(input.pageId));
   const syncedAt = formatSyncTime(input.status.lastSyncAt);
   const cloudConfirmed =
     input.status.enabled &&
@@ -115,7 +128,7 @@ export function buildPageCloudSaveStatus(
     });
   }
 
-  if (input.currentPagePending) {
+  if (currentPagePending) {
     return view({
       ...base,
       id: "current-page-pending",

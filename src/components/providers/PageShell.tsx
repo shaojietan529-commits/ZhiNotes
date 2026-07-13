@@ -51,7 +51,10 @@ import {
   getBlockCommentCount,
   getPageVersionCount,
 } from "@/lib/db/local/queries";
-import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
+import type {
+  CloudPageSyncItemStatus,
+  PendingCloudPageSyncStatus,
+} from "@/lib/pages/accountPageSync";
 import type { Page, PageVersion } from "@/lib/utils/types";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import { usePageViewPreferences } from "@/hooks/usePageViewPreferences";
@@ -246,6 +249,8 @@ function PageContent({ pageId }: { pageId: string }) {
   const [pageSyncStatus, setPageSyncStatus] =
     useState<PendingCloudPageSyncStatus>(EMPTY_PAGE_SYNC_STATUS);
   const [currentPagePendingSync, setCurrentPagePendingSync] = useState(false);
+  const [currentPageSyncStatus, setCurrentPageSyncStatus] =
+    useState<CloudPageSyncItemStatus | null>(null);
   const [bodyHydrationStatus, setBodyHydrationStatus] = useState(() =>
     getPageBodyHydrationStatus(pageId)
   );
@@ -353,6 +358,7 @@ function PageContent({ pageId }: { pageId: string }) {
   useEffect(() => {
     setPageSyncStatus(EMPTY_PAGE_SYNC_STATUS);
     setCurrentPagePendingSync(false);
+    setCurrentPageSyncStatus(null);
   }, [pageId]);
 
   useEffect(() => {
@@ -363,13 +369,18 @@ function PageContent({ pageId }: { pageId: string }) {
     const refreshStatus = async (event?: Event) => {
       const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
         ?.detail;
-      const { getPendingCloudPageSyncStatus, isCloudPagePendingSync } =
-        await loadPageAccountSyncModule();
+      const {
+        getPendingCloudPageSyncStatus,
+        isCloudPagePendingSync,
+        getCloudPageSyncItemStatus,
+      } = await loadPageAccountSyncModule();
       if (cancelled) return null;
       const status = next ?? getPendingCloudPageSyncStatus();
       setPageSyncStatus(status);
       const pagePending = isCloudPagePendingSync(pageId);
       setCurrentPagePendingSync(pagePending);
+      const pageSyncItem = getCloudPageSyncItemStatus(pageId);
+      setCurrentPageSyncStatus(pageSyncItem);
       return { status, pagePending };
     };
     const scheduleStatusRefresh = (snapshot: {
@@ -1314,10 +1325,11 @@ function PageContent({ pageId }: { pageId: string }) {
     () =>
       buildPageCloudSaveStatus({
         currentPagePending: currentPagePendingSync,
+        currentPageSyncStatus,
         pageId,
         status: pageSyncStatus,
       }),
-    [currentPagePendingSync, pageId, pageSyncStatus]
+    [currentPagePendingSync, currentPageSyncStatus, pageId, pageSyncStatus]
   );
   const showBodyHydrationHint = Boolean(
     page &&

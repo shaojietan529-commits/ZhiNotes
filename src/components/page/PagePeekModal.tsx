@@ -30,6 +30,7 @@ import {
   rememberPendingPageDraft,
 } from "@/lib/pages/pendingPageDrafts";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import type { CloudPageSyncItemStatus } from "@/lib/pages/accountPageSync";
 import type { Page } from "@/lib/utils/types";
 
 const Editor = dynamic(() => import("@/components/editor/Editor"), {
@@ -58,6 +59,23 @@ const PEEK_LARGE_BODY_EDITOR_DELAY_MS = 260;
 const PEEK_LARGE_BODY_EDITOR_IDLE_TIMEOUT_MS = 1600;
 const PEEK_LOCAL_SEED_RETRY_DELAYS_MS = [80, 240, 600];
 const PEEK_TITLE_SAVE_DEBOUNCE_MS = 420;
+const PEEK_PAGE_SYNC_STATUS_EVENT = "zhinote:pagesync-status";
+const PEEK_PAGE_SYNC_CONFIG_EVENT = "zhinote:pagesync-config";
+const PEEK_PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync.";
+const EMPTY_PEEK_CLOUD_SYNC_ITEM_STATUS: CloudPageSyncItemStatus = {
+  pageId: "",
+  state: "synced",
+  pending: false,
+  queued: false,
+  failed: false,
+  manualReview: false,
+  failureCount: 0,
+  lastAttemptAt: null,
+  lastFailureAt: null,
+  lastFailureMessage: null,
+  authRetryStatus: null,
+  authRetryUntil: null,
+};
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
 
 export interface PagePeekModalProps {
@@ -133,6 +151,11 @@ export default function PagePeekModal({
     string | null | undefined
   >(undefined);
   const [peekLocalDraftVersion, setPeekLocalDraftVersion] = useState(0);
+  const [peekCloudSyncStatus, setPeekCloudSyncStatus] =
+    useState<CloudPageSyncItemStatus>({
+      ...EMPTY_PEEK_CLOUD_SYNC_ITEM_STATUS,
+      pageId,
+    });
   const [bodyHydrationStatus, setBodyHydrationStatus] = useState(() =>
     getPageBodyHydrationStatus(pageId)
   );
@@ -193,11 +216,19 @@ export default function PagePeekModal({
     localPropertiesDraftRef.current !== null ||
     localContentDraftRef.current !== null ||
     localIconDraftRef.current !== undefined;
+  const peekCloudSyncLabel = describePeekCloudSyncStatus(peekCloudSyncStatus);
   const peekLocalSaveLabel = hasActiveLocalDraft
     ? "本地已暂存，后台保存中"
-    : hasEffectivePage
-      ? "本地已保存，同步队列后台处理"
+    : peekCloudSyncLabel
+      ? peekCloudSyncLabel
+      : hasEffectivePage
+        ? "本地已保存，同步队列后台处理"
       : "正在读取本地页面";
+  const peekLocalSaveTone = getPeekLocalSaveTone({
+    hasActiveLocalDraft,
+    hasEffectivePage,
+    cloudStatus: peekCloudSyncStatus,
+  });
   const latestPeekSaveRef = useRef({
     basePage: effectivePage,
     update,
@@ -222,6 +253,10 @@ export default function PagePeekModal({
     recordedPeekPerformancePageIdRef.current = null;
     readyNotifiedPageIdRef.current = null;
     localIconDraftRef.current = undefined;
+    setPeekCloudSyncStatus({
+      ...EMPTY_PEEK_CLOUD_SYNC_ITEM_STATUS,
+      pageId,
+    });
     localDraftPageRef.current = getInitialPeekPage(pageId, initialPage);
     setPeekLocalDraftVersion((version) => version + 1);
     setLocalIconDraft(undefined);
@@ -282,6 +317,43 @@ export default function PagePeekModal({
     return () => {
       cancelled = true;
       unsubscribe();
+    };
+  }, [pageId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refreshStatus = () => {
+      void loadPageAccountSyncModule()
+        .then(({ getCloudPageSyncItemStatus }) => {
+          if (!cancelled) {
+            setPeekCloudSyncStatus(getCloudPageSyncItemStatus(pageId));
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setPeekCloudSyncStatus({
+              ...EMPTY_PEEK_CLOUD_SYNC_ITEM_STATUS,
+              pageId,
+            });
+          }
+        });
+    };
+    const handleStorageRefresh = (event: StorageEvent) => {
+      if (event.key?.startsWith(PEEK_PAGE_SYNC_STORAGE_KEY_PREFIX)) {
+        refreshStatus();
+      }
+    };
+    queueMicrotask(refreshStatus);
+    window.addEventListener(PEEK_PAGE_SYNC_STATUS_EVENT, refreshStatus);
+    window.addEventListener(PEEK_PAGE_SYNC_CONFIG_EVENT, refreshStatus);
+    window.addEventListener("storage", handleStorageRefresh);
+    document.addEventListener("visibilitychange", refreshStatus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(PEEK_PAGE_SYNC_STATUS_EVENT, refreshStatus);
+      window.removeEventListener(PEEK_PAGE_SYNC_CONFIG_EVENT, refreshStatus);
+      window.removeEventListener("storage", handleStorageRefresh);
+      document.removeEventListener("visibilitychange", refreshStatus);
     };
   }, [pageId]);
 
@@ -683,14 +755,21 @@ export default function PagePeekModal({
             data-testid="page-peek-local-save-status"
             data-local-draft-active={hasActiveLocalDraft}
             data-local-draft-version={peekLocalDraftVersion}
+            data-cloud-sync-state={peekCloudSyncStatus.state}
+            data-cloud-sync-pending={peekCloudSyncStatus.pending}
+            data-cloud-sync-failed={peekCloudSyncStatus.failed}
+            data-cloud-sync-manual-review={peekCloudSyncStatus.manualReview}
+            title={peekCloudSyncStatus.lastFailureMessage ?? undefined}
           >
             <span
               className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                hasActiveLocalDraft
-                  ? "bg-amber-400"
-                  : hasEffectivePage
-                    ? "bg-emerald-400"
-                    : "bg-zinc-400"
+                peekLocalSaveTone === "danger"
+                  ? "bg-red-400"
+                  : peekLocalSaveTone === "warning"
+                    ? "bg-amber-400"
+                    : peekLocalSaveTone === "success"
+                      ? "bg-emerald-400"
+                      : "bg-zinc-400"
               }`}
               aria-hidden="true"
             />
@@ -938,6 +1017,39 @@ function formatApproxPeekBodySize(length: number): string {
   const kilobytes = Math.max(1, Math.round(length / 1024));
   if (kilobytes < 1024) return `${kilobytes} KB`;
   return `${(kilobytes / 1024).toFixed(1)} MB`;
+}
+
+function describePeekCloudSyncStatus(
+  status: CloudPageSyncItemStatus
+): string | null {
+  if (status.manualReview) return "本地已保存，云端需处理";
+  if (status.failed) return "本地已保存，云端同步失败";
+  if (status.queued) return "本地已保存，等待上传云端";
+  if (status.pending) return "本地已保存，云端确认中";
+  if (status.authRetryStatus) return "本地已保存，云端暂不可确认";
+  return null;
+}
+
+function getPeekLocalSaveTone({
+  hasActiveLocalDraft,
+  hasEffectivePage,
+  cloudStatus,
+}: {
+  hasActiveLocalDraft: boolean;
+  hasEffectivePage: boolean;
+  cloudStatus: CloudPageSyncItemStatus;
+}): "neutral" | "warning" | "danger" | "success" {
+  if (cloudStatus.manualReview || cloudStatus.failed) return "danger";
+  if (
+    hasActiveLocalDraft ||
+    cloudStatus.queued ||
+    cloudStatus.pending ||
+    cloudStatus.authRetryStatus
+  ) {
+    return "warning";
+  }
+  if (hasEffectivePage) return "success";
+  return "neutral";
 }
 
 function PeekIconPickerSkeleton() {
