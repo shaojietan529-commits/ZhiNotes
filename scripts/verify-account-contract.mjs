@@ -3586,7 +3586,7 @@ check(
     sidebar.includes('data-testid="account-session-stale-fallback"') &&
     sidebar.includes('data-account-session-fallback="stale"') &&
     sidebar.includes("账号云端确认中，本地可继续") &&
-    sidebar.includes("本地输入可继续保存，同步会稍后重试"),
+    sidebar.includes("本地输入可继续保存，同步会低频重试"),
   "Sidebar 应通过共享账号状态 helper 读取当前账号资料，并在接口临时失败或跨标签页缓存变化时保留/刷新最近用户名和 stale fallback"
 );
 check(
@@ -3661,7 +3661,7 @@ check(
     sidebar.includes("本地已保留，登录后上传${breakdownSuffix}") &&
     sidebar.includes("登录后继续上传本地队列${breakdownSuffix}") &&
     sidebar.includes("accountSync.localUseReadiness.label}${breakdownSuffix}") &&
-    sidebar.includes("账号或网络暂不可确认，已保留本地输入，稍后重试") &&
+    sidebar.includes("账号或网络暂不可确认，已保留本地输入，后台低频重试") &&
     sidebar.includes("accountSyncNeedsSyncCenter") &&
     sidebar.includes("accountSyncShouldOpenSyncCenter") &&
     sidebar.includes('accountSync.state === "disabled"') &&

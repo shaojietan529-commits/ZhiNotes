@@ -782,7 +782,7 @@ export default function Sidebar() {
               ? "页面同步：已开启，等待后台检查"
               : pageSync.state === "disabled"
               ? "页面同步未开启"
-              : "页面同步：账号或网络暂不可确认，已保留本地输入，稍后重试";
+              : "页面同步：账号或网络暂不可确认，已保留本地输入，后台低频重试";
   const databaseSyncTitle =
     databaseSync.pendingStatus.failed > 0
       ? `数据库同步：${databaseSync.pendingStatus.failed} 条待重试；打开同步中心查看最近失败原因`
@@ -803,7 +803,7 @@ export default function Sidebar() {
               ? "数据库同步：已开启，等待后台检查"
               : databaseSync.state === "disabled"
               ? "数据库同步未开启"
-              : "数据库同步：账号或网络暂不可确认，已保留本地输入，稍后重试";
+              : "数据库同步：账号或网络暂不可确认，已保留本地输入，后台低频重试";
   const accountLocalUseTitle = `${accountSync.localUseReadiness.label}：${accountSync.localUseReadiness.detail}\n下一步：${accountSync.localUseReadiness.nextAction}`;
   const accountSyncTitle = `${accountSync.localUseReadiness.label}\n${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}\n${accountLocalUseTitle}`;
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
@@ -853,7 +853,7 @@ export default function Sidebar() {
       : ""
   }\n点击：${accountSyncActionLabel}`;
   const accountSessionFallbackTitle = accountSessionFallback.active
-    ? `${accountSessionFallback.reason}；本地输入可继续保存，同步会稍后重试。`
+    ? `${accountSessionFallback.reason}；本地输入可继续保存，同步会低频重试。`
     : "";
   const handleAccountSyncButtonClick = useCallback(() => {
     if (accountSyncShouldOpenSyncCenter) {

@@ -103,9 +103,9 @@ check(
 );
 check(
   readiness.includes('status: "cloud-uncertain"') &&
-    readiness.includes("本地输入已保留，稍后重试") &&
+    readiness.includes("本地输入已保留，后台会低频重试") &&
     readiness.includes("先继续本地使用"),
-  "云端暂不可确认时必须保持本地可用并提示稍后重试"
+  "云端暂不可确认时必须保持本地可用并提示低频重试"
 );
 check(
   readiness.includes('status: "local-only"') &&
