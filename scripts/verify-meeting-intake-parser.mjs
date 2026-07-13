@@ -15,10 +15,12 @@ const root = process.cwd();
 const require = createRequire(import.meta.url);
 const parserPath = "src/lib/meetings/meetingInviteIntake.ts";
 const intakeRoutePath = "src/app/api/meetings/intake/route.ts";
+const requestBodyPath = "src/lib/meetings/requestBody.ts";
 const fullParserPath = path.join(root, parserPath);
 
 const parser = loadParser(fullParserPath);
 const intakeRouteSource = readFileSync(path.join(root, intakeRoutePath), "utf8");
+const requestBodySource = readFileSync(path.join(root, requestBodyPath), "utf8");
 
 const cases = [
   {
@@ -373,7 +375,10 @@ for (const testCase of cases) {
   }
 }
 
-for (const checkResult of verifyIntakeRouteContract(intakeRouteSource)) {
+for (const checkResult of verifyIntakeRouteContract(
+  intakeRouteSource,
+  requestBodySource
+)) {
   results.push(checkResult);
   if (!checkResult.passed) errors.push(checkResult.message);
 }
@@ -441,8 +446,29 @@ function deepEqual(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-function verifyIntakeRouteContract(source) {
+function verifyIntakeRouteContract(source, requestBody) {
   const checks = [
+    {
+      name: "request body is bounded before JSON parse",
+      passed:
+        source.includes("MAX_INTAKE_REQUEST_BYTES") &&
+        source.includes("function intakeRequestTooLarge") &&
+        source.includes(
+          "readBoundedJsonBody(req, MAX_INTAKE_REQUEST_BYTES)"
+        ) &&
+        source.includes("max_request_bytes: MAX_INTAKE_REQUEST_BYTES") &&
+        !source.includes("req.json()") &&
+        requestBody.includes("export async function readBoundedJsonBody") &&
+        requestBody.includes("request.headers.get(\"content-length\")") &&
+        requestBody.includes("request.body.getReader()") &&
+        requestBody.includes("bytesRead += value.byteLength") &&
+        requestBody.includes("await reader.cancel()") &&
+        requestBody.includes("JSON.parse(bodyText.text)") &&
+        requestBody.includes('reason: "payload_too_large"') &&
+        requestBody.includes('reason: "invalid_json"'),
+      message:
+        "intake route must bound request bytes before JSON parsing so oversized pasted invites cannot block the app",
+    },
     {
       name: "input length is bounded",
       passed: source.includes("const MAX_INPUT_CHARS = 20_000"),
@@ -570,7 +596,8 @@ function verifyIntakeRouteContract(source) {
         source.includes("invalid_json") &&
         source.includes("meeting_intake_empty_input") &&
         source.includes("meeting_intake_input_too_large") &&
-        source.includes("max_chars: MAX_INPUT_CHARS"),
+        source.includes("max_chars: MAX_INPUT_CHARS") &&
+        source.includes("max_request_bytes: MAX_INTAKE_REQUEST_BYTES"),
       message:
         "intake route should expose stable failure codes for invalid JSON, empty input, and oversized input",
     },

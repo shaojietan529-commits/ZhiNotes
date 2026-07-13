@@ -4,9 +4,11 @@ import {
   parseMeetingInviteInput,
   type FetchedMeetingLinkText,
 } from "@/lib/meetings/meetingInviteIntake";
+import { readBoundedJsonBody } from "@/lib/meetings/requestBody";
 
 export const dynamic = "force-dynamic";
 
+const MAX_INTAKE_REQUEST_BYTES = 128 * 1024;
 const MAX_INPUT_CHARS = 20_000;
 const MAX_FETCH_CHARS = 250_000;
 const FETCH_TIMEOUT_MS = 5_000;
@@ -50,6 +52,21 @@ function intakeJson(body: unknown, init?: ResponseInit) {
   return response;
 }
 
+function intakeRequestTooLarge() {
+  return intakeJson(
+    intakeFailurePayload({
+      code: "meeting_intake_input_too_large",
+      error: "会议邀请内容太长，请删掉无关正文后再导入。",
+      retryable: false,
+      details: {
+        max_chars: MAX_INPUT_CHARS,
+        max_request_bytes: MAX_INTAKE_REQUEST_BYTES,
+      },
+    }),
+    { status: 413 }
+  );
+}
+
 function intakeReceiptFreshness(now = new Date()) {
   return {
     receiptGeneratedAt: now.toISOString(),
@@ -61,10 +78,11 @@ function intakeReceiptFreshness(now = new Date()) {
 }
 
 export async function POST(req: Request) {
-  let body: { input?: unknown };
-  try {
-    body = await req.json();
-  } catch {
+  const bodyRead = await readBoundedJsonBody(req, MAX_INTAKE_REQUEST_BYTES);
+  if (!bodyRead.ok) {
+    if (bodyRead.reason === "payload_too_large") {
+      return intakeRequestTooLarge();
+    }
     return intakeJson(
       intakeFailurePayload({
         code: "invalid_json",
@@ -74,6 +92,10 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+  const body =
+    bodyRead.value && typeof bodyRead.value === "object"
+      ? (bodyRead.value as { input?: unknown })
+      : {};
 
   const input = typeof body.input === "string" ? body.input.trim() : "";
   if (!input) {
