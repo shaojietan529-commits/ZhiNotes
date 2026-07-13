@@ -58,7 +58,12 @@ for (const token of [
   "retryable: false",
   "zhihui_agent_queue_kv_get_failed",
   "zhihui_agent_queue_kv_set_failed",
+  "zhihui_agent_queue_corrupt",
   "upstream_status: res.status",
+  "function queueCorruptError",
+  "manual_review_required: true",
+  "unconfirmed_jobs_preserved: true",
+  "status: 409",
   "retryable: true",
 ]) {
   check(agentQueue.includes(token), `agent queue typed failure 缺少 ${token}`);
@@ -101,6 +106,7 @@ for (const code of [
   "zhihui_agent_queue_payload_too_large",
   "zhihui_agent_queue_kv_get_failed",
   "zhihui_agent_queue_kv_set_failed",
+  "zhihui_agent_queue_corrupt",
   "zhihui_agent_queue_failed",
 ]) {
   check(
@@ -139,6 +145,7 @@ for (const code of [
   "zhihui_agent_queue_timeout",
   "zhihui_agent_queue_kv_get_failed",
   "zhihui_agent_queue_kv_set_failed",
+  "zhihui_agent_queue_corrupt",
   "zhihui_agent_queue_ack_failed",
 ]) {
   check(

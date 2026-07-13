@@ -154,14 +154,23 @@ async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
     });
   }
   const data = await res.json();
-  if (typeof data.result !== "string" || !data.result) return [];
-  try {
-    const parsed = JSON.parse(data.result);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isQueueJob).slice(-MAX_QUEUE_ITEMS);
-  } catch {
-    return [];
+  if (data.result == null || data.result === "") return [];
+  if (typeof data.result !== "string") {
+    throw queueCorruptError("non_string_result");
   }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data.result);
+  } catch {
+    throw queueCorruptError("invalid_json");
+  }
+  if (!Array.isArray(parsed)) {
+    throw queueCorruptError("not_array");
+  }
+  if (!parsed.every(isQueueJob)) {
+    throw queueCorruptError("invalid_job_shape");
+  }
+  return parsed.slice(-MAX_QUEUE_ITEMS);
 }
 
 async function writeQueue(kv: KvEnv, jobs: MeetingAgentQueueJob[]) {
@@ -223,4 +232,19 @@ function isQueueJob(value: unknown): value is MeetingAgentQueueJob {
     Boolean(item.payload) &&
     typeof item.payload === "object"
   );
+}
+
+function queueCorruptError(reason: string) {
+  return new MeetingAgentQueueFailureError({
+    code: "zhihui_agent_queue_corrupt",
+    message:
+      "ZhiHui 云端任务队列格式异常；为避免覆盖或清空未确认任务，已暂停队列写入，请人工复核。",
+    status: 409,
+    retryable: false,
+    details: {
+      reason,
+      manual_review_required: true,
+      unconfirmed_jobs_preserved: true,
+    },
+  });
 }
