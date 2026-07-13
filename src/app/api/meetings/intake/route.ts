@@ -19,6 +19,14 @@ const intakeFailureBoundary = {
   rawInviteEchoed: false,
   fetchedPageTextEchoed: false,
 };
+const intakeContinuityReceipt = {
+  accountSessionUnaffected: true,
+  localUseCanContinue: true,
+  localMeetingDataUnaffected: true,
+  localCalendarDataUnaffected: true,
+  rawInviteEchoed: false,
+  fetchedPageTextEchoed: false,
+};
 
 export async function POST(req: Request) {
   let body: { input?: unknown };
@@ -77,6 +85,9 @@ export async function POST(req: Request) {
   return NextResponse.json({
     meeting: parsed.meeting,
     fetched: Boolean(fetched),
+    status: "parsed",
+    nextAction: "review_and_save_to_calendar",
+    ...intakeContinuityReceipt,
     privacy: {
       storesRawInvite: false,
       rawInviteEchoed: false,

@@ -494,6 +494,22 @@ function verifyIntakeRouteContract(source) {
       message: "intake route must not echo pasted invite text or fetched page text",
     },
     {
+      name: "success responses are structured and local-safe",
+      passed:
+        source.includes("const intakeContinuityReceipt") &&
+        source.includes("status: \"parsed\"") &&
+        source.includes("nextAction: \"review_and_save_to_calendar\"") &&
+        source.includes("...intakeContinuityReceipt") &&
+        source.includes("accountSessionUnaffected: true") &&
+        source.includes("localUseCanContinue: true") &&
+        source.includes("localMeetingDataUnaffected: true") &&
+        source.includes("localCalendarDataUnaffected: true") &&
+        source.includes("rawInviteEchoed: false") &&
+        source.includes("fetchedPageTextEchoed: false"),
+      message:
+        "intake route success responses should tell the UI that parsing did not sign out the account, mutate local data, or echo private invite text",
+    },
+    {
       name: "failure responses are structured and local-safe",
       passed:
         source.includes("function intakeFailurePayload") &&
