@@ -374,15 +374,22 @@ for (const token of [
   "max_request_bytes: MAX_ACK_REQUEST_BYTES",
   "MAX_ACK_JOB_IDS",
   "MAX_ACK_JOB_ID_CHARS",
+  "MAX_ACK_LEASE_ID_CHARS",
   "ACK_JOB_ID_PATTERN",
   "function normalizeAckJobIds",
   "function invalidAckJobIds",
+  "function normalizeAckJobLeases",
+  "function invalidAckJobLeases",
   "invalid_ack_job_ids",
+  "invalid_ack_job_leases",
   "zhihui_agent_queue_ack_too_many_ids",
   "max_ack_job_ids: MAX_ACK_JOB_IDS",
   "max_ack_job_id_chars: MAX_ACK_JOB_ID_CHARS",
+  "max_ack_lease_id_chars: MAX_ACK_LEASE_ID_CHARS",
   "allowed_ack_job_id_pattern: ACK_JOB_ID_PATTERN.source",
+  "allowed_ack_lease_id_pattern: ACK_JOB_ID_PATTERN.source",
   "raw_ack_job_ids_echoed: false",
+  "raw_ack_job_leases_echoed: false",
   "queueWriteAttempted = false",
   "\"Cache-Control\", \"no-store, max-age=0\"",
   "const ackContinuityReceipt",
@@ -390,7 +397,7 @@ for (const token of [
   "schema: \"zhinote.zhihui.agent.queue.receipt.v1\"",
   "buildMeetingAgentQueueReceiptTiming",
   "pollMode: manualReviewRequired",
-  "pollMode: missingCount > 0 ? \"manual_review\" : \"idle\"",
+  "pollMode: preservedCount > 0 ? \"manual_review\" : \"idle\"",
   "function queueAckReceipt",
   "function ackFailureReceipt",
   "...ackContinuityReceipt",
@@ -427,27 +434,31 @@ for (const token of [
   "failureCode: code",
   "queueReadStatus: queueWriteAttempted ? \"unknown\" : \"not_started\"",
   "ackResult.missing",
+  "ackResult.leaseMismatched",
   "ok: true",
-  "queueReceipt: queueAckReceipt(ackResult, normalizedAck.requestedAckCount)",
+  "queueReceipt: queueAckReceipt(",
   "metadataOnly: true",
   "rawMeetingCredentialsEchoed: false",
   "payloadEchoedInReceipt: false",
   "queueReadStatus: \"completed\"",
   "\"not_needed_no_matching_jobs\"",
   "requestedAckCount",
+  "requestedLeaseCount",
   "acknowledgedCount",
   "missingCount",
+  "leaseMismatchCount",
   "acknowledgedJobIds: ackResult.acknowledged",
   "missingJobIds: ackResult.missing",
-  "\"review_missing_jobs\"",
+  "leaseMismatchedJobIds: ackResult.leaseMismatched",
+  "\"review_missing_or_lease_mismatched_jobs\"",
   "\"poll_for_next_jobs\"",
   "syncStatus: \"agent_queue_acknowledged\"",
   "queueDepth: ackResult.queueDepth",
   "availableQueueSlots: ackResult.availableQueueSlots",
   "queueAlmostFull: ackResult.queueAlmostFull",
   "\"partial\"",
-  "\"acknowledged_existing_jobs_with_missing_ids\"",
-  "unconfirmedJobsPreserved: ackResult.missing.length > 0",
+  "\"acknowledged_existing_jobs_with_missing_or_lease_mismatched_ids\"",
+  "unconfirmedJobsPreserved: hasUnconfirmedJobs",
 ]) {
   check(ackRoute.includes(token), `jobs ack route 缺少 ${token}`);
 }
@@ -472,6 +483,7 @@ for (const code of [
   "zhihui_agent_unauthorized",
   "zhihui_agent_queue_ack_request_too_large",
   "invalid_ack_job_ids",
+  "invalid_ack_job_leases",
   "zhihui_agent_queue_ack_too_many_ids",
   "invalid_json",
   "zhihui_agent_queue_timeout",
@@ -550,6 +562,11 @@ const ackMissingBehavior = await verifyAckMissingBehavior();
 check(
   ackMissingBehavior,
   "agent queue ACK 必须返回 missing job id，且全 miss 时不能重写队列"
+);
+const ackLeaseMismatchBehavior = await verifyAckLeaseMismatchBehavior();
+check(
+  ackLeaseMismatchBehavior,
+  "agent queue ACK 带 lease 时必须校验 lease id，不匹配的任务必须保留且不能被误删"
 );
 const queueCapacityBehavior = await verifyQueueCapacityBehavior();
 check(
@@ -775,6 +792,98 @@ async function verifyAckMissingBehavior() {
     allMissing.missing[0] === "missing_only" &&
     afterAllMissing.length === 1 &&
     afterAllMissing[0].id === "job_2" &&
+    calls.get === 2 &&
+    calls.set === 1
+  );
+}
+
+async function verifyAckLeaseMismatchBehavior() {
+  const seedJobs = [
+    {
+      id: "job_lease_1",
+      job_type: "meeting_recording_request",
+      payload: { synthetic: true },
+      created_at: "2026-07-13T00:00:00.000Z",
+      lease: {
+        lease_id: "lease_correct_1",
+        runner_id_hash: "runnerhash000001",
+        leased_at: "2026-07-13T00:00:00.000Z",
+        expires_at: "2026-07-13T00:05:00.000Z",
+        attempts: 1,
+      },
+    },
+    {
+      id: "job_lease_2",
+      job_type: "meeting_recording_request",
+      payload: { synthetic: true },
+      created_at: "2026-07-13T00:00:01.000Z",
+      lease: {
+        lease_id: "lease_correct_2",
+        runner_id_hash: "runnerhash000002",
+        leased_at: "2026-07-13T00:00:01.000Z",
+        expires_at: "2026-07-13T00:05:01.000Z",
+        attempts: 1,
+      },
+    },
+  ];
+  const calls = { get: 0, set: 0 };
+  let storedQueue = JSON.stringify(seedJobs);
+  const queue = loadAgentQueueWithFetch(async (url, init) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return kvJsonResponse({ result: storedQueue });
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      storedQueue = typeof init?.body === "string" ? init.body : "";
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  const partial = await queue.ackMeetingAgentJobs(
+    mockKv(),
+    ["job_lease_1", "job_lease_2", "missing_lease_job"],
+    {
+      jobLeases: {
+        job_lease_1: "lease_correct_1",
+        job_lease_2: "lease_wrong_2",
+      },
+    }
+  );
+  const afterPartial = JSON.parse(storedQueue);
+  const allMismatch = await queue.ackMeetingAgentJobs(
+    mockKv(),
+    ["job_lease_2"],
+    { jobLeases: { job_lease_2: "lease_wrong_2" } }
+  );
+  const afterAllMismatch = JSON.parse(storedQueue);
+
+  return (
+    Array.isArray(partial.acknowledged) &&
+    partial.acknowledged.length === 1 &&
+    partial.acknowledged[0] === "job_lease_1" &&
+    partial.missing.length === 1 &&
+    partial.missing[0] === "missing_lease_job" &&
+    Array.isArray(partial.leaseMismatched) &&
+    partial.leaseMismatched.length === 1 &&
+    partial.leaseMismatched[0] === "job_lease_2" &&
+    afterPartial.length === 1 &&
+    afterPartial[0].id === "job_lease_2" &&
+    Array.isArray(allMismatch.acknowledged) &&
+    allMismatch.acknowledged.length === 0 &&
+    allMismatch.missing.length === 0 &&
+    allMismatch.leaseMismatched.length === 1 &&
+    allMismatch.leaseMismatched[0] === "job_lease_2" &&
+    afterAllMismatch.length === 1 &&
+    afterAllMismatch[0].id === "job_lease_2" &&
     calls.get === 2 &&
     calls.set === 1
   );

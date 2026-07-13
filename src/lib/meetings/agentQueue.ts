@@ -57,6 +57,7 @@ export interface MeetingAgentQueueListResult {
 export interface MeetingAgentQueueAckResult {
   acknowledged: string[];
   missing: string[];
+  leaseMismatched: string[];
   queueDepth: number;
   maxQueueItems: number;
   availableQueueSlots: number;
@@ -293,27 +294,48 @@ export async function enqueueMeetingAgentJob(
 
 export async function ackMeetingAgentJobs(
   kv: KvEnv,
-  jobIds: string[]
+  jobIds: string[],
+  options: { jobLeases?: Record<string, string> } = {}
 ): Promise<MeetingAgentQueueAckResult> {
   const ids = uniqueJobIds(jobIds);
   const requestedIds = new Set(ids);
+  const expectedLeases = options.jobLeases ?? {};
   const jobs = await readQueue(kv);
   if (ids.length === 0) {
-    return { acknowledged: [], missing: [], ...queueStats(jobs) };
+    return {
+      acknowledged: [],
+      missing: [],
+      leaseMismatched: [],
+      ...queueStats(jobs),
+    };
   }
   const acknowledged: string[] = [];
+  const leaseMismatched: string[] = [];
+  const presentIds = new Set<string>();
   const remaining = jobs.filter((job) => {
     if (!requestedIds.has(job.id)) return true;
+    presentIds.add(job.id);
+    const expectedLeaseId = expectedLeases[job.id];
+    if (expectedLeaseId && job.lease?.lease_id !== expectedLeaseId) {
+      leaseMismatched.push(job.id);
+      return true;
+    }
     acknowledged.push(job.id);
     return false;
   });
   const acknowledgedIds = new Set(acknowledged);
-  const missing = ids.filter((id) => !acknowledgedIds.has(id));
+  const leaseMismatchedIds = new Set(leaseMismatched);
+  const missing = ids.filter(
+    (id) =>
+      !acknowledgedIds.has(id) &&
+      !leaseMismatchedIds.has(id) &&
+      !presentIds.has(id)
+  );
   if (acknowledged.length === 0) {
-    return { acknowledged, missing, ...queueStats(jobs) };
+    return { acknowledged, missing, leaseMismatched, ...queueStats(jobs) };
   }
   await writeQueue(kv, remaining);
-  return { acknowledged, missing, ...queueStats(remaining) };
+  return { acknowledged, missing, leaseMismatched, ...queueStats(remaining) };
 }
 
 async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {

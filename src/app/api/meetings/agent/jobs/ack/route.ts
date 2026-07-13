@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 const MAX_ACK_REQUEST_BYTES = 32 * 1024;
 const MAX_ACK_JOB_IDS = 100;
 const MAX_ACK_JOB_ID_CHARS = 160;
+const MAX_ACK_LEASE_ID_CHARS = 160;
 const ACK_JOB_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const ackFailureBoundary = {
   source: "zhihui-agent-queue-ack",
@@ -97,7 +98,11 @@ export async function POST(request: Request) {
   }
   const body =
     bodyRead.value && typeof bodyRead.value === "object"
-      ? (bodyRead.value as { job_ids?: unknown })
+      ? (bodyRead.value as {
+          job_ids?: unknown;
+          job_leases?: unknown;
+          lease_ids?: unknown;
+        })
       : {};
 
   const normalizedAck = normalizeAckJobIds(body.job_ids);
@@ -112,29 +117,54 @@ export async function POST(request: Request) {
       { status: normalizedAck.status }
     );
   }
+  const normalizedAckLeases = normalizeAckJobLeases(
+    body.job_leases ?? body.lease_ids,
+    normalizedAck.jobIds
+  );
+  if (!normalizedAckLeases.ok) {
+    return ackJson(
+      ackFailurePayload({
+        code: normalizedAckLeases.code,
+        error: normalizedAckLeases.error,
+        retryable: false,
+        details: normalizedAckLeases.details,
+      }),
+      { status: normalizedAckLeases.status }
+    );
+  }
 
   try {
-    const ackResult = await ackMeetingAgentJobs(config.kv, normalizedAck.jobIds);
+    const ackResult = await ackMeetingAgentJobs(config.kv, normalizedAck.jobIds, {
+      jobLeases: normalizedAckLeases.jobLeases,
+    });
+    const hasUnconfirmedJobs =
+      ackResult.missing.length > 0 || ackResult.leaseMismatched.length > 0;
     return ackJson({
       ok: true,
       acknowledged: ackResult.acknowledged,
       missing: ackResult.missing,
-      status: ackResult.missing.length > 0 ? "partial" : "acknowledged",
+      leaseMismatched: ackResult.leaseMismatched,
+      leaseMismatchCount: ackResult.leaseMismatched.length,
+      status: hasUnconfirmedJobs ? "partial" : "acknowledged",
       nextAction:
-        ackResult.missing.length > 0
-          ? "review_missing_jobs"
+        hasUnconfirmedJobs
+          ? "review_missing_or_lease_mismatched_jobs"
           : "poll_for_next_jobs",
       syncStatus: "agent_queue_acknowledged",
       queueAction:
-        ackResult.missing.length > 0
-          ? "acknowledged_existing_jobs_with_missing_ids"
+        hasUnconfirmedJobs
+          ? "acknowledged_existing_jobs_with_missing_or_lease_mismatched_ids"
           : "acknowledged_existing_jobs",
-      unconfirmedJobsPreserved: ackResult.missing.length > 0,
+      unconfirmedJobsPreserved: hasUnconfirmedJobs,
       queueDepth: ackResult.queueDepth,
       maxQueueItems: ackResult.maxQueueItems,
       availableQueueSlots: ackResult.availableQueueSlots,
       queueAlmostFull: ackResult.queueAlmostFull,
-      queueReceipt: queueAckReceipt(ackResult, normalizedAck.requestedAckCount),
+      queueReceipt: queueAckReceipt(
+        ackResult,
+        normalizedAck.requestedAckCount,
+        normalizedAckLeases.requestedLeaseCount
+      ),
       ...ackContinuityReceipt,
     });
   } catch (error) {
@@ -319,6 +349,192 @@ function invalidAckJobIds({
   };
 }
 
+function normalizeAckJobLeases(
+  jobLeases: unknown,
+  jobIds: string[]
+):
+  | {
+      ok: true;
+      jobLeases: Record<string, string>;
+      requestedLeaseCount: number;
+      duplicateAckLeasesDropped: number;
+    }
+  | {
+      ok: false;
+      code: "invalid_ack_job_leases";
+      error: string;
+      status: number;
+      details: Record<string, unknown>;
+    } {
+  if (jobLeases == null) {
+    return {
+      ok: true,
+      jobLeases: {},
+      requestedLeaseCount: 0,
+      duplicateAckLeasesDropped: 0,
+    };
+  }
+
+  const allowedJobIds = new Set(jobIds);
+  const entries: Array<{ jobId: unknown; leaseId: unknown }> = [];
+  let nonObjectAckLeases = 0;
+
+  if (Array.isArray(jobLeases)) {
+    for (const item of jobLeases) {
+      if (!item || typeof item !== "object") {
+        nonObjectAckLeases += 1;
+        continue;
+      }
+      const row = item as { job_id?: unknown; jobId?: unknown; lease_id?: unknown; leaseId?: unknown };
+      entries.push({
+        jobId: row.job_id ?? row.jobId,
+        leaseId: row.lease_id ?? row.leaseId,
+      });
+    }
+  } else if (typeof jobLeases === "object") {
+    for (const [jobId, leaseId] of Object.entries(
+      jobLeases as Record<string, unknown>
+    )) {
+      entries.push({ jobId, leaseId });
+    }
+  } else {
+    return invalidAckJobLeases({ requestedLeaseItems: 1, nonObjectAckLeases: 1 });
+  }
+
+  const normalized: Record<string, string> = {};
+  let nonStringAckLeaseJobIds = 0;
+  let nonStringAckLeaseIds = 0;
+  let invalidAckLeaseJobIds = 0;
+  let invalidAckLeaseIds = 0;
+  let oversizedAckLeaseJobIds = 0;
+  let oversizedAckLeaseIds = 0;
+  let unknownAckLeaseJobIds = 0;
+  let duplicateAckLeasesDropped = 0;
+
+  for (const entry of entries) {
+    if (typeof entry.jobId !== "string") {
+      nonStringAckLeaseJobIds += 1;
+      continue;
+    }
+    if (typeof entry.leaseId !== "string") {
+      nonStringAckLeaseIds += 1;
+      continue;
+    }
+    const jobId = entry.jobId.trim();
+    const leaseId = entry.leaseId.trim();
+    if (!jobId || !leaseId) {
+      if (!jobId) invalidAckLeaseJobIds += 1;
+      if (!leaseId) invalidAckLeaseIds += 1;
+      continue;
+    }
+    if (jobId.length > MAX_ACK_JOB_ID_CHARS) {
+      oversizedAckLeaseJobIds += 1;
+      continue;
+    }
+    if (leaseId.length > MAX_ACK_LEASE_ID_CHARS) {
+      oversizedAckLeaseIds += 1;
+      continue;
+    }
+    if (!ACK_JOB_ID_PATTERN.test(jobId)) {
+      invalidAckLeaseJobIds += 1;
+      continue;
+    }
+    if (!ACK_JOB_ID_PATTERN.test(leaseId)) {
+      invalidAckLeaseIds += 1;
+      continue;
+    }
+    if (!allowedJobIds.has(jobId)) {
+      unknownAckLeaseJobIds += 1;
+      continue;
+    }
+    if (normalized[jobId]) {
+      duplicateAckLeasesDropped += 1;
+      continue;
+    }
+    normalized[jobId] = leaseId;
+  }
+
+  const invalidCount =
+    nonObjectAckLeases +
+    nonStringAckLeaseJobIds +
+    nonStringAckLeaseIds +
+    invalidAckLeaseJobIds +
+    invalidAckLeaseIds +
+    oversizedAckLeaseJobIds +
+    oversizedAckLeaseIds +
+    unknownAckLeaseJobIds;
+  if (invalidCount > 0) {
+    return invalidAckJobLeases({
+      requestedLeaseItems: Array.isArray(jobLeases)
+        ? jobLeases.length
+        : entries.length,
+      nonObjectAckLeases,
+      nonStringAckLeaseJobIds,
+      nonStringAckLeaseIds,
+      invalidAckLeaseJobIds,
+      invalidAckLeaseIds,
+      oversizedAckLeaseJobIds,
+      oversizedAckLeaseIds,
+      unknownAckLeaseJobIds,
+      duplicateAckLeasesDropped,
+    });
+  }
+
+  return {
+    ok: true,
+    jobLeases: normalized,
+    requestedLeaseCount: Object.keys(normalized).length,
+    duplicateAckLeasesDropped,
+  };
+}
+
+function invalidAckJobLeases({
+  requestedLeaseItems,
+  nonObjectAckLeases = 0,
+  nonStringAckLeaseJobIds = 0,
+  nonStringAckLeaseIds = 0,
+  invalidAckLeaseJobIds = 0,
+  invalidAckLeaseIds = 0,
+  oversizedAckLeaseJobIds = 0,
+  oversizedAckLeaseIds = 0,
+  unknownAckLeaseJobIds = 0,
+  duplicateAckLeasesDropped = 0,
+}: {
+  requestedLeaseItems: number;
+  nonObjectAckLeases?: number;
+  nonStringAckLeaseJobIds?: number;
+  nonStringAckLeaseIds?: number;
+  invalidAckLeaseJobIds?: number;
+  invalidAckLeaseIds?: number;
+  oversizedAckLeaseJobIds?: number;
+  oversizedAckLeaseIds?: number;
+  unknownAckLeaseJobIds?: number;
+  duplicateAckLeasesDropped?: number;
+}) {
+  return {
+    ok: false as const,
+    code: "invalid_ack_job_leases" as const,
+    error: "invalid ACK job leases",
+    status: 400,
+    details: {
+      max_ack_job_id_chars: MAX_ACK_JOB_ID_CHARS,
+      max_ack_lease_id_chars: MAX_ACK_LEASE_ID_CHARS,
+      allowed_ack_lease_id_pattern: ACK_JOB_ID_PATTERN.source,
+      requested_ack_lease_items: requestedLeaseItems,
+      non_object_ack_leases: nonObjectAckLeases,
+      non_string_ack_lease_job_ids: nonStringAckLeaseJobIds,
+      non_string_ack_lease_ids: nonStringAckLeaseIds,
+      invalid_ack_lease_job_ids: invalidAckLeaseJobIds,
+      invalid_ack_lease_ids: invalidAckLeaseIds,
+      oversized_ack_lease_job_ids: oversizedAckLeaseJobIds,
+      oversized_ack_lease_ids: oversizedAckLeaseIds,
+      unknown_ack_lease_job_ids: unknownAckLeaseJobIds,
+      duplicate_ack_leases_dropped: duplicateAckLeasesDropped,
+      raw_ack_job_leases_echoed: false,
+    },
+  };
+}
+
 function ackFailurePayload({
   code,
   error,
@@ -446,37 +662,47 @@ function queueAckReceipt(
   ackResult: {
     acknowledged: string[];
     missing: string[];
+    leaseMismatched: string[];
     queueDepth: number;
     maxQueueItems: number;
     availableQueueSlots: number;
     queueAlmostFull: boolean;
   },
-  requestedAckCount: number
+  requestedAckCount: number,
+  requestedLeaseCount: number
 ) {
   const acknowledgedCount = ackResult.acknowledged.length;
   const missingCount = ackResult.missing.length;
+  const leaseMismatchCount = ackResult.leaseMismatched.length;
+  const preservedCount = missingCount + leaseMismatchCount;
   return {
     ...ackReceiptBase,
     ...buildMeetingAgentQueueReceiptTiming({
-      pollMode: missingCount > 0 ? "manual_review" : "idle",
+      pollMode: preservedCount > 0 ? "manual_review" : "idle",
     }),
     queueAction:
-      missingCount > 0
-        ? "acknowledged_existing_jobs_with_missing_ids"
+      preservedCount > 0
+        ? "acknowledged_existing_jobs_with_missing_or_lease_mismatched_ids"
         : "acknowledged_existing_jobs",
     queueReadStatus: "completed",
     queueWriteStatus:
       acknowledgedCount > 0 ? "completed" : "not_needed_no_matching_jobs",
     requestedAckCount,
+    requestedLeaseCount,
     acknowledgedCount,
     missingCount,
+    leaseMismatchCount,
     acknowledgedJobIds: ackResult.acknowledged,
     missingJobIds: ackResult.missing,
-    unconfirmedJobsPreserved: missingCount > 0,
+    leaseMismatchedJobIds: ackResult.leaseMismatched,
+    unconfirmedJobsPreserved: preservedCount > 0,
     queueDepth: ackResult.queueDepth,
     maxQueueItems: ackResult.maxQueueItems,
     availableQueueSlots: ackResult.availableQueueSlots,
     queueAlmostFull: ackResult.queueAlmostFull,
-    nextAction: missingCount > 0 ? "review_missing_jobs" : "poll_for_next_jobs",
+    nextAction:
+      preservedCount > 0
+        ? "review_missing_or_lease_mismatched_jobs"
+        : "poll_for_next_jobs",
   };
 }
