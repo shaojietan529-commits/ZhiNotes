@@ -270,6 +270,11 @@ function queueFailurePayload({
   details?: Record<string, unknown> | null;
 }) {
   const manualReviewRequired = details?.manual_review_required === true;
+  const queueWriteStatus = manualReviewRequired
+    ? "manual_review_required"
+    : retryable
+      ? "unknown_retryable"
+      : "not_completed";
   return {
     ok: false,
     code,
@@ -277,6 +282,15 @@ function queueFailurePayload({
     message: message ?? error,
     retryable,
     details,
+    syncStatus: manualReviewRequired
+      ? "manual_review_required"
+      : retryable
+        ? "retryable_unknown"
+        : "failed_not_completed",
+    queueWriteStatus,
+    partialQueueWritePossible: retryable && !manualReviewRequired,
+    requiresUserConfirmation: manualReviewRequired,
+    highRiskWriteGated: true,
     failureStatus: manualReviewRequired
       ? "manual_review"
       : retryable
