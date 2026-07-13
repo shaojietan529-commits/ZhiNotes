@@ -487,6 +487,38 @@ function verifyIntakeRouteContract(source) {
       message: "intake route privacy response must state that raw invite text is not stored",
     },
     {
+      name: "raw invite and fetched page text are not echoed",
+      passed:
+        source.includes("rawInviteEchoed: false") &&
+        source.includes("fetchedPageTextEchoed: false"),
+      message: "intake route must not echo pasted invite text or fetched page text",
+    },
+    {
+      name: "failure responses are structured and local-safe",
+      passed:
+        source.includes("function intakeFailurePayload") &&
+        source.includes("ok: false") &&
+        source.includes('source: "zhihui-meeting-intake"') &&
+        source.includes("accountSessionUnaffected: true") &&
+        source.includes("localUseCanContinue: true") &&
+        source.includes("localMeetingDataUnaffected: true") &&
+        source.includes("localCalendarDataUnaffected: true") &&
+        source.includes("rawInviteEchoed: false") &&
+        source.includes("fetchedPageTextEchoed: false"),
+      message:
+        "intake route failures should be structured and must not look like account sign-out, lost local input, or echoed private invite text",
+    },
+    {
+      name: "failure codes are stable",
+      passed:
+        source.includes("invalid_json") &&
+        source.includes("meeting_intake_empty_input") &&
+        source.includes("meeting_intake_input_too_large") &&
+        source.includes("max_chars: MAX_INPUT_CHARS"),
+      message:
+        "intake route should expose stable failure codes for invalid JSON, empty input, and oversized input",
+    },
+    {
       name: "unsafe content types are skipped",
       passed:
         source.includes("content-type") &&

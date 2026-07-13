@@ -10,22 +10,50 @@ export const dynamic = "force-dynamic";
 const MAX_INPUT_CHARS = 20_000;
 const MAX_FETCH_CHARS = 250_000;
 const FETCH_TIMEOUT_MS = 5_000;
+const intakeFailureBoundary = {
+  source: "zhihui-meeting-intake",
+  accountSessionUnaffected: true,
+  localUseCanContinue: true,
+  localMeetingDataUnaffected: true,
+  localCalendarDataUnaffected: true,
+  rawInviteEchoed: false,
+  fetchedPageTextEchoed: false,
+};
 
 export async function POST(req: Request) {
   let body: { input?: unknown };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+    return NextResponse.json(
+      intakeFailurePayload({
+        code: "invalid_json",
+        error: "invalid JSON",
+        retryable: false,
+      }),
+      { status: 400 }
+    );
   }
 
   const input = typeof body.input === "string" ? body.input.trim() : "";
   if (!input) {
-    return NextResponse.json({ error: "请输入会议邀请或入会链接。" }, { status: 400 });
+    return NextResponse.json(
+      intakeFailurePayload({
+        code: "meeting_intake_empty_input",
+        error: "请输入会议邀请或入会链接。",
+        retryable: false,
+      }),
+      { status: 400 }
+    );
   }
   if (input.length > MAX_INPUT_CHARS) {
     return NextResponse.json(
-      { error: "会议邀请内容太长，请删掉无关正文后再导入。" },
+      intakeFailurePayload({
+        code: "meeting_intake_input_too_large",
+        error: "会议邀请内容太长，请删掉无关正文后再导入。",
+        retryable: false,
+        details: { max_chars: MAX_INPUT_CHARS },
+      }),
       { status: 413 }
     );
   }
@@ -51,10 +79,33 @@ export async function POST(req: Request) {
     fetched: Boolean(fetched),
     privacy: {
       storesRawInvite: false,
+      rawInviteEchoed: false,
+      fetchedPageTextEchoed: false,
       returnsJoinUrlForCalendarStorage: Boolean(parsed.meeting.joinUrl),
       returnsMeetingPasscodeForCalendarStorage: Boolean(parsed.meeting.passcode),
     },
   });
+}
+
+function intakeFailurePayload({
+  code,
+  error,
+  retryable,
+  details = null,
+}: {
+  code: string;
+  error: string;
+  retryable: boolean;
+  details?: Record<string, unknown> | null;
+}) {
+  return {
+    ok: false,
+    code,
+    error,
+    retryable,
+    details,
+    ...intakeFailureBoundary,
+  };
 }
 
 async function fetchMeetingLinkText(
