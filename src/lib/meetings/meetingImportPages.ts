@@ -16,6 +16,7 @@ const SCAN_CHUNK = 32;
 const CHANGE_LOG_LIMIT = 5000;
 const MAX_TRANSCRIPT_CHARS = 650_000;
 const MAX_MINUTES_PAGE_HTML_BYTES = 2_000_000;
+const MAX_DAILY_PAGE_HTML_BYTES = 750_000;
 const IMPORT_RECEIPT_FRESHNESS_WINDOW_MS = 30_000;
 
 interface IndexEntry {
@@ -178,6 +179,7 @@ export async function importMeetingArtifactToPages(
   const index = await readIndex(kv, accountEmail);
   const previousSummary = summarizeIndex(index);
   const pages = await readActivePages(kv, accountEmail, index);
+  validateDailyPageMentionBudget(pages, meeting);
 
   const dailyRoot = await resolveOrCreateRoot({
     kv,
@@ -459,6 +461,52 @@ function validateMeetingImportStorageBudget(meeting: NormalizedMeetingImport) {
     },
     {
       code: "meeting_import_page_content_too_large",
+      retryable: false,
+    }
+  );
+}
+
+function validateDailyPageMentionBudget(
+  pages: PageRecord[],
+  meeting: NormalizedMeetingImport
+) {
+  const dailyRoot = pages.find(
+    (page) =>
+      !page.deleted_at && page.parent_id === null && page.title === "每日纪要"
+  );
+  if (!dailyRoot) return;
+
+  const dailyPage = pages.find((page) => {
+    if (page.parent_id !== dailyRoot.id || page.deleted_at) return false;
+    if (page.title === meeting.date) return true;
+    return propValue(parsePageProperties(page.properties), "日期") === meeting.date;
+  });
+  if (!dailyPage) return;
+
+  const nextBody =
+    (dailyPage.content_text ?? "") +
+    buildDailyMentionHtml({
+      title: buildMinutesPageTitle(meeting),
+      pageId: "daily_budget_probe",
+    });
+  const dailyPageContentBytes = utf8ByteLength(nextBody);
+  if (dailyPageContentBytes <= MAX_DAILY_PAGE_HTML_BYTES) return;
+
+  throw new MeetingImportError(
+    "ZhiHui 会议导入会让当天每日纪要页面过大；为避免页面刷新卡顿，已在写入新会议前暂停，请人工拆分或归档当天内容。",
+    409,
+    {
+      max_daily_page_content_bytes: MAX_DAILY_PAGE_HTML_BYTES,
+      actual_daily_page_content_bytes: dailyPageContentBytes,
+      daily_page_id: dailyPage.id,
+      date: meeting.date,
+      manual_review_required: true,
+      unconfirmed_pages_preserved: true,
+      local_artifact_preserved: true,
+      raw_meeting_content_echoed: false,
+    },
+    {
+      code: "meeting_import_daily_page_too_large",
       retryable: false,
     }
   );

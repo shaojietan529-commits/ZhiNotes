@@ -238,12 +238,16 @@ expect(
     importerSource.includes("meeting_import_page_record_missing") &&
     importerSource.includes("meeting_import_page_record_corrupt") &&
     importerSource.includes("meeting_import_page_content_too_large") &&
+    importerSource.includes("meeting_import_daily_page_too_large") &&
     importerSource.includes("manual_review_required: true") &&
     importerSource.includes("unconfirmed_pages_preserved: true") &&
     importerSource.includes("local_artifact_preserved: true") &&
     importerSource.includes("MAX_MINUTES_PAGE_HTML_BYTES") &&
+    importerSource.includes("MAX_DAILY_PAGE_HTML_BYTES") &&
     importerSource.includes("function validateMeetingImportStorageBudget") &&
+    importerSource.includes("function validateDailyPageMentionBudget") &&
     importerSource.includes("actual_minutes_page_html_bytes") &&
+    importerSource.includes("actual_daily_page_content_bytes") &&
     importerSource.includes("function utf8ByteLength") &&
     importerSource.includes("Buffer.byteLength") &&
     importerSource.includes("IMPORT_RECEIPT_FRESHNESS_WINDOW_MS") &&
@@ -369,6 +373,7 @@ for (const expectedFailureCode of [
   "meeting_import_page_record_missing",
   "meeting_import_page_record_corrupt",
   "meeting_import_page_content_too_large",
+  "meeting_import_daily_page_too_large",
   "zhihui_meeting_import_failed",
 ]) {
   expect(
@@ -427,6 +432,8 @@ const missingPageRecordManualReview = await verifyPageRecordManualReview({
 });
 const oversizedPageContentManualReview =
   await verifyOversizedPageContentManualReview();
+const oversizedDailyPageManualReview =
+  await verifyOversizedDailyPageManualReview();
 const changeLogFailureFallback = await verifyChangeLogFailureFallback();
 
 if (failures.length > 0) {
@@ -464,6 +471,7 @@ console.log(
       corrupt_page_record_manual_review: corruptPageRecordManualReview,
       missing_page_record_manual_review: missingPageRecordManualReview,
       oversized_page_content_manual_review: oversizedPageContentManualReview,
+      oversized_daily_page_manual_review: oversizedDailyPageManualReview,
       change_log_failure_fallback: changeLogFailureFallback,
       downstream_cache_refresh_contract: true,
       privacy_boundary:
@@ -654,6 +662,70 @@ async function verifyOversizedPageContentManualReview() {
   expect(
     passed,
     "oversized generated minutes page should stop before cloud writes with manual review and preserve local meeting artifact"
+  );
+  return passed;
+}
+
+async function verifyOversizedDailyPageManualReview() {
+  const key = pageRecordKey(result.dailyPageId);
+  const previousRaw = kvStore.get(key);
+  const previousIndexRaw = kvStore.get(indexKey);
+  const previousChangeLogRaw = kvStore.get(changeLogKey);
+  const previousPageRecordCount = countPageRecords();
+  const dailyPage = parseJson(previousRaw);
+  const oversizedDailyPageRaw = JSON.stringify({
+    ...dailyPage,
+    content_text: "synthetic daily page body ".repeat(35000),
+  });
+  let caught = null;
+
+  kvStore.set(key, oversizedDailyPageRaw);
+  try {
+    await importer.importMeetingArtifactToPages(
+      { url: "memory://kv", token: "mock-token" },
+      {
+        ...payload,
+        source_manifest: {
+          content_fingerprint: {
+            sha256: "synthetic-oversized-daily-page-fingerprint",
+          },
+        },
+      }
+    );
+  } catch (error) {
+    caught = error;
+  }
+
+  const protectedDailyPageRaw = kvStore.get(key);
+  const protectedIndexRaw = kvStore.get(indexKey);
+  const protectedChangeLogRaw = kvStore.get(changeLogKey);
+  if (typeof previousRaw === "string") {
+    kvStore.set(key, previousRaw);
+  } else {
+    kvStore.delete(key);
+  }
+
+  const caughtError = caught && typeof caught === "object" ? caught : null;
+  const passed =
+    caughtError?.code === "meeting_import_daily_page_too_large" &&
+    caughtError?.status === 409 &&
+    caughtError?.retryable === false &&
+    caughtError?.details?.manual_review_required === true &&
+    caughtError?.details?.unconfirmed_pages_preserved === true &&
+    caughtError?.details?.local_artifact_preserved === true &&
+    caughtError?.details?.raw_meeting_content_echoed === false &&
+    caughtError?.details?.daily_page_id === result.dailyPageId &&
+    caughtError?.details?.date === result.calendar.dateKey &&
+    caughtError?.details?.actual_daily_page_content_bytes >
+      caughtError?.details?.max_daily_page_content_bytes &&
+    countPageRecords() === previousPageRecordCount &&
+    protectedDailyPageRaw === oversizedDailyPageRaw &&
+    protectedIndexRaw === previousIndexRaw &&
+    protectedChangeLogRaw === previousChangeLogRaw;
+
+  expect(
+    passed,
+    "oversized daily page should stop before cloud writes with manual review and preserve existing page records"
   );
   return passed;
 }
