@@ -6093,8 +6093,8 @@ function run() {
   assertSourceIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });",
-    "Meeting calendar delayed recheck must run cloud-enabled metadata loading while preserving already visible local meetings."
+    "cancelCloudRecheck = scheduleMeetingForegroundAwareRefresh(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });",
+    "Meeting calendar delayed recheck must defer cloud-enabled metadata loading during foreground actions while preserving already visible local meetings."
   );
   for (const [snippet, message] of [
     [
@@ -23808,8 +23808,8 @@ function run() {
     "MEETING_FOREGROUND_QUIET_WINDOW_MS",
     "foregroundQuietUntilRef",
     "markMeetingForegroundInteraction();",
-    "foregroundDelay + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS",
-    "foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS",
+    "scheduleMeetingForegroundAwareRefresh",
+    "window.setTimeout(runWhenQuiet, foregroundDelay)",
     'const seededPage = prepareMeetingPageOpen(page, "meeting-create");\n      setSelectedMeeting(null);\n      setRunNowMessage("");\n      setPeekInitialPage(seededPage);',
   ]) {
     assertSourceIncludes(

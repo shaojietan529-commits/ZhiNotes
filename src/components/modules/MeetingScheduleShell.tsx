@@ -538,6 +538,27 @@ export default function MeetingScheduleShell() {
     );
   }, []);
 
+  const scheduleMeetingForegroundAwareRefresh = useCallback(
+    (callback: () => void, delayMs: number) => {
+      let timer: number | null = null;
+      const runWhenQuiet = () => {
+        const foregroundDelay = getMeetingForegroundRefreshDelay();
+        if (foregroundDelay > 0) {
+          timer = window.setTimeout(runWhenQuiet, foregroundDelay);
+          return;
+        }
+        timer = null;
+        callback();
+      };
+      timer = window.setTimeout(runWhenQuiet, delayMs);
+      return () => {
+        if (timer !== null) window.clearTimeout(timer);
+        timer = null;
+      };
+    },
+    [getMeetingForegroundRefreshDelay]
+  );
+
   const publishCalendarStatus = useCallback(
     (
       phase: MeetingCalendarLoadPhase,
@@ -1336,53 +1357,49 @@ export default function MeetingScheduleShell() {
     }
     if (observedPageRevisionRef.current === pageRevision) return;
     observedPageRevisionRef.current = pageRevision;
-    const refreshDelay =
-      getMeetingForegroundRefreshDelay() + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS;
-    const timer = window.setTimeout(() => {
+    return scheduleMeetingForegroundAwareRefresh(() => {
       void load({
         includeCloud: false,
         interruptCloud: false,
         preserveVisibleMeetings: true,
         includeUnindexedFallback: false,
       });
-    }, refreshDelay);
-    return () => window.clearTimeout(timer);
-  }, [dbReady, getMeetingForegroundRefreshDelay, pageRevision, load]);
+    }, MEETING_LOCAL_METADATA_REFRESH_DELAY_MS);
+  }, [dbReady, pageRevision, load, scheduleMeetingForegroundAwareRefresh]);
 
   useEffect(() => {
     if (!dbReady) return;
-    let localReloadTimer: number | null = null;
-    let fallbackReloadTimer: number | null = null;
-    let cloudRecheckTimer: number | null = null;
+    let cancelLocalReload: (() => void) | null = null;
+    let cancelFallbackReload: (() => void) | null = null;
+    let cancelCloudRecheck: (() => void) | null = null;
 
     const scheduleLocalMetadataRefresh = () => {
-      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
-      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
-      if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
-      const foregroundDelay = getMeetingForegroundRefreshDelay();
-      localReloadTimer = window.setTimeout(() => {
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
+      cancelCloudRecheck?.();
+      cancelLocalReload = scheduleMeetingForegroundAwareRefresh(() => {
         void load({
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleMeetings: true,
           includeUnindexedFallback: false,
         });
-      }, foregroundDelay + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS);
-      fallbackReloadTimer = window.setTimeout(() => {
+      }, MEETING_LOCAL_METADATA_REFRESH_DELAY_MS);
+      cancelFallbackReload = scheduleMeetingForegroundAwareRefresh(() => {
         void load({
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleMeetings: true,
           includeUnindexedFallback: true,
         });
-      }, foregroundDelay + MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
-      cloudRecheckTimer = window.setTimeout(() => {
+      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
+      cancelCloudRecheck = scheduleMeetingForegroundAwareRefresh(() => {
         void load({
           includeCloud: true,
           preserveVisibleMeetings: true,
           includeUnindexedFallback: false,
         });
-      }, foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS);
+      }, MEETING_CLOUD_METADATA_RECHECK_DELAY_MS);
     };
 
     const unsubscribe = subscribePagesUpdated((message) => {
@@ -1412,17 +1429,17 @@ export default function MeetingScheduleShell() {
     });
 
     return () => {
-      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
-      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
-      if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
+      cancelCloudRecheck?.();
       unsubscribe();
     };
   }, [
     dbReady,
     deletedTombstoneRef,
-    getMeetingForegroundRefreshDelay,
     load,
     rootId,
+    scheduleMeetingForegroundAwareRefresh,
     viewMonth,
   ]);
 

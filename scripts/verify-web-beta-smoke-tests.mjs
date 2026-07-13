@@ -7270,8 +7270,8 @@ function run() {
   assertIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });",
-    "Meeting schedule delayed recheck must run cloud-enabled metadata loading while preserving already-rendered meetings."
+    "cancelCloudRecheck = scheduleMeetingForegroundAwareRefresh(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });",
+    "Meeting schedule delayed recheck must defer cloud-enabled metadata loading during foreground actions while preserving already-rendered meetings."
   );
   for (const [snippet, message] of [
     [

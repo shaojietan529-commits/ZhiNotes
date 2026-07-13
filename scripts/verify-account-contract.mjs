@@ -1633,18 +1633,16 @@ check(
     meetingScheduleShell.includes("MEETING_FOREGROUND_QUIET_WINDOW_MS") &&
     meetingScheduleShell.includes("foregroundQuietUntilRef") &&
     meetingScheduleShell.includes("markMeetingForegroundInteraction();") &&
-    meetingScheduleShell.includes(
-      "getMeetingForegroundRefreshDelay() + MEETING_LOCAL_METADATA_REFRESH_DELAY_MS"
-    ) &&
-    meetingScheduleShell.includes(
-      "foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS"
-    ) &&
-    meetingScheduleShell.includes("let cloudRecheckTimer: number | null = null") &&
-    meetingScheduleShell.includes("cloudRecheckTimer = window.setTimeout(() => {") &&
-    meetingScheduleShell.includes(
-      "}, foregroundDelay + MEETING_CLOUD_METADATA_RECHECK_DELAY_MS)"
-    ) &&
-    meetingScheduleShell.includes("window.clearTimeout(cloudRecheckTimer)") &&
+    meetingScheduleShell.includes("scheduleMeetingForegroundAwareRefresh") &&
+    meetingScheduleShell.includes("window.setTimeout(runWhenQuiet, foregroundDelay)") &&
+    meetingScheduleShell.includes("return scheduleMeetingForegroundAwareRefresh(() => {") &&
+    meetingScheduleShell.includes("cancelLocalReload = scheduleMeetingForegroundAwareRefresh(() => {") &&
+    meetingScheduleShell.includes("cancelFallbackReload = scheduleMeetingForegroundAwareRefresh(() => {") &&
+    meetingScheduleShell.includes("cancelCloudRecheck = scheduleMeetingForegroundAwareRefresh(() => {") &&
+    meetingScheduleShell.includes("let cancelLocalReload: (() => void) | null = null") &&
+    meetingScheduleShell.includes("let cancelCloudRecheck: (() => void) | null = null") &&
+    meetingScheduleShell.includes("cancelLocalReload?.()") &&
+    meetingScheduleShell.includes("cancelFallbackReload?.()") &&
     meetingScheduleShell.includes("return queueMeetingCloudRecords(records)") &&
     meetingScheduleShell.includes("function queueMeetingCloudRecords") &&
     meetingScheduleShell.includes("queueCloudPagePush(record)") &&
