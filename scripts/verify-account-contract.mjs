@@ -2216,6 +2216,7 @@ check(
     pageCloudSyncHook.includes("getLocalCacheRecoverySignal") &&
     pageCloudSyncHook.includes("recoverLocalCacheFromCloud") &&
     pageCloudSyncHook.includes("seenLocalCacheRecoverySignalRef") &&
+    pageCloudSyncHook.includes("recoveringLocalCacheSignalRef") &&
     pageCloudSyncHook.includes("syncCloudPageMetadataDelta({") &&
     pageCloudSyncHook.includes("force: true") &&
     pageCloudSyncHook.includes("fullRefresh: true") &&
@@ -2226,6 +2227,26 @@ check(
     pageCloudSyncHook.includes('window.removeEventListener("storage", handleLocalCacheRecoveryStorage)') &&
     pageCloudSyncHook.includes("void recoverLocalCacheFromCloud()"),
   "页面同步应在本地 SQLite 缓存重置/降级后强制从云端 metadata 恢复本机页面缓存"
+);
+const pageRecoveryStart = pageCloudSyncHook.indexOf(
+  "const recoverLocalCacheFromCloud = useCallback(async () => {"
+);
+const pageRecoveryOkStatus = pageCloudSyncHook.indexOf(
+  'if (result.status === "ok")',
+  pageRecoveryStart
+);
+const pageRecoverySeenMark = pageCloudSyncHook.indexOf(
+  "seenLocalCacheRecoverySignalRef.current = signal.id",
+  pageRecoveryStart
+);
+check(
+  pageRecoveryStart >= 0 &&
+    pageRecoveryOkStatus > pageRecoveryStart &&
+    pageRecoverySeenMark > pageRecoveryOkStatus &&
+    pageCloudSyncHook.includes(
+      "recoveringLocalCacheSignalRef.current === signal.id"
+    ),
+  "页面本地缓存恢复信号只能在云端恢复成功后标记已处理；临时账号/云端失败必须可重试"
 );
 check(
   pageSyncClient.includes("AUTH_RETRY_BACKOFF_MS") &&

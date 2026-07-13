@@ -1216,7 +1216,8 @@ function run() {
     "useDatabaseCloudSync",
     "checkAccountCloudSyncGate",
     "gateAccountSync",
-    "const accountReady = await gateAccountSync(Boolean(options.forceLease))",
+    "Boolean(options.forceAccountGate)",
+    "!options.forceAccountGate && Date.now() < authRetryAfterRef.current",
     "SYNC_INTERVAL_MS",
     "INITIAL_SYNC_DELAY_MS",
     "EDIT_DEBOUNCE_MS",
@@ -1251,6 +1252,7 @@ function run() {
     "getLocalCacheRecoverySignal",
     "recoverLocalCacheFromCloud",
     "seenLocalCacheRecoverySignalRef",
+    "recoveringLocalCacheSignalRef",
     "syncCloudDatabaseMetadataDelta({",
     "fullRefresh: true",
     "window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT",
@@ -1270,6 +1272,31 @@ function run() {
       databaseCloudSyncHook,
       snippet,
       "Database cloud sync hook must poll cheaply, avoid duplicate tab leaders, and broadcast cloud pulls."
+    );
+  }
+  const recoveryStart = databaseCloudSyncHook.indexOf(
+    "const recoverLocalCacheFromCloud = useCallback(async () => {"
+  );
+  const firstSeenMark = databaseCloudSyncHook.indexOf(
+    "seenLocalCacheRecoverySignalRef.current = signal.id",
+    recoveryStart
+  );
+  const okStatus = databaseCloudSyncHook.indexOf(
+    'if (result.status === "ok")',
+    recoveryStart
+  );
+  if (
+    !(
+      recoveryStart >= 0 &&
+      okStatus > recoveryStart &&
+      firstSeenMark > okStatus &&
+      databaseCloudSyncHook.includes(
+        "recoveringLocalCacheSignalRef.current === signal.id"
+      )
+    )
+  ) {
+    failures.push(
+      "数据库本地缓存恢复信号只能在云端恢复成功后标记已处理；临时账号/云端失败必须可重试"
     );
   }
   for (const snippet of [
