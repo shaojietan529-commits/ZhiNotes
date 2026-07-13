@@ -2375,8 +2375,10 @@ export default function MeetingScheduleShell() {
 
     setIntakeLoading(true);
     setIntakeError("");
-    setIntakeMessage("正在读取会议信息；如果接口超时，会先保留会议痕迹并弹出会议页。");
+    setIntakeMessage("正在读取会议信息；日历已先标记解析中，接口超时会自动保留会议痕迹。");
     setIntakePreview(null);
+    const pendingDateKey = form.date || toDateKey(new Date());
+    focusCalendarDate(pendingDateKey);
 
     try {
       const data = await fetchMeetingIntakeWithTimeout(input);
@@ -2489,6 +2491,7 @@ export default function MeetingScheduleShell() {
   ]);
 
   const todayKey = toDateKey(new Date());
+  const intakePendingDateKey = intakeLoading ? form.date || todayKey : "";
   const [retryLoading, setRetryLoading] = useState(false);
   const [retryResult, setRetryResult] = useState("");
 
@@ -3400,6 +3403,7 @@ export default function MeetingScheduleShell() {
               const isToday = key === todayKey;
               const isHighlighted = key === highlightedDateKey;
               const isOpeningDraft = openingDraft?.dateKey === key;
+              const isIntakeParsingDate = intakePendingDateKey === key;
               const createButtonState = getMeetingCreateButtonState(
                 key,
                 creatingMeetingDateKey,
@@ -3491,6 +3495,20 @@ export default function MeetingScheduleShell() {
                           正在打开新会议…
                         </span>
                       </button>
+                    )}
+                    {isIntakeParsingDate && !isOpeningDraft && (
+                      <div
+                        data-testid={`meeting-intake-calendar-placeholder-${key}`}
+                        data-intake-state="parsing"
+                        data-calendar-preserved="true"
+                        className="rounded-md border border-sky-200 bg-sky-50 px-1.5 py-1 text-left text-xs leading-4 text-sky-700 shadow-sm dark:border-sky-900/70 dark:bg-sky-950/30 dark:text-sky-200"
+                        title="会议信息正在解析，完成后会生成会议页面"
+                      >
+                        <div className="truncate font-medium">解析中...</div>
+                        <div className="truncate text-[11px] text-sky-600 dark:text-sky-300">
+                          将写入本地日历
+                        </div>
+                      </div>
                     )}
                     {!isMeetingDateHydrated && dayTotalCount > 0 && (
                       <button
