@@ -999,9 +999,11 @@ check(
   "页面多端同步事件必须携带轻量 metadata payload；当前标签页也要收到本地事件用于防抖同步，includeContent 模块不能全量重读正文，并且 payload 更新要同步页面列表热缓存"
 );
 check(
-  pagePeekModal.includes("getPageMetadata") &&
+    pagePeekModal.includes("getPageMetadata") &&
     pagePeekModal.includes("getInitialPeekPage") &&
     pagePeekModal.includes("const initialPeekPage = getInitialPeekPage(pageId, initialPage)") &&
+    pagePeekModal.includes("const localFirstSeed = readLocalFirstPeekSeed(pageId);") &&
+    pagePeekModal.includes("if (localFirstSeed) return localFirstSeed;") &&
     pagePeekModal.includes("useState(() => initialPeekPage?.title ?? \"\")") &&
     pagePeekModal.includes("applyPeekMetadataSnapshot") &&
     pagePeekModal.includes("useWorkspaceStore.getState().getPageById(pageId)") &&
@@ -1234,6 +1236,18 @@ check(
     lazyPagePeekModal.includes("readLocalFirstLoadingSeed") &&
     lazyPagePeekModal.includes("readPendingPageDraft(pageId)") &&
     lazyPagePeekModal.includes("readPageRouteHandoff(pageId)") &&
+    lazyPagePeekModal.includes("rememberPendingPageDraft(nextPage)") &&
+    lazyPagePeekModal.includes("upsertPages([nextPage])") &&
+    lazyPagePeekModal.includes("const [quickDraft, setQuickDraft] = useState(() => ({") &&
+    lazyPagePeekModal.includes("const quickDraftText = quickDraft.pageId === pageId ? quickDraft.text : \"\";") &&
+    lazyPagePeekModal.includes("const quickDraftTouched =\n    quickDraft.pageId === pageId ? quickDraft.touched : false;") &&
+    lazyPagePeekModal.includes("setQuickDraft({ pageId, text: value, touched: true })") &&
+    lazyPagePeekModal.includes("const handleQuickDraftChange = useCallback") &&
+    lazyPagePeekModal.includes("function quickDraftTextToHtml") &&
+    lazyPagePeekModal.includes("function escapeQuickDraftHtml") &&
+    lazyPagePeekModal.includes('data-testid="page-peek-quick-draft-input"') &&
+    lazyPagePeekModal.includes("data-quick-draft-active={canUseQuickDraft}") &&
+    lazyPagePeekModal.includes("快速输入已暂存在本机草稿") &&
     lazyPagePeekModal.includes("onReady?.(pageId)") &&
     lazyPagePeekModal.includes('status: seed ? "local-shell-ready" : "local-shell-loading"') &&
     lazyPagePeekModal.includes("新页面已在本机创建，完整编辑器正在载入。") &&

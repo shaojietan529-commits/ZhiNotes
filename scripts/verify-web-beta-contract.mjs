@@ -6906,6 +6906,14 @@ function run() {
       "PagePeekModal must seed title and properties from initial metadata before first paint.",
     ],
     [
+      "const localFirstSeed = readLocalFirstPeekSeed(pageId);",
+      "PagePeekModal must check the latest local-first seed before using a possibly stale initial page.",
+    ],
+    [
+      "if (localFirstSeed) return localFirstSeed;",
+      "PagePeekModal must let pending drafts and workspace updates override the initial page prop.",
+    ],
+    [
       "readPageRouteHandoff(pageId) ??",
       "PagePeekModal must reuse local-first route handoff metadata before waiting on IndexedDB metadata.",
     ],
@@ -7232,6 +7240,54 @@ function run() {
     [
       "onClick={openFullFromLoadingShell}",
       "Lazy peek modal fallback full-page buttons must use the local-first handoff path.",
+    ],
+    [
+      "const [quickDraft, setQuickDraft] = useState(() => ({",
+      "Lazy peek modal fallback must keep a quick local draft buffer while the full editor chunk loads.",
+    ],
+    [
+      "const quickDraftText = quickDraft.pageId === pageId ? quickDraft.text : \"\";",
+      "Lazy peek modal fallback must reset quick draft text by page id without synchronous effect state resets.",
+    ],
+    [
+      "const quickDraftTouched =\n    quickDraft.pageId === pageId ? quickDraft.touched : false;",
+      "Lazy peek modal fallback must keep quick draft mode active after the first local keystroke.",
+    ],
+    [
+      "setQuickDraft({ pageId, text: value, touched: true })",
+      "Lazy peek modal fallback must store quick draft state with the current page id.",
+    ],
+    [
+      "const handleQuickDraftChange = useCallback",
+      "Lazy peek modal fallback must handle typing before the full editor is ready.",
+    ],
+    [
+      "upsertPages([nextPage])",
+      "Lazy peek modal fallback quick draft typing must update visible workspace memory immediately.",
+    ],
+    [
+      "rememberPendingPageDraft(nextPage)",
+      "Lazy peek modal fallback quick draft typing must write to pending draft recovery before cloud sync.",
+    ],
+    [
+      'data-testid="page-peek-quick-draft-input"',
+      "Lazy peek modal fallback must expose the quick draft input for cold-load verification.",
+    ],
+    [
+      "data-quick-draft-active={canUseQuickDraft}",
+      "Lazy peek modal fallback must expose whether quick draft mode is active.",
+    ],
+    [
+      "快速输入已暂存在本机草稿",
+      "Lazy peek modal fallback must tell users quick draft input is locally preserved.",
+    ],
+    [
+      "function quickDraftTextToHtml",
+      "Lazy peek modal fallback must convert quick draft text into editor-compatible HTML.",
+    ],
+    [
+      "function escapeQuickDraftHtml",
+      "Lazy peek modal fallback must escape quick draft input before writing HTML.",
     ],
     [
       "readyOnLocalShell = true",

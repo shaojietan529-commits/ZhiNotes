@@ -2647,6 +2647,8 @@ check(
     pagePeekModal.includes("schedulePeekIdleTask(callback, 60)") &&
     pagePeekModal.includes("schedulePeekIdleTask") &&
     pagePeekModal.includes("const initialPeekPage = getInitialPeekPage(pageId, initialPage)") &&
+    pagePeekModal.includes("const localFirstSeed = readLocalFirstPeekSeed(pageId);") &&
+    pagePeekModal.includes("if (localFirstSeed) return localFirstSeed;") &&
     pagePeekModal.includes("const handleOpenFullPage = useCallback") &&
     pagePeekModal.includes("prepareLocalFirstPageNavigation(seed, \"page-open\")") &&
     pagePeekModal.includes("onClick={handleOpenFullPage}") &&
@@ -2726,6 +2728,18 @@ check(
     lazyPagePeekModal.includes("const openFullFromLoadingShell = useCallback") &&
     lazyPagePeekModal.includes("prepareLocalFirstPageNavigation(seed, \"page-open\")") &&
     lazyPagePeekModal.includes("onClick={openFullFromLoadingShell}") &&
+    lazyPagePeekModal.includes("rememberPendingPageDraft(nextPage)") &&
+    lazyPagePeekModal.includes("upsertPages([nextPage])") &&
+    lazyPagePeekModal.includes("const [quickDraft, setQuickDraft] = useState(() => ({") &&
+    lazyPagePeekModal.includes("const quickDraftText = quickDraft.pageId === pageId ? quickDraft.text : \"\";") &&
+    lazyPagePeekModal.includes("const quickDraftTouched =\n    quickDraft.pageId === pageId ? quickDraft.touched : false;") &&
+    lazyPagePeekModal.includes("setQuickDraft({ pageId, text: value, touched: true })") &&
+    lazyPagePeekModal.includes("const handleQuickDraftChange = useCallback") &&
+    lazyPagePeekModal.includes("function quickDraftTextToHtml") &&
+    lazyPagePeekModal.includes("function escapeQuickDraftHtml") &&
+    lazyPagePeekModal.includes('data-testid="page-peek-quick-draft-input"') &&
+    lazyPagePeekModal.includes("data-quick-draft-active={canUseQuickDraft}") &&
+    lazyPagePeekModal.includes("快速输入已暂存在本机草稿") &&
     lazyPagePeekModal.includes("readyOnLocalShell = true") &&
     lazyPagePeekModal.includes("if (readyOnLocalShell) {\n      onReady?.(pageId);\n    }") &&
     lazyPagePeekModal.includes("onReady?.(pageId)") &&
