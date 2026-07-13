@@ -246,6 +246,7 @@ expect(
     importerSource.includes("MAX_DAILY_PAGE_HTML_BYTES") &&
     importerSource.includes("function validateMeetingImportStorageBudget") &&
     importerSource.includes("function validateDailyPageMentionBudget") &&
+    importerSource.includes("function findExistingMinutesPage") &&
     importerSource.includes("actual_minutes_page_html_bytes") &&
     importerSource.includes("actual_daily_page_content_bytes") &&
     importerSource.includes("function utf8ByteLength") &&
@@ -432,6 +433,8 @@ const missingPageRecordManualReview = await verifyPageRecordManualReview({
 });
 const oversizedPageContentManualReview =
   await verifyOversizedPageContentManualReview();
+const oversizedDailyDuplicateReimport =
+  await verifyOversizedDailyDuplicateReimport();
 const oversizedDailyPageManualReview =
   await verifyOversizedDailyPageManualReview();
 const changeLogFailureFallback = await verifyChangeLogFailureFallback();
@@ -471,6 +474,7 @@ console.log(
       corrupt_page_record_manual_review: corruptPageRecordManualReview,
       missing_page_record_manual_review: missingPageRecordManualReview,
       oversized_page_content_manual_review: oversizedPageContentManualReview,
+      oversized_daily_duplicate_reimport: oversizedDailyDuplicateReimport,
       oversized_daily_page_manual_review: oversizedDailyPageManualReview,
       change_log_failure_fallback: changeLogFailureFallback,
       downstream_cache_refresh_contract: true,
@@ -666,6 +670,61 @@ async function verifyOversizedPageContentManualReview() {
   return passed;
 }
 
+async function verifyOversizedDailyDuplicateReimport() {
+  const dailyPageKey = pageRecordKey(result.dailyPageId);
+  const meetingPageKey = pageRecordKey(result.meetingPageId);
+  const minutesPageKey = pageRecordKey(result.minutesPageId);
+  const previousDailyRaw = kvStore.get(dailyPageKey);
+  const previousMeetingRaw = kvStore.get(meetingPageKey);
+  const previousMinutesRaw = kvStore.get(minutesPageKey);
+  const previousIndexRaw = kvStore.get(indexKey);
+  const previousChangeLogRaw = kvStore.get(changeLogKey);
+  const previousPageRecordCount = countPageRecords();
+  const dailyPage = parseJson(previousDailyRaw);
+  const oversizedDailyPageRaw = JSON.stringify({
+    ...dailyPage,
+    content_text:
+      `${dailyPage?.content_text ?? ""}` +
+      " synthetic duplicate-safe daily body ".repeat(35000),
+  });
+  let duplicateResult = null;
+  let caught = null;
+
+  kvStore.set(dailyPageKey, oversizedDailyPageRaw);
+  try {
+    duplicateResult = await importer.importMeetingArtifactToPages(
+      { url: "memory://kv", token: "mock-token" },
+      payload
+    );
+  } catch (error) {
+    caught = error;
+  }
+
+  restoreKvValue(dailyPageKey, previousDailyRaw);
+  restoreKvValue(meetingPageKey, previousMeetingRaw);
+  restoreKvValue(minutesPageKey, previousMinutesRaw);
+  restoreKvValue(indexKey, previousIndexRaw);
+  restoreKvValue(changeLogKey, previousChangeLogRaw);
+
+  const passed =
+    caught === null &&
+    duplicateResult?.minutesPageId === result.minutesPageId &&
+    duplicateResult?.meetingPageId === result.meetingPageId &&
+    duplicateResult?.dailyPageId === result.dailyPageId &&
+    duplicateResult?.calendar?.localUseCanContinue === true &&
+    duplicateResult?.calendar?.accountSessionUnaffected === true &&
+    countPageRecords() === previousPageRecordCount &&
+    kvStore.get(dailyPageKey) === previousDailyRaw &&
+    kvStore.get(indexKey) === previousIndexRaw &&
+    kvStore.get(changeLogKey) === previousChangeLogRaw;
+
+  expect(
+    passed,
+    "oversized daily page should still allow idempotent duplicate re-import when the minutes mention already exists"
+  );
+  return passed;
+}
+
 async function verifyOversizedDailyPageManualReview() {
   const key = pageRecordKey(result.dailyPageId);
   const previousRaw = kvStore.get(key);
@@ -728,6 +787,14 @@ async function verifyOversizedDailyPageManualReview() {
     "oversized daily page should stop before cloud writes with manual review and preserve existing page records"
   );
   return passed;
+}
+
+function restoreKvValue(key, value) {
+  if (typeof value === "string") {
+    kvStore.set(key, value);
+  } else {
+    kvStore.delete(key);
+  }
 }
 
 async function verifyChangeLogFailureFallback() {

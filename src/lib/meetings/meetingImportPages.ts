@@ -483,8 +483,17 @@ function validateDailyPageMentionBudget(
   });
   if (!dailyPage) return;
 
+  const existingMinutesPage = findExistingMinutesPage(pages, dailyPage.id, meeting);
+  const existingBody = dailyPage.content_text ?? "";
+  if (
+    existingMinutesPage &&
+    existingBody.includes(`data-id="${existingMinutesPage.id}"`)
+  ) {
+    return;
+  }
+
   const nextBody =
-    (dailyPage.content_text ?? "") +
+    existingBody +
     buildDailyMentionHtml({
       title: buildMinutesPageTitle(meeting),
       pageId: "daily_budget_probe",
@@ -706,16 +715,7 @@ async function upsertMinutesPage({
   now: string;
 }) {
   const title = buildMinutesPageTitle(meeting);
-  const existing = pages.find((page) => {
-    if (page.parent_id !== dailyPageId || page.deleted_at) return false;
-    const props = parsePageProperties(page.properties);
-    return (
-      propValue(props, "Meeting Key") === meeting.meetingKey ||
-      (meeting.contentFingerprint &&
-        propValue(props, "内容指纹") === meeting.contentFingerprint) ||
-      page.title === title
-    );
-  });
+  const existing = findExistingMinutesPage(pages, dailyPageId, meeting);
   const page = existing
     ? { ...existing }
     : createPageRecord({
@@ -757,6 +757,24 @@ async function upsertMinutesPage({
   await writePage(kv, email, index, page);
   replacePage(pages, page);
   return page;
+}
+
+function findExistingMinutesPage(
+  pages: PageRecord[],
+  dailyPageId: string,
+  meeting: NormalizedMeetingImport
+) {
+  const title = buildMinutesPageTitle(meeting);
+  return pages.find((page) => {
+    if (page.parent_id !== dailyPageId || page.deleted_at) return false;
+    const props = parsePageProperties(page.properties);
+    return (
+      propValue(props, "Meeting Key") === meeting.meetingKey ||
+      (meeting.contentFingerprint &&
+        propValue(props, "内容指纹") === meeting.contentFingerprint) ||
+      page.title === title
+    );
+  });
 }
 
 async function resolveOrCreateRoot({
