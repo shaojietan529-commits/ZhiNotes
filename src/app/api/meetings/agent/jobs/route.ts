@@ -65,12 +65,16 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const limit = Number(url.searchParams.get("limit") ?? "25");
   try {
-    const jobs = await listMeetingAgentJobs(
+    const queueResult = await listMeetingAgentJobs(
       config.kv,
       Number.isFinite(limit) ? limit : 25
     );
     return NextResponse.json({
-      jobs,
+      jobs: queueResult.jobs,
+      queueDepth: queueResult.queueDepth,
+      maxQueueItems: queueResult.maxQueueItems,
+      returnedJobs: queueResult.returnedJobs,
+      hasMore: queueResult.hasMore,
       privacy: {
         requires_agent_token: true,
         payload_may_include_meeting_credentials: true,

@@ -17,6 +17,14 @@ export interface MeetingAgentQueueEnqueueResult {
   deduplicated: boolean;
 }
 
+export interface MeetingAgentQueueListResult {
+  jobs: MeetingAgentQueueJob[];
+  queueDepth: number;
+  maxQueueItems: number;
+  returnedJobs: number;
+  hasMore: boolean;
+}
+
 export interface MeetingAgentQueueAckResult {
   acknowledged: string[];
   missing: string[];
@@ -90,9 +98,16 @@ export function authorizeMeetingAgent(request: Request, agentToken: string) {
 export async function listMeetingAgentJobs(
   kv: KvEnv,
   limit: number
-): Promise<MeetingAgentQueueJob[]> {
+): Promise<MeetingAgentQueueListResult> {
   const jobs = await readQueue(kv);
-  return jobs.slice(0, Math.max(1, Math.min(limit, 50)));
+  const limitedJobs = jobs.slice(0, Math.max(1, Math.min(limit, 50)));
+  return {
+    jobs: limitedJobs,
+    queueDepth: jobs.length,
+    maxQueueItems: MAX_QUEUE_ITEMS,
+    returnedJobs: limitedJobs.length,
+    hasMore: limitedJobs.length < jobs.length,
+  };
 }
 
 export async function enqueueMeetingAgentJob(

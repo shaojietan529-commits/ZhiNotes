@@ -44,6 +44,7 @@ for (const token of [
   "MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000",
   "export class MeetingAgentQueueTimeoutError extends Error",
   "export class MeetingAgentQueueFailureError extends Error",
+  "export interface MeetingAgentQueueListResult",
   "export interface MeetingAgentQueueEnqueueResult",
   "export interface MeetingAgentQueueAckResult",
   "async function fetchMeetingAgentQueueWithTimeout",
@@ -77,6 +78,10 @@ for (const token of [
   "meeting_page_id: pageId",
   "deduplicated: true",
   "deduplicated: false",
+  "queueDepth: jobs.length",
+  "maxQueueItems: MAX_QUEUE_ITEMS",
+  "returnedJobs: limitedJobs.length",
+  "hasMore: limitedJobs.length < jobs.length",
   "function payloadByteLength",
   "Buffer.byteLength",
   "function uniqueJobIds",
@@ -106,6 +111,11 @@ for (const token of [
   "nextAction: manualReviewRequired",
   "\"already_queued\"",
   "queueAction",
+  "jobs: queueResult.jobs",
+  "queueDepth: queueResult.queueDepth",
+  "maxQueueItems: queueResult.maxQueueItems",
+  "returnedJobs: queueResult.returnedJobs",
+  "hasMore: queueResult.hasMore",
   "\"reused_existing_job\"",
   "deduplicated: enqueueResult.deduplicated",
 ]) {
@@ -251,6 +261,11 @@ const queueCapacityBehavior = await verifyQueueCapacityBehavior();
 check(
   queueCapacityBehavior,
   "agent queue 满载或超过上限时必须进入 manual review，不能静默截断未确认任务"
+);
+const queueListMetadataBehavior = await verifyQueueListMetadataBehavior();
+check(
+  queueListMetadataBehavior,
+  "agent queue list 必须返回队列深度、上限、返回数量和是否还有更多任务"
 );
 const queueDedupeBehavior = await verifyQueueDedupeBehavior();
 check(
@@ -574,6 +589,54 @@ async function verifyQueueCapacityBehavior() {
     oversizedError.details?.unconfirmed_jobs_preserved === true &&
     oversizedCalls.get === 1 &&
     oversizedCalls.set === 0
+  );
+}
+
+async function verifyQueueListMetadataBehavior() {
+  const seedJobs = Array.from({ length: 3 }, (_, index) => ({
+    id: `job_${index + 1}`,
+    job_type: "meeting_recording_request",
+    payload: { synthetic: true, index },
+    created_at: `2026-07-13T00:01:0${index}.000Z`,
+  }));
+  const calls = { get: 0, set: 0 };
+  const queue = loadAgentQueueWithFetch(async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: JSON.stringify(seedJobs) };
+        },
+      };
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  const result = await queue.listMeetingAgentJobs(mockKv(), 2);
+
+  return (
+    Array.isArray(result.jobs) &&
+    result.jobs.length === 2 &&
+    result.jobs[0].id === "job_1" &&
+    result.queueDepth === 3 &&
+    result.maxQueueItems === 200 &&
+    result.returnedJobs === 2 &&
+    result.hasMore === true &&
+    calls.get === 1 &&
+    calls.set === 0
   );
 }
 
