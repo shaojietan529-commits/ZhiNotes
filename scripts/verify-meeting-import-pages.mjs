@@ -20,6 +20,7 @@ const accountSyncRoutePath = "src/app/api/pages/account-sync/route.ts";
 const accountSyncClientPath = "src/lib/pages/accountPageSync.ts";
 const kvStore = new Map();
 let idCounter = 0;
+let failChangeLogWrite = false;
 
 const importer = loadImporter(path.join(root, importPath));
 const importerSource = readFileSync(path.join(root, importPath), "utf8");
@@ -125,6 +126,23 @@ expect(
   result.calendar.accountSessionUnaffected === true,
   "calendar receipt should state the account session is unaffected by import refresh"
 );
+expect(
+  result.importReceipt?.schema === "zhinote.zhihui.import.receipt.v1" &&
+    result.importReceipt.source === "meeting-agent-import" &&
+    result.importReceipt.pageRecordWriteStatus === "completed" &&
+    result.importReceipt.pageRecordWrites === result.calendar.changedPageIds.length &&
+    result.importReceipt.pageIndexWriteStatus === "updated" &&
+    result.importReceipt.changeLogWriteStatus === "updated" &&
+    result.importReceipt.changeLogEntries === result.calendar.changeLogEntries &&
+    result.importReceipt.metadataRefreshMode === "incremental-change-log" &&
+    result.importReceipt.fullCacheRebuildRequired === false &&
+    result.importReceipt.partialCloudWritePossible === false &&
+    result.importReceipt.localUseCanContinue === true &&
+    result.importReceipt.accountSessionUnaffected === true &&
+    result.importReceipt.rawMeetingContentEchoed === false &&
+    result.importReceipt.metadataOnly === true,
+  "normal import should return a metadata-only write receipt for page writes, index write, and change-log write"
+);
 
 for (const id of result.calendar.changedPageIds) {
   expect(Boolean(index?.[id]), `changed page ${id} should be present in the page index`);
@@ -207,7 +225,16 @@ expect(
     importerSource.includes("meeting_import_page_record_missing") &&
     importerSource.includes("meeting_import_page_record_corrupt") &&
     importerSource.includes("manual_review_required: true") &&
-    importerSource.includes("unconfirmed_pages_preserved: true"),
+    importerSource.includes("unconfirmed_pages_preserved: true") &&
+    importerSource.includes("schema: \"zhinote.zhihui.import.receipt.v1\"") &&
+    importerSource.includes("pageRecordWriteStatus: \"completed\"") &&
+    importerSource.includes("pageRecordWrites: changedRecords.length") &&
+    importerSource.includes("pageIndexWriteStatus: \"updated\"") &&
+    importerSource.includes("changeLogWriteStatus: changeLogComplete") &&
+    importerSource.includes("\"failed_fallback_to_full_rebuild\"") &&
+    importerSource.includes("metadataRefreshMode") &&
+    importerSource.includes("fullCacheRebuildRequired") &&
+    importerSource.includes("metadataOnly: true"),
   "meeting import should stop corrupt page indexes and page records with stable manual-review failures"
 );
 expect(
@@ -223,6 +250,10 @@ expect(
 expect(
   importRouteSource.includes("calendar: result.calendar"),
   "import route should return the calendar visibility receipt"
+);
+expect(
+  importRouteSource.includes("importReceipt: result.importReceipt"),
+  "import route should return the metadata-only import write receipt"
 );
 expect(
   importRouteSource.includes("...failureBoundary"),
@@ -325,6 +356,7 @@ const corruptPageRecordManualReview = await verifyPageRecordManualReview({
 const missingPageRecordManualReview = await verifyPageRecordManualReview({
   mode: "missing",
 });
+const changeLogFailureFallback = await verifyChangeLogFailureFallback();
 
 if (failures.length > 0) {
   console.error("verify:meeting-import 失败：");
@@ -360,6 +392,7 @@ console.log(
       corrupt_index_manual_review: corruptIndexManualReview,
       corrupt_page_record_manual_review: corruptPageRecordManualReview,
       missing_page_record_manual_review: missingPageRecordManualReview,
+      change_log_failure_fallback: changeLogFailureFallback,
       downstream_cache_refresh_contract: true,
       privacy_boundary:
         "Synthetic in-memory KV verification only. It does not connect real cloud storage, read browser storage, page bodies, real meeting content, transcripts, join URLs, passcodes, cookies, credentials, or file bytes.",
@@ -505,6 +538,54 @@ async function verifyPageRecordManualReview({ mode }) {
   return passed;
 }
 
+async function verifyChangeLogFailureFallback() {
+  const previousChangeLogRaw = kvStore.get(changeLogKey);
+  let fallbackResult = null;
+  failChangeLogWrite = true;
+  try {
+    fallbackResult = await importer.importMeetingArtifactToPages(
+      { url: "memory://kv", token: "mock-token" },
+      {
+        ...payload,
+        source_manifest: {
+          content_fingerprint: {
+            sha256: "synthetic-change-log-failure-fingerprint",
+          },
+        },
+      }
+    );
+  } finally {
+    failChangeLogWrite = false;
+    if (typeof previousChangeLogRaw === "string") {
+      kvStore.set(changeLogKey, previousChangeLogRaw);
+    } else {
+      kvStore.delete(changeLogKey);
+    }
+  }
+
+  const currentIndex = parseJson(kvStore.get(indexKey));
+  const changedIds = fallbackResult?.calendar?.changedPageIds ?? [];
+  const passed =
+    fallbackResult?.calendar?.changeLogEntries === 0 &&
+    fallbackResult?.calendar?.metadataRefreshMode === "full-cache-rebuild" &&
+    fallbackResult?.calendar?.fullCacheRebuildRequired === true &&
+    fallbackResult?.calendar?.localUseCanContinue === true &&
+    fallbackResult?.calendar?.accountSessionUnaffected === true &&
+    fallbackResult?.importReceipt?.changeLogWriteStatus ===
+      "failed_fallback_to_full_rebuild" &&
+    fallbackResult?.importReceipt?.metadataRefreshMode === "full-cache-rebuild" &&
+    fallbackResult?.importReceipt?.fullCacheRebuildRequired === true &&
+    fallbackResult?.importReceipt?.partialCloudWritePossible === false &&
+    changedIds.length > 0 &&
+    changedIds.every((id) => Boolean(currentIndex?.[id]));
+
+  expect(
+    passed,
+    "change-log write failure should keep page/index writes authoritative and require a full metadata rebuild"
+  );
+  return passed;
+}
+
 function countPageRecords() {
   return [...kvStore.keys()].filter((key) =>
     key.startsWith("zhinotes:pagesync:page:owner@example.com:")
@@ -541,6 +622,9 @@ function loadImporter(fullPath) {
             return kvStore.has(key) ? kvStore.get(key) : null;
           },
           async kvSet(_env, key, value) {
+            if (failChangeLogWrite && key.startsWith("zhinotes:pagesync:changes:")) {
+              throw new Error("synthetic change log write failed");
+            }
             kvStore.set(key, value);
           },
         };

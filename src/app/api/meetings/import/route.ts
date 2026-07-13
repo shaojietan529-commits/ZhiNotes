@@ -72,6 +72,7 @@ export async function POST(request: Request) {
       placement: "daily-and-zhihui",
       meeting: result.meeting,
       calendar: result.calendar,
+      importReceipt: result.importReceipt,
       accountEmail: result.accountEmail,
       ...failureBoundary,
     });

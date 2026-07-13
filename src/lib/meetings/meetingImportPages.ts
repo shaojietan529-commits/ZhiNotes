@@ -28,6 +28,10 @@ interface IndexSummary {
   cursor: string;
 }
 
+type MeetingImportMetadataRefreshMode =
+  | "incremental-change-log"
+  | "full-cache-rebuild";
+
 interface PageChangeLogEntry {
   id: string;
   u: string;
@@ -114,10 +118,28 @@ export interface MeetingImportResult {
     meetingCalendarVisible: true;
     requiresMetadataRefresh: true;
     metadataRefreshReason: "meeting-import-change-log";
-    metadataRefreshMode: "incremental-change-log";
-    fullCacheRebuildRequired: false;
+    metadataRefreshMode: MeetingImportMetadataRefreshMode;
+    fullCacheRebuildRequired: boolean;
     localUseCanContinue: true;
     accountSessionUnaffected: true;
+  };
+  importReceipt: {
+    schema: "zhinote.zhihui.import.receipt.v1";
+    source: "meeting-agent-import";
+    pageRecordWriteStatus: "completed";
+    pageRecordWrites: number;
+    pageIndexWriteStatus: "updated";
+    pageIndexRecords: number;
+    pageIndexDeletedRecords: number;
+    changeLogWriteStatus: "updated" | "failed_fallback_to_full_rebuild";
+    changeLogEntries: number;
+    metadataRefreshMode: MeetingImportMetadataRefreshMode;
+    fullCacheRebuildRequired: boolean;
+    partialCloudWritePossible: false;
+    localUseCanContinue: true;
+    accountSessionUnaffected: true;
+    rawMeetingContentEchoed: false;
+    metadataOnly: true;
   };
 }
 
@@ -235,6 +257,11 @@ export async function importMeetingArtifactToPages(
     accountEmail,
     changedRecords
   );
+  const changeLogComplete = changeLogEntries === changedRecords.length;
+  const metadataRefreshMode: MeetingImportMetadataRefreshMode = changeLogComplete
+    ? "incremental-change-log"
+    : "full-cache-rebuild";
+  const fullCacheRebuildRequired = !changeLogComplete;
 
   return {
     importId: meeting.importId,
@@ -273,10 +300,30 @@ export async function importMeetingArtifactToPages(
       meetingCalendarVisible: true,
       requiresMetadataRefresh: true,
       metadataRefreshReason: "meeting-import-change-log",
-      metadataRefreshMode: "incremental-change-log",
-      fullCacheRebuildRequired: false,
+      metadataRefreshMode,
+      fullCacheRebuildRequired,
       localUseCanContinue: true,
       accountSessionUnaffected: true,
+    },
+    importReceipt: {
+      schema: "zhinote.zhihui.import.receipt.v1",
+      source: "meeting-agent-import",
+      pageRecordWriteStatus: "completed",
+      pageRecordWrites: changedRecords.length,
+      pageIndexWriteStatus: "updated",
+      pageIndexRecords: nextSummary.count,
+      pageIndexDeletedRecords: nextSummary.deleted,
+      changeLogWriteStatus: changeLogComplete
+        ? "updated"
+        : "failed_fallback_to_full_rebuild",
+      changeLogEntries,
+      metadataRefreshMode,
+      fullCacheRebuildRequired,
+      partialCloudWritePossible: false,
+      localUseCanContinue: true,
+      accountSessionUnaffected: true,
+      rawMeetingContentEchoed: false,
+      metadataOnly: true,
     },
   };
 }
