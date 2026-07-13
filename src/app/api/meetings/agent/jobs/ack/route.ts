@@ -12,6 +12,9 @@ import { readBoundedJsonBody } from "@/lib/meetings/requestBody";
 export const dynamic = "force-dynamic";
 
 const MAX_ACK_REQUEST_BYTES = 32 * 1024;
+const MAX_ACK_JOB_IDS = 100;
+const MAX_ACK_JOB_ID_CHARS = 160;
+const ACK_JOB_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const ackFailureBoundary = {
   source: "zhihui-agent-queue-ack",
   accountSessionUnaffected: true,
@@ -97,11 +100,21 @@ export async function POST(request: Request) {
       ? (bodyRead.value as { job_ids?: unknown })
       : {};
 
-  const jobIds = Array.isArray(body.job_ids)
-    ? body.job_ids.filter((item): item is string => typeof item === "string")
-    : [];
+  const normalizedAck = normalizeAckJobIds(body.job_ids);
+  if (!normalizedAck.ok) {
+    return ackJson(
+      ackFailurePayload({
+        code: normalizedAck.code,
+        error: normalizedAck.error,
+        retryable: false,
+        details: normalizedAck.details,
+      }),
+      { status: normalizedAck.status }
+    );
+  }
+
   try {
-    const ackResult = await ackMeetingAgentJobs(config.kv, jobIds);
+    const ackResult = await ackMeetingAgentJobs(config.kv, normalizedAck.jobIds);
     return ackJson({
       ok: true,
       acknowledged: ackResult.acknowledged,
@@ -121,7 +134,7 @@ export async function POST(request: Request) {
       maxQueueItems: ackResult.maxQueueItems,
       availableQueueSlots: ackResult.availableQueueSlots,
       queueAlmostFull: ackResult.queueAlmostFull,
-      queueReceipt: queueAckReceipt(ackResult, jobIds.length),
+      queueReceipt: queueAckReceipt(ackResult, normalizedAck.requestedAckCount),
       ...ackContinuityReceipt,
     });
   } catch (error) {
@@ -164,6 +177,146 @@ export async function POST(request: Request) {
       { status: 502 }
     );
   }
+}
+
+function normalizeAckJobIds(jobIds: unknown):
+  | {
+      ok: true;
+      jobIds: string[];
+      requestedAckCount: number;
+      blankAckIdsIgnored: number;
+      duplicateAckIdsDropped: number;
+    }
+  | {
+      ok: false;
+      code: "invalid_ack_job_ids" | "zhihui_agent_queue_ack_too_many_ids";
+      error: string;
+      status: number;
+      details: Record<string, unknown>;
+    } {
+  if (jobIds == null) {
+    return {
+      ok: true,
+      jobIds: [],
+      requestedAckCount: 0,
+      blankAckIdsIgnored: 0,
+      duplicateAckIdsDropped: 0,
+    };
+  }
+  if (!Array.isArray(jobIds)) {
+    return invalidAckJobIds({
+      requestedAckItems: 1,
+      nonStringAckIds: 1,
+    });
+  }
+
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  let blankAckIdsIgnored = 0;
+  let duplicateAckIdsDropped = 0;
+  let nonStringAckIds = 0;
+  let invalidAckIds = 0;
+  let oversizedAckIds = 0;
+
+  for (const item of jobIds) {
+    if (typeof item !== "string") {
+      nonStringAckIds += 1;
+      continue;
+    }
+
+    const jobId = item.trim();
+    if (!jobId) {
+      blankAckIdsIgnored += 1;
+      continue;
+    }
+    if (jobId.length > MAX_ACK_JOB_ID_CHARS) {
+      oversizedAckIds += 1;
+      continue;
+    }
+    if (!ACK_JOB_ID_PATTERN.test(jobId)) {
+      invalidAckIds += 1;
+      continue;
+    }
+    if (seen.has(jobId)) {
+      duplicateAckIdsDropped += 1;
+      continue;
+    }
+
+    seen.add(jobId);
+    normalized.push(jobId);
+    if (normalized.length > MAX_ACK_JOB_IDS) {
+      return {
+        ok: false,
+        code: "zhihui_agent_queue_ack_too_many_ids",
+        error: "too many ACK job ids",
+        status: 413,
+        details: {
+          max_ack_job_ids: MAX_ACK_JOB_IDS,
+          requested_ack_items: jobIds.length,
+          normalized_ack_ids: normalized.length,
+          blank_ack_ids_ignored: blankAckIdsIgnored,
+          duplicate_ack_ids_dropped: duplicateAckIdsDropped,
+          invalid_ack_ids_count:
+            nonStringAckIds + invalidAckIds + oversizedAckIds,
+          raw_ack_job_ids_echoed: false,
+        },
+      };
+    }
+  }
+
+  if (nonStringAckIds > 0 || invalidAckIds > 0 || oversizedAckIds > 0) {
+    return invalidAckJobIds({
+      requestedAckItems: jobIds.length,
+      nonStringAckIds,
+      invalidAckIds,
+      oversizedAckIds,
+      blankAckIdsIgnored,
+      duplicateAckIdsDropped,
+    });
+  }
+
+  return {
+    ok: true,
+    jobIds: normalized,
+    requestedAckCount: normalized.length,
+    blankAckIdsIgnored,
+    duplicateAckIdsDropped,
+  };
+}
+
+function invalidAckJobIds({
+  requestedAckItems,
+  nonStringAckIds = 0,
+  invalidAckIds = 0,
+  oversizedAckIds = 0,
+  blankAckIdsIgnored = 0,
+  duplicateAckIdsDropped = 0,
+}: {
+  requestedAckItems: number;
+  nonStringAckIds?: number;
+  invalidAckIds?: number;
+  oversizedAckIds?: number;
+  blankAckIdsIgnored?: number;
+  duplicateAckIdsDropped?: number;
+}) {
+  return {
+    ok: false as const,
+    code: "invalid_ack_job_ids" as const,
+    error: "invalid ACK job ids",
+    status: 400,
+    details: {
+      max_ack_job_ids: MAX_ACK_JOB_IDS,
+      max_ack_job_id_chars: MAX_ACK_JOB_ID_CHARS,
+      allowed_ack_job_id_pattern: ACK_JOB_ID_PATTERN.source,
+      requested_ack_items: requestedAckItems,
+      non_string_ack_ids: nonStringAckIds,
+      invalid_ack_ids: invalidAckIds,
+      oversized_ack_ids: oversizedAckIds,
+      blank_ack_ids_ignored: blankAckIdsIgnored,
+      duplicate_ack_ids_dropped: duplicateAckIdsDropped,
+      raw_ack_job_ids_echoed: false,
+    },
+  };
 }
 
 function ackFailurePayload({
