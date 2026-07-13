@@ -476,8 +476,20 @@ function verifyIntakeRouteContract(source, requestBody) {
     },
     {
       name: "fetched page text is bounded",
-      passed: source.includes("const MAX_FETCH_CHARS = 250_000"),
-      message: "intake route must cap fetched linked-page text before parsing",
+      passed:
+        source.includes("const MAX_FETCH_BYTES = 350_000") &&
+        source.includes("const MAX_FETCH_CHARS = 250_000") &&
+        source.includes("function readBoundedResponseText") &&
+        source.includes("response.body.getReader()") &&
+        source.includes("bytesRead += value.byteLength") &&
+        source.includes("await reader.cancel()") &&
+        source.includes('res.headers.get("content-length")') &&
+        source.includes("contentLength > MAX_FETCH_BYTES") &&
+        source.includes("readBoundedResponseText(res, MAX_FETCH_BYTES)") &&
+        source.includes(".slice(0, MAX_FETCH_CHARS)") &&
+        !source.includes("await res.text()"),
+      message:
+        "intake route must cap linked-page fetch bytes before parsing so huge pages cannot block ZhiHui",
     },
     {
       name: "linked-page fetch is timed out",

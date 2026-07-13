@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_INTAKE_REQUEST_BYTES = 128 * 1024;
 const MAX_INPUT_CHARS = 20_000;
+const MAX_FETCH_BYTES = 350_000;
 const MAX_FETCH_CHARS = 250_000;
 const FETCH_TIMEOUT_MS = 5_000;
 const INTAKE_RECEIPT_FRESHNESS_WINDOW_MS = 30_000;
@@ -308,7 +309,17 @@ async function fetchMeetingLinkText(
       return { warning: "链接返回的不是网页文本，已跳过网页读取。" };
     }
 
-    const raw = (await res.text()).slice(0, MAX_FETCH_CHARS);
+    const contentLength = Number(res.headers.get("content-length") ?? 0);
+    if (Number.isFinite(contentLength) && contentLength > MAX_FETCH_BYTES) {
+      return { warning: "链接页面太大，已跳过网页读取，优先使用粘贴内容解析。" };
+    }
+
+    const pageText = await readBoundedResponseText(res, MAX_FETCH_BYTES);
+    if (!pageText.ok) {
+      return { warning: "链接页面太大，已跳过网页读取，优先使用粘贴内容解析。" };
+    }
+
+    const raw = pageText.text.slice(0, MAX_FETCH_CHARS);
     const extracted = extractReadablePageText(raw, contentType);
     return {
       fetched: {
@@ -323,6 +334,37 @@ async function fetchMeetingLinkText(
     return { warning: "链接读取超时或失败，已优先使用粘贴内容解析。" };
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function readBoundedResponseText(response: Response, maxBytes: number) {
+  if (!response.body) {
+    return { ok: true as const, text: "", bytesRead: 0 };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      bytesRead += value.byteLength;
+      if (bytesRead > maxBytes) {
+        await reader.cancel();
+        return { ok: false as const, bytesRead };
+      }
+
+      text += decoder.decode(value, { stream: true });
+    }
+
+    text += decoder.decode();
+    return { ok: true as const, text, bytesRead };
+  } finally {
+    reader.releaseLock();
   }
 }
 
