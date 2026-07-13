@@ -134,6 +134,15 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
       };
     }
     if (!res.ok) {
+      const retryable = await readAccountSessionRetryablePayload(res);
+      if (retryable) {
+        return {
+          status: "unconfirmed",
+          authenticated: false,
+          account: null,
+          error: retryable.reason,
+        };
+      }
       return {
         status: "error",
         authenticated: false,
@@ -171,6 +180,25 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
         : "network error",
     };
   }
+}
+
+async function readAccountSessionRetryablePayload(
+  res: Response
+): Promise<{ reason: string } | null> {
+  try {
+    const data = await res.clone().json();
+    if (data.retryable || data.reason === "session-unconfirmed") {
+      return {
+        reason:
+          typeof data.reason === "string"
+            ? data.reason
+            : "account session temporarily unconfirmed",
+      };
+    }
+  } catch {
+    // Non-JSON error bodies are treated as ordinary retryable network errors.
+  }
+  return null;
 }
 
 async function fetchAccountSessionStatus(): Promise<Response> {

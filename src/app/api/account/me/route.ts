@@ -36,13 +36,7 @@ export async function GET(request: Request) {
   try {
     const account = await getSessionAccount(config, token);
     if (!account) {
-      return NextResponse.json({
-        authenticated: false,
-        account: null,
-        reason: "session-unconfirmed",
-        retryable: true,
-        keeps_session_cookie: true,
-      });
+      return accountSessionUnconfirmedResponse();
     }
     const response = NextResponse.json({
       authenticated: true,
@@ -63,9 +57,8 @@ export async function GET(request: Request) {
     });
     return response;
   } catch {
-    return NextResponse.json(
-      { error: "云端存储读写失败，请稍后重试。" },
-      { status: 502 }
+    return accountSessionUnconfirmedResponse(
+      "云端存储暂时无法确认登录状态；不会清除当前登录，请稍后重试。"
     );
   }
 }
