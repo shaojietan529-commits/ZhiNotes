@@ -455,9 +455,17 @@ expect(
     importRouteSource.includes("const partialCloudWritePossible = retryable && !manualReviewRequired") &&
     importRouteSource.includes("const importStatus = importFailureStatusFields") &&
     importRouteSource.includes("const visibilityFields = importFailureVisibilityFields") &&
+    importRouteSource.includes("const recoveryFields = importFailureRecoveryFields") &&
     importRouteSource.includes("partialCloudWritePossible,") &&
     importRouteSource.includes("...importStatus") &&
     importRouteSource.includes("...visibilityFields") &&
+    importRouteSource.includes("...recoveryFields") &&
+    importRouteSource.includes("function importFailureRecoveryFields") &&
+    importRouteSource.includes("function importFailureRecoveryStatus") &&
+    importRouteSource.includes("importRecoveryRequired: true") &&
+    importRouteSource.includes("importRecoveryStatus: importFailureRecoveryStatus") &&
+    importRouteSource.includes("importRecoveryNextAction: nextAction") &&
+    importRouteSource.includes("...importFailureRecoveryFields({") &&
     importRouteSource.includes("pendingWriteCount: partialCloudWritePossible ? 1 : 0") &&
     importRouteSource.includes("failedWriteCount:") &&
     importRouteSource.includes("localPendingWrite: false") &&

@@ -1194,7 +1194,9 @@ Current local actions:
   family (`syncCenterStatus`, `pendingImportCount`, `failedImportCount`,
   `manualReviewImportCount`, `safeToContinueLocalUse`,
   `safeToRefreshCaches: false`, `cacheRefreshStatus`,
-  `cacheRefreshBlockedBy`) so clients can show a retry, failed, or
+  `cacheRefreshBlockedBy`) plus import-specific recovery hints
+  (`importRecoveryRequired`, `importRecoveryStatus`,
+  `importRecoveryNextAction`) so clients can show a retry, failed, or
   manual-review row without treating the failure as an account sign-out or
   hidden data loss.
 - When enqueue sees the same meeting page but the existing queued job is already

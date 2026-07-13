@@ -424,6 +424,12 @@ function importFailurePayload({
     failureStatus,
     nextAction,
   });
+  const recoveryFields = importFailureRecoveryFields({
+    manualReviewRequired,
+    partialCloudWritePossible,
+    retryable,
+    nextAction,
+  });
   const failureReceipt = importFailureReceipt({
     code,
     retryable,
@@ -453,6 +459,7 @@ function importFailurePayload({
     manualReviewRequired,
     ...visibilityFields,
     nextAction,
+    ...recoveryFields,
     ...receiptTiming,
     importFailureReceipt: failureReceipt,
     ...failureBoundary,
@@ -493,6 +500,12 @@ function importFailureReceipt({
     requiresUserConfirmation: manualReviewRequired,
     manualReviewRequired,
     highRiskWriteGated: true,
+    ...importFailureRecoveryFields({
+      manualReviewRequired,
+      partialCloudWritePossible,
+      retryable,
+      nextAction,
+    }),
     ...importFailureVisibilityFields({
       retryable,
       manualReviewRequired,
@@ -505,4 +518,41 @@ function importFailureReceipt({
     rawMeetingContentEchoed: false,
     metadataOnly: true,
   };
+}
+
+function importFailureRecoveryFields({
+  manualReviewRequired,
+  partialCloudWritePossible,
+  retryable,
+  nextAction,
+}: {
+  manualReviewRequired: boolean;
+  partialCloudWritePossible: boolean;
+  retryable: boolean;
+  nextAction: string;
+}) {
+  return {
+    importRecoveryRequired: true,
+    importRecoveryStatus: importFailureRecoveryStatus({
+      manualReviewRequired,
+      partialCloudWritePossible,
+      retryable,
+    }),
+    importRecoveryNextAction: nextAction,
+  };
+}
+
+function importFailureRecoveryStatus({
+  manualReviewRequired,
+  partialCloudWritePossible,
+  retryable,
+}: {
+  manualReviewRequired: boolean;
+  partialCloudWritePossible: boolean;
+  retryable: boolean;
+}) {
+  if (manualReviewRequired) return "manual_review_required";
+  if (partialCloudWritePossible) return "retryable_unknown";
+  if (retryable) return "retry_later";
+  return "failed_not_completed";
 }
