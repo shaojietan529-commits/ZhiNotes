@@ -389,6 +389,10 @@ import {
   type DevelopmentStabilitySurfaceStatus,
 } from "@/lib/sync/developmentStabilityPlan";
 import {
+  buildDevelopmentStabilityHandoffReceipt,
+  type DevelopmentStabilityHandoffReceipt,
+} from "@/lib/sync/developmentStabilityHandoffReceipt";
+import {
   buildSyncUploadDrainReceipt,
   type SyncUploadDrainReceipt,
   type SyncUploadDrainResultSnapshot,
@@ -648,6 +652,7 @@ type SyncQueueAction =
   | "cloud-source-of-truth-plan"
   | "cloud-ack-cache-safety-report"
   | "cloud-sync-control-plane"
+  | "development-stability-handoff"
   | "replay-test-plan";
 type PendingDomainId =
   | "pages"
@@ -2271,6 +2276,14 @@ function SyncDashboard() {
       }),
     [syncLocalUseQueueSnapshot, syncLocalUseReadiness]
   );
+  const developmentStabilityHandoffReceipt = useMemo(
+    () =>
+      buildDevelopmentStabilityHandoffReceipt({
+        plan: developmentStabilityPlan,
+        localUseReadiness: syncLocalUseReadiness,
+      }),
+    [developmentStabilityPlan, syncLocalUseReadiness]
+  );
   const syncPayloadPreview = useMemo(
     () =>
       buildSyncPayloadPreview({
@@ -3850,6 +3863,27 @@ function SyncDashboard() {
         err
       );
       window.alert("云同步控制面导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
+  const handleExportDevelopmentStabilityHandoff = () => {
+    setBusyQueueAction("development-stability-handoff");
+    try {
+      downloadJsonFile(
+        `zhinote-development-stability-handoff-${fileSafeTimestamp()}.json`,
+        {
+          ...developmentStabilityHandoffReceipt,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export development stability handoff:",
+        err
+      );
+      window.alert("开发稳定使用交接收据导出失败，请查看控制台。");
     } finally {
       setBusyQueueAction(null);
     }
@@ -10998,7 +11032,14 @@ function SyncDashboard() {
               />
             </div>
             <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
-              <DevelopmentStabilityPlanPanel plan={developmentStabilityPlan} />
+              <DevelopmentStabilityPlanPanel
+                plan={developmentStabilityPlan}
+                handoffReceipt={developmentStabilityHandoffReceipt}
+                onExportHandoff={handleExportDevelopmentStabilityHandoff}
+                handoffBusy={
+                  busyQueueAction === "development-stability-handoff"
+                }
+              />
             </div>
             <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
               <SyncUploadSafetyPanel
@@ -20409,8 +20450,14 @@ function SyncOperationalMetric({
 
 function DevelopmentStabilityPlanPanel({
   plan,
+  handoffReceipt,
+  onExportHandoff,
+  handoffBusy,
 }: {
   plan: DevelopmentStabilityPlan;
+  handoffReceipt: DevelopmentStabilityHandoffReceipt;
+  onExportHandoff: () => void;
+  handoffBusy: boolean;
 }) {
   const facts = [
     {
@@ -20482,6 +20529,17 @@ function DevelopmentStabilityPlanPanel({
       data-sync-failures-show-retry-state-not-sign-out={String(
         operatingMode.sync_failures_show_retry_state_not_sign_out
       )}
+      data-handoff-receipt-format={handoffReceipt.format}
+      data-handoff-stable-use-verdict={handoffReceipt.stable_use_verdict}
+      data-handoff-cloud-sync-can-be-enabled-now={String(
+        handoffReceipt.cloud_sync_can_be_enabled_now
+      )}
+      data-handoff-web-beta-can-launch-now={String(
+        handoffReceipt.web_beta_can_launch_now
+      )}
+      data-handoff-cache-rebuild-can-run-now={String(
+        handoffReceipt.cache_rebuild_can_run_now
+      )}
       className="space-y-3"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -20498,8 +20556,26 @@ function DevelopmentStabilityPlanPanel({
             {plan.stable_version_policy}
           </p>
         </div>
-        <div className="rounded-md border border-zinc-100 bg-white px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
-          本地继续使用：{plan.local_app_can_continue_now ? "可以" : "先暂停"}
+        <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+          <div className="rounded-md border border-zinc-100 bg-white px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+            本地继续使用：{plan.local_app_can_continue_now ? "可以" : "先暂停"}
+          </div>
+          <button
+            type="button"
+            onClick={onExportHandoff}
+            disabled={handoffBusy}
+            data-testid="development-stability-handoff-export"
+            data-receipt-format={handoffReceipt.format}
+            data-cloud-sync-can-be-enabled-now={String(
+              handoffReceipt.cloud_sync_can_be_enabled_now
+            )}
+            data-web-beta-can-launch-now={String(
+              handoffReceipt.web_beta_can_launch_now
+            )}
+            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {handoffBusy ? "导出中..." : "导出交接收据"}
+          </button>
         </div>
       </div>
       <div
