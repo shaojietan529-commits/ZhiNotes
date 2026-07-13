@@ -8,6 +8,11 @@ import {
   subscribeDatabasesUpdated,
   type DatabaseUpdateMessage,
 } from "@/lib/database/databaseUpdateBus";
+import {
+  databaseListHotCacheSnapshotDatabaseToDatabase,
+  readDatabaseListHotCacheSnapshot,
+  writeDatabaseListHotCacheSnapshot,
+} from "@/lib/sync/databaseListHotCacheSnapshot";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Database } from "@/lib/utils/types";
 import type { CloudDatabaseRecord } from "@/lib/database/accountDatabaseSync";
@@ -38,12 +43,24 @@ export function useDatabases() {
       let localSnapshotLoaded = false;
       let cloudSnapshotAuthoritative = false;
 
+      const hotCacheSnapshot = readDatabaseListHotCacheSnapshot();
+      if (hotCacheSnapshot) {
+        all = hotCacheSnapshot.databases.map(
+          databaseListHotCacheSnapshotDatabaseToDatabase
+        );
+        setDatabases(all);
+      }
+
       // Render the rebuildable local cache before cloud metadata so slow
       // account checks do not hide database navigation.
       try {
         all = await loadDatabaseSnapshot();
         localSnapshotLoaded = true;
         setDatabases(all);
+        writeDatabaseListHotCacheSnapshot({
+          databases: all,
+          source: "local-metadata",
+        });
       } catch {
         // Treat local SQLite as a cache: if it is cold or temporarily broken,
         // still attempt cloud metadata below instead of blocking navigation.
@@ -62,6 +79,12 @@ export function useDatabases() {
           } else if (cloud.records.length > 0) {
             all = mergeDatabaseMetadata(all, cloud.records);
             setDatabases(all);
+          }
+          if (cloud.fullRefresh || cloud.records.length > 0) {
+            writeDatabaseListHotCacheSnapshot({
+              databases: all,
+              source: "cloud-metadata",
+            });
           }
           if (cloud.pulled > 0 && options.broadcast !== false) {
             emitDatabasesUpdated("cloud-pull", cloud.pulled, cloud.records);
@@ -88,6 +111,10 @@ export function useDatabases() {
           ) {
             all = mergeDatabaseMetadata([], cloud.records);
             setDatabases(all);
+            writeDatabaseListHotCacheSnapshot({
+              databases: all,
+              source: "cloud-metadata",
+            });
             if (cloud.pulled > 0 && options.broadcast !== false) {
               emitDatabasesUpdated("cloud-pull", cloud.pulled, cloud.records);
             }
@@ -115,9 +142,14 @@ export function useDatabases() {
     const unsubscribe = subscribeDatabasesUpdated(
       (message: DatabaseUpdateMessage) => {
         if (message.reason === "cloud-pull" && message.records?.length) {
-          setDatabases((current) =>
-            mergeDatabaseMetadata(current, message.records ?? [])
-          );
+          setDatabases((current) => {
+            const next = mergeDatabaseMetadata(current, message.records ?? []);
+            writeDatabaseListHotCacheSnapshot({
+              databases: next,
+              source: "cloud-metadata",
+            });
+            return next;
+          });
           return;
         }
         if (timer !== null) window.clearTimeout(timer);

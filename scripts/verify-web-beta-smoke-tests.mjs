@@ -73,6 +73,9 @@ const files = {
   calendarFirstPaintRange: "src/lib/sync/calendarFirstPaintRange.ts",
   pageListHotCacheSnapshot: "src/lib/sync/pageListHotCacheSnapshot.ts",
   pageListLoadStatus: "src/lib/sync/pageListLoadStatus.ts",
+  databaseListHotCacheSnapshot:
+    "src/lib/sync/databaseListHotCacheSnapshot.ts",
+  useDatabases: "src/hooks/useDatabases.ts",
   dailyHotCacheSnapshot: "src/lib/sync/dailyHotCacheSnapshot.ts",
   dailyCalendarLoadStatus: "src/lib/sync/dailyCalendarLoadStatus.ts",
   meetingCalendarLoadStatus: "src/lib/sync/meetingCalendarLoadStatus.ts",
@@ -520,6 +523,10 @@ function run() {
     files.pageListHotCacheSnapshot
   );
   const pageListLoadStatus = readProjectFile(files.pageListLoadStatus);
+  const databaseListHotCacheSnapshot = readProjectFile(
+    files.databaseListHotCacheSnapshot
+  );
+  const useDatabases = readProjectFile(files.useDatabases);
   const dailyHotCacheSnapshot = readProjectFile(files.dailyHotCacheSnapshot);
   const dailyCalendarLoadStatus = readProjectFile(
     files.dailyCalendarLoadStatus
@@ -5875,6 +5882,113 @@ function run() {
     failures.push(
       `${files.pageListHotCacheSnapshot} must not call storage.key(: page-list hot-cache reads should use the exact localStorage key instead of scanning every localStorage key.`
     );
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-database-list-hot-cache-snapshot"',
+      "Database list hot cache must keep a dedicated browser snapshot format.",
+    ],
+    [
+      'route_target: "global-database-list"',
+      "Database list hot cache must stay scoped to the global database list.",
+    ],
+    [
+      "DATABASE_LIST_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",
+      "Database list hot cache must keep a fresh window for unchanged-write skipping.",
+    ],
+    [
+      "DATABASE_LIST_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000",
+      "Database list hot cache must keep a bounded stale metadata fallback for hard refresh first paint.",
+    ],
+    [
+      "DATABASE_LIST_HOT_CACHE_MAX_DATABASES = 300",
+      "Database list hot cache must stay bounded for large workspaces.",
+    ],
+    [
+      "records_metadata_only: true",
+      "Database list hot cache must stay metadata-only.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Database list hot cache must not persist database row values.",
+    ],
+    [
+      "reads_database_field_configs: false",
+      "Database list hot cache must not persist field config payloads.",
+    ],
+    [
+      "reads_database_view_configs: false",
+      "Database list hot cache must not persist view config payloads.",
+    ],
+    [
+      "enters_sync_log: false",
+      "Database list hot cache snapshot must not enter the upload queue.",
+    ],
+    [
+      "window.localStorage.setItem(\n      DATABASE_LIST_HOT_CACHE_KEY",
+      "Database list hot cache snapshot must stay a local browser cache.",
+    ],
+    [
+      "clearDatabaseListHotCacheSnapshot",
+      "Database list hot cache must clear stale first-paint metadata when the database list is truly empty.",
+    ],
+  ]) {
+    assertIncludes(
+      files.databaseListHotCacheSnapshot,
+      databaseListHotCacheSnapshot,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "readDatabaseListHotCacheSnapshot",
+      "useDatabases must read browser database-list hot cache before slower local/cloud checks.",
+    ],
+    [
+      "databaseListHotCacheSnapshotDatabaseToDatabase",
+      "useDatabases must convert browser database-list hot cache metadata into database-list entries.",
+    ],
+    [
+      "writeDatabaseListHotCacheSnapshot",
+      "useDatabases must refresh the database-list hot cache after metadata loads.",
+    ],
+  ]) {
+    assertIncludes(files.useDatabases, useDatabases, snippet, message);
+  }
+  if (
+    !(
+      useDatabases.indexOf("const hotCacheSnapshot = readDatabaseListHotCacheSnapshot();") >=
+        0 &&
+      useDatabases.indexOf("const hotCacheSnapshot = readDatabaseListHotCacheSnapshot();") <
+        useDatabases.indexOf("all = await loadDatabaseSnapshot();") &&
+      useDatabases.indexOf("all = await loadDatabaseSnapshot();") <
+        useDatabases.indexOf("const cloud = await syncCloudDatabaseMetadataDelta")
+    )
+  ) {
+    failures.push(
+      "useDatabases must read browser database-list hot cache, then local SQLite metadata, then cloud metadata."
+    );
+  }
+  for (const forbiddenDatabaseListSnapshotSnippet of [
+    "field_values",
+    ".field_values",
+    "getRows(",
+    "getFields(",
+    "getViews(",
+    "fetch(",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+  ]) {
+    if (
+      databaseListHotCacheSnapshot.includes(
+        forbiddenDatabaseListSnapshotSnippet
+      )
+    ) {
+      failures.push(
+        `${files.databaseListHotCacheSnapshot} must not include ${forbiddenDatabaseListSnapshotSnippet}: database-list hot cache snapshot must stay metadata-only, local-only, and out of sync_log.`
+      );
+    }
   }
   for (const forbiddenPageListStatusSnippet of [
     "page.content_text",
@@ -17609,7 +17723,7 @@ function run() {
     boundary_checks: requiredBoundarySnippets.length,
     cloud_master_reconcile_checks: 7,
     local_metadata_manifest_checks: 7,
-    hot_cache_policy_checks: 6,
+    hot_cache_policy_checks: 7,
     hot_cache_selection_checks: 14,
     hot_data_plan_checks: 10,
     file_metadata_first_paint_checks: 4,

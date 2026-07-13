@@ -27,6 +27,8 @@ const files = {
   databaseAccountSyncClient: "src/lib/database/accountDatabaseSync.ts",
   databaseCloudMutations: "src/lib/database/cloudDatabaseMutations.ts",
   useDatabases: "src/hooks/useDatabases.ts",
+  databaseListHotCacheSnapshot:
+    "src/lib/sync/databaseListHotCacheSnapshot.ts",
   databaseCloudSyncHook: "src/hooks/useDatabaseCloudSync.ts",
   localFirstDatabaseNavigation:
     "src/hooks/useLocalFirstDatabaseNavigation.ts",
@@ -190,6 +192,9 @@ function run() {
   );
   const databaseCloudMutations = readProjectFile(files.databaseCloudMutations);
   const useDatabases = readProjectFile(files.useDatabases);
+  const databaseListHotCacheSnapshot = readProjectFile(
+    files.databaseListHotCacheSnapshot
+  );
   const databaseCloudSyncHook = readProjectFile(files.databaseCloudSyncHook);
   const localFirstDatabaseNavigation = readProjectFile(
     files.localFirstDatabaseNavigation
@@ -654,6 +659,9 @@ function run() {
     "loadDatabaseSnapshot",
     "databaseSnapshotInFlight",
     "setDatabases(all)",
+    "readDatabaseListHotCacheSnapshot",
+    "databaseListHotCacheSnapshotDatabaseToDatabase",
+    "writeDatabaseListHotCacheSnapshot",
     "Render the rebuildable local cache before cloud metadata",
     "Treat local SQLite as a cache",
     "Cloud metadata refresh is best effort",
@@ -676,12 +684,69 @@ function run() {
   }
   if (
     !(
+      useDatabases.indexOf("const hotCacheSnapshot = readDatabaseListHotCacheSnapshot();") <
+      useDatabases.indexOf("all = await loadDatabaseSnapshot();")
+    )
+  ) {
+    failures.push(
+      "Database list UI must read the browser metadata hot cache before waiting on local SQLite."
+    );
+  }
+  if (
+    !(
       useDatabases.indexOf("all = await loadDatabaseSnapshot();") <
       useDatabases.indexOf("const cloud = await syncCloudDatabaseMetadataDelta")
     )
   ) {
     failures.push(
       "Database list UI must read the rebuildable local snapshot before waiting on cloud metadata."
+    );
+  }
+  assertIncludes(
+    files.databaseListHotCacheSnapshot,
+    databaseListHotCacheSnapshot,
+    'format: "zhinote-database-list-hot-cache-snapshot"',
+    "Database list hot cache must expose a stable snapshot format."
+  );
+  for (const snippet of [
+    'route_target: "global-database-list"',
+    "DATABASE_LIST_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",
+    "DATABASE_LIST_HOT_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000",
+    "DATABASE_LIST_HOT_CACHE_MAX_DATABASES = 300",
+    "records_metadata_only: true",
+    "reads_database_row_values: false",
+    "reads_database_field_configs: false",
+    "reads_database_view_configs: false",
+    "enters_sync_log: false",
+    "uploads_workspace_data: false",
+    "stores_source_of_truth: false",
+    "window.localStorage.setItem(\n      DATABASE_LIST_HOT_CACHE_KEY",
+    "shouldWriteDatabaseListHotCacheSnapshot",
+    "buildDatabaseListHotCacheSnapshotSignature",
+    "databaseListHotCacheSnapshotDatabaseToDatabase",
+  ]) {
+    assertIncludes(
+      files.databaseListHotCacheSnapshot,
+      databaseListHotCacheSnapshot,
+      snippet,
+      "Database list hot cache must stay local, bounded, metadata-only, and rebuildable."
+    );
+  }
+  for (const forbidden of [
+    "field_values",
+    ".field_values",
+    "getRows(",
+    "getFields(",
+    "getViews(",
+    "recordSyncChange",
+    "INSERT INTO sync_log",
+    "fetch(",
+  ]) {
+    assertNotIncludes(
+      files.databaseListHotCacheSnapshot,
+      databaseListHotCacheSnapshot,
+      forbidden,
+      "Database list hot cache must not read row values, field/view configs, sync_log, or network."
     );
   }
   if (
