@@ -239,6 +239,8 @@ export function useAccountCloudSyncCoordinator() {
   const initializingEnabledDomain =
     (pageSync.pendingStatus.enabled && pageSync.state === "disabled") ||
     (databaseSync.pendingStatus.enabled && databaseSync.state === "disabled");
+  const syncBlockedBySignedOut =
+    pageSync.state === "signed-out" || databaseSync.state === "signed-out";
 
   const state: AccountCloudSyncCoordinatorState =
     enabledDomainCount === 0
@@ -247,12 +249,12 @@ export function useAccountCloudSyncCoordinator() {
         ? "attention"
         : pageSync.state === "error" || databaseSync.state === "error"
           ? "error"
-          : pageSync.state === "signed-out" || databaseSync.state === "signed-out"
-            ? "signed-out"
-            : pageSync.state === "syncing" || databaseSync.state === "syncing"
-              ? "syncing"
-              : pendingTotal > 0
-                ? "queued"
+          : pageSync.state === "syncing" || databaseSync.state === "syncing"
+            ? "syncing"
+            : pendingTotal > 0
+              ? "queued"
+              : syncBlockedBySignedOut
+                ? "signed-out"
                 : initializingEnabledDomain
                   ? "checking"
                   : "synced";
@@ -296,7 +298,10 @@ export function useAccountCloudSyncCoordinator() {
         knowledgePendingTotal > 0
           ? "；评论、版本和双链变更已进入本地队列，需云端回放链路处理"
           : "";
-      return `后台正在补传本地输入${details.length ? `：${details.join("，")}` : ""}${settingsNote}${knowledgeNote}`;
+      const accountRetryNote = syncBlockedBySignedOut
+        ? "；账号未确认，本地输入已保留，会低频检查登录状态"
+        : "";
+      return `后台正在补传本地输入${details.length ? `：${details.join("，")}` : ""}${settingsNote}${knowledgeNote}${accountRetryNote}`;
     }
     if (state === "attention") return `账号云同步需要处理${details.length ? `：${details.join("，")}` : ""}`;
     if (state === "signed-out") {
@@ -324,6 +329,7 @@ export function useAccountCloudSyncCoordinator() {
     pendingTotal,
     retryableFailedTotal,
     settingsPendingTotal,
+    syncBlockedBySignedOut,
     syncCenterVisibleOnlyPendingTotal,
     state,
   ]);
@@ -378,14 +384,20 @@ export function useAccountCloudSyncCoordinator() {
       return;
     }
     const retryDelayMs =
-      state === "signed-out"
+      syncBlockedBySignedOut
         ? COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS
         : COORDINATOR_PENDING_DRAIN_DELAY_MS;
     const timer = window.setTimeout(() => {
       void syncNow();
     }, retryDelayMs);
     return () => window.clearTimeout(timer);
-  }, [autoRetryableSyncWorkTotal, enabledDomainCount, state, syncNow]);
+  }, [
+    autoRetryableSyncWorkTotal,
+    enabledDomainCount,
+    state,
+    syncBlockedBySignedOut,
+    syncNow,
+  ]);
 
   return {
     state,

@@ -3261,6 +3261,9 @@ check(
     accountCloudSyncCoordinator.includes("buildAccountLocalUseReadiness") &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
+    accountCloudSyncCoordinator.includes("const syncBlockedBySignedOut =") &&
+    accountCloudSyncCoordinator.indexOf("pendingTotal > 0\n              ? \"queued\"") <
+      accountCloudSyncCoordinator.indexOf("syncBlockedBySignedOut\n                ? \"signed-out\"") &&
     accountCloudSyncCoordinator.includes("账号云同步正在检查") &&
     accountCloudSyncCoordinator.includes("本地输入已保留，会低频检查登录状态") &&
     accountCloudSyncCoordinator.includes("账号云同步暂不可确认，稍后重试；本地输入已保留") &&
@@ -3340,7 +3343,7 @@ check(
 );
 const accountCoordinatorAutoRetryEffect =
   accountCloudSyncCoordinator.match(
-    /useEffect\(\(\) => \{[\s\S]*?autoRetryableSyncWorkTotal[\s\S]*?\}, \[autoRetryableSyncWorkTotal, enabledDomainCount, state, syncNow\]\);/
+    /useEffect\(\(\) => \{[\s\S]*?autoRetryableSyncWorkTotal[\s\S]*?syncBlockedBySignedOut[\s\S]*?\}, \[[\s\S]*?syncBlockedBySignedOut[\s\S]*?\]\);/
   )?.[0] ?? "";
 check(
   accountCoordinatorAutoRetryEffect.includes("state === \"syncing\"") &&
@@ -3348,11 +3351,11 @@ check(
       "state === \"signed-out\"\n    )"
     ) &&
     accountCoordinatorAutoRetryEffect.includes(
-      "state === \"signed-out\"\n        ? COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS"
+      "syncBlockedBySignedOut\n        ? COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS"
     ) &&
     accountCoordinatorAutoRetryEffect.includes(": COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
     accountCoordinatorAutoRetryEffect.includes("}, retryDelayMs)"),
-  "账号级云同步协调器不能把 signed-out 当成有待上传队列时的终止态；有可自动重试内容时应低频检查登录状态，避免本地 pending 队列卡死"
+  "账号级云同步协调器不能把 signed-out 当成有待上传队列时的终止态；有可自动重试内容时应优先显示 queued，同时低频检查登录状态，避免本地 pending 队列卡死"
 );
 const accountAutoRetryableSyncWorkBlock =
   accountCloudSyncCoordinator.match(
