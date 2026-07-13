@@ -37,6 +37,7 @@ const readme = read("README.md");
 for (const token of [
   "getMeetingAgentQueueConfig",
   "authorizeMeetingAgent",
+  "buildMeetingAgentQueueReceiptTiming",
   "buildZhiHuiGlossary",
   "force-dynamic",
 ]) {
@@ -81,6 +82,9 @@ for (const token of [
   "manualReviewRequired: false",
   "requiresUserConfirmation: false",
   "nextAction",
+  "const receiptTiming = buildMeetingAgentQueueReceiptTiming",
+  'pollMode: retryable ? "retry" : "none"',
+  "...receiptTiming",
   "...glossaryFailureRecoveryFields({ retryable, nextAction })",
   "glossaryRecoveryRequired: true",
   "glossaryRecoveryStatus: glossaryFailureRecoveryStatus",
@@ -762,6 +766,10 @@ check(
   "glossary helper 应返回 terms 和 diagnostics"
 );
 for (const token of [
+  "buildMeetingAgentQueueReceiptTiming",
+  "const receiptTiming = buildMeetingAgentQueueReceiptTiming",
+  'pollMode: "idle"',
+  "...receiptTiming",
   "ok: true",
   'syncStatus: "glossary_read_completed"',
   'glossaryReadStatus: "completed"',

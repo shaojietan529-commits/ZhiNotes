@@ -1,3 +1,5 @@
+import { buildMeetingAgentQueueReceiptTiming } from "@/lib/meetings/agentQueueReceipts";
+
 const PAGE_SYNC_INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
 const PAGE_SYNC_PAGE_KEY_PREFIX = "zhinotes:pagesync:page:";
 const MAX_INDEX_ITEMS = 180;
@@ -215,10 +217,14 @@ export async function buildZhiHuiGlossary(params: {
   const terms = rankTerms(candidates, MAX_TERMS);
   const glossaryReadCompleteness =
     pageReadFailures > 0 ? "partial" : "complete";
+  const receiptTiming = buildMeetingAgentQueueReceiptTiming({
+    pollMode: "idle",
+  });
 
   return {
     schema: "zhinote.zhihui.glossary.v1",
     ok: true,
+    ...receiptTiming,
     syncStatus: "glossary_read_completed",
     glossaryReadStatus: "completed",
     syncCenterStatus: "idle",

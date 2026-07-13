@@ -1091,7 +1091,11 @@ Current local actions:
   time-budgeted or skipped, the success receipt still returns safe default
   terms and exposes `glossaryReadCompleteness`, `skippedGlossaryPageReadCount`,
   and `glossaryReadWarningCount` at the top level so sync-center UI can show a
-  non-blocking partial-read warning. Failure receipts keep the same
+  non-blocking partial-read warning. Success and failure receipts both mirror
+  queue-style timing fields (`receiptGeneratedAt`, `receiptStaleAfter`,
+  `receiptFreshnessWindowMs`, `pollMode`, `recommendedNextPollMs`,
+  `recommendedNextPollAt`) so clients can expire stale glossary status and
+  schedule safe retry/idle polling. Failure receipts keep the same
   local-use/cache safety fields with `termsReturned: false`, so a glossary
   fetch/config/token problem
   can be shown as a retry/configuration issue without blocking local writing,

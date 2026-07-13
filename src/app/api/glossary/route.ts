@@ -3,6 +3,7 @@ import {
   authorizeMeetingAgent,
   getMeetingAgentQueueConfig,
 } from "@/lib/meetings/agentQueue";
+import { buildMeetingAgentQueueReceiptTiming } from "@/lib/meetings/agentQueueReceipts";
 import { buildZhiHuiGlossary } from "@/lib/meetings/glossary";
 
 export const dynamic = "force-dynamic";
@@ -89,6 +90,9 @@ function glossaryFailurePayload({
   nextAction: GlossaryFailureNextAction;
   details?: Record<string, unknown> | null;
 }) {
+  const receiptTiming = buildMeetingAgentQueueReceiptTiming({
+    pollMode: retryable ? "retry" : "none",
+  });
   return {
     ok: false,
     code,
@@ -113,6 +117,7 @@ function glossaryFailurePayload({
     manualReviewRequired: false,
     requiresUserConfirmation: false,
     nextAction,
+    ...receiptTiming,
     ...glossaryFailureRecoveryFields({ retryable, nextAction }),
     privacy: {
       raw_page_text_returned: false,
