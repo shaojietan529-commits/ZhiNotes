@@ -1577,8 +1577,14 @@ check(
     shells.schedule.includes('data-testid="meeting-intake-receipt"') &&
     shells.schedule.includes("data-local-calendar-visible={receipt.localCalendarVisible}") &&
     shells.schedule.includes("打开会议页 ↗") &&
+    shells.schedule.includes("const pendingDateKey = form.date || toDateKey(new Date());") &&
+    shells.schedule.includes("focusCalendarDate(pendingDateKey);") &&
+    shells.schedule.includes("const intakePendingDateKey = intakeLoading ? form.date || todayKey : \"\";") &&
+    shells.schedule.includes("const isIntakeParsingDate = intakePendingDateKey === key;") &&
+    shells.schedule.includes("data-testid={`meeting-intake-calendar-placeholder-${key}`}") &&
     shells.schedule.includes('data-intake-state="parsing"') &&
     shells.schedule.includes('data-calendar-preserved="true"') &&
+    shells.schedule.includes("将写入本地日历") &&
     shells.schedule.includes("如果解析超时，会自动生成一条待补时间的会议留痕") &&
     shells.schedule.includes("如果不是今天，今日会议不会增加"),
   "MeetingScheduleShell 导入会议等待解析期间必须有明确可见反馈，不能让用户以为日历空白或点击无效"

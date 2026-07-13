@@ -7941,6 +7941,30 @@ function run() {
       "Meeting import receipt must expose whether the meeting is visible in the local calendar.",
     ],
     [
+      "const pendingDateKey = form.date || toDateKey(new Date());",
+      "Meeting import must focus the calendar as soon as import starts, before waiting on parsing.",
+    ],
+    [
+      "focusCalendarDate(pendingDateKey);",
+      "Meeting import must reveal the pending calendar date while the intake API is still parsing.",
+    ],
+    [
+      "const intakePendingDateKey = intakeLoading ? form.date || todayKey : \"\";",
+      "Meeting import must keep a pending date key so the calendar cell can show immediate feedback.",
+    ],
+    [
+      "const isIntakeParsingDate = intakePendingDateKey === key;",
+      "Meeting calendar cells must detect the active import parsing date.",
+    ],
+    [
+      "data-testid={`meeting-intake-calendar-placeholder-${key}`}",
+      "Meeting calendar must render a dated import placeholder while parsing.",
+    ],
+    [
+      "将写入本地日历",
+      "Meeting calendar import placeholder must tell the user the meeting will be written locally.",
+    ],
+    [
       "这场不是今天，所以今日会议不会增加",
       "Meeting import receipt must explain why a non-today meeting does not change today's meeting count.",
     ],

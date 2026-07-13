@@ -1689,6 +1689,12 @@ check(
     meetingScheduleShell.includes("function MeetingImportReceiptCard") &&
     meetingScheduleShell.includes('data-testid="meeting-intake-receipt"') &&
     meetingScheduleShell.includes("data-local-calendar-visible={receipt.localCalendarVisible}") &&
+    meetingScheduleShell.includes("const pendingDateKey = form.date || toDateKey(new Date());") &&
+    meetingScheduleShell.includes("focusCalendarDate(pendingDateKey);") &&
+    meetingScheduleShell.includes("const intakePendingDateKey = intakeLoading ? form.date || todayKey : \"\";") &&
+    meetingScheduleShell.includes("const isIntakeParsingDate = intakePendingDateKey === key;") &&
+    meetingScheduleShell.includes("data-testid={`meeting-intake-calendar-placeholder-${key}`}") &&
+    meetingScheduleShell.includes("将写入本地日历") &&
     meetingScheduleShell.includes("这场不是今天，所以今日会议不会增加") &&
     meetingScheduleShell.includes("打开会议页 ↗") &&
     meetingScheduleShell.includes("重新识别完成，但刷新列表失败") &&
