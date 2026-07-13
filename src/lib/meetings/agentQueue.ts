@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 
 const QUEUE_KEY = "zhinotes:zhihui:agent-jobs";
 const MAX_QUEUE_ITEMS = 200;
+const MAX_LISTED_QUEUE_JOBS = 50;
 const MAX_PAYLOAD_BYTES = 64 * 1024;
 const MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000;
 
@@ -25,6 +26,8 @@ export interface MeetingAgentQueueListResult {
   jobs: MeetingAgentQueueJob[];
   queueDepth: number;
   maxQueueItems: number;
+  requestedLimit: number;
+  effectiveLimit: number;
   availableQueueSlots: number;
   returnedJobs: number;
   hasMore: boolean;
@@ -110,10 +113,17 @@ export async function listMeetingAgentJobs(
   limit: number
 ): Promise<MeetingAgentQueueListResult> {
   const jobs = await readQueue(kv);
-  const limitedJobs = jobs.slice(0, Math.max(1, Math.min(limit, 50)));
+  const requestedLimit = Number.isFinite(limit) ? limit : 25;
+  const effectiveLimit = Math.max(
+    1,
+    Math.min(Math.trunc(requestedLimit), MAX_LISTED_QUEUE_JOBS)
+  );
+  const limitedJobs = jobs.slice(0, effectiveLimit);
   return {
     jobs: limitedJobs,
     ...queueStats(jobs),
+    requestedLimit,
+    effectiveLimit,
     returnedJobs: limitedJobs.length,
     hasMore: limitedJobs.length < jobs.length,
   };

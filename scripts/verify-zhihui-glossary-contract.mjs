@@ -42,6 +42,7 @@ for (const token of [
 check(!route.includes("console."), "glossary route 不应该写日志");
 for (const token of [
   "MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000",
+  "MAX_LISTED_QUEUE_JOBS = 50",
   "export class MeetingAgentQueueTimeoutError extends Error",
   "export class MeetingAgentQueueFailureError extends Error",
   "export interface MeetingAgentQueueListResult",
@@ -82,6 +83,8 @@ for (const token of [
   "availableQueueSlots",
   "queueAlmostFull",
   "maxQueueItems: MAX_QUEUE_ITEMS",
+  "requestedLimit",
+  "effectiveLimit",
   "returnedJobs: limitedJobs.length",
   "hasMore: limitedJobs.length < jobs.length",
   "function payloadByteLength",
@@ -122,6 +125,8 @@ for (const token of [
   "jobs: queueResult.jobs",
   "queueDepth: queueResult.queueDepth",
   "maxQueueItems: queueResult.maxQueueItems",
+  "requestedLimit: queueResult.requestedLimit",
+  "effectiveLimit: queueResult.effectiveLimit",
   "availableQueueSlots: queueResult.availableQueueSlots",
   "returnedJobs: queueResult.returnedJobs",
   "hasMore: queueResult.hasMore",
@@ -656,6 +661,7 @@ async function verifyQueueListMetadataBehavior() {
   });
 
   const result = await queue.listMeetingAgentJobs(mockKv(), 2);
+  const clampedResult = await queue.listMeetingAgentJobs(mockKv(), 5000);
 
   return (
     Array.isArray(result.jobs) &&
@@ -663,11 +669,17 @@ async function verifyQueueListMetadataBehavior() {
     result.jobs[0].id === "job_1" &&
     result.queueDepth === 3 &&
     result.maxQueueItems === 200 &&
+    result.requestedLimit === 2 &&
+    result.effectiveLimit === 2 &&
     result.availableQueueSlots === 197 &&
     result.returnedJobs === 2 &&
     result.hasMore === true &&
+    clampedResult.requestedLimit === 5000 &&
+    clampedResult.effectiveLimit === 50 &&
+    clampedResult.returnedJobs === 3 &&
+    clampedResult.hasMore === false &&
     result.queueAlmostFull === false &&
-    calls.get === 1 &&
+    calls.get === 2 &&
     calls.set === 0
   );
 }

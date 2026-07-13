@@ -82,6 +82,8 @@ export async function GET(request: Request) {
       jobs: queueResult.jobs,
       queueDepth: queueResult.queueDepth,
       maxQueueItems: queueResult.maxQueueItems,
+      requestedLimit: queueResult.requestedLimit,
+      effectiveLimit: queueResult.effectiveLimit,
       availableQueueSlots: queueResult.availableQueueSlots,
       returnedJobs: queueResult.returnedJobs,
       hasMore: queueResult.hasMore,
