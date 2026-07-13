@@ -2,47 +2,15 @@
 
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
-import PageRouteSkeleton from "@/components/page/PageRouteSkeleton";
-import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
-import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
-import { useWorkspaceStore } from "@/stores/workspaceStore";
+import PageRouteLocalFirstLoadingShell from "@/components/page/PageRouteLocalFirstLoadingShell";
 
 const PageView = dynamic(() => import("@/components/providers/PageShell"), {
   ssr: false,
-  loading: () => <PageRouteLoadingSkeleton />,
+  loading: () => <PageRouteLocalFirstLoadingShell />,
 });
 
 export default function PageRoute() {
   const params = useParams();
   const pageId = params.pageId as string;
   return <PageView pageId={pageId} />;
-}
-
-function PageRouteLoadingSkeleton() {
-  const params = useParams();
-  const pageId = params.pageId as string;
-  const previewPage = pageId ? readLocalFirstPageRouteSeed(pageId) : null;
-
-  return (
-    <PageRouteSkeleton
-      preview={
-        previewPage
-          ? {
-              title: previewPage.title,
-              icon: previewPage.icon,
-              properties: previewPage.properties,
-            }
-          : undefined
-      }
-    />
-  );
-}
-
-function readLocalFirstPageRouteSeed(pageId: string) {
-  return (
-    readPendingPageDraft(pageId) ??
-    useWorkspaceStore.getState().getPageById(pageId) ??
-    readPageRouteHandoff(pageId) ??
-    null
-  );
 }

@@ -290,6 +290,9 @@ const files = {
   pageImportPlanPanel: "src/components/modules/PageImportPlanPanel.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
   pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
+  pageRouteLoadingShell: "src/components/page/PageRouteLoadingShell.tsx",
+  pageRouteLocalFirstLoadingShell:
+    "src/components/page/PageRouteLocalFirstLoadingShell.tsx",
   databaseDetailRoute: "src/app/(workspace)/database/[databaseId]/page.tsx",
   databaseDetailRouteLoading:
     "src/app/(workspace)/database/[databaseId]/loading.tsx",
@@ -875,6 +878,10 @@ function run() {
   const pageImportPlanPanel = readProjectFile(files.pageImportPlanPanel);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
   const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
+  const pageRouteLoadingShell = readProjectFile(files.pageRouteLoadingShell);
+  const pageRouteLocalFirstLoadingShell = readProjectFile(
+    files.pageRouteLocalFirstLoadingShell
+  );
   const databaseDetailRoute = readProjectFile(files.databaseDetailRoute);
   const databaseDetailRouteLoading = readProjectFile(
     files.databaseDetailRouteLoading
@@ -1047,6 +1054,8 @@ function run() {
     [files.syncShell, syncShell],
     [files.moduleRouteSkeleton, moduleRouteSkeleton],
     [files.pageRouteSkeleton, pageRouteSkeleton],
+    [files.pageRouteLoadingShell, pageRouteLoadingShell],
+    [files.pageRouteLocalFirstLoadingShell, pageRouteLocalFirstLoadingShell],
     [files.databaseDetailRoute, databaseDetailRoute],
     [files.databaseDetailRouteLoading, databaseDetailRouteLoading],
     [files.dailyRoute, dailyRoute],
@@ -1080,51 +1089,66 @@ function run() {
     assertSourceIncludes(
       sourceLabel,
       source,
-      "PageRouteSkeleton",
-      "Page detail routes must keep an immediate shell while route segments or client chunks load."
+      sourceLabel === files.pageDetailRoute
+        ? "PageRouteLocalFirstLoadingShell"
+        : "PageRouteLoadingShell",
+      "Page detail routes must keep a server-rendered route loading shell and a client local-first dynamic fallback."
     );
   }
+  assertSourceIncludes(
+    files.pageRouteLoadingShell,
+    pageRouteLoadingShell,
+    "PageRouteSkeleton",
+    "Shared page route loading shell must render the immediate page skeleton."
+  );
+  assertSourceIncludes(
+    files.pageRouteLocalFirstLoadingShell,
+    pageRouteLocalFirstLoadingShell,
+    "PageRouteSkeleton",
+    "Client local-first page route loading shell must render the immediate page skeleton."
+  );
   for (const [snippet, message] of [
     [
       "readPageRouteHandoff",
-      "The page detail route dynamic fallback must read local route handoff metadata before the full page shell hydrates.",
+      "The client local-first page route loading shell must read local route handoff metadata before the full page shell hydrates.",
     ],
     [
       "readPendingPageDraft",
-      "The page detail route dynamic fallback must reuse optimistic drafts before the full page shell hydrates.",
+      "The client local-first page route loading shell must reuse optimistic drafts before the full page shell hydrates.",
     ],
     [
       "useWorkspaceStore.getState().getPageById",
-      "The page detail route dynamic fallback must reuse already-visible workspace metadata before the full page shell hydrates.",
+      "The client local-first page route loading shell must reuse already-visible workspace metadata before the full page shell hydrates.",
     ],
     [
       "readLocalFirstPageRouteSeed",
-      "The page detail route dynamic fallback must use a single local-first seed order for drafts, handoff, and workspace metadata.",
-    ],
-    [
-      "PageRouteLoadingSkeleton",
-      "The page detail route must keep a dedicated loading component that can show local-first page metadata.",
+      "The client local-first page route loading shell must use a single local-first seed order for drafts, handoff, and workspace metadata.",
     ],
     [
       "previewPage.title",
-      "The page detail route loading shell must pass the handed-off page title into the skeleton.",
+      "The client local-first page route loading shell must pass the handed-off page title into the skeleton.",
     ],
     [
       "previewPage.icon",
-      "The page detail route loading shell must pass the handed-off page icon into the skeleton.",
+      "The client local-first page route loading shell must pass the handed-off page icon into the skeleton.",
     ],
     [
       "previewPage.properties",
-      "The page detail route loading shell must pass handed-off page properties into the skeleton.",
+      "The client local-first page route loading shell must pass handed-off page properties into the skeleton.",
     ],
   ]) {
-    assertSourceIncludes(files.pageDetailRoute, pageDetailRoute, snippet, message);
+    assertSourceIncludes(
+      files.pageRouteLocalFirstLoadingShell,
+      pageRouteLocalFirstLoadingShell,
+      snippet,
+      message
+    );
   }
   assertSourceIncludes(
-    files.pageDetailRoute,
-    pageDetailRoute,
+    files.pageRouteLocalFirstLoadingShell,
+    pageRouteLocalFirstLoadingShell,
     "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
-    "The page detail route loading skeleton must prefer complete local drafts before metadata-only handoff previews."
+    "The client local-first page route loading shell must prefer complete local drafts before metadata-only handoff previews."
   );
   for (const [snippet, message] of [
     [

@@ -215,6 +215,9 @@ const files = {
   pageImportPlanPanel: "src/components/modules/PageImportPlanPanel.tsx",
   moduleRouteSkeleton: "src/components/modules/ModuleRouteSkeleton.tsx",
   pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
+  pageRouteLoadingShell: "src/components/page/PageRouteLoadingShell.tsx",
+  pageRouteLocalFirstLoadingShell:
+    "src/components/page/PageRouteLocalFirstLoadingShell.tsx",
   localPerformance: "src/lib/performance/localPerformance.ts",
   databaseDetailRoute: "src/app/(workspace)/database/[databaseId]/page.tsx",
   databaseDetailRouteLoading:
@@ -709,6 +712,10 @@ function run() {
   const pageImportPlanPanel = readProjectFile(files.pageImportPlanPanel);
   const moduleRouteSkeleton = readProjectFile(files.moduleRouteSkeleton);
   const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
+  const pageRouteLoadingShell = readProjectFile(files.pageRouteLoadingShell);
+  const pageRouteLocalFirstLoadingShell = readProjectFile(
+    files.pageRouteLocalFirstLoadingShell
+  );
   const localPerformance = readProjectFile(files.localPerformance);
   const databaseDetailRoute = readProjectFile(files.databaseDetailRoute);
   const databaseDetailRouteLoading = readProjectFile(
@@ -1498,32 +1505,45 @@ function run() {
     assertIncludes(
       sourceLabel,
       source,
-      "PageRouteSkeleton",
-      "Page detail route must show an immediate loading shell before client hydration completes."
+      sourceLabel === files.pageDetailRoute
+        ? "PageRouteLocalFirstLoadingShell"
+        : "PageRouteLoadingShell",
+      "Page detail route must keep a server-rendered route loading shell and a client local-first dynamic fallback."
     );
   }
+  assertIncludes(
+    files.pageRouteLoadingShell,
+    pageRouteLoadingShell,
+    "PageRouteSkeleton",
+    "Shared page route loading shell must render the immediate page skeleton."
+  );
+  assertIncludes(
+    files.pageRouteLocalFirstLoadingShell,
+    pageRouteLocalFirstLoadingShell,
+    "PageRouteSkeleton",
+    "Client local-first page route loading shell must render the immediate page skeleton."
+  );
   for (const snippet of [
     "readPageRouteHandoff",
     "readPendingPageDraft",
     "useWorkspaceStore.getState().getPageById",
     "readLocalFirstPageRouteSeed",
-    "PageRouteLoadingSkeleton",
     "previewPage.title",
     "previewPage.icon",
     "previewPage.properties",
   ]) {
     assertIncludes(
-      files.pageDetailRoute,
-      pageDetailRoute,
+      files.pageRouteLocalFirstLoadingShell,
+      pageRouteLocalFirstLoadingShell,
       snippet,
-      "Page route dynamic fallback must show handed-off metadata before the full page shell hydrates."
+      "Client local-first page route loading shell must show handed-off metadata before the full page shell hydrates."
     );
   }
   assertIncludes(
-    files.pageDetailRoute,
-    pageDetailRoute,
+    files.pageRouteLocalFirstLoadingShell,
+    pageRouteLocalFirstLoadingShell,
     "readPendingPageDraft(pageId) ??\n    useWorkspaceStore.getState().getPageById(pageId) ??\n    readPageRouteHandoff(pageId)",
-    "Page route dynamic fallback must prefer complete local drafts before metadata-only handoff previews."
+    "Client local-first page route loading shell must prefer complete local drafts before metadata-only handoff previews."
   );
   for (const snippet of [
     "routePreviewPage",

@@ -2271,6 +2271,10 @@ const pageCloudSaveStatus = read("src/lib/pages/pageCloudSaveStatus.ts");
 const cloudPageMutations = read("src/lib/pages/cloudPageMutations.ts");
 const pageRoute = read("src/app/(workspace)/page/[pageId]/page.tsx");
 const pageRouteLoading = read("src/app/(workspace)/page/[pageId]/loading.tsx");
+const pageRouteLoadingShell = read("src/components/page/PageRouteLoadingShell.tsx");
+const pageRouteLocalFirstLoadingShell = read(
+  "src/components/page/PageRouteLocalFirstLoadingShell.tsx"
+);
 const pageRouteSkeleton = read("src/components/page/PageRouteSkeleton.tsx");
 check(
   !pageShell.includes('from "@/hooks/usePages"') &&
@@ -2279,14 +2283,23 @@ check(
   "PageShell 打开完整页面时不能挂 usePages 或订阅全量 pages；局部 upsert 应直接读取 workspace store action"
 );
 check(
-  pageRoute.includes("PageRouteSkeleton") &&
-    pageRouteLoading.includes("PageRouteSkeleton") &&
+  pageRoute.includes("PageRouteLocalFirstLoadingShell") &&
+    pageRouteLoading.includes("PageRouteLoadingShell") &&
+    pageRouteLoadingShell.includes("PageRouteSkeleton") &&
+    pageRouteLocalFirstLoadingShell.includes("PageRouteSkeleton") &&
     pageShell.includes("PageRouteSkeleton") &&
-    pageRoute.includes("readPageRouteHandoff") &&
-    pageRoute.includes("PageRouteLoadingSkeleton") &&
+    pageRouteLocalFirstLoadingShell.includes("readPageRouteHandoff") &&
+    pageRouteLocalFirstLoadingShell.includes("readPendingPageDraft") &&
+    pageRouteLocalFirstLoadingShell.includes(
+      "useWorkspaceStore.getState().getPageById"
+    ) &&
+    pageRouteLocalFirstLoadingShell.includes("readLocalFirstPageRouteSeed") &&
+    pageRouteLocalFirstLoadingShell.includes("previewPage.title") &&
+    pageRouteLocalFirstLoadingShell.includes("previewPage.icon") &&
+    pageRouteLocalFirstLoadingShell.includes("previewPage.properties") &&
     pageRouteSkeleton.includes("preview?:") &&
     pageRouteSkeleton.includes('data-testid="page-route-preview-title"'),
-  "页面动态路由、动态组件 fallback、单页缓存读取等待态都必须显示同一个页面骨架，并在完整页面加载前显示本地交接的标题/图标，避免点击后空白或只转圈"
+  "页面动态路由、route loading、动态组件 fallback、单页缓存读取等待态都必须显示页面骨架；服务器首屏不能空白，客户端 fallback 必须在完整页面加载前显示本地交接的标题/图标"
 );
 check(
   pageRouteSkeleton.includes("本地缓存会先加载") &&
