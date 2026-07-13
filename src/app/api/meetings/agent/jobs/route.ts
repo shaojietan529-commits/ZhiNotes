@@ -255,8 +255,13 @@ export async function POST(request: Request) {
         ? "wait_for_existing_job"
         : "wait_for_runner_ack",
       syncStatus: "agent_queue_updated",
-      queueAction: enqueueResult.deduplicated ? "reused_existing_job" : "created_job",
+      queueAction: enqueueResult.updatedExisting
+        ? "updated_existing_job"
+        : enqueueResult.deduplicated
+          ? "reused_existing_job"
+          : "created_job",
       deduplicated: enqueueResult.deduplicated,
+      updatedExisting: enqueueResult.updatedExisting,
       run_now: body.runNow === true,
       queueDepth: enqueueResult.queueDepth,
       maxQueueItems: enqueueResult.maxQueueItems,
@@ -308,6 +313,7 @@ function queueEnqueueReceipt(
   enqueueResult: {
     job: { id: string };
     deduplicated: boolean;
+    updatedExisting: boolean;
     queueDepth: number;
     maxQueueItems: number;
     availableQueueSlots: number;
@@ -319,15 +325,19 @@ function queueEnqueueReceipt(
     ...queueReceiptBase,
     ...buildMeetingAgentQueueReceiptTiming({ pollMode: "active" }),
     operation: "enqueue",
-    queueAction: enqueueResult.deduplicated
-      ? "reused_existing_job"
-      : "created_job",
+    queueAction: enqueueResult.updatedExisting
+      ? "updated_existing_job"
+      : enqueueResult.deduplicated
+        ? "reused_existing_job"
+        : "created_job",
     queueReadStatus: "completed",
-    queueWriteStatus: enqueueResult.deduplicated
-      ? "not_needed_existing_job"
-      : "completed",
+    queueWriteStatus:
+      enqueueResult.deduplicated && !enqueueResult.updatedExisting
+        ? "not_needed_existing_job"
+        : "completed",
     jobId: enqueueResult.job.id,
     deduplicated: enqueueResult.deduplicated,
+    updatedExisting: enqueueResult.updatedExisting,
     runNow,
     queueDepth: enqueueResult.queueDepth,
     maxQueueItems: enqueueResult.maxQueueItems,

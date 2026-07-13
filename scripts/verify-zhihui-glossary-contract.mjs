@@ -126,6 +126,8 @@ for (const token of [
   "function findDuplicateQueueJob",
   "function queueDedupeKey",
   "meeting_page_id: pageId",
+  "updatedExisting: true",
+  "updatedExisting: false",
   "deduplicated: true",
   "deduplicated: false",
   "function queueStats",
@@ -220,7 +222,9 @@ for (const token of [
   "queueReadStatus: \"completed\"",
   "queueWriteStatus: \"not_started\"",
   "\"not_needed_existing_job\"",
+  "\"updated_existing_job\"",
   "jobId: enqueueResult.job.id",
+  "updatedExisting: enqueueResult.updatedExisting",
   "zhihui-agent-queue-timeout",
   "会议页和日历本地数据不受影响",
   "timeout_ms: error.timeoutMs",
@@ -269,10 +273,12 @@ for (const token of [
   "hasMore: queueResult.hasMore",
   "queueAlmostFull: queueResult.queueAlmostFull",
   "\"reused_existing_job\"",
+  "\"updated_existing_job\"",
   "\"wait_for_existing_job\"",
   "\"wait_for_runner_ack\"",
   "syncStatus: \"agent_queue_updated\"",
   "deduplicated: enqueueResult.deduplicated",
+  "updatedExisting: enqueueResult.updatedExisting",
   "queueDepth: enqueueResult.queueDepth",
   "availableQueueSlots: enqueueResult.availableQueueSlots",
   "queueAlmostFull: enqueueResult.queueAlmostFull",
@@ -1050,11 +1056,13 @@ async function verifyQueueMutationMetadataBehavior() {
 
   return (
     first.deduplicated === false &&
+    first.updatedExisting === false &&
     first.queueDepth === 2 &&
     first.maxQueueItems === 200 &&
     first.availableQueueSlots === 198 &&
     first.queueAlmostFull === false &&
     duplicate.deduplicated === true &&
+    duplicate.updatedExisting === false &&
     duplicate.job.id === first.job.id &&
     duplicate.queueDepth === 2 &&
     duplicate.availableQueueSlots === 198 &&
@@ -1114,16 +1122,20 @@ async function verifyQueueDedupeBehavior() {
 
   return (
     first.job.id === second.job.id &&
-    first.job.id !== third.job.id &&
+    first.job.id === third.job.id &&
     first.deduplicated === false &&
+    first.updatedExisting === false &&
     second.deduplicated === true &&
-    third.deduplicated === false &&
+    second.updatedExisting === false &&
+    third.deduplicated === true &&
+    third.updatedExisting === true &&
     calls.get === 3 &&
     calls.set === 2 &&
     Array.isArray(storedJobs) &&
-    storedJobs.length === 2 &&
+    storedJobs.length === 1 &&
     storedJobs[0].id === first.job.id &&
-    storedJobs[1].id === third.job.id
+    storedJobs[0].payload.meeting.recording_device === "Mac Mini" &&
+    storedJobs[0].payload.routing.target_runner_id === "mac-mini"
   );
 }
 

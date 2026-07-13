@@ -17,6 +17,7 @@ export interface MeetingAgentQueueJob {
 export interface MeetingAgentQueueEnqueueResult {
   job: MeetingAgentQueueJob;
   deduplicated: boolean;
+  updatedExisting: boolean;
   queueDepth: number;
   maxQueueItems: number;
   availableQueueSlots: number;
@@ -160,7 +161,27 @@ export async function enqueueMeetingAgentJob(
     payload.payload
   );
   if (existingJob) {
-    return { job: existingJob, deduplicated: true, ...queueStats(jobs) };
+    const existingPayload = JSON.stringify(existingJob.payload);
+    if (existingPayload === serializedPayload) {
+      return {
+        job: existingJob,
+        deduplicated: true,
+        updatedExisting: false,
+        ...queueStats(jobs),
+      };
+    }
+
+    const updatedJob = { ...existingJob, payload: payload.payload };
+    const updatedJobs = jobs.map((job) =>
+      job.id === existingJob.id ? updatedJob : job
+    );
+    await writeQueue(kv, updatedJobs);
+    return {
+      job: updatedJob,
+      deduplicated: true,
+      updatedExisting: true,
+      ...queueStats(updatedJobs),
+    };
   }
   if (jobs.length >= MAX_QUEUE_ITEMS) {
     throw queueFullError(jobs.length);
@@ -174,7 +195,7 @@ export async function enqueueMeetingAgentJob(
   };
   jobs.push(job);
   await writeQueue(kv, jobs);
-  return { job, deduplicated: false, ...queueStats(jobs) };
+  return { job, deduplicated: false, updatedExisting: false, ...queueStats(jobs) };
 }
 
 export async function ackMeetingAgentJobs(
@@ -325,20 +346,9 @@ function queueDedupeKey(jobType: string, payload: Record<string, unknown>) {
   const meeting = objectValue(payload.meeting);
   const pageId = textValue(meeting.page_id);
   if (!pageId) return "";
-  const routing = objectValue(payload.routing);
   return JSON.stringify({
     job_type: jobType,
     meeting_page_id: pageId,
-    date: textValue(meeting.date),
-    time: textValue(meeting.time),
-    platform: textValue(meeting.platform),
-    priority: textValue(payload.priority),
-    run_now: payload.run_now === true,
-    recording_device: textValue(meeting.recording_device),
-    fallback_device: textValue(meeting.fallback_device),
-    transcription_model: textValue(meeting.transcription_model),
-    target_runner_id: textValue(routing.target_runner_id),
-    fallback_runner_id: textValue(routing.fallback_runner_id),
   });
 }
 
