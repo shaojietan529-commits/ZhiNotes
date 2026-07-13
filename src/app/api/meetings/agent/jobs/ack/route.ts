@@ -651,6 +651,13 @@ function ackFailurePayload({
     : retryable
       ? "retry"
       : "fix_input_or_configuration";
+  const recoveryFields = ackFailureRecoveryFields({
+    manualReviewRequired,
+    partialQueueWritePossible,
+    retryable,
+    queueWriteAttempted,
+    nextAction,
+  });
   const failureReceipt = ackFailureReceipt({
     code,
     retryable,
@@ -695,6 +702,7 @@ function ackFailurePayload({
       : null,
     manualReviewJobCount: manualReviewRequired ? 1 : 0,
     nextAction,
+    ...recoveryFields,
     ...queueFailureStatus,
     ...receiptTiming,
     ackFailureReceipt: failureReceipt,
@@ -753,6 +761,13 @@ function ackFailureReceipt({
     highRiskWriteGated: true,
     unconfirmedJobsPreserved: true,
     manualReviewJobCount: manualReviewRequired ? 1 : 0,
+    ...ackFailureRecoveryFields({
+      manualReviewRequired,
+      partialQueueWritePossible,
+      retryable,
+      queueWriteAttempted,
+      nextAction,
+    }),
     ...buildMeetingAgentQueueFailureStatus({
       retryable,
       queueWriteAttempted,
@@ -761,6 +776,49 @@ function ackFailureReceipt({
     }),
     nextAction,
   };
+}
+
+function ackFailureRecoveryFields({
+  manualReviewRequired,
+  partialQueueWritePossible,
+  retryable,
+  queueWriteAttempted,
+  nextAction,
+}: {
+  manualReviewRequired: boolean;
+  partialQueueWritePossible: boolean;
+  retryable: boolean;
+  queueWriteAttempted: boolean;
+  nextAction: string;
+}) {
+  return {
+    queueRecoveryRequired: true,
+    queueRecoveryStatus: ackFailureRecoveryStatus({
+      manualReviewRequired,
+      partialQueueWritePossible,
+      retryable,
+      queueWriteAttempted,
+    }),
+    attentionNextAction: nextAction,
+  };
+}
+
+function ackFailureRecoveryStatus({
+  manualReviewRequired,
+  partialQueueWritePossible,
+  retryable,
+  queueWriteAttempted,
+}: {
+  manualReviewRequired: boolean;
+  partialQueueWritePossible: boolean;
+  retryable: boolean;
+  queueWriteAttempted: boolean;
+}) {
+  if (manualReviewRequired) return "manual_review_required";
+  if (partialQueueWritePossible) return "retryable_unknown";
+  if (retryable) return "retry_later";
+  if (queueWriteAttempted) return "failed_not_completed";
+  return "failed_not_started";
 }
 
 function queueAckReceipt(

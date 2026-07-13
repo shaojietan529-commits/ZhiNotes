@@ -663,6 +663,13 @@ function queueFailurePayload({
     : retryable
       ? "retry"
       : "fix_input_or_configuration";
+  const recoveryFields = queueFailureRecoveryFields({
+    manualReviewRequired,
+    partialQueueWritePossible,
+    retryable,
+    queueWriteAttempted,
+    nextAction,
+  });
   const failureReceipt = queueFailureReceipt({
     code,
     retryable,
@@ -699,6 +706,7 @@ function queueFailurePayload({
     manualReviewRequired,
     manualReviewJobCount: manualReviewRequired ? 1 : 0,
     nextAction,
+    ...recoveryFields,
     ...queueFailureStatus,
     ...receiptTiming,
     queueFailureReceipt: failureReceipt,
@@ -750,6 +758,13 @@ function queueFailureReceipt({
     manualReviewRequired,
     highRiskWriteGated: true,
     manualReviewJobCount: manualReviewRequired ? 1 : 0,
+    ...queueFailureRecoveryFields({
+      manualReviewRequired,
+      partialQueueWritePossible,
+      retryable,
+      queueWriteAttempted,
+      nextAction,
+    }),
     ...buildMeetingAgentQueueFailureStatus({
       retryable,
       queueWriteAttempted,
@@ -758,6 +773,49 @@ function queueFailureReceipt({
     }),
     nextAction,
   };
+}
+
+function queueFailureRecoveryFields({
+  manualReviewRequired,
+  partialQueueWritePossible,
+  retryable,
+  queueWriteAttempted,
+  nextAction,
+}: {
+  manualReviewRequired: boolean;
+  partialQueueWritePossible: boolean;
+  retryable: boolean;
+  queueWriteAttempted: boolean;
+  nextAction: string;
+}) {
+  return {
+    queueRecoveryRequired: true,
+    queueRecoveryStatus: queueFailureRecoveryStatus({
+      manualReviewRequired,
+      partialQueueWritePossible,
+      retryable,
+      queueWriteAttempted,
+    }),
+    attentionNextAction: nextAction,
+  };
+}
+
+function queueFailureRecoveryStatus({
+  manualReviewRequired,
+  partialQueueWritePossible,
+  retryable,
+  queueWriteAttempted,
+}: {
+  manualReviewRequired: boolean;
+  partialQueueWritePossible: boolean;
+  retryable: boolean;
+  queueWriteAttempted: boolean;
+}) {
+  if (manualReviewRequired) return "manual_review_required";
+  if (partialQueueWritePossible) return "retryable_unknown";
+  if (retryable) return "retry_later";
+  if (queueWriteAttempted) return "failed_not_completed";
+  return "failed_not_started";
 }
 
 function parseMeeting(value: unknown):

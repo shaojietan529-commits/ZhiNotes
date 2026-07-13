@@ -1132,7 +1132,12 @@ Current local actions:
   doing nothing. ACK success responses mirror the same recovery hints, including
   `ack_unconfirmed_jobs_preserved` for missing or lease-mismatched IDs, so a
   partial ACK can be shown as an explicit review item instead of a completed
-  sync. They also mirror sync-center status fields
+  sync. Queue and ACK failure responses mirror the same recovery field names;
+  failures now return `queueRecoveryRequired`, `queueRecoveryStatus`, and
+  `attentionNextAction` for `manual_review_required`, `retryable_unknown`,
+  `retry_later`, `failed_not_completed`, or `failed_not_started` states. This
+  lets sync-center UI show a concrete recovery row instead of treating queue
+  errors as logout or hidden data loss. They also mirror sync-center status fields
   (`syncCenterStatus`, `pendingAgentJobCount`, `pendingRunnerAckCount`,
   `failedAgentJobCount`, `pendingWriteCount`, `failedWriteCount`,
   `localPendingWrite`, `safeToContinueLocalUse`, `safeToRefreshCaches`,
