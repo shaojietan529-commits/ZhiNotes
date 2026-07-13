@@ -83,10 +83,16 @@ export async function POST(req: Request) {
   if (fetchWarning) parsed.meeting.warnings.push(fetchWarning);
 
   return NextResponse.json({
+    ok: true,
     meeting: parsed.meeting,
     fetched: Boolean(fetched),
     status: "parsed",
     nextAction: "review_and_save_to_calendar",
+    syncStatus: "local_review_required",
+    cloudWriteStatus: "not_started",
+    calendarWriteStatus: "not_started",
+    requiresUserConfirmation: true,
+    highRiskWriteGated: true,
     ...intakeContinuityReceipt,
     privacy: {
       storesRawInvite: false,

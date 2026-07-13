@@ -497,8 +497,14 @@ function verifyIntakeRouteContract(source) {
       name: "success responses are structured and local-safe",
       passed:
         source.includes("const intakeContinuityReceipt") &&
+        source.includes("ok: true") &&
         source.includes("status: \"parsed\"") &&
         source.includes("nextAction: \"review_and_save_to_calendar\"") &&
+        source.includes("syncStatus: \"local_review_required\"") &&
+        source.includes("cloudWriteStatus: \"not_started\"") &&
+        source.includes("calendarWriteStatus: \"not_started\"") &&
+        source.includes("requiresUserConfirmation: true") &&
+        source.includes("highRiskWriteGated: true") &&
         source.includes("...intakeContinuityReceipt") &&
         source.includes("accountSessionUnaffected: true") &&
         source.includes("localUseCanContinue: true") &&
