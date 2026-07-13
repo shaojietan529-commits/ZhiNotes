@@ -1284,9 +1284,12 @@ check(
     dailyNotesShell.includes("const foregroundQuietUntilRef = useRef(0)") &&
     dailyNotesShell.includes("markDailyForegroundInteraction") &&
     dailyNotesShell.includes("getDailyForegroundRefreshDelay") &&
-    dailyNotesShell.includes("foregroundDelay + DAILY_LOCAL_METADATA_REFRESH_DELAY_MS") &&
-    dailyNotesShell.includes("foregroundDelay + DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
-    dailyNotesShell.includes("foregroundDelay + DAILY_CLOUD_METADATA_RECHECK_DELAY_MS") &&
+    dailyNotesShell.includes("scheduleDailyForegroundAwareRefresh") &&
+    dailyNotesShell.includes("window.setTimeout(runWhenQuiet, foregroundDelay)") &&
+    dailyNotesShell.includes("return scheduleDailyForegroundAwareRefresh(() => {") &&
+    dailyNotesShell.includes("cancelLocalReload = scheduleDailyForegroundAwareRefresh(() => {") &&
+    dailyNotesShell.includes("cancelFallbackReload = scheduleDailyForegroundAwareRefresh(() => {") &&
+    dailyNotesShell.includes("cancelCloudRecheck = scheduleDailyForegroundAwareRefresh(() => {") &&
     dailyNotesShell.includes("DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
     dailyNotesShell.includes("const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900") &&
@@ -1296,10 +1299,10 @@ check(
     dailyNotesShell.includes("cancelCloudRecheck = scheduleDailyIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });\n      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
     dailyNotesShell.includes("}, DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS);") &&
     dailyNotesShell.includes("cancelCloudRecheck?.()") &&
-    dailyNotesShell.includes("let cloudRecheckTimer: number | null = null") &&
-    dailyNotesShell.includes("cloudRecheckTimer = window.setTimeout(() => {") &&
-    dailyNotesShell.includes("}, foregroundDelay + DAILY_CLOUD_METADATA_RECHECK_DELAY_MS)") &&
-    dailyNotesShell.includes("window.clearTimeout(cloudRecheckTimer)") &&
+    dailyNotesShell.includes("let cancelLocalReload: (() => void) | null = null") &&
+    dailyNotesShell.includes("let cancelCloudRecheck: (() => void) | null = null") &&
+    dailyNotesShell.includes("cancelLocalReload?.()") &&
+    dailyNotesShell.includes("cancelFallbackReload?.()") &&
     dailyNotesShell.indexOf("includeUnindexedFallback: false") <
       dailyNotesShell.indexOf("const fallbackMetadata = await listDailyPageMetadataForCalendar") &&
     dailyNotesShell.indexOf("const fallbackMetadata = await listDailyPageMetadataForCalendar") <

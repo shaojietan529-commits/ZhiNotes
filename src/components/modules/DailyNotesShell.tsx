@@ -375,6 +375,27 @@ export default function DailyNotesShell() {
     return Math.min(remaining, DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS);
   }, []);
 
+  const scheduleDailyForegroundAwareRefresh = useCallback(
+    (callback: () => void, delayMs: number) => {
+      let timer: number | null = null;
+      const runWhenQuiet = () => {
+        const foregroundDelay = getDailyForegroundRefreshDelay();
+        if (foregroundDelay > 0) {
+          timer = window.setTimeout(runWhenQuiet, foregroundDelay);
+          return;
+        }
+        timer = null;
+        callback();
+      };
+      timer = window.setTimeout(runWhenQuiet, delayMs);
+      return () => {
+        if (timer !== null) window.clearTimeout(timer);
+        timer = null;
+      };
+    },
+    [getDailyForegroundRefreshDelay]
+  );
+
   useEffect(() => {
     notesRef.current = notes;
   }, [notes]);
@@ -1225,48 +1246,45 @@ export default function DailyNotesShell() {
     }
     if (observedPageRevisionRef.current === pageRevision) return;
     observedPageRevisionRef.current = pageRevision;
-    const foregroundDelay = getDailyForegroundRefreshDelay();
-    const timer = window.setTimeout(() => {
+    return scheduleDailyForegroundAwareRefresh(() => {
       void load({
         includeCloud: false,
         interruptCloud: false,
         preserveVisibleNotes: true,
       });
-    }, foregroundDelay + DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [dbReady, pageRevision, load, getDailyForegroundRefreshDelay]);
+    }, DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
+  }, [dbReady, pageRevision, load, scheduleDailyForegroundAwareRefresh]);
 
   useEffect(() => {
     if (!dbReady) return;
-    let localReloadTimer: number | null = null;
-    let fallbackReloadTimer: number | null = null;
-    let cloudRecheckTimer: number | null = null;
+    let cancelLocalReload: (() => void) | null = null;
+    let cancelFallbackReload: (() => void) | null = null;
+    let cancelCloudRecheck: (() => void) | null = null;
 
     const scheduleLocalMetadataRefresh = () => {
-      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
-      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
-      if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
-      const foregroundDelay = getDailyForegroundRefreshDelay();
-      localReloadTimer = window.setTimeout(() => {
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
+      cancelCloudRecheck?.();
+      cancelLocalReload = scheduleDailyForegroundAwareRefresh(() => {
         void load({
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleNotes: true,
         });
-      }, foregroundDelay + DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
-      fallbackReloadTimer = window.setTimeout(() => {
+      }, DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
+      cancelFallbackReload = scheduleDailyForegroundAwareRefresh(() => {
         void load({
           includeCloud: false,
           interruptCloud: false,
           preserveVisibleNotes: true,
         });
-      }, foregroundDelay + DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS);
-      cloudRecheckTimer = window.setTimeout(() => {
+      }, DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS);
+      cancelCloudRecheck = scheduleDailyForegroundAwareRefresh(() => {
         void load({
           includeCloud: true,
           preserveVisibleNotes: true,
         });
-      }, foregroundDelay + DAILY_CLOUD_METADATA_RECHECK_DELAY_MS);
+      }, DAILY_CLOUD_METADATA_RECHECK_DELAY_MS);
     };
 
     const unsubscribe = subscribePagesUpdated((message) => {
@@ -1293,12 +1311,12 @@ export default function DailyNotesShell() {
     });
 
     return () => {
-      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
-      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
-      if (cloudRecheckTimer !== null) window.clearTimeout(cloudRecheckTimer);
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
+      cancelCloudRecheck?.();
       unsubscribe();
     };
-  }, [dbReady, load, rootId, viewMonth, getDailyForegroundRefreshDelay]);
+  }, [dbReady, load, rootId, viewMonth, scheduleDailyForegroundAwareRefresh]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
   const todayKey = toDateKey(new Date());

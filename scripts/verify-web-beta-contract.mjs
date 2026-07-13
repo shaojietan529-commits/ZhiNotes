@@ -2910,12 +2910,12 @@ function run() {
       "Daily calendar refresh scheduling must consult the foreground quiet window.",
     ],
     [
-      "foregroundDelay + DAILY_LOCAL_METADATA_REFRESH_DELAY_MS",
-      "Daily calendar page-revision refreshes must wait behind foreground note opens.",
+      "scheduleDailyForegroundAwareRefresh",
+      "Daily calendar refresh scheduling must re-check the foreground quiet window when timers fire.",
     ],
     [
-      "foregroundDelay + DAILY_CLOUD_METADATA_RECHECK_DELAY_MS",
-      "Daily calendar cloud rechecks must wait behind foreground note opens.",
+      "window.setTimeout(runWhenQuiet, foregroundDelay)",
+      "Daily calendar background refresh timers must defer again if a create/open interaction starts after scheduling.",
     ],
     [
       "已先显示本机热缓存",
@@ -6017,8 +6017,8 @@ function run() {
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "cloudRecheckTimer = window.setTimeout(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });",
-    "Daily calendar delayed recheck must run cloud-enabled metadata loading while preserving already visible local notes."
+    "cancelCloudRecheck = scheduleDailyForegroundAwareRefresh(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });",
+    "Daily calendar delayed recheck must defer cloud-enabled metadata loading during foreground actions while preserving already visible local notes."
   );
   for (const [snippet, message] of [
     [
