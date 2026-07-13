@@ -66,8 +66,12 @@ for (const token of [
   "zhihui_agent_queue_kv_get_failed",
   "zhihui_agent_queue_kv_set_failed",
   "zhihui_agent_queue_corrupt",
+  "zhihui_agent_queue_full",
+  "zhihui_agent_queue_oversized",
   "upstream_status: res.status",
   "function queueCorruptError",
+  "function queueFullError",
+  "function queueOversizedError",
   "function findDuplicateQueueJob",
   "function queueDedupeKey",
   "meeting_page_id: pageId",
@@ -134,6 +138,8 @@ for (const code of [
   "zhihui_agent_queue_kv_get_failed",
   "zhihui_agent_queue_kv_set_failed",
   "zhihui_agent_queue_corrupt",
+  "zhihui_agent_queue_full",
+  "zhihui_agent_queue_oversized",
   "zhihui_agent_queue_failed",
 ]) {
   check(
@@ -184,6 +190,7 @@ for (const code of [
   "zhihui_agent_queue_kv_get_failed",
   "zhihui_agent_queue_kv_set_failed",
   "zhihui_agent_queue_corrupt",
+  "zhihui_agent_queue_oversized",
   "zhihui_agent_queue_ack_failed",
 ]) {
   check(
@@ -239,6 +246,11 @@ const ackMissingBehavior = await verifyAckMissingBehavior();
 check(
   ackMissingBehavior,
   "agent queue ACK 必须返回 missing job id，且全 miss 时不能重写队列"
+);
+const queueCapacityBehavior = await verifyQueueCapacityBehavior();
+check(
+  queueCapacityBehavior,
+  "agent queue 满载或超过上限时必须进入 manual review，不能静默截断未确认任务"
 );
 const queueDedupeBehavior = await verifyQueueDedupeBehavior();
 check(
@@ -454,6 +466,114 @@ async function verifyAckMissingBehavior() {
     afterAllMissing[0].id === "job_2" &&
     calls.get === 2 &&
     calls.set === 1
+  );
+}
+
+async function verifyQueueCapacityBehavior() {
+  const fullQueue = Array.from({ length: 200 }, (_, index) => ({
+    id: `job_${index + 1}`,
+    job_type: "meeting_recording_request",
+    payload: { synthetic: true, index },
+    created_at: `2026-07-13T00:00:${String(index % 60).padStart(2, "0")}.000Z`,
+  }));
+  const oversizedQueue = [
+    ...fullQueue,
+    {
+      id: "job_201",
+      job_type: "meeting_recording_request",
+      payload: { synthetic: true, index: 201 },
+      created_at: "2026-07-13T00:03:21.000Z",
+    },
+  ];
+
+  const fullCalls = { get: 0, set: 0 };
+  const fullQueueModule = loadAgentQueueWithFetch(async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      fullCalls.get += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: JSON.stringify(fullQueue) };
+        },
+      };
+    }
+    if (requestUrl.includes("/set/")) {
+      fullCalls.set += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  let fullError = null;
+  try {
+    await fullQueueModule.enqueueMeetingAgentJob(mockKv(), {
+      job_type: "meeting_recording_request",
+      payload: syntheticRecordingPayload({ pageId: "meeting_page_2" }),
+    });
+  } catch (error) {
+    fullError = error;
+  }
+
+  const oversizedCalls = { get: 0, set: 0 };
+  const oversizedQueueModule = loadAgentQueueWithFetch(async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      oversizedCalls.get += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: JSON.stringify(oversizedQueue) };
+        },
+      };
+    }
+    if (requestUrl.includes("/set/")) {
+      oversizedCalls.set += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  let oversizedError = null;
+  try {
+    await oversizedQueueModule.listMeetingAgentJobs(mockKv(), 25);
+  } catch (error) {
+    oversizedError = error;
+  }
+
+  return (
+    fullError &&
+    fullError.code === "zhihui_agent_queue_full" &&
+    fullError.status === 409 &&
+    fullError.retryable === false &&
+    fullError.details?.actual_queue_items === 200 &&
+    fullError.details?.manual_review_required === true &&
+    fullError.details?.unconfirmed_jobs_preserved === true &&
+    fullCalls.get === 1 &&
+    fullCalls.set === 0 &&
+    oversizedError &&
+    oversizedError.code === "zhihui_agent_queue_oversized" &&
+    oversizedError.status === 409 &&
+    oversizedError.retryable === false &&
+    oversizedError.details?.actual_queue_items === 201 &&
+    oversizedError.details?.manual_review_required === true &&
+    oversizedError.details?.unconfirmed_jobs_preserved === true &&
+    oversizedCalls.get === 1 &&
+    oversizedCalls.set === 0
   );
 }
 

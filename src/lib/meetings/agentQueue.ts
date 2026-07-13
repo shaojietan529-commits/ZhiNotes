@@ -125,6 +125,9 @@ export async function enqueueMeetingAgentJob(
     payload.payload
   );
   if (existingJob) return { job: existingJob, deduplicated: true };
+  if (jobs.length >= MAX_QUEUE_ITEMS) {
+    throw queueFullError(jobs.length);
+  }
 
   const job: MeetingAgentQueueJob = {
     id: `zhihui_${randomUUID()}`,
@@ -133,7 +136,7 @@ export async function enqueueMeetingAgentJob(
     created_at: new Date().toISOString(),
   };
   jobs.push(job);
-  await writeQueue(kv, jobs.slice(-MAX_QUEUE_ITEMS));
+  await writeQueue(kv, jobs);
   return { job, deduplicated: false };
 }
 
@@ -193,7 +196,10 @@ async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
   if (!parsed.every(isQueueJob)) {
     throw queueCorruptError("invalid_job_shape");
   }
-  return parsed.slice(-MAX_QUEUE_ITEMS);
+  if (parsed.length > MAX_QUEUE_ITEMS) {
+    throw queueOversizedError(parsed.length);
+  }
+  return parsed;
 }
 
 function findDuplicateQueueJob(
@@ -329,6 +335,38 @@ function queueCorruptError(reason: string) {
     retryable: false,
     details: {
       reason,
+      manual_review_required: true,
+      unconfirmed_jobs_preserved: true,
+    },
+  });
+}
+
+function queueFullError(actualQueueItems: number) {
+  return new MeetingAgentQueueFailureError({
+    code: "zhihui_agent_queue_full",
+    message:
+      "ZhiHui 云端任务队列已满；为避免挤掉未确认任务，已暂停新增任务，请先让 runner 确认已处理任务或人工复核。",
+    status: 409,
+    retryable: false,
+    details: {
+      max_queue_items: MAX_QUEUE_ITEMS,
+      actual_queue_items: actualQueueItems,
+      manual_review_required: true,
+      unconfirmed_jobs_preserved: true,
+    },
+  });
+}
+
+function queueOversizedError(actualQueueItems: number) {
+  return new MeetingAgentQueueFailureError({
+    code: "zhihui_agent_queue_oversized",
+    message:
+      "ZhiHui 云端任务队列超过安全上限；为避免读取或写回时丢失未确认任务，已暂停队列操作，请人工复核。",
+    status: 409,
+    retryable: false,
+    details: {
+      max_queue_items: MAX_QUEUE_ITEMS,
+      actual_queue_items: actualQueueItems,
       manual_review_required: true,
       unconfirmed_jobs_preserved: true,
     },
