@@ -609,6 +609,11 @@ check(
   queueDedupeBehavior,
   "agent queue 重复入同一会议录制任务时必须复用已有 job，不能重复写入队列"
 );
+const leasedDuplicateQueueBehavior = await verifyLeasedDuplicateQueueBehavior();
+check(
+  leasedDuplicateQueueBehavior,
+  "agent queue 不能用新的重复 payload 覆盖已认领 job；必须为后续变更另建可见任务"
+);
 const queueClaimLeaseBehavior = await verifyQueueClaimLeaseBehavior();
 check(
   queueClaimLeaseBehavior,
@@ -1323,6 +1328,78 @@ async function verifyQueueDedupeBehavior() {
     storedJobs[0].id === first.job.id &&
     storedJobs[0].payload.meeting.recording_device === "Mac Mini" &&
     storedJobs[0].payload.routing.target_runner_id === "mac-mini"
+  );
+}
+
+async function verifyLeasedDuplicateQueueBehavior() {
+  const leasedSeedJob = {
+    id: "job_leased_existing",
+    job_type: "meeting_recording_request",
+    payload: syntheticRecordingPayload({ pageId: "meeting_page_leased" }),
+    created_at: "2026-07-13T00:07:00.000Z",
+    lease: {
+      lease_id: "lease_existing",
+      runner_id_hash: "runnerhash000003",
+      leased_at: "2026-07-13T00:07:01.000Z",
+      expires_at: "2026-07-13T00:09:01.000Z",
+      attempts: 1,
+    },
+  };
+  const calls = { get: 0, set: 0 };
+  let storedQueue = JSON.stringify([leasedSeedJob]);
+  const queue = loadAgentQueueWithFetch(async (url, init) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return kvJsonResponse({ result: storedQueue });
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      storedQueue = typeof init?.body === "string" ? init.body : "";
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  const changedPayload = syntheticRecordingPayload({
+    pageId: "meeting_page_leased",
+    recordingDevice: "Mac Mini",
+  });
+  const changed = await queue.enqueueMeetingAgentJob(mockKv(), {
+    job_type: "meeting_recording_request",
+    payload: changedPayload,
+  });
+  const afterChanged = JSON.parse(storedQueue);
+  const repeatedChanged = await queue.enqueueMeetingAgentJob(mockKv(), {
+    job_type: "meeting_recording_request",
+    payload: changedPayload,
+  });
+  const afterRepeated = JSON.parse(storedQueue);
+
+  return (
+    changed.deduplicated === false &&
+    changed.updatedExisting === false &&
+    changed.job.id !== leasedSeedJob.id &&
+    changed.queueDepth === 2 &&
+    afterChanged.length === 2 &&
+    afterChanged[0].id === leasedSeedJob.id &&
+    afterChanged[0].payload.meeting.recording_device === "MacBook Pro" &&
+    afterChanged[0].lease?.lease_id === "lease_existing" &&
+    afterChanged[1].id === changed.job.id &&
+    afterChanged[1].payload.meeting.recording_device === "Mac Mini" &&
+    !afterChanged[1].lease &&
+    repeatedChanged.deduplicated === true &&
+    repeatedChanged.updatedExisting === false &&
+    repeatedChanged.job.id === changed.job.id &&
+    afterRepeated.length === 2 &&
+    calls.get === 2 &&
+    calls.set === 1
   );
 }
 

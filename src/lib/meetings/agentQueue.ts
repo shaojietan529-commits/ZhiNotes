@@ -448,12 +448,18 @@ function findDuplicateQueueJob(
 ) {
   const targetKey = queueDedupeKey(jobType, payload);
   if (!targetKey) return null;
+  const candidates = jobs.filter(
+    (job) =>
+      job.job_type === jobType &&
+      queueDedupeKey(job.job_type, job.payload) === targetKey
+  );
+  const serializedPayload = JSON.stringify(payload);
   return (
-    jobs.find(
-      (job) =>
-        job.job_type === jobType &&
-        queueDedupeKey(job.job_type, job.payload) === targetKey
-    ) ?? null
+    candidates.find(
+      (job) => JSON.stringify(job.payload) === serializedPayload
+    ) ??
+    candidates.find((job) => !job.lease) ??
+    null
   );
 }
 
