@@ -540,8 +540,11 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("function intakeReceiptFreshness") &&
         source.includes("function intakeReceiptTimingFields") &&
         source.includes("function intakeReviewVisibilityFields") &&
+        source.includes("function intakeReviewCacheRefreshFields") &&
         source.includes("function intakeFailureVisibilityFields") &&
         source.includes("function intakeFailureSyncCenterStatus") &&
+        source.includes("function intakeFailureCacheRefreshFields") &&
+        source.includes("function intakeFailureCacheRefreshStatus") &&
         source.includes("receiptGeneratedAt: receipt.receiptGeneratedAt") &&
         source.includes("receiptStaleAfter: receipt.receiptStaleAfter") &&
         source.includes(
@@ -576,7 +579,10 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("pendingIntakeReviewCount: 1") &&
         source.includes("failedIntakeCount: 0") &&
         source.includes("manualReviewIntakeCount: 0") &&
+        source.includes("...intakeReviewCacheRefreshFields()") &&
         source.includes("safeToRefreshCaches: false") &&
+        source.includes('cacheRefreshStatus: "blocked_local_review_required"') &&
+        source.includes('cacheRefreshBlockedBy: ["local_review_required"]') &&
         source.includes('syncCenterStatus: "local_review_required"') &&
         source.includes("highRiskWriteGated: true") &&
         source.includes("const intakeReceipt = intakeSuccessReceipt") &&
@@ -629,13 +635,21 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("safeToContinueLocalUse: true") &&
         source.includes("const visibilityFields = intakeFailureVisibilityFields") &&
         source.includes("...visibilityFields") &&
+        source.includes("const cacheRefresh = intakeFailureCacheRefreshFields") &&
         source.includes("pendingIntakeReviewCount: 0") &&
         source.includes("failedIntakeCount: manualReviewRequired ? 0 : 1") &&
         source.includes("manualReviewIntakeCount: manualReviewRequired ? 1 : 0") &&
+        source.includes("...cacheRefresh") &&
+        source.includes("safeToRefreshCaches: false") &&
+        source.includes("cacheRefreshStatus: intakeFailureCacheRefreshStatus") &&
+        source.includes("cacheRefreshBlockedBy") &&
         source.includes("syncCenterStatus: intakeFailureSyncCenterStatus") &&
         source.includes('return "manual_review_required"') &&
         source.includes('return "retry_later"') &&
         source.includes('return "failed_not_completed"') &&
+        source.includes('return "blocked_manual_review"') &&
+        source.includes('return "blocked_retry_later"') &&
+        source.includes('return "blocked_failed_not_completed"') &&
         source.includes("nextAction: manualReviewRequired") &&
         source.includes("const intakeReceipt = intakeFailureReceipt") &&
         source.includes("...intakeReceiptTimingFields(intakeReceipt)") &&

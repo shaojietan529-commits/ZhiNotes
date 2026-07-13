@@ -1088,10 +1088,11 @@ Current local actions:
   `failedWriteCount: 0`, and `localPendingWrite: false`. They also mirror a
   sync-center review contract (`syncCenterStatus`,
   `pendingIntakeReviewCount`, `failedIntakeCount`,
-  `manualReviewIntakeCount`, `safeToRefreshCaches: false`) at the top level and
-  inside the receipt. This keeps the intake step visibly local-review-only:
-  parsing can continue without signing out the account, starting cloud writes,
-  or hiding a retry/manual-review row.
+  `manualReviewIntakeCount`, `safeToRefreshCaches: false`,
+  `cacheRefreshStatus`, `cacheRefreshBlockedBy`) at the top level and inside
+  the receipt. This keeps the intake step visibly local-review-only: parsing
+  can continue without signing out the account, starting cloud writes, or hiding
+  why a retry/manual-review row is blocking cache refresh.
 - ZhiHui agent queue consumers must use the lease-aware ACK contract. A runner
   should poll `GET /api/meetings/agent/jobs?claim=true` with a stable
   `runner_id` or `x-zhihui-runner-id`, process only the returned claimed jobs,

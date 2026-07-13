@@ -102,8 +102,16 @@ function intakeReviewVisibilityFields() {
     pendingIntakeReviewCount: 1,
     failedIntakeCount: 0,
     manualReviewIntakeCount: 0,
-    safeToRefreshCaches: false,
+    ...intakeReviewCacheRefreshFields(),
     syncCenterStatus: "local_review_required",
+  };
+}
+
+function intakeReviewCacheRefreshFields() {
+  return {
+    safeToRefreshCaches: false,
+    cacheRefreshStatus: "blocked_local_review_required",
+    cacheRefreshBlockedBy: ["local_review_required"],
   };
 }
 
@@ -114,11 +122,15 @@ function intakeFailureVisibilityFields({
   retryable: boolean;
   manualReviewRequired: boolean;
 }) {
+  const cacheRefresh = intakeFailureCacheRefreshFields({
+    retryable,
+    manualReviewRequired,
+  });
   return {
     pendingIntakeReviewCount: 0,
     failedIntakeCount: manualReviewRequired ? 0 : 1,
     manualReviewIntakeCount: manualReviewRequired ? 1 : 0,
-    safeToRefreshCaches: false,
+    ...cacheRefresh,
     syncCenterStatus: intakeFailureSyncCenterStatus({
       retryable,
       manualReviewRequired,
@@ -136,6 +148,40 @@ function intakeFailureSyncCenterStatus({
   if (manualReviewRequired) return "manual_review_required";
   if (retryable) return "retry_later";
   return "failed_not_completed";
+}
+
+function intakeFailureCacheRefreshFields({
+  retryable,
+  manualReviewRequired,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+}) {
+  const cacheRefreshBlockedBy = [
+    ...(manualReviewRequired ? ["manual_review_required"] : []),
+    ...(retryable ? ["retry_later"] : []),
+    ...(!retryable && !manualReviewRequired ? ["failed_not_completed"] : []),
+  ];
+  return {
+    safeToRefreshCaches: false,
+    cacheRefreshStatus: intakeFailureCacheRefreshStatus({
+      retryable,
+      manualReviewRequired,
+    }),
+    cacheRefreshBlockedBy,
+  };
+}
+
+function intakeFailureCacheRefreshStatus({
+  retryable,
+  manualReviewRequired,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+}) {
+  if (manualReviewRequired) return "blocked_manual_review";
+  if (retryable) return "blocked_retry_later";
+  return "blocked_failed_not_completed";
 }
 
 export async function POST(req: Request) {
