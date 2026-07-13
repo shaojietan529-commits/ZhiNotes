@@ -58,6 +58,7 @@ for (const token of [
 for (const token of [
   "zhihui_agent_queue_payload_too_large",
   "max_payload_bytes: MAX_PAYLOAD_BYTES",
+  "actual_payload_bytes: serializedPayloadBytes",
   "actual_payload_chars: serializedPayload.length",
   "status: 413",
   "retryable: false",
@@ -71,6 +72,8 @@ for (const token of [
   "meeting_page_id: pageId",
   "deduplicated: true",
   "deduplicated: false",
+  "function payloadByteLength",
+  "Buffer.byteLength",
   "manual_review_required: true",
   "unconfirmed_jobs_preserved: true",
   "status: 409",
@@ -220,6 +223,11 @@ check(
   queueBehavior,
   "agent queue 遇到损坏队列时必须进入 manual review，且 list/enqueue/ack 都不能写回清空未确认任务"
 );
+const payloadByteLimitBehavior = await verifyPayloadByteLimitBehavior();
+check(
+  payloadByteLimitBehavior,
+  "agent queue 必须按真实 UTF-8 字节数限制 payload，中文内容超限时不能写入队列"
+);
 const queueDedupeBehavior = await verifyQueueDedupeBehavior();
 check(
   queueDedupeBehavior,
@@ -308,6 +316,60 @@ async function verifyCorruptQueueBehavior() {
     }
   }
   return true;
+}
+
+async function verifyPayloadByteLimitBehavior() {
+  const calls = { get: 0, set: 0 };
+  const queue = loadAgentQueueWithFetch(async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "" };
+        },
+      };
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  let caught = null;
+  try {
+    await queue.enqueueMeetingAgentJob(mockKv(), {
+      job_type: "meeting_recording_request",
+      payload: {
+        meeting: {
+          page_id: "meeting_page_utf8_limit",
+          topic: "会议".repeat(12000),
+        },
+      },
+    });
+  } catch (error) {
+    caught = error;
+  }
+
+  return (
+    caught &&
+    caught.code === "zhihui_agent_queue_payload_too_large" &&
+    caught.status === 413 &&
+    caught.retryable === false &&
+    caught.details?.actual_payload_bytes > caught.details?.max_payload_bytes &&
+    caught.details?.actual_payload_chars < caught.details?.max_payload_bytes &&
+    calls.get === 0 &&
+    calls.set === 0
+  );
 }
 
 async function verifyQueueDedupeBehavior() {
@@ -427,6 +489,7 @@ function loadAgentQueueWithFetch(fetchImpl) {
   }).outputText;
   const sandbox = {
     AbortController,
+    Buffer,
     clearTimeout,
     exports: {},
     fetch: fetchImpl,

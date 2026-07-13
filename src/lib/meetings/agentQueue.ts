@@ -98,7 +98,8 @@ export async function enqueueMeetingAgentJob(
   }
 ): Promise<MeetingAgentQueueEnqueueResult> {
   const serializedPayload = JSON.stringify(payload.payload);
-  if (serializedPayload.length > MAX_PAYLOAD_BYTES) {
+  const serializedPayloadBytes = payloadByteLength(serializedPayload);
+  if (serializedPayloadBytes > MAX_PAYLOAD_BYTES) {
     throw new MeetingAgentQueueFailureError({
       code: "zhihui_agent_queue_payload_too_large",
       message:
@@ -107,6 +108,7 @@ export async function enqueueMeetingAgentJob(
       retryable: false,
       details: {
         max_payload_bytes: MAX_PAYLOAD_BYTES,
+        actual_payload_bytes: serializedPayloadBytes,
         actual_payload_chars: serializedPayload.length,
       },
     });
@@ -230,6 +232,10 @@ function objectValue(value: unknown): Record<string, unknown> {
 
 function textValue(value: unknown) {
   return typeof value === "string" ? value.trim().slice(0, 500) : "";
+}
+
+function payloadByteLength(value: string) {
+  return Buffer.byteLength(value, "utf8");
 }
 
 async function writeQueue(kv: KvEnv, jobs: MeetingAgentQueueJob[]) {
