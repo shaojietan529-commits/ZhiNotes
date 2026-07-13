@@ -172,6 +172,7 @@ const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900;
 const DAILY_FOREGROUND_QUIET_WINDOW_MS = 3200;
 const DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400;
 const DAILY_FULL_PAGE_CREATE_NAVIGATION_RETRY_MS = 900;
+const DAILY_CREATE_FEEDBACK_FRAME_TIMEOUT_MS = 80;
 const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 450;
 const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 1400;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 96;
@@ -244,6 +245,26 @@ function getDailyCreateButtonTitle(
     return "另一篇每日纪要正在本机创建，完成后即可继续新增。";
   }
   return "在这天新增纪要";
+}
+
+function waitForDailyCreateFeedbackFrame(): Promise<void> {
+  if (typeof window === "undefined" || !window.requestAnimationFrame) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    let done = false;
+    const timeout = window.setTimeout(() => {
+      if (done) return;
+      done = true;
+      resolve();
+    }, DAILY_CREATE_FEEDBACK_FRAME_TIMEOUT_MS);
+    window.requestAnimationFrame(() => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timeout);
+      resolve();
+    });
+  });
 }
 
 function readDailyCreateOpenModeFastCache(): DailyCreateOpenMode {
@@ -1687,6 +1708,7 @@ export default function DailyNotesShell() {
           setPeekInitialPage(null);
           setOpeningNoteId(null);
           setPeekPageId(null);
+          await waitForDailyCreateFeedbackFrame();
           openPage(optimisticNote, { source: "daily-create" });
           scheduleDailyCreateFullPageNavigationRetry(optimisticNote, dateKey);
         }
