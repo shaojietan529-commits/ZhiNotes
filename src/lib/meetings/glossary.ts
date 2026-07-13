@@ -213,6 +213,8 @@ export async function buildZhiHuiGlossary(params: {
 
   pushTerms(DEFAULT_DOMAIN_TERMS, "default_domain", 10);
   const terms = rankTerms(candidates, MAX_TERMS);
+  const glossaryReadCompleteness =
+    pageReadFailures > 0 ? "partial" : "complete";
 
   return {
     schema: "zhinote.zhihui.glossary.v1",
@@ -227,6 +229,9 @@ export async function buildZhiHuiGlossary(params: {
     pendingGlossaryReadCount: 0,
     failedGlossaryReadCount: 0,
     manualReviewGlossaryCount: 0,
+    glossaryReadCompleteness,
+    skippedGlossaryPageReadCount: pageReadFailures,
+    glossaryReadWarningCount: sourceWarnings.length,
     safeToRefreshCaches: true,
     cacheRefreshStatus: "safe",
     cacheRefreshBlockedBy: [],

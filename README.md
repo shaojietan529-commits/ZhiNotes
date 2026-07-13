@@ -1087,9 +1087,13 @@ Current local actions:
   zero pending/failed writes, `safeToContinueLocalUse: true`,
   `safeToRefreshCaches: true`, `cacheRefreshStatus: "safe"`, and an empty
   `cacheRefreshBlockedBy`; they also mark `glossaryRecoveryRequired: false` so
-  clients can clear any stale glossary repair row. Failure receipts keep the
-  same local-use/cache safety
-  fields with `termsReturned: false`, so a glossary fetch/config/token problem
+  clients can clear any stale glossary repair row. If synced page reads are
+  time-budgeted or skipped, the success receipt still returns safe default
+  terms and exposes `glossaryReadCompleteness`, `skippedGlossaryPageReadCount`,
+  and `glossaryReadWarningCount` at the top level so sync-center UI can show a
+  non-blocking partial-read warning. Failure receipts keep the same
+  local-use/cache safety fields with `termsReturned: false`, so a glossary
+  fetch/config/token problem
   can be shown as a retry/configuration issue without blocking local writing,
   page sync, or calendar cache refresh. Failure receipts also expose
   `glossaryRecoveryRequired`, `glossaryRecoveryStatus`, and
