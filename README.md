@@ -1094,7 +1094,10 @@ Current local actions:
   sync-center UI can show queue pressure or reclaimable expired leases without
   inspecting every job. ACK responses use `attentionReason:
   "ack_unconfirmed_jobs_preserved"` when missing or lease-mismatched jobs need
-  manual review.
+  manual review. Queue responses also mirror receipt timing at the top level
+  (`pollMode`, `recommendedNextPollMs`, `recommendedNextPollAt`,
+  `receiptStaleAfter`) so clients can schedule retry/idle/manual-review states
+  without parsing nested receipts.
   The server keeps job-id-only ACK compatibility only for jobs that have
   never been leased. Once a job carries a `lease.lease_id`, ACK deletes it only
   when the supplied lease id matches. Missing, lease-less, or mismatched ACKs

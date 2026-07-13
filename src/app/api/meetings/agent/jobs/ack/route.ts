@@ -40,6 +40,26 @@ const ackReceiptBase = {
   ...ackContinuityReceipt,
 };
 
+type AckReceiptTimingFieldsInput = {
+  receiptGeneratedAt: string;
+  receiptStaleAfter: string;
+  receiptFreshnessWindowMs: number;
+  pollMode: string;
+  recommendedNextPollMs: number | null;
+  recommendedNextPollAt: string | null;
+};
+
+function ackReceiptTimingFields(receipt: AckReceiptTimingFieldsInput) {
+  return {
+    receiptGeneratedAt: receipt.receiptGeneratedAt,
+    receiptStaleAfter: receipt.receiptStaleAfter,
+    receiptFreshnessWindowMs: receipt.receiptFreshnessWindowMs,
+    pollMode: receipt.pollMode,
+    recommendedNextPollMs: receipt.recommendedNextPollMs,
+    recommendedNextPollAt: receipt.recommendedNextPollAt,
+  };
+}
+
 function ackJson(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
   response.headers.set("Cache-Control", "no-store, max-age=0");
@@ -146,6 +166,12 @@ export async function POST(request: Request) {
       queueAlmostFull: ackResult.queueAlmostFull,
       hasUnconfirmedJobs,
     });
+    const queueReceipt = queueAckReceipt(
+      ackResult,
+      normalizedAck.requestedAckCount,
+      normalizedAckLeases.requestedLeaseCount,
+      ackHealth
+    );
     return ackJson({
       ok: true,
       acknowledged: ackResult.acknowledged,
@@ -178,12 +204,8 @@ export async function POST(request: Request) {
       attentionRequired: ackHealth.attentionRequired,
       attentionReason: ackHealth.attentionReason,
       reclaimableLeaseCount: ackHealth.reclaimableLeaseCount,
-      queueReceipt: queueAckReceipt(
-        ackResult,
-        normalizedAck.requestedAckCount,
-        normalizedAckLeases.requestedLeaseCount,
-        ackHealth
-      ),
+      ...ackReceiptTimingFields(queueReceipt),
+      queueReceipt,
       ...ackContinuityReceipt,
     });
   } catch (error) {
@@ -607,6 +629,7 @@ function ackFailurePayload({
     failureStatus,
     nextAction,
   });
+  const receiptTiming = ackReceiptTimingFields(failureReceipt);
 
   return {
     ok: false,
@@ -624,6 +647,7 @@ function ackFailurePayload({
     failureStatus,
     manualReviewRequired,
     nextAction,
+    ...receiptTiming,
     ackFailureReceipt: failureReceipt,
     ...ackFailureBoundary,
   };

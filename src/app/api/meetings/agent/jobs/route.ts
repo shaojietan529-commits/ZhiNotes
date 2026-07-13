@@ -111,6 +111,7 @@ export async function GET(request: Request) {
       claimMode ? { claim: true, runnerId } : {}
     );
     const queueHealth = queueListHealth(queueResult);
+    const queueReceipt = queueListReceipt(queueResult, queueHealth);
     return queueJson({
       ok: true,
       status: "ready",
@@ -146,7 +147,8 @@ export async function GET(request: Request) {
       ackRequiresLease: queueResult.claimMode,
       ackLeaseSource: queueResult.claimMode ? "job.lease.lease_id" : null,
       runnerIdEchoed: false,
-      queueReceipt: queueListReceipt(queueResult, queueHealth),
+      ...queueReceiptTimingFields(queueReceipt),
+      queueReceipt,
       ...queueContinuityReceipt,
       privacy: {
         requires_agent_token: true,
@@ -281,6 +283,11 @@ export async function POST(request: Request) {
       },
     });
     const enqueueHealth = queueCapacityHealth(enqueueResult);
+    const queueReceipt = queueEnqueueReceipt(
+      enqueueResult,
+      { runNow: body.runNow === true },
+      enqueueHealth
+    );
 
     return queueJson({
       ok: true,
@@ -310,11 +317,8 @@ export async function POST(request: Request) {
       attentionReason: enqueueHealth.attentionReason,
       reclaimableLeaseCount: 0,
       manualReviewRequired: false,
-      queueReceipt: queueEnqueueReceipt(
-        enqueueResult,
-        { runNow: body.runNow === true },
-        enqueueHealth
-      ),
+      ...queueReceiptTimingFields(queueReceipt),
+      queueReceipt,
       ...queueContinuityReceipt,
     });
   } catch (error) {
@@ -343,6 +347,26 @@ type QueueListReceiptInput = {
 type QueueCapacityHealthInput = {
   queueAlmostFull: boolean;
 };
+
+type QueueReceiptTimingFieldsInput = {
+  receiptGeneratedAt: string;
+  receiptStaleAfter: string;
+  receiptFreshnessWindowMs: number;
+  pollMode: string;
+  recommendedNextPollMs: number | null;
+  recommendedNextPollAt: string | null;
+};
+
+function queueReceiptTimingFields(receipt: QueueReceiptTimingFieldsInput) {
+  return {
+    receiptGeneratedAt: receipt.receiptGeneratedAt,
+    receiptStaleAfter: receipt.receiptStaleAfter,
+    receiptFreshnessWindowMs: receipt.receiptFreshnessWindowMs,
+    pollMode: receipt.pollMode,
+    recommendedNextPollMs: receipt.recommendedNextPollMs,
+    recommendedNextPollAt: receipt.recommendedNextPollAt,
+  };
+}
 
 function queueCapacityHealth(queueResult: QueueCapacityHealthInput) {
   const attentionReason = queueResult.queueAlmostFull
@@ -563,6 +587,7 @@ function queueFailurePayload({
     failureStatus,
     nextAction,
   });
+  const receiptTiming = queueReceiptTimingFields(failureReceipt);
 
   return {
     ok: false,
@@ -580,6 +605,7 @@ function queueFailurePayload({
     failureStatus,
     manualReviewRequired,
     nextAction,
+    ...receiptTiming,
     queueFailureReceipt: failureReceipt,
     ...queueFailureBoundary,
   };
