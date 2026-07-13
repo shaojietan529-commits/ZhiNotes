@@ -20,10 +20,16 @@ const glossaryFailureBoundary = {
   highRiskWriteGated: true,
 };
 
+function glossaryJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  return response;
+}
+
 export async function GET(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
-    return NextResponse.json(
+    return glossaryJson(
       glossaryFailurePayload({
         code: "zhihui_glossary_not_configured",
         error: "ZhiHui agent glossary not configured",
@@ -35,7 +41,7 @@ export async function GET(request: Request) {
     );
   }
   if (!authorizeMeetingAgent(request, config.agentToken)) {
-    return NextResponse.json(
+    return glossaryJson(
       glossaryFailurePayload({
         code: "zhihui_agent_unauthorized",
         error: "unauthorized",
@@ -51,9 +57,9 @@ export async function GET(request: Request) {
       kv: config.kv,
       requestUrl: new URL(request.url),
     });
-    return NextResponse.json(payload);
+    return glossaryJson(payload);
   } catch {
-    return NextResponse.json(
+    return glossaryJson(
       glossaryFailurePayload({
         code: "zhihui_glossary_fetch_failed",
         error: "ZhiHui glossary fetch failed",
@@ -86,6 +92,19 @@ function glossaryFailurePayload({
     details,
     syncStatus: retryable ? "glossary_failed_retryable" : "glossary_not_started",
     glossaryReadStatus: retryable ? "failed_retryable" : "not_started",
+    syncCenterStatus: retryable
+      ? "glossary_failed_retryable"
+      : "glossary_not_started",
+    pendingWriteCount: 0,
+    failedWriteCount: 0,
+    localPendingWrite: false,
+    safeToContinueLocalUse: true,
+    pendingGlossaryReadCount: 0,
+    failedGlossaryReadCount: retryable ? 1 : 0,
+    manualReviewGlossaryCount: 0,
+    safeToRefreshCaches: true,
+    cacheRefreshStatus: "safe",
+    cacheRefreshBlockedBy: [],
     manualReviewRequired: false,
     requiresUserConfirmation: false,
     nextAction,

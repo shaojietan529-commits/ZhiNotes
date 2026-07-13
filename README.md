@@ -1082,6 +1082,13 @@ Current local actions:
   and then opens the tracker for manual relation cleanup. It is a local single
   write and does not sync, upload, publish notes, join calls, record audio, or
   call AI.
+- ZhiHui glossary responses are read-only and `Cache-Control: no-store`. Failure
+  receipts keep `accountSessionUnaffected`, `localUseCanContinue`, and
+  `safeToRefreshCaches: true` while exposing `syncCenterStatus`,
+  `failedGlossaryReadCount`, `cacheRefreshStatus: "safe"`, and an empty
+  `cacheRefreshBlockedBy`. A glossary fetch/config/token problem can be shown as
+  a retry/configuration issue without blocking local writing, page sync, or
+  calendar cache refresh.
 - ZhiHui meeting invite intake responses mirror parse status and receipt timing
   at the top level (`parseStatus`, `fetchedPageReadStatus`, `warningCount`,
   `confidence`, `receiptStaleAfter`) and mark `pendingWriteCount: 0`,
