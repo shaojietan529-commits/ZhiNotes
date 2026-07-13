@@ -33,6 +33,7 @@ const queueReceipts = read("src/lib/meetings/agentQueueReceipts.ts");
 const requestBody = read("src/lib/meetings/requestBody.ts");
 const jobsRoute = read("src/app/api/meetings/agent/jobs/route.ts");
 const ackRoute = read("src/app/api/meetings/agent/jobs/ack/route.ts");
+const readme = read("README.md");
 for (const token of [
   "getMeetingAgentQueueConfig",
   "authorizeMeetingAgent",
@@ -499,6 +500,16 @@ for (const code of [
     ackRoute.includes(code) || agentQueue.includes(code),
     `jobs ack route 缺少稳定失败 code ${code}`
   );
+}
+for (const token of [
+  "ZhiHui agent queue consumers must use the lease-aware ACK contract",
+  "GET /api/meetings/agent/jobs?claim=true",
+  "POST /api/meetings/agent/jobs/ack",
+  "job_leases",
+  "lease.lease_id",
+  "Missing or mismatched jobs",
+]) {
+  check(readme.includes(token), `README 缺少 ZhiHui runner ACK 合同说明 ${token}`);
 }
 
 const helper = read("src/lib/meetings/glossary.ts");
