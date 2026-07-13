@@ -1597,6 +1597,16 @@ check(
   "MeetingScheduleShell 云端会议 metadata 应只把轻量窗口结果作为本机可重建缓存"
 );
 check(
+  meetingScheduleShell.includes("function getMeetingCloudUnavailableMessage") &&
+    meetingScheduleShell.includes("页面同步已关闭，本地会议日历继续可用。") &&
+    meetingScheduleShell.includes("当前浏览器未登录账号，只显示本机会议日历。") &&
+    meetingScheduleShell.includes("云端账号系统未配置，本地会议日历继续可用。") &&
+    meetingScheduleShell.includes("云端会议目录本轮校正失败，本地会议日历继续可用。") &&
+    meetingScheduleShell.includes("getMeetingCloudUnavailableMessage(cloud.status)") &&
+    !meetingScheduleShell.includes("云端会议目录暂未启用或未登录，本地会议日历继续可用。"),
+  "MeetingScheduleShell 云端会议目录不可用文案必须区分同步关闭、未登录、账号未配置和临时失败，不能把配置/临时问题说成掉线"
+);
+check(
   meetingScheduleShell.includes("upsertMeetingInView(finalPage)") &&
     (meetingScheduleShell.includes("persistOptimisticMeetingPage(rootId, finalPage, upsertPages)") ||
       meetingScheduleShell.includes("resolvedRootId,\n            finalPage,\n            upsertPages") ||

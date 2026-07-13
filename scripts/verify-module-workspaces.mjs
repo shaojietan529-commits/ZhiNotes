@@ -1598,6 +1598,16 @@ check(
   "MeetingScheduleShell 日历首屏应按日期范围只读本地会议 metadata，云端校正延后到空闲任务，不能为渲染日历扫描完整会议根或读取正文"
 );
 check(
+  shells.schedule.includes("function getMeetingCloudUnavailableMessage") &&
+    shells.schedule.includes("页面同步已关闭，本地会议日历继续可用。") &&
+    shells.schedule.includes("当前浏览器未登录账号，只显示本机会议日历。") &&
+    shells.schedule.includes("云端账号系统未配置，本地会议日历继续可用。") &&
+    shells.schedule.includes("云端会议目录本轮校正失败，本地会议日历继续可用。") &&
+    shells.schedule.includes("getMeetingCloudUnavailableMessage(cloud.status)") &&
+    !shells.schedule.includes("云端会议目录暂未启用或未登录，本地会议日历继续可用。"),
+  "MeetingScheduleShell 云端会议目录不可用文案必须区分同步关闭、未登录、账号未配置和临时失败"
+);
+check(
   !shells.schedule.includes('from "@/hooks/usePages"') &&
     !shells.schedule.includes("usePages(") &&
     !shells.schedule.includes("await refresh()") &&

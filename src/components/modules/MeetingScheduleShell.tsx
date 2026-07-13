@@ -285,6 +285,19 @@ function getMeetingAgentQueueFailureMessage(error: unknown) {
       : "无法连接云端队列接口。";
 }
 
+function getMeetingCloudUnavailableMessage(status?: string) {
+  if (status === "disabled") {
+    return "页面同步已关闭，本地会议日历继续可用。";
+  }
+  if (status === "unauthenticated") {
+    return "当前浏览器未登录账号，只显示本机会议日历。";
+  }
+  if (status === "unconfigured") {
+    return "云端账号系统未配置，本地会议日历继续可用。";
+  }
+  return "云端会议目录本轮校正失败，本地会议日历继续可用。";
+}
+
 interface CreateMeetingOptions {
   importSource?: string;
   hasJoinUrl?: boolean;
@@ -1213,8 +1226,8 @@ export default function MeetingScheduleShell() {
         cloudLoading: false,
         backgroundActive: false,
         message: cloudUnavailableLocally
-          ? "云端会议目录暂未启用或未登录，本地会议日历继续可用。"
-          : "云端会议目录本轮校正失败，本地会议日历继续可用。",
+          ? getMeetingCloudUnavailableMessage(cloud.status)
+          : getMeetingCloudUnavailableMessage(),
       }
     );
     recordMeetingPerformance(
