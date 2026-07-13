@@ -9111,6 +9111,18 @@ function run() {
       "Account session helper must treat retryable /me session uncertainty as a transient account-check error, not explicit sign-out.",
     ],
     [
+      "readAccountSessionRetryablePayload",
+      "Account session helper must parse retryable non-2xx /me responses before falling back to a generic error.",
+    ],
+    [
+      "res.clone().json()",
+      "Account session helper must inspect retryable non-2xx /me responses without consuming the original response body.",
+    ],
+    [
+      "error: retryable.reason",
+      "Account session helper must preserve the retryable /me reason for stale signed-in fallback messaging.",
+    ],
+    [
       "account session temporarily unconfirmed",
       "Account session helper must expose a stable retryable reason for temporary session uncertainty.",
     ],
@@ -9120,14 +9132,14 @@ function run() {
   assertIncludes(
     files.accountMeRoute,
     accountMeRoute,
-    'reason: "session-unconfirmed"',
-    "Account /me GET must distinguish temporary session uncertainty from explicit logout."
+    "accountSessionUnconfirmedResponse",
+    "Account /me GET must use the shared retryable session uncertainty response instead of ad-hoc signed-out JSON."
   );
   assertIncludes(
     files.accountMeRoute,
     accountMeRoute,
-    "retryable: true",
-    "Account /me GET must mark missing-session checks as retryable so the UI can keep stale signed-in fallback visible."
+    "云端存储暂时无法确认登录状态；不会清除当前登录，请稍后重试。",
+    "Account /me GET must mark cloud read failures as retryable so the UI can keep stale signed-in fallback visible."
   );
   const accountMeGetSessionUnconfirmedHandler = accountMeRoute.slice(
     accountMeRoute.indexOf("if (!account) {"),

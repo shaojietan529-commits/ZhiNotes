@@ -104,19 +104,20 @@ const meGetTransientFailureHandler = me.slice(
   me.indexOf("export async function PATCH")
 );
 check(
-  meGetTransientFailureHandler.includes("{ status: 502 }") &&
+  meGetTransientFailureHandler.includes("accountSessionUnconfirmedResponse") &&
+    meGetTransientFailureHandler.includes(
+      "云端存储暂时无法确认登录状态；不会清除当前登录，请稍后重试。"
+    ) &&
     !meGetTransientFailureHandler.includes("cookies.delete") &&
     !meGetTransientFailureHandler.includes("response.cookies.delete"),
-  "me route GET 云端临时失败只能返回 502 可重试错误，不能清除登录 cookie 或把用户踢出"
+  "me route GET 云端临时失败必须返回可重试 session-unconfirmed，不能清除登录 cookie 或把用户踢出"
 );
 const meGetSessionUnconfirmedHandler = me.slice(
   me.indexOf("if (!account) {"),
   me.indexOf("const response = NextResponse.json({\n      authenticated: true")
 );
 check(
-  meGetSessionUnconfirmedHandler.includes('reason: "session-unconfirmed"') &&
-    meGetSessionUnconfirmedHandler.includes("retryable: true") &&
-    meGetSessionUnconfirmedHandler.includes("keeps_session_cookie: true") &&
+  meGetSessionUnconfirmedHandler.includes("accountSessionUnconfirmedResponse") &&
     !meGetSessionUnconfirmedHandler.includes("cookies.delete") &&
     !meGetSessionUnconfirmedHandler.includes("response.cookies.delete"),
   "me route GET 云端 session 暂时查不到时必须保留 cookie，交给前端 stale fallback，而不是自动登出"
@@ -391,6 +392,8 @@ check(
   accountClientSession.includes(
     'data.retryable || data.reason === "session-unconfirmed"'
   ) &&
+    accountClientSession.includes("readAccountSessionRetryablePayload") &&
+    accountClientSession.includes("res.clone().json()") &&
     accountClientSession.includes('status: "unconfirmed"') &&
     accountClientSession.includes(
       "account session temporarily unconfirmed"
@@ -404,7 +407,9 @@ check(
   "账号状态客户端必须把 /me 的可重试 session-unconfirmed 当成临时不可确认，而不是明确登出"
 );
 check(
-  accountClientSession.includes("if (!res.ok) {\n      return {\n        status: \"error\"") &&
+  accountClientSession.includes("if (!res.ok) {\n      const retryable = await readAccountSessionRetryablePayload(res);") &&
+    accountClientSession.includes("if (retryable) {\n        return {\n          status: \"unconfirmed\"") &&
+    accountClientSession.includes("error: retryable.reason") &&
     accountClientSession.includes(
       "const result = withStoredAuthenticatedFallback(\n    await accountSessionInFlight,"
     ) &&
