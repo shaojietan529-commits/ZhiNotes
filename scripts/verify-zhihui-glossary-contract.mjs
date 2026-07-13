@@ -659,6 +659,28 @@ check(
   helper.includes("terms,") && helper.includes("diagnostics"),
   "glossary helper 应返回 terms 和 diagnostics"
 );
+for (const token of [
+  "ok: true",
+  'syncStatus: "glossary_read_completed"',
+  'glossaryReadStatus: "completed"',
+  'syncCenterStatus: "idle"',
+  "pendingWriteCount: 0",
+  "failedWriteCount: 0",
+  "localPendingWrite: false",
+  "safeToContinueLocalUse: true",
+  "pendingGlossaryReadCount: 0",
+  "failedGlossaryReadCount: 0",
+  "manualReviewGlossaryCount: 0",
+  "safeToRefreshCaches: true",
+  'cacheRefreshStatus: "safe"',
+  "cacheRefreshBlockedBy: []",
+  "manualReviewRequired: false",
+  "requiresUserConfirmation: false",
+  "highRiskWriteGated: true",
+  "termsReturned: true",
+]) {
+  check(helper.includes(token), `glossary helper 成功回执缺少 ${token}`);
+}
 
 const packageJson = read("package.json");
 check(
