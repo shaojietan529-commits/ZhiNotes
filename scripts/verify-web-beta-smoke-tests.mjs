@@ -9062,6 +9062,14 @@ function run() {
       "Account session helper must let successful login/profile saves refresh the stale authenticated fallback immediately.",
     ],
     [
+      "clearAccountSessionRuntimeCache",
+      "Account session helper must support clearing transient probes without deleting the last authenticated fallback.",
+    ],
+    [
+      "clearLastAuthenticated",
+      "Account session helper must require an explicit logout path before clearing the stale authenticated fallback.",
+    ],
+    [
       "storeAuthenticatedAccount(account, Date.now())",
       "Account session helper must rewrite the last-authenticated fallback without waiting for the next /api/account/me roundtrip.",
     ],

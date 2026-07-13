@@ -4782,6 +4782,14 @@ function run() {
       "Account session helper must keep /api/account/me probes bounded so a slow account API cannot freeze the signed-in UI.",
     ],
     [
+      "clearAccountSessionRuntimeCache",
+      "Account session helper must support clearing transient probes without deleting the last authenticated fallback.",
+    ],
+    [
+      "clearLastAuthenticated",
+      "Account session helper must require an explicit logout path before clearing the stale authenticated fallback.",
+    ],
+    [
       "async function fetchAccountSessionStatus",
       "Account session helper must route /api/account/me through a shared timeout wrapper.",
     ],

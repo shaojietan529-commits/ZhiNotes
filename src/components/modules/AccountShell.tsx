@@ -32,6 +32,7 @@ import {
 } from "@/lib/account/clientProfile";
 import {
   clearAccountSessionCache,
+  clearAccountSessionRuntimeCache,
   fetchAccountSession,
   rememberLastAuthenticatedAccount,
 } from "@/lib/account/clientSession";
@@ -860,7 +861,7 @@ export default function AccountShell() {
         setNotice(data.error ?? "验证失败，请稍后重试。");
         return;
       }
-      clearAccountSessionCache();
+      clearAccountSessionRuntimeCache();
       setSignedInAccount(data.account as ClientAccountInfo);
       setCode("");
       setPhase("signed-in");
@@ -896,7 +897,7 @@ export default function AccountShell() {
         setProfileNotice(data.error ?? "用户名保存失败，请稍后重试。");
         return;
       }
-      clearAccountSessionCache();
+      clearAccountSessionRuntimeCache();
       setSignedInAccount(data.account as ClientAccountInfo);
       setProfileNotice("用户名已保存。");
     } catch (error) {
@@ -1008,7 +1009,7 @@ export default function AccountShell() {
     } finally {
       setAccount(null);
       setDisplayNameInput("");
-      clearAccountSessionCache();
+      clearAccountSessionCache({ clearLastAuthenticated: true });
       notifyAccountProfileUpdated();
       setNotice(null);
       setPhase("email");

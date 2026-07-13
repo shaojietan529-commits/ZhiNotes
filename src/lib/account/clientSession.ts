@@ -33,13 +33,21 @@ let cachedAccountSession: AccountSessionResult | null = null;
 let cachedAccountSessionAt = 0;
 let accountSessionRetryAfter = 0;
 
-export function clearAccountSessionCache(): void {
+export function clearAccountSessionRuntimeCache(): void {
   accountSessionInFlight = null;
   cachedAccountSession = null;
   cachedAccountSessionAt = 0;
   accountSessionRetryAfter = 0;
   clearStoredUnconfiguredAccountSession();
-  clearStoredAuthenticatedAccount();
+}
+
+export function clearAccountSessionCache(
+  options: { clearLastAuthenticated?: boolean } = {}
+): void {
+  clearAccountSessionRuntimeCache();
+  if (options.clearLastAuthenticated) {
+    clearStoredAuthenticatedAccount();
+  }
 }
 
 export function getLastAuthenticatedAccount(): ClientAccountInfo | null {

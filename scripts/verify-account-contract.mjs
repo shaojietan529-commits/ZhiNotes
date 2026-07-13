@@ -174,6 +174,8 @@ for (const body of effectBodies) {
 check(
   shell.includes("fetchAccountSession({ force: true })") &&
     shell.includes("clearAccountSessionCache") &&
+    shell.includes("clearAccountSessionRuntimeCache") &&
+    shell.includes("clearAccountSessionCache({ clearLastAuthenticated: true })") &&
     shell.includes("rememberLastAuthenticatedAccount") &&
     shell.includes("formatClientAccountLabel(account)"),
   "AccountShell 应通过共享账号状态 helper 检查会话，并在登录/改名/退出后刷新缓存；成功登录或改名后要重写最近登录账号兜底"
@@ -348,6 +350,8 @@ check(
     accountClientSession.includes("cachedAccountSession") &&
     accountClientSession.includes("ACCOUNT_SESSION_RETRY_BACKOFF_MS") &&
     accountClientSession.includes("clearAccountSessionCache") &&
+    accountClientSession.includes("clearAccountSessionRuntimeCache") &&
+    accountClientSession.includes("clearLastAuthenticated") &&
     accountClientSession.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
     accountClientSession.includes("getLastAuthenticatedAccount") &&
     accountClientSession.includes("rememberLastAuthenticatedAccount") &&
