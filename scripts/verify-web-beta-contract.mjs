@@ -6886,6 +6886,10 @@ function run() {
       "PagePeekModal must expose a ready callback for local-first parent shells.",
     ],
     [
+      "readyOnLocalShell?: boolean;",
+      "PagePeekModal props must allow parents to decide whether the lazy local shell counts as ready.",
+    ],
+    [
       "readyNotifiedPageIdRef",
       "PagePeekModal must de-duplicate ready notifications per page.",
     ],
@@ -7230,6 +7234,14 @@ function run() {
       "Lazy peek modal fallback full-page buttons must use the local-first handoff path.",
     ],
     [
+      "readyOnLocalShell = true",
+      "Lazy peek modal fallback should keep local-shell readiness as the default for existing parent flows.",
+    ],
+    [
+      "if (readyOnLocalShell) {\n      onReady?.(pageId);\n    }",
+      "Lazy peek modal fallback must let selected parents defer ready until the real peek modal takes over.",
+    ],
+    [
       "已先显示本地页面信息",
       "Lazy peek modal fallback must visibly confirm local metadata is already shown.",
     ],
@@ -7243,7 +7255,7 @@ function run() {
     ],
     [
       "onReady?.(pageId)",
-      "Lazy peek modal fallback must clear parent opening state after the local metadata shell is visible.",
+      "Lazy peek modal fallback may clear parent opening state only when the parent allows local shell readiness.",
     ],
     [
       'status: seed ? "local-shell-ready" : "local-shell-loading"',
@@ -7778,7 +7790,11 @@ function run() {
     ],
     [
       "onReady={handlePeekReady}",
-      "Meeting peek modal must clear opening feedback when the local-first shell is ready.",
+      "Meeting peek modal must clear opening feedback through the real peek ready callback.",
+    ],
+    [
+      "readyOnLocalShell={false}",
+      "Meeting creation must keep opening feedback and the full-page fallback active until the real peek modal takes over.",
     ],
     [
       "const primeMeetingEntryPage = useCallback",

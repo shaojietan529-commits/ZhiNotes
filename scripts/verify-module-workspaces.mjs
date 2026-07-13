@@ -1499,6 +1499,10 @@ check(
     shells.schedule.includes("current?.pageId === pageId ? null : current") &&
     shells.schedule.includes("openingMeetingId === entry.page.id") &&
     shells.schedule.includes("onReady={handlePeekReady}") &&
+    shells.schedule.includes("readyOnLocalShell={false}") &&
+    lazyPagePeekModal.includes("readyOnLocalShell = true") &&
+    lazyPagePeekModal.includes("if (readyOnLocalShell) {\n      onReady?.(pageId);\n    }") &&
+    pagePeekModal.includes("readyOnLocalShell?: boolean;") &&
     !shells.schedule.includes("} finally {\n            setOpeningDraft((current) =>\n              current?.pageId === optimisticPage.id ? null : current") &&
     shells.schedule.includes("upsertMeetingPageInList(") &&
     shells.schedule.includes("mergeMeetingDateCountsForLocalUpsert(") &&

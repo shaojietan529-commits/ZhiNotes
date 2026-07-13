@@ -1745,6 +1745,7 @@ check(
     meetingScheduleShell.includes('data-testid="meeting-opening-draft-banner"') &&
     meetingScheduleShell.includes("openingMeetingId === entry.page.id") &&
     meetingScheduleShell.includes("onReady={handlePeekReady}") &&
+    meetingScheduleShell.includes("readyOnLocalShell={false}") &&
     !meetingScheduleShell.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !meetingScheduleShell.includes("@/components/page/PagePeekModal") &&
     meetingScheduleShell.includes("creatingMeetingDateKey") &&
@@ -2725,6 +2726,8 @@ check(
     lazyPagePeekModal.includes("const openFullFromLoadingShell = useCallback") &&
     lazyPagePeekModal.includes("prepareLocalFirstPageNavigation(seed, \"page-open\")") &&
     lazyPagePeekModal.includes("onClick={openFullFromLoadingShell}") &&
+    lazyPagePeekModal.includes("readyOnLocalShell = true") &&
+    lazyPagePeekModal.includes("if (readyOnLocalShell) {\n      onReady?.(pageId);\n    }") &&
     lazyPagePeekModal.includes("onReady?.(pageId)") &&
     lazyPagePeekModal.includes('status: seed ? "local-shell-ready" : "local-shell-loading"') &&
     lazyPagePeekModal.includes("新页面已在本机创建，完整编辑器正在载入。") &&
@@ -2762,6 +2765,7 @@ check(
     dailyNotesShell.includes("const handlePeekReady = useCallback") &&
     dailyNotesShell.includes("onReady={handlePeekReady}") &&
     pagePeekModal.includes("onReady?: (pageId: string) => void") &&
+    pagePeekModal.includes("readyOnLocalShell?: boolean;") &&
     pagePeekModal.includes("readyNotifiedPageIdRef") &&
     pagePeekModal.includes("onReady?.(pageId)") &&
     dailyNotesShell.includes("window.setTimeout(() =>") &&
