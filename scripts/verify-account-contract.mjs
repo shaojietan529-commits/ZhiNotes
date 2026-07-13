@@ -3109,16 +3109,26 @@ check(
       "data-user-can-continue-work={String(operatingMode.user_can_continue_work)}"
     ) &&
     syncDashboardShell.includes(
+      "data-active-development-can-continue={String("
+    ) &&
+    syncDashboardShell.includes(
       "data-production-interruptions-should-be-batched={String("
     ) &&
     syncDashboardShell.includes(
       "data-experimental-changes-go-to-staging-first={String("
     ) &&
     syncDashboardShell.includes(
+      "data-account-session-must-not-be-cleared-by-sync-failures={String("
+    ) &&
+    syncDashboardShell.includes(
+      "data-sync-failures-show-retry-state-not-sign-out={String("
+    ) &&
+    syncDashboardShell.includes(
       "data-safe-route-count={operatingMode.safe_to_use_routes.length}"
     ) &&
     syncDashboardShell.includes("稳定使用模式") &&
     syncDashboardShell.includes("继续使用当前入口") &&
+    syncDashboardShell.includes("同步失败不登出") &&
     syncDashboardShell.includes("实验改动先本地 / staging") &&
     syncDashboardShell.includes("线上变更成批进入") &&
     syncDashboardShell.includes(
@@ -3161,9 +3171,14 @@ check(
     developmentStabilityPlan.includes("stable_use_entrypoints") &&
     developmentStabilityPlan.includes("stable_use_operating_mode") &&
     developmentStabilityPlan.includes("DevelopmentStabilityOperatingMode") &&
+    developmentStabilityPlan.includes("active_development_can_continue") &&
     developmentStabilityPlan.includes("production_interruptions_should_be_batched") &&
     developmentStabilityPlan.includes("experimental_changes_go_to_staging_first") &&
     developmentStabilityPlan.includes("local_input_remains_available") &&
+    developmentStabilityPlan.includes("local_pending_queue_preserved_during_development") &&
+    developmentStabilityPlan.includes("account_session_must_not_be_cleared_by_sync_failures") &&
+    developmentStabilityPlan.includes("sync_failures_show_retry_state_not_sign_out") &&
+    developmentStabilityPlan.includes("同步失败只显示重试状态，不自动登出或影响本地输入") &&
     developmentStabilityPlan.includes("safe_to_use_routes") &&
     developmentStabilityPlan.includes("blocked_without_owner_gate") &&
     developmentStabilityPlan.includes("stable_use_guarantees") &&

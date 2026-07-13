@@ -12741,12 +12741,28 @@ function run() {
       "Development stability plan must batch production interruptions during active use.",
     ],
     [
+      "active_development_can_continue",
+      "Development stability plan must explicitly allow development to continue while the user keeps using stable routes.",
+    ],
+    [
       "experimental_changes_go_to_staging_first",
       "Development stability plan must keep experimental changes out of the stable use path first.",
     ],
     [
       "local_input_remains_available",
       "Development stability plan must preserve local input availability during sync issues.",
+    ],
+    [
+      "local_pending_queue_preserved_during_development",
+      "Development stability plan must preserve pending queues while development continues.",
+    ],
+    [
+      "account_session_must_not_be_cleared_by_sync_failures",
+      "Development stability plan must forbid sync failures from clearing the visible account session.",
+    ],
+    [
+      "sync_failures_show_retry_state_not_sign_out",
+      "Development stability plan must show sync failures as retry states instead of apparent sign-out.",
     ],
     [
       "blocked_without_owner_gate",
@@ -12770,8 +12786,20 @@ function run() {
       "Stable-use operating mode must expose whether the user can keep working.",
     ],
     [
+      "data-active-development-can-continue={String(",
+      "Stable-use operating mode must expose whether active development can continue.",
+    ],
+    [
       "data-production-interruptions-should-be-batched={String(",
       "Stable-use operating mode must expose batched production interruption policy.",
+    ],
+    [
+      "data-account-session-must-not-be-cleared-by-sync-failures={String(",
+      "Stable-use operating mode must expose the no-forced-signout sync failure policy.",
+    ],
+    [
+      "data-sync-failures-show-retry-state-not-sign-out={String(",
+      "Stable-use operating mode must expose retry-state-not-signout policy.",
     ],
     [
       "data-experimental-changes-go-to-staging-first={String(",

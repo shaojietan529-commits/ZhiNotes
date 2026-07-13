@@ -20,9 +20,13 @@ export interface DevelopmentStabilityOperatingMode {
   status: "stable-use-active";
   label: "稳定使用模式";
   user_can_continue_work: true;
+  active_development_can_continue: true;
   production_interruptions_should_be_batched: true;
   experimental_changes_go_to_staging_first: true;
   local_input_remains_available: true;
+  local_pending_queue_preserved_during_development: true;
+  account_session_must_not_be_cleared_by_sync_failures: true;
+  sync_failures_show_retry_state_not_sign_out: true;
   safe_to_use_routes: string[];
   blocked_without_owner_gate: string[];
   next_action: string;
@@ -286,7 +290,7 @@ export function buildDevelopmentStabilityPlan(input: {
     development_channel: "private-alpha-stable-use",
     local_app_can_continue_now: true,
     stable_version_policy:
-      "把高频写作、每日纪要、会议、数据库、报告、文件、公司研究、投研项目、研究图谱、知识库、产业链、账号和同步中心保留在稳定使用区；Web Beta、真实云同步、AI、批量写回和缓存重建继续放在 owner-gated 实验区。",
+      "把高频写作、每日纪要、会议、数据库、报告、文件、公司研究、投研项目、研究图谱、知识库、产业链、账号和同步中心保留在稳定使用区；开发期间可以继续使用，账号或同步临时失败只能进入可见重试状态，不能清登录状态或阻断本地输入；Web Beta、真实云同步、AI、批量写回和缓存重建继续放在 owner-gated 实验区。",
     privacy_note:
       "This plan is generated locally from route catalog metadata and sync queue counts only. It does not read page body text, database row values, file names, file bytes, secrets, tokens, cookies, holdings, trading plans, or cloud payload bodies; it does not send network requests, upload workspace data, clear cache, enable sync, or enable AI.",
     boundary: DEVELOPMENT_STABILITY_BOUNDARY,
@@ -357,13 +361,17 @@ function buildStableUseOperatingMode(
     status: "stable-use-active",
     label: "稳定使用模式",
     user_can_continue_work: true,
+    active_development_can_continue: true,
     production_interruptions_should_be_batched: true,
     experimental_changes_go_to_staging_first: true,
     local_input_remains_available: true,
+    local_pending_queue_preserved_during_development: true,
+    account_session_must_not_be_cleared_by_sync_failures: true,
+    sync_failures_show_retry_state_not_sign_out: true,
     safe_to_use_routes: STABLE_USE_ENTRYPOINTS.map((entry) => entry.route),
     blocked_without_owner_gate: HIGH_RISK_ACTIONS_GATED,
     next_action: readiness.localInputCanContinue
-      ? "继续使用稳定入口；实验功能先在本地或 staging 验证，线上变更成批进入。"
+      ? "继续使用稳定入口；实验功能先在本地或 staging 验证，线上变更成批进入；同步失败只显示重试状态，不自动登出或影响本地输入。"
       : "先处理失败或人工复核队列，再恢复稳定使用入口。",
   };
 }

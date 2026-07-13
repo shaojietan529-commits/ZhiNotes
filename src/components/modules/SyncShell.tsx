@@ -20331,6 +20331,9 @@ function DevelopmentStabilityPlanPanel({
       data-stable-use-guarantees={plan.summary.stable_use_guarantees}
       data-cache-rebuild-blocked={String(plan.summary.cache_rebuild_blocked)}
       data-user-can-continue-work={String(operatingMode.user_can_continue_work)}
+      data-active-development-can-continue={String(
+        operatingMode.active_development_can_continue
+      )}
       data-production-interruptions-should-be-batched={String(
         operatingMode.production_interruptions_should_be_batched
       )}
@@ -20339,6 +20342,12 @@ function DevelopmentStabilityPlanPanel({
       )}
       data-local-input-remains-available={String(
         operatingMode.local_input_remains_available
+      )}
+      data-account-session-must-not-be-cleared-by-sync-failures={String(
+        operatingMode.account_session_must_not_be_cleared_by_sync_failures
+      )}
+      data-sync-failures-show-retry-state-not-sign-out={String(
+        operatingMode.sync_failures_show_retry_state_not_sign_out
       )}
       className="space-y-3"
     >
@@ -20367,11 +20376,20 @@ function DevelopmentStabilityPlanPanel({
         data-user-can-continue-work={String(
           operatingMode.user_can_continue_work
         )}
+        data-active-development-can-continue={String(
+          operatingMode.active_development_can_continue
+        )}
         data-production-interruptions-should-be-batched={String(
           operatingMode.production_interruptions_should_be_batched
         )}
         data-experimental-changes-go-to-staging-first={String(
           operatingMode.experimental_changes_go_to_staging_first
+        )}
+        data-account-session-must-not-be-cleared-by-sync-failures={String(
+          operatingMode.account_session_must_not_be_cleared_by_sync_failures
+        )}
+        data-sync-failures-show-retry-state-not-sign-out={String(
+          operatingMode.sync_failures_show_retry_state_not_sign_out
         )}
         data-safe-route-count={operatingMode.safe_to_use_routes.length}
         data-owner-gated-action-count={
@@ -20391,6 +20409,9 @@ function DevelopmentStabilityPlanPanel({
           <div className="flex flex-wrap gap-2 text-[10px] text-emerald-800 dark:text-emerald-200">
             <span className="rounded bg-white/70 px-2 py-1 dark:bg-emerald-950">
               继续使用当前入口
+            </span>
+            <span className="rounded bg-white/70 px-2 py-1 dark:bg-emerald-950">
+              同步失败不登出
             </span>
             <span className="rounded bg-white/70 px-2 py-1 dark:bg-emerald-950">
               实验改动先本地 / staging
