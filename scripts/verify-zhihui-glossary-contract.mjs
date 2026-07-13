@@ -41,6 +41,37 @@ for (const token of [
 }
 check(!route.includes("console."), "glossary route 不应该写日志");
 for (const token of [
+  "const glossaryFailureBoundary",
+  "function glossaryFailurePayload",
+  "ok: false",
+  'source: "zhihui-glossary"',
+  "accountSessionUnaffected: true",
+  "localUseCanContinue: true",
+  "localMeetingDataUnaffected: true",
+  "cloudWriteStatus: \"not_started\"",
+  "localCacheWriteStatus: \"not_started\"",
+  "rawPageTextEchoed: false",
+  "rawMeetingCredentialsEchoed: false",
+  "termsReturned: false",
+  "highRiskWriteGated: true",
+  "zhihui_glossary_not_configured",
+  "zhihui_glossary_fetch_failed",
+  "zhihui_agent_unauthorized",
+  "syncStatus: retryable ? \"glossary_failed_retryable\" : \"glossary_not_started\"",
+  "glossaryReadStatus: retryable ? \"failed_retryable\" : \"not_started\"",
+  "manualReviewRequired: false",
+  "requiresUserConfirmation: false",
+  "nextAction",
+  "\"configure_environment\"",
+  "\"check_agent_token\"",
+  "\"retry\"",
+  "raw_page_text_returned: false",
+  "raw_meeting_credentials_returned: false",
+  "terms_only: true",
+]) {
+  check(route.includes(token), `glossary route 结构化失败响应缺少 ${token}`);
+}
+for (const token of [
   "MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000",
   "MAX_LISTED_QUEUE_JOBS = 50",
   "export class MeetingAgentQueueTimeoutError extends Error",
