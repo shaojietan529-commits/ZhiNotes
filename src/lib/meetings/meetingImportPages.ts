@@ -15,6 +15,7 @@ const MAX_SCAN_PAGES = 3000;
 const SCAN_CHUNK = 32;
 const CHANGE_LOG_LIMIT = 5000;
 const MAX_TRANSCRIPT_CHARS = 650_000;
+const MAX_MINUTES_PAGE_HTML_BYTES = 2_000_000;
 const IMPORT_RECEIPT_FRESHNESS_WINDOW_MS = 30_000;
 
 interface IndexEntry {
@@ -173,6 +174,7 @@ export async function importMeetingArtifactToPages(
 ): Promise<MeetingImportResult> {
   const accountEmail = resolveImportAccountEmail();
   const meeting = normalizeImportPayload(payload);
+  validateMeetingImportStorageBudget(meeting);
   const index = await readIndex(kv, accountEmail);
   const previousSummary = summarizeIndex(index);
   const pages = await readActivePages(kv, accountEmail, index);
@@ -433,6 +435,33 @@ function normalizeImportPayload(payload: unknown): NormalizedMeetingImport {
     recordingUploadMode: text(recording.upload_mode, 120),
     importId,
   };
+}
+
+function validateMeetingImportStorageBudget(meeting: NormalizedMeetingImport) {
+  const minutesPageHtml = buildMinutesPageHtml(
+    meeting,
+    "storage_budget_probe"
+  );
+  const minutesPageHtmlBytes = utf8ByteLength(minutesPageHtml);
+  if (minutesPageHtmlBytes <= MAX_MINUTES_PAGE_HTML_BYTES) return;
+
+  throw new MeetingImportError(
+    "ZhiHui 会议导入生成的页面内容过大；为避免云同步卡顿，已在写入页面前暂停，请保留本地产物并人工复核。",
+    413,
+    {
+      max_page_content_bytes: MAX_MINUTES_PAGE_HTML_BYTES,
+      actual_minutes_page_html_bytes: minutesPageHtmlBytes,
+      transcript_truncated: meeting.transcriptTruncated,
+      manual_review_required: true,
+      unconfirmed_pages_preserved: true,
+      local_artifact_preserved: true,
+      raw_meeting_content_echoed: false,
+    },
+    {
+      code: "meeting_import_page_content_too_large",
+      retryable: false,
+    }
+  );
 }
 
 async function upsertMeetingPage({
@@ -1169,6 +1198,10 @@ function objectValue(value: unknown): Record<string, unknown> {
 
 function text(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function utf8ByteLength(value: string) {
+  return Buffer.byteLength(value, "utf8");
 }
 
 function numberText(value: unknown) {

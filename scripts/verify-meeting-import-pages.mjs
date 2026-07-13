@@ -237,8 +237,15 @@ expect(
     importerSource.includes("meeting_import_index_corrupt") &&
     importerSource.includes("meeting_import_page_record_missing") &&
     importerSource.includes("meeting_import_page_record_corrupt") &&
+    importerSource.includes("meeting_import_page_content_too_large") &&
     importerSource.includes("manual_review_required: true") &&
     importerSource.includes("unconfirmed_pages_preserved: true") &&
+    importerSource.includes("local_artifact_preserved: true") &&
+    importerSource.includes("MAX_MINUTES_PAGE_HTML_BYTES") &&
+    importerSource.includes("function validateMeetingImportStorageBudget") &&
+    importerSource.includes("actual_minutes_page_html_bytes") &&
+    importerSource.includes("function utf8ByteLength") &&
+    importerSource.includes("Buffer.byteLength") &&
     importerSource.includes("IMPORT_RECEIPT_FRESHNESS_WINDOW_MS") &&
     importerSource.includes("function buildImportReceiptFreshness") &&
     importerSource.includes("calendar: {") &&
@@ -361,6 +368,7 @@ for (const expectedFailureCode of [
   "meeting_import_index_corrupt",
   "meeting_import_page_record_missing",
   "meeting_import_page_record_corrupt",
+  "meeting_import_page_content_too_large",
   "zhihui_meeting_import_failed",
 ]) {
   expect(
@@ -417,6 +425,8 @@ const corruptPageRecordManualReview = await verifyPageRecordManualReview({
 const missingPageRecordManualReview = await verifyPageRecordManualReview({
   mode: "missing",
 });
+const oversizedPageContentManualReview =
+  await verifyOversizedPageContentManualReview();
 const changeLogFailureFallback = await verifyChangeLogFailureFallback();
 
 if (failures.length > 0) {
@@ -453,6 +463,7 @@ console.log(
       corrupt_index_manual_review: corruptIndexManualReview,
       corrupt_page_record_manual_review: corruptPageRecordManualReview,
       missing_page_record_manual_review: missingPageRecordManualReview,
+      oversized_page_content_manual_review: oversizedPageContentManualReview,
       change_log_failure_fallback: changeLogFailureFallback,
       downstream_cache_refresh_contract: true,
       privacy_boundary:
@@ -599,6 +610,54 @@ async function verifyPageRecordManualReview({ mode }) {
   return passed;
 }
 
+async function verifyOversizedPageContentManualReview() {
+  const previousPageRecordCount = countPageRecords();
+  const previousIndexRaw = kvStore.get(indexKey);
+  const previousChangeLogRaw = kvStore.get(changeLogKey);
+  let caught = null;
+
+  try {
+    await importer.importMeetingArtifactToPages(
+      { url: "memory://kv", token: "mock-token" },
+      {
+        ...payload,
+        content: {
+          minutes_markdown: "<".repeat(600000),
+          transcript: "synthetic transcript stays local",
+        },
+        source_manifest: {
+          content_fingerprint: {
+            sha256: "synthetic-oversized-page-content-fingerprint",
+          },
+        },
+      }
+    );
+  } catch (error) {
+    caught = error;
+  }
+
+  const caughtError = caught && typeof caught === "object" ? caught : null;
+  const passed =
+    caughtError?.code === "meeting_import_page_content_too_large" &&
+    caughtError?.status === 413 &&
+    caughtError?.retryable === false &&
+    caughtError?.details?.manual_review_required === true &&
+    caughtError?.details?.unconfirmed_pages_preserved === true &&
+    caughtError?.details?.local_artifact_preserved === true &&
+    caughtError?.details?.raw_meeting_content_echoed === false &&
+    caughtError?.details?.actual_minutes_page_html_bytes >
+      caughtError?.details?.max_page_content_bytes &&
+    countPageRecords() === previousPageRecordCount &&
+    kvStore.get(indexKey) === previousIndexRaw &&
+    kvStore.get(changeLogKey) === previousChangeLogRaw;
+
+  expect(
+    passed,
+    "oversized generated minutes page should stop before cloud writes with manual review and preserve local meeting artifact"
+  );
+  return passed;
+}
+
 async function verifyChangeLogFailureFallback() {
   const previousChangeLogRaw = kvStore.get(changeLogKey);
   let fallbackResult = null;
@@ -663,6 +722,7 @@ function loadImporter(fullPath) {
     },
   }).outputText;
   const sandbox = {
+    Buffer,
     console,
     exports: {},
     module: { exports: {} },
