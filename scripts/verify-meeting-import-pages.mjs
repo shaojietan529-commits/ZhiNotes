@@ -188,7 +188,14 @@ expect(
     importRouteSource.includes("ok: false") &&
     importRouteSource.includes("accountSessionUnaffected: true") &&
     importRouteSource.includes("localUseCanContinue: true") &&
-    importRouteSource.includes("rawMeetingContentEchoed: false"),
+    importRouteSource.includes("rawMeetingContentEchoed: false") &&
+    importRouteSource.includes("failureStatus: manualReviewRequired") &&
+    importRouteSource.includes("manualReviewRequired") &&
+    importRouteSource.includes("nextAction: manualReviewRequired") &&
+    importRouteSource.includes("\"manual_review\"") &&
+    importRouteSource.includes("\"failed_retryable\"") &&
+    importRouteSource.includes("\"failed_final\"") &&
+    importRouteSource.includes("\"fix_input_or_configuration\""),
   "import route failures should be structured and must not look like account sign-out or lost local input"
 );
 for (const expectedFailureCode of [

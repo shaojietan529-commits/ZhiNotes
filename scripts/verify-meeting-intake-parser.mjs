@@ -504,7 +504,14 @@ function verifyIntakeRouteContract(source) {
         source.includes("localMeetingDataUnaffected: true") &&
         source.includes("localCalendarDataUnaffected: true") &&
         source.includes("rawInviteEchoed: false") &&
-        source.includes("fetchedPageTextEchoed: false"),
+        source.includes("fetchedPageTextEchoed: false") &&
+        source.includes("failureStatus: manualReviewRequired") &&
+        source.includes("manualReviewRequired") &&
+        source.includes("nextAction: manualReviewRequired") &&
+        source.includes("\"manual_review\"") &&
+        source.includes("\"failed_retryable\"") &&
+        source.includes("\"failed_final\"") &&
+        source.includes("\"fix_input_or_configuration\""),
       message:
         "intake route failures should be structured and must not look like account sign-out, lost local input, or echoed private invite text",
     },
