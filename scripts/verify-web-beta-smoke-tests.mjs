@@ -7151,8 +7151,8 @@ function run() {
   );
   for (const [snippet, message] of [
     [
-      "DAILY_FOREGROUND_QUIET_WINDOW_MS = 1600",
-      "Daily calendar must keep a bounded foreground quiet window for create/open interactions.",
+      "DAILY_FOREGROUND_QUIET_WINDOW_MS = 3200",
+      "Daily calendar must keep a longer bounded foreground quiet window so create/open interactions are not interrupted by background refresh.",
     ],
     [
       "const foregroundQuietUntilRef = useRef(0)",

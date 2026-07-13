@@ -1292,7 +1292,7 @@ check(
     dailyNotesShell.includes("DAILY_LOCAL_METADATA_REFRESH_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
     dailyNotesShell.includes("DAILY_CLOUD_METADATA_RECHECK_DELAY_MS") &&
-    dailyNotesShell.includes("DAILY_FOREGROUND_QUIET_WINDOW_MS = 1600") &&
+    dailyNotesShell.includes("DAILY_FOREGROUND_QUIET_WINDOW_MS = 3200") &&
     dailyNotesShell.includes("DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400") &&
     dailyNotesShell.includes("const foregroundQuietUntilRef = useRef(0)") &&
     dailyNotesShell.includes("markDailyForegroundInteraction") &&
