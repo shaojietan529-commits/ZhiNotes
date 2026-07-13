@@ -201,6 +201,7 @@ for (const token of [
   "failedAgentJobCount: 0",
   "agentQueuePending: queueDepth > 0",
   "safeToContinueLocalUse: true",
+  "safeToRefreshCaches:",
   "\"agent_jobs_pending\"",
   "\"attention_recommended\"",
   "\"retryable_unknown\"",
@@ -210,6 +211,10 @@ for (const token of [
 check(
   verifyReceiptTimingBehavior(),
   "agent queue receipt timing 必须生成 active/idle/retry/manual review 的过期时间和建议轮询时间"
+);
+check(
+  verifyQueueRefreshSafetyBehavior(),
+  "agent queue receipts 只能在队列空且无复核/异常时允许刷新本地缓存"
 );
 check(
   requestBody.includes("export async function readBoundedJsonBody") &&
@@ -1672,6 +1677,38 @@ function verifyReceiptTimingBehavior() {
     retry.recommendedNextPollAt === "2026-07-13T10:00:30.000Z" &&
     manualReview.recommendedNextPollMs === null &&
     manualReview.recommendedNextPollAt === null
+  );
+}
+
+function verifyQueueRefreshSafetyBehavior() {
+  const helpers = loadTypescriptModule("src/lib/meetings/agentQueueReceipts.ts");
+  const idle = helpers.buildMeetingAgentQueuePendingStatus({
+    queueDepth: 0,
+  });
+  const active = helpers.buildMeetingAgentQueuePendingStatus({
+    queueDepth: 2,
+  });
+  const attention = helpers.buildMeetingAgentQueuePendingStatus({
+    queueDepth: 0,
+    attentionRequired: true,
+  });
+  const manualReview = helpers.buildMeetingAgentQueuePendingStatus({
+    queueDepth: 0,
+    manualReviewRequired: true,
+  });
+  const retryFailure = helpers.buildMeetingAgentQueueFailureStatus({
+    retryable: true,
+    queueWriteAttempted: true,
+    partialQueueWritePossible: false,
+    manualReviewRequired: false,
+  });
+
+  return (
+    idle.safeToRefreshCaches === true &&
+    active.safeToRefreshCaches === false &&
+    attention.safeToRefreshCaches === false &&
+    manualReview.safeToRefreshCaches === false &&
+    retryFailure.safeToRefreshCaches === false
   );
 }
 

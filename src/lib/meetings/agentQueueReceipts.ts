@@ -62,6 +62,8 @@ export function buildMeetingAgentQueuePendingStatus({
     failedAgentJobCount: 0,
     agentQueuePending: queueDepth > 0,
     safeToContinueLocalUse: true,
+    safeToRefreshCaches:
+      queueDepth === 0 && !attentionRequired && !manualReviewRequired,
     syncCenterStatus: queueSyncCenterStatus({
       queueDepth,
       attentionRequired,
@@ -92,6 +94,7 @@ export function buildMeetingAgentQueueFailureStatus({
       manualReviewRequired || retryable || queueWriteAttempted ? 1 : 0,
     agentQueuePending: false,
     safeToContinueLocalUse: true,
+    safeToRefreshCaches: false,
     syncCenterStatus: queueFailureSyncCenterStatus({
       retryable,
       queueWriteAttempted,
