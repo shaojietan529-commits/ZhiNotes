@@ -107,6 +107,13 @@ export async function enqueueMeetingAgentJob(
     });
   }
   const jobs = await readQueue(kv);
+  const existingJob = findDuplicateQueueJob(
+    jobs,
+    payload.job_type,
+    payload.payload
+  );
+  if (existingJob) return existingJob;
+
   const job: MeetingAgentQueueJob = {
     id: `zhihui_${randomUUID()}`,
     job_type: payload.job_type,
@@ -171,6 +178,53 @@ async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
     throw queueCorruptError("invalid_job_shape");
   }
   return parsed.slice(-MAX_QUEUE_ITEMS);
+}
+
+function findDuplicateQueueJob(
+  jobs: MeetingAgentQueueJob[],
+  jobType: string,
+  payload: Record<string, unknown>
+) {
+  const targetKey = queueDedupeKey(jobType, payload);
+  if (!targetKey) return null;
+  return (
+    jobs.find(
+      (job) =>
+        job.job_type === jobType &&
+        queueDedupeKey(job.job_type, job.payload) === targetKey
+    ) ?? null
+  );
+}
+
+function queueDedupeKey(jobType: string, payload: Record<string, unknown>) {
+  const meeting = objectValue(payload.meeting);
+  const pageId = textValue(meeting.page_id);
+  if (!pageId) return "";
+  const routing = objectValue(payload.routing);
+  return JSON.stringify({
+    job_type: jobType,
+    meeting_page_id: pageId,
+    date: textValue(meeting.date),
+    time: textValue(meeting.time),
+    platform: textValue(meeting.platform),
+    priority: textValue(payload.priority),
+    run_now: payload.run_now === true,
+    recording_device: textValue(meeting.recording_device),
+    fallback_device: textValue(meeting.fallback_device),
+    transcription_model: textValue(meeting.transcription_model),
+    target_runner_id: textValue(routing.target_runner_id),
+    fallback_runner_id: textValue(routing.fallback_runner_id),
+  });
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function textValue(value: unknown) {
+  return typeof value === "string" ? value.trim().slice(0, 500) : "";
 }
 
 async function writeQueue(kv: KvEnv, jobs: MeetingAgentQueueJob[]) {

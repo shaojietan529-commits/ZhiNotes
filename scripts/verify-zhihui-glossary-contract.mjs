@@ -65,6 +65,9 @@ for (const token of [
   "zhihui_agent_queue_corrupt",
   "upstream_status: res.status",
   "function queueCorruptError",
+  "function findDuplicateQueueJob",
+  "function queueDedupeKey",
+  "meeting_page_id: pageId",
   "manual_review_required: true",
   "unconfirmed_jobs_preserved: true",
   "status: 409",
@@ -210,6 +213,11 @@ check(
   queueBehavior,
   "agent queue 遇到损坏队列时必须进入 manual review，且 list/enqueue/ack 都不能写回清空未确认任务"
 );
+const queueDedupeBehavior = await verifyQueueDedupeBehavior();
+check(
+  queueDedupeBehavior,
+  "agent queue 重复入同一会议录制任务时必须复用已有 job，不能重复写入队列"
+);
 
 if (errors.length > 0) {
   console.error("verify:zhihui-glossary 失败：");
@@ -293,6 +301,104 @@ async function verifyCorruptQueueBehavior() {
     }
   }
   return true;
+}
+
+async function verifyQueueDedupeBehavior() {
+  const calls = { get: 0, set: 0 };
+  let storedQueue = "";
+  const queue = loadAgentQueueWithFetch(async (url, init) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: storedQueue };
+        },
+      };
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      storedQueue = typeof init?.body === "string" ? init.body : "";
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  const first = await queue.enqueueMeetingAgentJob(mockKv(), {
+    job_type: "meeting_recording_request",
+    payload: syntheticRecordingPayload({ pageId: "meeting_page_1" }),
+  });
+  const second = await queue.enqueueMeetingAgentJob(mockKv(), {
+    job_type: "meeting_recording_request",
+    payload: syntheticRecordingPayload({ pageId: "meeting_page_1" }),
+  });
+  const third = await queue.enqueueMeetingAgentJob(mockKv(), {
+    job_type: "meeting_recording_request",
+    payload: syntheticRecordingPayload({
+      pageId: "meeting_page_1",
+      recordingDevice: "Mac Mini",
+    }),
+  });
+  const storedJobs = JSON.parse(storedQueue);
+
+  return (
+    first.id === second.id &&
+    first.id !== third.id &&
+    calls.get === 3 &&
+    calls.set === 2 &&
+    Array.isArray(storedJobs) &&
+    storedJobs.length === 2 &&
+    storedJobs[0].id === first.id &&
+    storedJobs[1].id === third.id
+  );
+}
+
+function syntheticRecordingPayload({
+  pageId,
+  recordingDevice = "MacBook Pro",
+}) {
+  return {
+    schema: "zhinote.zhihui.meeting-recording-request.v1",
+    source: {
+      type: "zhinote_schedule_page",
+      account_id: "account_1",
+      account_email_hash_only: true,
+    },
+    meeting: {
+      page_id: pageId,
+      title: "Synthetic meeting",
+      topic: "Synthetic meeting",
+      organizer: "Synthetic organizer",
+      platform: "Zoom",
+      date: "2026-07-13",
+      time: "10:00-11:00",
+      join_url: "https://example.invalid/meeting",
+      meeting_id: "123456",
+      passcode: "hidden",
+      recording_device: recordingDevice,
+      fallback_device: "MacBook Pro",
+      priority: "default",
+      transcription_model: "qwen",
+    },
+    target_runner_id: recordingDevice === "Mac Mini" ? "mac-mini" : "macbook-pro",
+    fallback_runner_id: "macbook-pro",
+    priority: "default",
+    routing: {
+      target_runner_id:
+        recordingDevice === "Mac Mini" ? "mac-mini" : "macbook-pro",
+      fallback_runner_id: "macbook-pro",
+      meeting_account_key: "zoom",
+    },
+    run_now: false,
+  };
 }
 
 function mockKv() {
