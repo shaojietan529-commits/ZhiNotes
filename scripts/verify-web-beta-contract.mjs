@@ -116,6 +116,8 @@ const files = {
     "src/lib/sync/cloudUploadReliabilityReport.ts",
   cloudSyncControlPlane: "src/lib/sync/cloudSyncControlPlane.ts",
   developmentStabilityPlan: "src/lib/sync/developmentStabilityPlan.ts",
+  developmentStabilityHandoffReceipt:
+    "src/lib/sync/developmentStabilityHandoffReceipt.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   syncAckRetryLedgerContract:
     "src/lib/sync/syncAckRetryLedgerContract.ts",
@@ -635,6 +637,9 @@ function run() {
   );
   const developmentStabilityPlan = readProjectFile(
     files.developmentStabilityPlan
+  );
+  const developmentStabilityHandoffReceipt = readProjectFile(
+    files.developmentStabilityHandoffReceipt
   );
   const syncUploadDrainReceipt = readProjectFile(
     files.syncUploadDrainReceipt
@@ -12998,6 +13003,63 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-development-stability-handoff-receipt"',
+      "Development stability handoff receipt must expose a stable export format.",
+    ],
+    [
+      'receipt_status: "metadata-only-stable-use-handoff"',
+      "Development stability handoff receipt must stay metadata-only.",
+    ],
+    [
+      "cloud_sync_can_be_enabled_now: false",
+      "Development stability handoff receipt must not enable cloud sync.",
+    ],
+    [
+      "web_beta_can_launch_now: false",
+      "Development stability handoff receipt must not claim Web Beta can launch.",
+    ],
+    [
+      "production_changes_should_be_batched: true",
+      "Development stability handoff receipt must preserve batched production change policy.",
+    ],
+    [
+      "experimental_changes_go_to_staging_first: true",
+      "Development stability handoff receipt must preserve staging-first experimental policy.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Development stability handoff receipt must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Development stability handoff receipt must not read database row values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Development stability handoff receipt must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Development stability handoff receipt must not read file bytes.",
+    ],
+    [
+      "reads_tokens_or_cookies: false",
+      "Development stability handoff receipt must not read tokens or cookies.",
+    ],
+    [
+      "git pull --rebase before git push; never force push the user's branch.",
+      "Development stability handoff receipt must remind future agents to rebase before push and avoid force push.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.developmentStabilityHandoffReceipt,
+      developmentStabilityHandoffReceipt,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       'data-testid="development-stability-operating-mode"',
       "SyncShell must render the stable-use operating mode.",
     ],
@@ -13048,6 +13110,30 @@ function run() {
     [
       "线上变更成批进入",
       "Stable-use operating mode must make batched production changes visible in Chinese.",
+    ],
+    [
+      "buildDevelopmentStabilityHandoffReceipt",
+      "SyncShell must build a metadata-only development stability handoff receipt from the visible stable-use state.",
+    ],
+    [
+      'data-testid="development-stability-handoff-export"',
+      "SyncShell must expose a stable handoff receipt export control.",
+    ],
+    [
+      "zhinote-development-stability-handoff-",
+      "SyncShell must export the stable-use handoff receipt with a recognizable file name.",
+    ],
+    [
+      "data-handoff-cloud-sync-can-be-enabled-now={String(",
+      "SyncShell handoff receipt must expose that cloud sync is not enabled by the receipt.",
+    ],
+    [
+      "data-handoff-web-beta-can-launch-now={String(",
+      "SyncShell handoff receipt must expose that Web Beta launch is not approved by the receipt.",
+    ],
+    [
+      "导出交接收据",
+      "SyncShell must make the stable-use handoff receipt export visible in Chinese.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);

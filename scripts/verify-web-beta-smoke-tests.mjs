@@ -189,6 +189,8 @@ const files = {
   wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
   developmentStabilityPlan: "src/lib/sync/developmentStabilityPlan.ts",
+  developmentStabilityHandoffReceipt:
+    "src/lib/sync/developmentStabilityHandoffReceipt.ts",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
   blockComments: "src/components/shared/BlockComments.tsx",
@@ -686,6 +688,9 @@ function run() {
   const syncShell = readProjectFile(files.syncShell);
   const developmentStabilityPlan = readProjectFile(
     files.developmentStabilityPlan
+  );
+  const developmentStabilityHandoffReceipt = readProjectFile(
+    files.developmentStabilityHandoffReceipt
   );
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const pageShell = readProjectFile(files.pageShell);
@@ -15652,6 +15657,24 @@ function run() {
       ],
     ],
     [
+      files.developmentStabilityHandoffReceipt,
+      developmentStabilityHandoffReceipt,
+      [
+        'format: "zhinote-development-stability-handoff-receipt"',
+        'receipt_status: "metadata-only-stable-use-handoff"',
+        "cloud_sync_can_be_enabled_now: false",
+        "web_beta_can_launch_now: false",
+        "production_changes_should_be_batched: true",
+        "experimental_changes_go_to_staging_first: true",
+        "reads_page_body_text: false",
+        "reads_database_row_values: false",
+        "reads_file_names: false",
+        "reads_file_bytes: false",
+        "reads_tokens_or_cookies: false",
+        "git pull --rebase before git push; never force push the user's branch.",
+      ],
+    ],
+    [
       files.syncShell,
       syncShell,
       [
@@ -15669,6 +15692,12 @@ function run() {
         "同步失败不登出",
         "实验改动先本地 / staging",
         "线上变更成批进入",
+        "buildDevelopmentStabilityHandoffReceipt",
+        'data-testid="development-stability-handoff-export"',
+        "zhinote-development-stability-handoff-",
+        "data-handoff-cloud-sync-can-be-enabled-now={String(",
+        "data-handoff-web-beta-can-launch-now={String(",
+        "导出交接收据",
       ],
     ],
   ]) {
