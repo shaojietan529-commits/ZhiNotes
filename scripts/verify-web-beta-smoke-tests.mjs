@@ -10629,14 +10629,26 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "data-monitored-sync-domain-count={enabledDomainCount}",
+    "Sync UI local-use panel must expose the monitored sync-domain count for smoke checks."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     'data-active-sync-domain-count={activeDomainRows.length}',
     "Sync UI local-use panel must expose active full-domain queue counts for smoke checks."
   );
   assertIncludes(
     files.syncShell,
     syncShell,
-    "核心同步",
-    "Sync UI local-use panel must label page/database switches separately from all-domain queues."
+    "监控同步域",
+    "Sync UI local-use panel must show the monitored sync-domain count instead of a stale page/database denominator."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "页面 / 数据库 / 设置 / 知识库 / 文件",
+    "Sync UI local-use panel must describe every sync domain included in the local-use count."
   );
   assertIncludes(
     files.syncShell,

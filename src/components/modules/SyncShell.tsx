@@ -2162,6 +2162,10 @@ function SyncDashboard() {
     const knowledgeWaiting = knowledgeQueue.pending;
     const settingsVisibleWork = settingsQueue.total > 0;
     const knowledgeVisibleWork = knowledgeQueue.total > 0;
+    const fileVisibleWork =
+      fileEmbedPendingStatus.pending > 0 ||
+      fileEmbedPendingStatus.failed > 0 ||
+      fileEmbedPendingStatus.manualReviewCount > 0;
     const pendingTotal = Math.max(
       pageWaiting +
         databaseWaiting +
@@ -2190,7 +2194,8 @@ function SyncDashboard() {
       (pagePendingStatus.enabled ? 1 : 0) +
       (databasePendingStatus.enabled ? 1 : 0) +
       (settingsVisibleWork ? 1 : 0) +
-      (knowledgeVisibleWork ? 1 : 0);
+      (knowledgeVisibleWork ? 1 : 0) +
+      (fileVisibleWork ? 1 : 0);
     const authRetryDomainLabel = [
       pagePendingStatus.authRetryStatus ? "页面" : null,
       databasePendingStatus.authRetryStatus ? "数据库" : null,
@@ -20558,6 +20563,10 @@ function SyncLocalUseReadinessPanel({
     activeDomainLabels.length > 0
       ? activeDomainLabels.slice(0, 4).join(" / ")
       : "暂无全域 pending";
+  const monitoredDomainDetail =
+    enabledDomainCount > 0
+      ? "页面 / 数据库 / 设置 / 知识库 / 文件"
+      : "云同步未开启，仍可本地写入";
   const facts = [
     {
       label: "本地可继续使用",
@@ -20580,9 +20589,9 @@ function SyncLocalUseReadinessPanel({
       detail: `${failedTotal} 失败 / ${manualReviewTotal} 人工`,
     },
     {
-      label: "核心同步",
-      value: `${enabledDomainCount}/2`,
-      detail: "页面 / 数据库开关",
+      label: "监控同步域",
+      value: `${enabledDomainCount} 域`,
+      detail: monitoredDomainDetail,
     },
     {
       label: "全域队列",
@@ -20607,6 +20616,7 @@ function SyncLocalUseReadinessPanel({
       data-local-input-can-continue={String(readiness.localInputCanContinue)}
       data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
+      data-monitored-sync-domain-count={enabledDomainCount}
       data-active-sync-domain-count={activeDomainRows.length}
       data-active-sync-domain-labels={activeDomainLabels.join(",")}
       data-file-queue-total={fileQueueTotal}

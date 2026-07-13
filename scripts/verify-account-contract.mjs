@@ -3070,6 +3070,9 @@ check(
     syncDashboardShell.includes("file_embed_sync_queue") &&
     syncDashboardShell.includes("file-embed-pending-upload-queue") &&
     syncDashboardShell.includes(
+      "data-monitored-sync-domain-count={enabledDomainCount}"
+    ) &&
+    syncDashboardShell.includes(
       "data-active-sync-domain-count={activeDomainRows.length}"
     ) &&
     syncDashboardShell.includes(
@@ -3078,8 +3081,8 @@ check(
     syncDashboardShell.includes("本地可继续使用") &&
     syncDashboardShell.includes("云端交接") &&
     syncDashboardShell.includes("缓存重建") &&
-    syncDashboardShell.includes("核心同步") &&
-    syncDashboardShell.includes("页面 / 数据库开关") &&
+    syncDashboardShell.includes("监控同步域") &&
+    syncDashboardShell.includes("页面 / 数据库 / 设置 / 知识库 / 文件") &&
     syncDashboardShell.includes("全域队列") &&
     syncDashboardShell.includes("暂无全域 pending") &&
     syncDashboardShell.includes("下一步：{row.nextAction}") &&
@@ -3087,7 +3090,7 @@ check(
     syncDashboardShell.includes("先补传数据库变更；本地编辑可以继续。") &&
     syncDashboardShell.includes("补传全部本地输入") &&
     syncDashboardShell.includes("不读取页面正文、数据库行值、文件 bytes"),
-  "同步中心应在上传安全总览前展示本地可继续使用、云端交接、缓存重建阻断、核心同步开关、页面/数据库兜底队列和全域 pending 域分布，并保持 metadata-only 边界"
+  "同步中心应在上传安全总览前展示本地可继续使用、云端交接、缓存重建阻断、监控同步域、核心兜底队列和全域 pending 域分布，并保持 metadata-only 边界"
 );
 check(
   syncDashboardShell.includes("SyncOperationalStatusStrip") &&
