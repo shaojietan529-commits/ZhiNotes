@@ -97,6 +97,47 @@ function intakeReceiptTimingFields(receipt: IntakeReceiptTimingFieldsInput) {
   };
 }
 
+function intakeReviewVisibilityFields() {
+  return {
+    pendingIntakeReviewCount: 1,
+    failedIntakeCount: 0,
+    manualReviewIntakeCount: 0,
+    safeToRefreshCaches: false,
+    syncCenterStatus: "local_review_required",
+  };
+}
+
+function intakeFailureVisibilityFields({
+  retryable,
+  manualReviewRequired,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+}) {
+  return {
+    pendingIntakeReviewCount: 0,
+    failedIntakeCount: manualReviewRequired ? 0 : 1,
+    manualReviewIntakeCount: manualReviewRequired ? 1 : 0,
+    safeToRefreshCaches: false,
+    syncCenterStatus: intakeFailureSyncCenterStatus({
+      retryable,
+      manualReviewRequired,
+    }),
+  };
+}
+
+function intakeFailureSyncCenterStatus({
+  retryable,
+  manualReviewRequired,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+}) {
+  if (manualReviewRequired) return "manual_review_required";
+  if (retryable) return "retry_later";
+  return "failed_not_completed";
+}
+
 export async function POST(req: Request) {
   const bodyRead = await readBoundedJsonBody(req, MAX_INTAKE_REQUEST_BYTES);
   if (!bodyRead.ok) {
@@ -186,6 +227,7 @@ export async function POST(req: Request) {
     localPendingWrite: false,
     safeToContinueLocalUse: true,
     highRiskWriteGated: true,
+    ...intakeReviewVisibilityFields(),
     ...intakeReceiptTimingFields(intakeReceipt),
     intakeReceipt,
     ...intakeContinuityReceipt,
@@ -218,6 +260,10 @@ function intakeFailurePayload({
     retryable,
     manualReviewRequired,
   });
+  const visibilityFields = intakeFailureVisibilityFields({
+    retryable,
+    manualReviewRequired,
+  });
   return {
     ok: false,
     code,
@@ -236,6 +282,7 @@ function intakeFailurePayload({
     failedWriteCount: 0,
     localPendingWrite: false,
     safeToContinueLocalUse: true,
+    ...visibilityFields,
     nextAction: manualReviewRequired
       ? "manual_review"
       : retryable
@@ -278,6 +325,7 @@ function intakeSuccessReceipt({
     nextAction: "review_and_save_to_calendar",
     returnsJoinUrlForCalendarStorage,
     returnsMeetingPasscodeForCalendarStorage,
+    ...intakeReviewVisibilityFields(),
   };
 }
 
@@ -308,6 +356,10 @@ function intakeFailureReceipt({
       : retryable
         ? "retry"
         : "fix_input_or_configuration",
+    ...intakeFailureVisibilityFields({
+      retryable,
+      manualReviewRequired,
+    }),
   };
 }
 

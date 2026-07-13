@@ -539,6 +539,9 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("INTAKE_RECEIPT_FRESHNESS_WINDOW_MS") &&
         source.includes("function intakeReceiptFreshness") &&
         source.includes("function intakeReceiptTimingFields") &&
+        source.includes("function intakeReviewVisibilityFields") &&
+        source.includes("function intakeFailureVisibilityFields") &&
+        source.includes("function intakeFailureSyncCenterStatus") &&
         source.includes("receiptGeneratedAt: receipt.receiptGeneratedAt") &&
         source.includes("receiptStaleAfter: receipt.receiptStaleAfter") &&
         source.includes(
@@ -569,6 +572,12 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("failedWriteCount: 0") &&
         source.includes("localPendingWrite: false") &&
         source.includes("safeToContinueLocalUse: true") &&
+        source.includes("...intakeReviewVisibilityFields()") &&
+        source.includes("pendingIntakeReviewCount: 1") &&
+        source.includes("failedIntakeCount: 0") &&
+        source.includes("manualReviewIntakeCount: 0") &&
+        source.includes("safeToRefreshCaches: false") &&
+        source.includes('syncCenterStatus: "local_review_required"') &&
         source.includes("highRiskWriteGated: true") &&
         source.includes("const intakeReceipt = intakeSuccessReceipt") &&
         source.includes("...intakeReceiptTimingFields(intakeReceipt)") &&
@@ -618,6 +627,15 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("failedWriteCount: 0") &&
         source.includes("localPendingWrite: false") &&
         source.includes("safeToContinueLocalUse: true") &&
+        source.includes("const visibilityFields = intakeFailureVisibilityFields") &&
+        source.includes("...visibilityFields") &&
+        source.includes("pendingIntakeReviewCount: 0") &&
+        source.includes("failedIntakeCount: manualReviewRequired ? 0 : 1") &&
+        source.includes("manualReviewIntakeCount: manualReviewRequired ? 1 : 0") &&
+        source.includes("syncCenterStatus: intakeFailureSyncCenterStatus") &&
+        source.includes('return "manual_review_required"') &&
+        source.includes('return "retry_later"') &&
+        source.includes('return "failed_not_completed"') &&
         source.includes("nextAction: manualReviewRequired") &&
         source.includes("const intakeReceipt = intakeFailureReceipt") &&
         source.includes("...intakeReceiptTimingFields(intakeReceipt)") &&
