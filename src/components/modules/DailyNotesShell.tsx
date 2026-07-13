@@ -171,6 +171,7 @@ const DAILY_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS = 450;
 const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900;
 const DAILY_FOREGROUND_QUIET_WINDOW_MS = 1600;
 const DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400;
+const DAILY_FULL_PAGE_CREATE_NAVIGATION_RETRY_MS = 900;
 const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 450;
 const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 1400;
 const DAILY_DATE_INDEX_BACKFILL_BATCH = 96;
@@ -310,6 +311,7 @@ export default function DailyNotesShell() {
   const [openingDraft, setOpeningDraft] = useState<OpeningDailyDraft | null>(
     null
   );
+  const openingDraftRef = useRef<OpeningDailyDraft | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
     x: number;
@@ -399,6 +401,10 @@ export default function DailyNotesShell() {
   useEffect(() => {
     notesRef.current = notes;
   }, [notes]);
+
+  useEffect(() => {
+    openingDraftRef.current = openingDraft;
+  }, [openingDraft]);
 
   useEffect(() => {
     cloudLoadingRef.current = cloudLoading;
@@ -612,6 +618,30 @@ export default function DailyNotesShell() {
       });
     },
     [dbReady]
+  );
+
+  const scheduleDailyCreateFullPageNavigationRetry = useCallback(
+    (note: DailyNote, dateKey: string) => {
+      if (dailyCreateOpenMode !== "full-page") return;
+      window.setTimeout(() => {
+        if (!window.location.pathname.startsWith("/daily")) return;
+        const currentOpeningDraft = openingDraftRef.current;
+        if (
+          currentOpeningDraft?.pageId !== note.id ||
+          currentOpeningDraft.dateKey !== dateKey
+        ) {
+          return;
+        }
+        upsertPages([note]);
+        rememberPendingPageDraft(note);
+        rememberPageRouteHandoff(note, "daily-create");
+        openPage(note, { source: "daily-create" });
+        setCloudNotice(
+          `${dateKey} 的每日纪要页面跳转较慢，已自动重试打开完整页面。`
+        );
+      }, DAILY_FULL_PAGE_CREATE_NAVIGATION_RETRY_MS);
+    },
+    [dailyCreateOpenMode, openPage, upsertPages]
   );
 
   useEffect(() => {
@@ -1658,6 +1688,7 @@ export default function DailyNotesShell() {
           setOpeningNoteId(null);
           setPeekPageId(null);
           openPage(optimisticNote, { source: "daily-create" });
+          scheduleDailyCreateFullPageNavigationRetry(optimisticNote, dateKey);
         }
       } catch (error) {
         handleCreateFailure(error);
@@ -1778,6 +1809,7 @@ export default function DailyNotesShell() {
       dailyCreateOpenMode,
       openPage,
       scheduleOptimisticDailyHotCacheWrite,
+      scheduleDailyCreateFullPageNavigationRetry,
       warmDailyCreateOpenPath,
       markDailyForegroundInteraction,
     ]
@@ -3826,7 +3858,9 @@ function DailyOpeningDraftBanner({
     >
       <span className="font-medium">{message}</span>
       <span className="text-amber-600 dark:text-amber-400">
-        后台会继续保存并同步。
+        {mode === "peek"
+          ? "后台会继续保存并同步。"
+          : "如果没有立刻跳转，系统会自动重试打开。后台会继续保存并同步。"}
       </span>
       <button
         type="button"
@@ -3914,7 +3948,7 @@ function DailyOpeningDraftToast({
         <div className="mt-1 text-amber-600 dark:text-amber-400">
           {mode === "peek"
             ? "弹窗正在准备，后台继续保存并同步。"
-            : "正在进入完整页面，后台继续保存并同步。"}
+            : "正在进入完整页面；如果没有立刻跳转，系统会自动重试。后台继续保存并同步。"}
         </div>
         <div className="mt-2 flex gap-2">
           <button

@@ -11086,8 +11086,12 @@ function run() {
     "const localShellRequestedMs =\n        getLocalPerformanceNow() - createStartedAt;",
     "status: \"daily-create-local-shell-requested\"",
     "const openOpeningDailyDraftFullPage = useCallback",
+    "const scheduleDailyCreateFullPageNavigationRetry = useCallback",
+    "DAILY_FULL_PAGE_CREATE_NAVIGATION_RETRY_MS",
+    "window.location.pathname.startsWith(\"/daily\")",
     "current?.pageId === pageId ? null : current",
     "每日纪要正在进入页面",
+    "系统会自动重试打开",
     "每日纪要已弹出",
   ]) {
     assertIncludes(
