@@ -1127,7 +1127,12 @@ Current local actions:
   surface a no-pending clearance (`pendingWriteCount: 0`,
   `failedWriteCount: 0`, `manualReviewRequired: false`,
   `safeToRefreshCaches: true`) so sync-center and calendar clients can tell
-  the user the meeting write is complete rather than pending or failed.
+  the user the meeting write is complete rather than pending or failed. Import
+  failures mirror the same sync-center status family (`syncCenterStatus`,
+  `pendingImportCount`, `failedImportCount`, `manualReviewImportCount`,
+  `safeToContinueLocalUse`, `safeToRefreshCaches: false`) so clients can show a
+  retry, failed, or manual-review row without treating the failure as an
+  account sign-out or hidden data loss.
 - When enqueue sees the same meeting page but the existing queued job is already
   leased by a runner, the server preserves that leased job and creates a
   follow-up job instead of rewriting in-flight work. The enqueue response marks

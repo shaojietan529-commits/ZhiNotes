@@ -322,7 +322,12 @@ expect(
     importRouteSource.includes("pendingWriteCount: 0") &&
     importRouteSource.includes("failedWriteCount: 0") &&
     importRouteSource.includes("localPendingWrite: false") &&
+    importRouteSource.includes("pendingImportCount: 0") &&
+    importRouteSource.includes("failedImportCount: 0") &&
+    importRouteSource.includes("manualReviewImportCount: 0") &&
+    importRouteSource.includes("safeToContinueLocalUse: true") &&
     importRouteSource.includes("safeToRefreshCaches: true") &&
+    importRouteSource.includes("syncCenterStatus: \"idle\"") &&
     importRouteSource.includes("...importSuccessClearanceFields()"),
   "import route success responses should expose imported status, next metadata action, completed cloud/calendar write status, and no-pending clearance"
 );
@@ -394,13 +399,28 @@ expect(
     importRouteSource.includes("syncStatus,") &&
     importRouteSource.includes("cloudWriteStatus: writeStatus") &&
     importRouteSource.includes("calendarWriteStatus: writeStatus") &&
-    importRouteSource.includes("partialCloudWritePossible: retryable && !manualReviewRequired") &&
+    importRouteSource.includes("function importFailureVisibilityFields") &&
+    importRouteSource.includes("function importFailureSyncCenterStatus") &&
+    importRouteSource.includes("const partialCloudWritePossible = retryable && !manualReviewRequired") &&
+    importRouteSource.includes("const visibilityFields = importFailureVisibilityFields") &&
+    importRouteSource.includes("partialCloudWritePossible,") &&
+    importRouteSource.includes("...visibilityFields") &&
+    importRouteSource.includes("pendingWriteCount: partialCloudWritePossible ? 1 : 0") &&
+    importRouteSource.includes("failedWriteCount:") &&
+    importRouteSource.includes("localPendingWrite: false") &&
+    importRouteSource.includes("pendingImportCount: partialCloudWritePossible ? 1 : 0") &&
+    importRouteSource.includes("failedImportCount:") &&
+    importRouteSource.includes("manualReviewImportCount: manualReviewRequired ? 1 : 0") &&
+    importRouteSource.includes("safeToContinueLocalUse: true") &&
+    importRouteSource.includes("safeToRefreshCaches: false") &&
+    importRouteSource.includes("syncCenterStatus: importFailureSyncCenterStatus") &&
     importRouteSource.includes("requiresUserConfirmation: manualReviewRequired") &&
     importRouteSource.includes("highRiskWriteGated: true") &&
     importRouteSource.includes("\"manual_review_required\"") &&
     importRouteSource.includes("\"unknown_retryable\"") &&
     importRouteSource.includes("\"not_completed\"") &&
     importRouteSource.includes("\"retryable_unknown\"") &&
+    importRouteSource.includes("\"retry_later\"") &&
     importRouteSource.includes("\"failed_not_completed\"") &&
     importRouteSource.includes("const nextAction = manualReviewRequired") &&
     importRouteSource.includes("nextAction,") &&

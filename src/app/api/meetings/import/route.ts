@@ -109,12 +109,63 @@ function importSuccessClearanceFields() {
     pendingWriteCount: 0,
     failedWriteCount: 0,
     localPendingWrite: false,
+    pendingImportCount: 0,
+    failedImportCount: 0,
+    manualReviewImportCount: 0,
     manualReviewRequired: false,
     requiresUserConfirmation: false,
     partialCloudWritePossible: false,
     highRiskWriteGated: true,
+    safeToContinueLocalUse: true,
     safeToRefreshCaches: true,
+    syncCenterStatus: "idle",
   };
+}
+
+function importFailureVisibilityFields({
+  retryable,
+  manualReviewRequired,
+  partialCloudWritePossible,
+  failureStatus,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+  partialCloudWritePossible: boolean;
+  failureStatus: string;
+}) {
+  return {
+    importStatus: failureStatus,
+    pendingWriteCount: partialCloudWritePossible ? 1 : 0,
+    failedWriteCount:
+      !partialCloudWritePossible && !manualReviewRequired ? 1 : 0,
+    localPendingWrite: false,
+    pendingImportCount: partialCloudWritePossible ? 1 : 0,
+    failedImportCount:
+      !partialCloudWritePossible && !manualReviewRequired ? 1 : 0,
+    manualReviewImportCount: manualReviewRequired ? 1 : 0,
+    safeToContinueLocalUse: true,
+    safeToRefreshCaches: false,
+    syncCenterStatus: importFailureSyncCenterStatus({
+      retryable,
+      manualReviewRequired,
+      partialCloudWritePossible,
+    }),
+  };
+}
+
+function importFailureSyncCenterStatus({
+  retryable,
+  manualReviewRequired,
+  partialCloudWritePossible,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+  partialCloudWritePossible: boolean;
+}) {
+  if (manualReviewRequired) return "manual_review_required";
+  if (partialCloudWritePossible) return "retryable_unknown";
+  if (retryable) return "retry_later";
+  return "failed_not_completed";
 }
 
 export async function POST(request: Request) {
@@ -241,6 +292,13 @@ function importFailurePayload({
     : retryable
       ? "retry"
       : "fix_input_or_configuration";
+  const partialCloudWritePossible = retryable && !manualReviewRequired;
+  const visibilityFields = importFailureVisibilityFields({
+    retryable,
+    manualReviewRequired,
+    partialCloudWritePossible,
+    failureStatus,
+  });
   const failureReceipt = importFailureReceipt({
     code,
     retryable,
@@ -249,6 +307,7 @@ function importFailurePayload({
     syncStatus,
     failureStatus,
     nextAction,
+    partialCloudWritePossible,
   });
   const receiptTiming = importReceiptTimingFields(failureReceipt);
 
@@ -261,11 +320,12 @@ function importFailurePayload({
     syncStatus,
     cloudWriteStatus: writeStatus,
     calendarWriteStatus: writeStatus,
-    partialCloudWritePossible: retryable && !manualReviewRequired,
+    partialCloudWritePossible,
     requiresUserConfirmation: manualReviewRequired,
     highRiskWriteGated: true,
     failureStatus,
     manualReviewRequired,
+    ...visibilityFields,
     nextAction,
     ...receiptTiming,
     importFailureReceipt: failureReceipt,
@@ -281,6 +341,7 @@ function importFailureReceipt({
   syncStatus,
   failureStatus,
   nextAction,
+  partialCloudWritePossible,
 }: {
   code: string;
   retryable: boolean;
@@ -289,6 +350,7 @@ function importFailureReceipt({
   syncStatus: string;
   failureStatus: string;
   nextAction: string;
+  partialCloudWritePossible: boolean;
 }) {
   return {
     schema: "zhinote.zhihui.import.failure.receipt.v1",
@@ -301,10 +363,16 @@ function importFailureReceipt({
     syncStatus,
     cloudWriteStatus: writeStatus,
     calendarWriteStatus: writeStatus,
-    partialCloudWritePossible: retryable && !manualReviewRequired,
+    partialCloudWritePossible,
     requiresUserConfirmation: manualReviewRequired,
     manualReviewRequired,
     highRiskWriteGated: true,
+    ...importFailureVisibilityFields({
+      retryable,
+      manualReviewRequired,
+      partialCloudWritePossible,
+      failureStatus,
+    }),
     nextAction,
     localUseCanContinue: true,
     accountSessionUnaffected: true,
