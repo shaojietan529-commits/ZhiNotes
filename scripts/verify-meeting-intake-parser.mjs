@@ -498,6 +498,11 @@ function verifyIntakeRouteContract(source) {
       passed:
         source.includes("function intakeJson") &&
         source.includes("\"Cache-Control\", \"no-store, max-age=0\"") &&
+        source.includes("INTAKE_RECEIPT_FRESHNESS_WINDOW_MS") &&
+        source.includes("function intakeReceiptFreshness") &&
+        source.includes("receiptGeneratedAt") &&
+        source.includes("receiptStaleAfter") &&
+        source.includes("receiptFreshnessWindowMs") &&
         source.includes("const intakeContinuityReceipt") &&
         source.includes("const intakeReceiptBase") &&
         source.includes("schema: \"zhinote.zhihui.intake.receipt.v1\"") &&

@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const MAX_INPUT_CHARS = 20_000;
 const MAX_FETCH_CHARS = 250_000;
 const FETCH_TIMEOUT_MS = 5_000;
+const INTAKE_RECEIPT_FRESHNESS_WINDOW_MS = 30_000;
 const intakeFailureBoundary = {
   source: "zhihui-meeting-intake",
   accountSessionUnaffected: true,
@@ -47,6 +48,16 @@ function intakeJson(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
   response.headers.set("Cache-Control", "no-store, max-age=0");
   return response;
+}
+
+function intakeReceiptFreshness(now = new Date()) {
+  return {
+    receiptGeneratedAt: now.toISOString(),
+    receiptStaleAfter: new Date(
+      now.getTime() + INTAKE_RECEIPT_FRESHNESS_WINDOW_MS
+    ).toISOString(),
+    receiptFreshnessWindowMs: INTAKE_RECEIPT_FRESHNESS_WINDOW_MS,
+  };
 }
 
 export async function POST(req: Request) {
@@ -190,6 +201,7 @@ function intakeSuccessReceipt({
 }) {
   return {
     ...intakeReceiptBase,
+    ...intakeReceiptFreshness(),
     parseStatus: "completed",
     syncStatus: "local_review_required",
     fetchedPageReadStatus: fetched
@@ -217,6 +229,7 @@ function intakeFailureReceipt({
 }) {
   return {
     ...intakeReceiptBase,
+    ...intakeReceiptFreshness(),
     parseStatus: manualReviewRequired
       ? "manual_review_required"
       : retryable

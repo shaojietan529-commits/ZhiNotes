@@ -129,6 +129,10 @@ expect(
 expect(
   result.importReceipt?.schema === "zhinote.zhihui.import.receipt.v1" &&
     result.importReceipt.source === "meeting-agent-import" &&
+    Date.parse(result.importReceipt.receiptGeneratedAt) > 0 &&
+    Date.parse(result.importReceipt.receiptStaleAfter) >
+      Date.parse(result.importReceipt.receiptGeneratedAt) &&
+    result.importReceipt.receiptFreshnessWindowMs === 30000 &&
     result.importReceipt.pageRecordWriteStatus === "completed" &&
     result.importReceipt.pageRecordWrites === result.calendar.changedPageIds.length &&
     result.importReceipt.pageIndexWriteStatus === "updated" &&
@@ -226,6 +230,11 @@ expect(
     importerSource.includes("meeting_import_page_record_corrupt") &&
     importerSource.includes("manual_review_required: true") &&
     importerSource.includes("unconfirmed_pages_preserved: true") &&
+    importerSource.includes("IMPORT_RECEIPT_FRESHNESS_WINDOW_MS") &&
+    importerSource.includes("function buildImportReceiptFreshness") &&
+    importerSource.includes("receiptGeneratedAt") &&
+    importerSource.includes("receiptStaleAfter") &&
+    importerSource.includes("receiptFreshnessWindowMs") &&
     importerSource.includes("schema: \"zhinote.zhihui.import.receipt.v1\"") &&
     importerSource.includes("pageRecordWriteStatus: \"completed\"") &&
     importerSource.includes("pageRecordWrites: changedRecords.length") &&
@@ -243,7 +252,12 @@ expect(
 );
 expect(
   importRouteSource.includes("function importJson") &&
-    importRouteSource.includes("\"Cache-Control\", \"no-store, max-age=0\""),
+    importRouteSource.includes("\"Cache-Control\", \"no-store, max-age=0\"") &&
+    importRouteSource.includes("IMPORT_FAILURE_RECEIPT_FRESHNESS_WINDOW_MS") &&
+    importRouteSource.includes("function importFailureReceiptFreshness") &&
+    importRouteSource.includes("receiptGeneratedAt") &&
+    importRouteSource.includes("receiptStaleAfter") &&
+    importRouteSource.includes("receiptFreshnessWindowMs"),
   "import route responses should disable caching so calendar refresh and failure status are not stale"
 );
 expect(

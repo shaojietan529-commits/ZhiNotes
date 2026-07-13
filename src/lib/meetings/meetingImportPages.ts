@@ -15,6 +15,7 @@ const MAX_SCAN_PAGES = 3000;
 const SCAN_CHUNK = 32;
 const CHANGE_LOG_LIMIT = 5000;
 const MAX_TRANSCRIPT_CHARS = 650_000;
+const IMPORT_RECEIPT_FRESHNESS_WINDOW_MS = 30_000;
 
 interface IndexEntry {
   u: string;
@@ -126,6 +127,9 @@ export interface MeetingImportResult {
   importReceipt: {
     schema: "zhinote.zhihui.import.receipt.v1";
     source: "meeting-agent-import";
+    receiptGeneratedAt: string;
+    receiptStaleAfter: string;
+    receiptFreshnessWindowMs: number;
     pageRecordWriteStatus: "completed";
     pageRecordWrites: number;
     pageIndexWriteStatus: "updated";
@@ -308,6 +312,7 @@ export async function importMeetingArtifactToPages(
     importReceipt: {
       schema: "zhinote.zhihui.import.receipt.v1",
       source: "meeting-agent-import",
+      ...buildImportReceiptFreshness(now),
       pageRecordWriteStatus: "completed",
       pageRecordWrites: changedRecords.length,
       pageIndexWriteStatus: "updated",
@@ -325,6 +330,17 @@ export async function importMeetingArtifactToPages(
       rawMeetingContentEchoed: false,
       metadataOnly: true,
     },
+  };
+}
+
+function buildImportReceiptFreshness(receiptGeneratedAt: string) {
+  const generatedAt = new Date(receiptGeneratedAt);
+  return {
+    receiptGeneratedAt,
+    receiptStaleAfter: new Date(
+      generatedAt.getTime() + IMPORT_RECEIPT_FRESHNESS_WINDOW_MS
+    ).toISOString(),
+    receiptFreshnessWindowMs: IMPORT_RECEIPT_FRESHNESS_WINDOW_MS,
   };
 }
 

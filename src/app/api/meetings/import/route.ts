@@ -10,6 +10,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const IMPORT_FAILURE_RECEIPT_FRESHNESS_WINDOW_MS = 30_000;
 const failureBoundary = {
   source: "zhihui-meeting-import",
   accountSessionUnaffected: true,
@@ -21,6 +22,16 @@ function importJson(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
   response.headers.set("Cache-Control", "no-store, max-age=0");
   return response;
+}
+
+function importFailureReceiptFreshness(now = new Date()) {
+  return {
+    receiptGeneratedAt: now.toISOString(),
+    receiptStaleAfter: new Date(
+      now.getTime() + IMPORT_FAILURE_RECEIPT_FRESHNESS_WINDOW_MS
+    ).toISOString(),
+    receiptFreshnessWindowMs: IMPORT_FAILURE_RECEIPT_FRESHNESS_WINDOW_MS,
+  };
 }
 
 export async function POST(request: Request) {
@@ -188,6 +199,7 @@ function importFailureReceipt({
     schema: "zhinote.zhihui.import.failure.receipt.v1",
     source: failureBoundary.source,
     operation: "import_meeting_artifact",
+    ...importFailureReceiptFreshness(),
     status: failureStatus,
     failureCode: code,
     retryable,
