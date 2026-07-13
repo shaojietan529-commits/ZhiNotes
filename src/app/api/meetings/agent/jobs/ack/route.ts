@@ -234,6 +234,7 @@ export async function POST(request: Request) {
       queueHealth: ackHealth.queueHealth,
       attentionRequired: ackHealth.attentionRequired,
       attentionReason: ackHealth.attentionReason,
+      ...ackAttentionFields(ackHealth),
       reclaimableLeaseCount: ackHealth.reclaimableLeaseCount,
       ...queuePendingStatus,
       ...ackReceiptTimingFields(queueReceipt),
@@ -827,6 +828,7 @@ function queueAckReceipt(
     queueHealth: ackHealth.queueHealth,
     attentionRequired: ackHealth.attentionRequired,
     attentionReason: ackHealth.attentionReason,
+    ...ackAttentionFields(ackHealth),
     reclaimableLeaseCount: ackHealth.reclaimableLeaseCount,
     manualReviewRequired: hasPreservedJobs,
     manualReviewReason: hasPreservedJobs
@@ -864,4 +866,32 @@ function queueAckHealth({
     attentionReason,
     reclaimableLeaseCount: 0,
   };
+}
+
+function ackAttentionFields(ackHealth: { attentionReason: string | null }) {
+  return {
+    queueRecoveryRequired: ackHealth.attentionReason !== null,
+    queueRecoveryStatus: ackRecoveryStatus(ackHealth.attentionReason),
+    attentionNextAction: ackAttentionNextAction(ackHealth.attentionReason),
+  };
+}
+
+function ackRecoveryStatus(attentionReason: string | null) {
+  if (attentionReason === "ack_unconfirmed_jobs_preserved") {
+    return "ack_unconfirmed_jobs_preserved";
+  }
+  if (attentionReason === "queue_almost_full") {
+    return "capacity_attention_recommended";
+  }
+  return "not_needed";
+}
+
+function ackAttentionNextAction(attentionReason: string | null) {
+  if (attentionReason === "ack_unconfirmed_jobs_preserved") {
+    return "review_missing_or_lease_mismatched_jobs";
+  }
+  if (attentionReason === "queue_almost_full") {
+    return "let_runner_ack_or_clear_completed_jobs";
+  }
+  return "none";
 }

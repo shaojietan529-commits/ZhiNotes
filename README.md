@@ -1129,7 +1129,10 @@ Current local actions:
   attention recovery hints (`queueRecoveryRequired`, `queueRecoveryStatus`,
   `attentionNextAction`) so sync-center UI can show whether the next safe action
   is reclaiming expired leases, letting the runner ACK/clear completed jobs, or
-  doing nothing. They also mirror sync-center status fields
+  doing nothing. ACK success responses mirror the same recovery hints, including
+  `ack_unconfirmed_jobs_preserved` for missing or lease-mismatched IDs, so a
+  partial ACK can be shown as an explicit review item instead of a completed
+  sync. They also mirror sync-center status fields
   (`syncCenterStatus`, `pendingAgentJobCount`, `pendingRunnerAckCount`,
   `failedAgentJobCount`, `pendingWriteCount`, `failedWriteCount`,
   `localPendingWrite`, `safeToContinueLocalUse`, `safeToRefreshCaches`,
