@@ -7890,14 +7890,14 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
-    "foregroundDelay + PAGE_REVISION_REFRESH_DELAY_MS",
-    "Page opening revision refreshes must wait for the foreground quiet window after local edits."
+    "schedulePageForegroundAwareRefresh",
+    "Page opening revision refreshes must re-check the foreground quiet window when timers fire."
   );
   assertIncludes(
     files.usePage,
     usePage,
-    "foregroundDelay + PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS",
-    "Page opening cross-tab fallback refreshes must wait for the foreground quiet window after local edits."
+    "window.setTimeout(runWhenQuiet, foregroundDelay)",
+    "Page opening cross-tab fallback refreshes must defer again if local editing starts after scheduling."
   );
   assertIncludes(
     files.usePage,
@@ -9767,7 +9767,7 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
-    "fallbackReloadTimer = window.setTimeout",
+    "cancelFallbackReload = schedulePageForegroundAwareRefresh",
     "Page detail hook must retry local hot-cache reload after cross-tab updates."
   );
   assertIncludes(

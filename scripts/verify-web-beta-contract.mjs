@@ -3738,12 +3738,12 @@ function run() {
       "usePage must keep the current-page foreground quiet window explicit and bounded.",
     ],
     [
-      "foregroundDelay + PAGE_REVISION_REFRESH_DELAY_MS",
-      "usePage revision refreshes must wait for the foreground quiet window after local edits.",
+      "schedulePageForegroundAwareRefresh",
+      "usePage revision refreshes must re-check the foreground quiet window when timers fire.",
     ],
     [
-      "foregroundDelay + PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS",
-      "usePage cross-tab fallback refreshes must wait for the foreground quiet window after local edits.",
+      "window.setTimeout(runWhenQuiet, foregroundDelay)",
+      "usePage cross-tab fallback refreshes must defer again if local editing starts after scheduling.",
     ],
     [
       "if (foregroundPageIdRef.current !== pageId) return 0;",
@@ -5941,7 +5941,7 @@ function run() {
   assertSourceIncludes(
     files.usePage,
     usePage,
-    "fallbackReloadTimer = window.setTimeout",
+    "cancelFallbackReload = schedulePageForegroundAwareRefresh",
     "Page detail hook must retry local hot-cache reload after cross-tab updates."
   );
   assertSourceIncludes(

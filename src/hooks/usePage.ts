@@ -157,6 +157,27 @@ export function usePage(
     return Math.min(remaining, PAGE_FOREGROUND_REFRESH_MAX_DELAY_MS);
   }, [pageId]);
 
+  const schedulePageForegroundAwareRefresh = useCallback(
+    (callback: () => void, delayMs: number) => {
+      let timer: number | null = null;
+      const runWhenQuiet = () => {
+        const foregroundDelay = getPageForegroundRefreshDelay();
+        if (foregroundDelay > 0) {
+          timer = window.setTimeout(runWhenQuiet, foregroundDelay);
+          return;
+        }
+        timer = null;
+        callback();
+      };
+      timer = window.setTimeout(runWhenQuiet, delayMs);
+      return () => {
+        if (timer !== null) window.clearTimeout(timer);
+        timer = null;
+      };
+    },
+    [getPageForegroundRefreshDelay]
+  );
+
   const load = useCallback(async () => {
     const requestId = ++loadRequestRef.current;
     const isCurrentLoad = () => loadRequestRef.current === requestId;
@@ -303,40 +324,44 @@ export function usePage(
 
   useEffect(() => {
     let cancelled = false;
-    let refreshTimer: number | null = null;
+    let cancelRefresh: (() => void) | null = null;
     const runLoad = () => {
       if (!cancelled) void load();
     };
     const foregroundDelay = getPageForegroundRefreshDelay();
     if (foregroundDelay > 0) {
-      refreshTimer = window.setTimeout(
+      cancelRefresh = schedulePageForegroundAwareRefresh(
         runLoad,
-        foregroundDelay + PAGE_REVISION_REFRESH_DELAY_MS
+        PAGE_REVISION_REFRESH_DELAY_MS
       );
     } else {
       queueMicrotask(runLoad);
     }
     return () => {
       cancelled = true;
-      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      cancelRefresh?.();
       loadRequestRef.current += 1;
     };
-  }, [load, pageRevision, getPageForegroundRefreshDelay]);
+  }, [
+    load,
+    pageRevision,
+    getPageForegroundRefreshDelay,
+    schedulePageForegroundAwareRefresh,
+  ]);
 
   useEffect(() => {
     if (!enabled || !pageId || !dbReady) return;
-    let localReloadTimer: number | null = null;
-    let fallbackReloadTimer: number | null = null;
+    let cancelLocalReload: (() => void) | null = null;
+    let cancelFallbackReload: (() => void) | null = null;
     const scheduleLocalReload = () => {
-      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
-      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
-      const foregroundDelay = getPageForegroundRefreshDelay();
-      localReloadTimer = window.setTimeout(() => {
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
+      cancelLocalReload = schedulePageForegroundAwareRefresh(() => {
         void load();
-      }, foregroundDelay + PAGE_REVISION_REFRESH_DELAY_MS);
-      fallbackReloadTimer = window.setTimeout(() => {
+      }, PAGE_REVISION_REFRESH_DELAY_MS);
+      cancelFallbackReload = schedulePageForegroundAwareRefresh(() => {
         void load();
-      }, foregroundDelay + PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS);
+      }, PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS);
     };
     const unsubscribe = subscribePagesUpdated((message) => {
       const matchedPayload = message.pages?.find((item) => item.id === pageId);
@@ -355,8 +380,8 @@ export function usePage(
       }
     });
     return () => {
-      if (localReloadTimer !== null) window.clearTimeout(localReloadTimer);
-      if (fallbackReloadTimer !== null) window.clearTimeout(fallbackReloadTimer);
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
       unsubscribe();
     };
   }, [
@@ -365,7 +390,7 @@ export function usePage(
     dbReady,
     load,
     upsertPages,
-    getPageForegroundRefreshDelay,
+    schedulePageForegroundAwareRefresh,
   ]);
 
   const update = useCallback(

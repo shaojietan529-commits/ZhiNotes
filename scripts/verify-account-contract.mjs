@@ -1870,8 +1870,15 @@ check(
     usePageHook.includes("foregroundPageIdRef.current = pageId") &&
     usePageHook.includes("if (foregroundPageIdRef.current !== pageId) return 0;") &&
     usePageHook.includes("getPageForegroundRefreshDelay") &&
-    usePageHook.includes("foregroundDelay + PAGE_REVISION_REFRESH_DELAY_MS") &&
-    usePageHook.includes("foregroundDelay + PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS") &&
+    usePageHook.includes("schedulePageForegroundAwareRefresh") &&
+    usePageHook.includes("window.setTimeout(runWhenQuiet, foregroundDelay)") &&
+    usePageHook.includes("cancelRefresh = schedulePageForegroundAwareRefresh(") &&
+    usePageHook.includes("cancelLocalReload = schedulePageForegroundAwareRefresh(() => {") &&
+    usePageHook.includes("cancelFallbackReload = schedulePageForegroundAwareRefresh(() => {") &&
+    usePageHook.includes("let cancelLocalReload: (() => void) | null = null") &&
+    usePageHook.includes("let cancelFallbackReload: (() => void) | null = null") &&
+    usePageHook.includes("cancelLocalReload?.()") &&
+    usePageHook.includes("cancelFallbackReload?.()") &&
     usePageHook.includes("visiblePageRef.current?.id === pageId") &&
     usePageHook.includes("const requestId = ++loadRequestRef.current;") &&
     usePageHook.includes("if (!isCurrentLoad()) return;") &&
@@ -1983,8 +1990,8 @@ check(
     usePageHook.includes("pageUpdatePayloadToPage") &&
     usePageHook.includes("content_text: current?.content_text ?? null") &&
     usePageHook.includes("content_yjs: current?.content_yjs ?? null") &&
-    usePageHook.includes("localReloadTimer = window.setTimeout(() => {") &&
-    usePageHook.includes("fallbackReloadTimer = window.setTimeout(() => {") &&
+    usePageHook.includes("cancelLocalReload = schedulePageForegroundAwareRefresh(() => {") &&
+    usePageHook.includes("cancelFallbackReload = schedulePageForegroundAwareRefresh(() => {") &&
     usePageHook.includes("void load();") &&
     usePageHook.includes("matchedPayload = message.pages?.find") &&
     usePageHook.includes("!message.pages || message.pages.length === 0"),
