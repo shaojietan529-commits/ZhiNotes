@@ -3630,6 +3630,14 @@ function run() {
       "Page route handoff must define a short reuse window for unchanged metadata.",
     ],
     [
+      "PAGE_ROUTE_HANDOFF_PRUNE_INTERVAL_MS = 15 * 1000",
+      "Page route handoff pruning must be throttled so page opens do not scan sessionStorage on every click.",
+    ],
+    [
+      "prunePageRouteHandoffsIfDue(now)",
+      "Page route handoff must only prune stale sessionStorage entries on an interval.",
+    ],
+    [
       "shouldWritePageRouteHandoff",
       "Page route handoff must skip unchanged fresh sessionStorage rewrites.",
     ],

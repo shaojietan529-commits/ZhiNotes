@@ -5,6 +5,9 @@ const PAGE_ROUTE_HANDOFF_PREFIX = "zhinote.page.routeHandoff.";
 const PAGE_ROUTE_HANDOFF_TTL_MS = 2 * 60 * 1000;
 const PAGE_ROUTE_HANDOFF_REUSE_FRESH_MS = 60 * 1000;
 const PAGE_ROUTE_HANDOFF_MAX_ITEMS = 20;
+const PAGE_ROUTE_HANDOFF_PRUNE_INTERVAL_MS = 15 * 1000;
+
+let lastPageRouteHandoffPruneAt = 0;
 
 interface PageRouteHandoffPage {
   id: string;
@@ -108,7 +111,7 @@ export function rememberPageRouteHandoff(
   try {
     const key = pageRouteHandoffKey(page.id);
     if (!shouldWritePageRouteHandoff(key, handoff, now)) return;
-    prunePageRouteHandoffs(now);
+    prunePageRouteHandoffsIfDue(now);
     window.sessionStorage.setItem(key, JSON.stringify(handoff));
   } catch {
     // Route handoff is only a local speed hint. Navigation still works through
@@ -243,7 +246,18 @@ function isValidPageRouteHandoff(
   );
 }
 
+function prunePageRouteHandoffsIfDue(now: number): void {
+  if (
+    now - lastPageRouteHandoffPruneAt <
+    PAGE_ROUTE_HANDOFF_PRUNE_INTERVAL_MS
+  ) {
+    return;
+  }
+  prunePageRouteHandoffs(now);
+}
+
 function prunePageRouteHandoffs(now: number): void {
+  lastPageRouteHandoffPruneAt = now;
   const entries: Array<{ key: string; expiresAt: number }> = [];
   const storage = window.sessionStorage;
   for (let index = 0; index < storage.length; index += 1) {
