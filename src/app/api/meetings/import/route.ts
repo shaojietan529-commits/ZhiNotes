@@ -25,6 +25,51 @@ function importJson(body: unknown, init?: ResponseInit) {
   return response;
 }
 
+function importPayloadTooLarge() {
+  return importJson(
+    importFailurePayload({
+      code: "meeting_import_payload_too_large",
+      error: "ZhiHui meeting import payload is too large",
+      retryable: false,
+      details: { max_bytes: MAX_IMPORT_REQUEST_BYTES },
+    }),
+    { status: 413 }
+  );
+}
+
+async function readBoundedImportBody(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_IMPORT_REQUEST_BYTES) {
+    return { ok: false as const };
+  }
+
+  if (!request.body) {
+    return { ok: true as const, text: "" };
+  }
+
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_IMPORT_REQUEST_BYTES) {
+        await reader.cancel();
+        return { ok: false as const };
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+    return { ok: true as const, text };
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 function importFailureReceiptFreshness(now = new Date()) {
   return {
     receiptGeneratedAt: now.toISOString(),
@@ -59,22 +104,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(contentLength) && contentLength > MAX_IMPORT_REQUEST_BYTES) {
-    return importJson(
-      importFailurePayload({
-        code: "meeting_import_payload_too_large",
-        error: "ZhiHui meeting import payload is too large",
-        retryable: false,
-        details: { max_bytes: MAX_IMPORT_REQUEST_BYTES },
-      }),
-      { status: 413 }
-    );
+  const bodyRead = await readBoundedImportBody(request);
+  if (!bodyRead.ok) {
+    return importPayloadTooLarge();
   }
 
   let payload: unknown;
   try {
-    payload = await request.json();
+    payload = JSON.parse(bodyRead.text);
   } catch {
     return importJson(
       importFailurePayload({

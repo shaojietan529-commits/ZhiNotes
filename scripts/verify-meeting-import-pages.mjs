@@ -260,11 +260,18 @@ expect(
 );
 expect(
   importRouteSource.includes("MAX_IMPORT_REQUEST_BYTES") &&
+    importRouteSource.includes("function importPayloadTooLarge") &&
+    importRouteSource.includes("async function readBoundedImportBody") &&
     importRouteSource.includes("request.headers.get(\"content-length\")") &&
+    importRouteSource.includes("request.body.getReader()") &&
+    importRouteSource.includes("bytesRead += value.byteLength") &&
+    importRouteSource.includes("await reader.cancel()") &&
+    importRouteSource.includes("JSON.parse(bodyRead.text)") &&
+    !importRouteSource.includes("request.json()") &&
     importRouteSource.includes("meeting_import_payload_too_large") &&
     importRouteSource.includes("max_bytes: MAX_IMPORT_REQUEST_BYTES") &&
     importRouteSource.includes("{ status: 413 }"),
-  "import route should reject oversized meeting payloads before JSON parsing and cloud writes"
+  "import route should reject oversized meeting payloads with bounded body reads before JSON parsing and cloud writes"
 );
 expect(
   importRouteSource.includes("function importJson") &&
