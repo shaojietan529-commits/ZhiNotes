@@ -102,6 +102,8 @@ check(
 for (const token of [
   "MeetingAgentQueueTimeoutError",
   "MeetingAgentQueueFailureError",
+  "const queueContinuityReceipt",
+  "...queueContinuityReceipt",
   "zhihui-agent-queue-timeout",
   "会议页和日历本地数据不受影响",
   "timeout_ms: error.timeoutMs",
@@ -167,6 +169,8 @@ for (const code of [
 for (const token of [
   "MeetingAgentQueueTimeoutError",
   "MeetingAgentQueueFailureError",
+  "const ackContinuityReceipt",
+  "...ackContinuityReceipt",
   "zhihui-agent-queue-timeout",
   "不会清空未确认任务",
   "timeout_ms: error.timeoutMs",

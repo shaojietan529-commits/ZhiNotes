@@ -37,6 +37,11 @@ const queueFailureBoundary = {
   localMeetingDataUnaffected: true,
   rawMeetingContentEchoed: false,
 };
+const queueContinuityReceipt = {
+  accountSessionUnaffected: true,
+  localUseCanContinue: true,
+  localMeetingDataUnaffected: true,
+};
 
 export async function GET(request: Request) {
   const config = getMeetingAgentQueueConfig();
@@ -77,6 +82,7 @@ export async function GET(request: Request) {
       returnedJobs: queueResult.returnedJobs,
       hasMore: queueResult.hasMore,
       queueAlmostFull: queueResult.queueAlmostFull,
+      ...queueContinuityReceipt,
       privacy: {
         requires_agent_token: true,
         payload_may_include_meeting_credentials: true,
@@ -194,6 +200,7 @@ export async function POST(request: Request) {
       maxQueueItems: enqueueResult.maxQueueItems,
       availableQueueSlots: enqueueResult.availableQueueSlots,
       queueAlmostFull: enqueueResult.queueAlmostFull,
+      ...queueContinuityReceipt,
     });
   } catch (error) {
     return meetingAgentQueueErrorResponse(error);

@@ -17,6 +17,11 @@ const ackFailureBoundary = {
   rawMeetingContentEchoed: false,
   unconfirmedJobsPreserved: true,
 };
+const ackContinuityReceipt = {
+  accountSessionUnaffected: true,
+  localUseCanContinue: true,
+  localMeetingDataUnaffected: true,
+};
 
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
@@ -74,6 +79,7 @@ export async function POST(request: Request) {
       maxQueueItems: ackResult.maxQueueItems,
       availableQueueSlots: ackResult.availableQueueSlots,
       queueAlmostFull: ackResult.queueAlmostFull,
+      ...ackContinuityReceipt,
     });
   } catch (error) {
     if (error instanceof MeetingAgentQueueTimeoutError) {
