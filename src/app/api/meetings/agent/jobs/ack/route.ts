@@ -67,9 +67,15 @@ export async function POST(request: Request) {
   try {
     const ackResult = await ackMeetingAgentJobs(config.kv, jobIds);
     return NextResponse.json({
+      ok: true,
       acknowledged: ackResult.acknowledged,
       missing: ackResult.missing,
       status: ackResult.missing.length > 0 ? "partial" : "acknowledged",
+      nextAction:
+        ackResult.missing.length > 0
+          ? "review_missing_jobs"
+          : "poll_for_next_jobs",
+      syncStatus: "agent_queue_acknowledged",
       queueAction:
         ackResult.missing.length > 0
           ? "acknowledged_existing_jobs_with_missing_ids"

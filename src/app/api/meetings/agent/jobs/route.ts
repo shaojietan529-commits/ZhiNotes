@@ -75,6 +75,10 @@ export async function GET(request: Request) {
       Number.isFinite(limit) ? limit : 25
     );
     return NextResponse.json({
+      ok: true,
+      status: "ready",
+      nextAction: queueResult.jobs.length > 0 ? "dispatch_available_jobs" : "poll_later",
+      syncStatus: "agent_queue_index_read",
       jobs: queueResult.jobs,
       queueDepth: queueResult.queueDepth,
       maxQueueItems: queueResult.maxQueueItems,
@@ -193,6 +197,10 @@ export async function POST(request: Request) {
       ok: true,
       job_id: enqueueResult.job.id,
       status: enqueueResult.deduplicated ? "already_queued" : "queued",
+      nextAction: enqueueResult.deduplicated
+        ? "wait_for_existing_job"
+        : "wait_for_runner_ack",
+      syncStatus: "agent_queue_updated",
       queueAction: enqueueResult.deduplicated ? "reused_existing_job" : "created_job",
       deduplicated: enqueueResult.deduplicated,
       run_now: body.runNow === true,
