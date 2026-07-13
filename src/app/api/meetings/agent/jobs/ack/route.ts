@@ -142,6 +142,10 @@ export async function POST(request: Request) {
     const leaseMismatchCount = ackResult.leaseMismatched.length;
     const unconfirmedJobCount = missingCount + leaseMismatchCount;
     const hasUnconfirmedJobs = unconfirmedJobCount > 0;
+    const ackHealth = queueAckHealth({
+      queueAlmostFull: ackResult.queueAlmostFull,
+      hasUnconfirmedJobs,
+    });
     return ackJson({
       ok: true,
       acknowledged: ackResult.acknowledged,
@@ -170,10 +174,15 @@ export async function POST(request: Request) {
       maxQueueItems: ackResult.maxQueueItems,
       availableQueueSlots: ackResult.availableQueueSlots,
       queueAlmostFull: ackResult.queueAlmostFull,
+      queueHealth: ackHealth.queueHealth,
+      attentionRequired: ackHealth.attentionRequired,
+      attentionReason: ackHealth.attentionReason,
+      reclaimableLeaseCount: ackHealth.reclaimableLeaseCount,
       queueReceipt: queueAckReceipt(
         ackResult,
         normalizedAck.requestedAckCount,
-        normalizedAckLeases.requestedLeaseCount
+        normalizedAckLeases.requestedLeaseCount,
+        ackHealth
       ),
       ...ackContinuityReceipt,
     });
@@ -679,7 +688,12 @@ function queueAckReceipt(
     queueAlmostFull: boolean;
   },
   requestedAckCount: number,
-  requestedLeaseCount: number
+  requestedLeaseCount: number,
+  ackHealth = queueAckHealth({
+    queueAlmostFull: ackResult.queueAlmostFull,
+    hasUnconfirmedJobs:
+      ackResult.missing.length + ackResult.leaseMismatched.length > 0,
+  })
 ) {
   const acknowledgedCount = ackResult.acknowledged.length;
   const missingCount = ackResult.missing.length;
@@ -710,9 +724,34 @@ function queueAckReceipt(
     maxQueueItems: ackResult.maxQueueItems,
     availableQueueSlots: ackResult.availableQueueSlots,
     queueAlmostFull: ackResult.queueAlmostFull,
+    queueHealth: ackHealth.queueHealth,
+    attentionRequired: ackHealth.attentionRequired,
+    attentionReason: ackHealth.attentionReason,
+    reclaimableLeaseCount: ackHealth.reclaimableLeaseCount,
+    manualReviewRequired: preservedCount > 0,
     nextAction:
       preservedCount > 0
         ? "review_missing_or_lease_mismatched_jobs"
         : "poll_for_next_jobs",
+  };
+}
+
+function queueAckHealth({
+  queueAlmostFull,
+  hasUnconfirmedJobs,
+}: {
+  queueAlmostFull: boolean;
+  hasUnconfirmedJobs: boolean;
+}) {
+  const attentionReason = hasUnconfirmedJobs
+    ? "ack_unconfirmed_jobs_preserved"
+    : queueAlmostFull
+      ? "queue_almost_full"
+      : null;
+  return {
+    queueHealth: attentionReason ? "attention_recommended" : "healthy",
+    attentionRequired: attentionReason !== null,
+    attentionReason,
+    reclaimableLeaseCount: 0,
   };
 }
