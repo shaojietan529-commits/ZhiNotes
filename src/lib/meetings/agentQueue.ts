@@ -28,6 +28,34 @@ export class MeetingAgentQueueTimeoutError extends Error {
   }
 }
 
+export class MeetingAgentQueueFailureError extends Error {
+  status: number;
+  code: string;
+  retryable: boolean;
+  details: Record<string, unknown> | null;
+
+  constructor({
+    code,
+    message,
+    status,
+    retryable,
+    details = null,
+  }: {
+    code: string;
+    message: string;
+    status: number;
+    retryable: boolean;
+    details?: Record<string, unknown> | null;
+  }) {
+    super(message);
+    this.name = "MeetingAgentQueueFailureError";
+    this.code = code;
+    this.status = status;
+    this.retryable = retryable;
+    this.details = details;
+  }
+}
+
 export function getMeetingAgentQueueConfig():
   | { status: "ok"; kv: KvEnv; agentToken: string }
   | { status: "missing"; missing: string[] } {
@@ -66,7 +94,17 @@ export async function enqueueMeetingAgentJob(
 ): Promise<MeetingAgentQueueJob> {
   const serializedPayload = JSON.stringify(payload.payload);
   if (serializedPayload.length > MAX_PAYLOAD_BYTES) {
-    throw new Error("payload_too_large");
+    throw new MeetingAgentQueueFailureError({
+      code: "zhihui_agent_queue_payload_too_large",
+      message:
+        "ZhiHui 云端任务内容过大；会议页和日历本地数据不受影响，请精简会议字段或转入人工处理。",
+      status: 413,
+      retryable: false,
+      details: {
+        max_payload_bytes: MAX_PAYLOAD_BYTES,
+        actual_payload_chars: serializedPayload.length,
+      },
+    });
   }
   const jobs = await readQueue(kv);
   const job: MeetingAgentQueueJob = {
@@ -105,7 +143,16 @@ async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
       cache: "no-store",
     }
   );
-  if (!res.ok) throw new Error("kv_get_failed");
+  if (!res.ok) {
+    throw new MeetingAgentQueueFailureError({
+      code: "zhihui_agent_queue_kv_get_failed",
+      message:
+        "ZhiHui 云端任务队列读取失败；会议页和日历本地数据不受影响，可稍后重试。",
+      status: 502,
+      retryable: true,
+      details: { upstream_status: res.status },
+    });
+  }
   const data = await res.json();
   if (typeof data.result !== "string" || !data.result) return [];
   try {
@@ -126,7 +173,16 @@ async function writeQueue(kv: KvEnv, jobs: MeetingAgentQueueJob[]) {
       body: JSON.stringify(jobs),
     }
   );
-  if (!res.ok) throw new Error("kv_set_failed");
+  if (!res.ok) {
+    throw new MeetingAgentQueueFailureError({
+      code: "zhihui_agent_queue_kv_set_failed",
+      message:
+        "ZhiHui 云端任务队列写入失败；会议页和日历本地数据不受影响，可稍后重试。",
+      status: 502,
+      retryable: true,
+      details: { upstream_status: res.status },
+    });
+  }
 }
 
 async function fetchMeetingAgentQueueWithTimeout(

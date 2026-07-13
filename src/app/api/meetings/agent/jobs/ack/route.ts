@@ -3,6 +3,7 @@ import {
   ackMeetingAgentJobs,
   authorizeMeetingAgent,
   getMeetingAgentQueueConfig,
+  MeetingAgentQueueFailureError,
   MeetingAgentQueueTimeoutError,
 } from "@/lib/meetings/agentQueue";
 
@@ -71,6 +72,18 @@ export async function POST(request: Request) {
             "ZhiHui 云端任务队列确认超时；runner 可稍后重试，不会清空未确认任务。",
           retryable: true,
           details: { timeout_ms: error.timeoutMs },
+        }),
+        { status: error.status }
+      );
+    }
+    if (error instanceof MeetingAgentQueueFailureError) {
+      return NextResponse.json(
+        ackFailurePayload({
+          code: error.code,
+          error: error.code,
+          message: error.message,
+          retryable: error.retryable,
+          details: error.details,
         }),
         { status: error.status }
       );

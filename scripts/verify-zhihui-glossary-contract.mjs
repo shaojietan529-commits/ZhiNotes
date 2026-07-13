@@ -39,6 +39,7 @@ check(!route.includes("console."), "glossary route 不应该写日志");
 for (const token of [
   "MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000",
   "export class MeetingAgentQueueTimeoutError extends Error",
+  "export class MeetingAgentQueueFailureError extends Error",
   "async function fetchMeetingAgentQueueWithTimeout",
   "const controller = new AbortController();",
   "signal: controller.signal",
@@ -49,15 +50,32 @@ for (const token of [
 ]) {
   check(agentQueue.includes(token), `agent queue 缺少 ${token}`);
 }
+for (const token of [
+  "zhihui_agent_queue_payload_too_large",
+  "max_payload_bytes: MAX_PAYLOAD_BYTES",
+  "actual_payload_chars: serializedPayload.length",
+  "status: 413",
+  "retryable: false",
+  "zhihui_agent_queue_kv_get_failed",
+  "zhihui_agent_queue_kv_set_failed",
+  "upstream_status: res.status",
+  "retryable: true",
+]) {
+  check(agentQueue.includes(token), `agent queue typed failure 缺少 ${token}`);
+}
 check(
   (agentQueue.match(/\bfetch\(/g) ?? []).length === 1,
   "agent queue 的 KV get/set 必须统一走 8 秒超时 helper，不能直接分散 fetch"
 );
 for (const token of [
   "MeetingAgentQueueTimeoutError",
+  "MeetingAgentQueueFailureError",
   "zhihui-agent-queue-timeout",
   "会议页和日历本地数据不受影响",
   "timeout_ms: error.timeoutMs",
+  "code: error.code",
+  "retryable: error.retryable",
+  "details: error.details",
 ]) {
   check(jobsRoute.includes(token), `jobs route 缺少 ${token}`);
 }
@@ -80,15 +98,25 @@ for (const code of [
   "invalid_json",
   "invalid_meeting_payload",
   "zhihui_agent_queue_timeout",
+  "zhihui_agent_queue_payload_too_large",
+  "zhihui_agent_queue_kv_get_failed",
+  "zhihui_agent_queue_kv_set_failed",
   "zhihui_agent_queue_failed",
 ]) {
-  check(jobsRoute.includes(code), `jobs route 缺少稳定失败 code ${code}`);
+  check(
+    jobsRoute.includes(code) || agentQueue.includes(code),
+    `jobs route 缺少稳定失败 code ${code}`
+  );
 }
 for (const token of [
   "MeetingAgentQueueTimeoutError",
+  "MeetingAgentQueueFailureError",
   "zhihui-agent-queue-timeout",
   "不会清空未确认任务",
   "timeout_ms: error.timeoutMs",
+  "code: error.code",
+  "retryable: error.retryable",
+  "details: error.details",
 ]) {
   check(ackRoute.includes(token), `jobs ack route 缺少 ${token}`);
 }
@@ -109,9 +137,14 @@ for (const code of [
   "zhihui_agent_unauthorized",
   "invalid_json",
   "zhihui_agent_queue_timeout",
+  "zhihui_agent_queue_kv_get_failed",
+  "zhihui_agent_queue_kv_set_failed",
   "zhihui_agent_queue_ack_failed",
 ]) {
-  check(ackRoute.includes(code), `jobs ack route 缺少稳定失败 code ${code}`);
+  check(
+    ackRoute.includes(code) || agentQueue.includes(code),
+    `jobs ack route 缺少稳定失败 code ${code}`
+  );
 }
 
 const helper = read("src/lib/meetings/glossary.ts");

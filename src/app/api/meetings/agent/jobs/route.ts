@@ -10,6 +10,7 @@ import {
   enqueueMeetingAgentJob,
   getMeetingAgentQueueConfig,
   listMeetingAgentJobs,
+  MeetingAgentQueueFailureError,
   MeetingAgentQueueTimeoutError,
 } from "@/lib/meetings/agentQueue";
 
@@ -197,6 +198,18 @@ function meetingAgentQueueErrorResponse(error: unknown) {
           "ZhiHui 云端任务队列请求超时；会议页和日历本地数据不受影响，可稍后重试接入 runner。",
         retryable: true,
         details: { timeout_ms: error.timeoutMs },
+      }),
+      { status: error.status }
+    );
+  }
+  if (error instanceof MeetingAgentQueueFailureError) {
+    return NextResponse.json(
+      queueFailurePayload({
+        code: error.code,
+        error: error.code,
+        message: error.message,
+        retryable: error.retryable,
+        details: error.details,
       }),
       { status: error.status }
     );
