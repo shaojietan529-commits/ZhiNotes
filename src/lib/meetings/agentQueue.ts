@@ -15,19 +15,29 @@ export interface MeetingAgentQueueJob {
 export interface MeetingAgentQueueEnqueueResult {
   job: MeetingAgentQueueJob;
   deduplicated: boolean;
+  queueDepth: number;
+  maxQueueItems: number;
+  availableQueueSlots: number;
+  queueAlmostFull: boolean;
 }
 
 export interface MeetingAgentQueueListResult {
   jobs: MeetingAgentQueueJob[];
   queueDepth: number;
   maxQueueItems: number;
+  availableQueueSlots: number;
   returnedJobs: number;
   hasMore: boolean;
+  queueAlmostFull: boolean;
 }
 
 export interface MeetingAgentQueueAckResult {
   acknowledged: string[];
   missing: string[];
+  queueDepth: number;
+  maxQueueItems: number;
+  availableQueueSlots: number;
+  queueAlmostFull: boolean;
 }
 
 interface KvEnv {
@@ -103,8 +113,7 @@ export async function listMeetingAgentJobs(
   const limitedJobs = jobs.slice(0, Math.max(1, Math.min(limit, 50)));
   return {
     jobs: limitedJobs,
-    queueDepth: jobs.length,
-    maxQueueItems: MAX_QUEUE_ITEMS,
+    ...queueStats(jobs),
     returnedJobs: limitedJobs.length,
     hasMore: limitedJobs.length < jobs.length,
   };
@@ -139,7 +148,9 @@ export async function enqueueMeetingAgentJob(
     payload.job_type,
     payload.payload
   );
-  if (existingJob) return { job: existingJob, deduplicated: true };
+  if (existingJob) {
+    return { job: existingJob, deduplicated: true, ...queueStats(jobs) };
+  }
   if (jobs.length >= MAX_QUEUE_ITEMS) {
     throw queueFullError(jobs.length);
   }
@@ -152,7 +163,7 @@ export async function enqueueMeetingAgentJob(
   };
   jobs.push(job);
   await writeQueue(kv, jobs);
-  return { job, deduplicated: false };
+  return { job, deduplicated: false, ...queueStats(jobs) };
 }
 
 export async function ackMeetingAgentJobs(
@@ -160,9 +171,11 @@ export async function ackMeetingAgentJobs(
   jobIds: string[]
 ): Promise<MeetingAgentQueueAckResult> {
   const ids = uniqueJobIds(jobIds);
-  if (ids.length === 0) return { acknowledged: [], missing: [] };
   const requestedIds = new Set(ids);
   const jobs = await readQueue(kv);
+  if (ids.length === 0) {
+    return { acknowledged: [], missing: [], ...queueStats(jobs) };
+  }
   const acknowledged: string[] = [];
   const remaining = jobs.filter((job) => {
     if (!requestedIds.has(job.id)) return true;
@@ -171,9 +184,11 @@ export async function ackMeetingAgentJobs(
   });
   const acknowledgedIds = new Set(acknowledged);
   const missing = ids.filter((id) => !acknowledgedIds.has(id));
-  if (acknowledged.length === 0) return { acknowledged, missing };
+  if (acknowledged.length === 0) {
+    return { acknowledged, missing, ...queueStats(jobs) };
+  }
   await writeQueue(kv, remaining);
-  return { acknowledged, missing };
+  return { acknowledged, missing, ...queueStats(remaining) };
 }
 
 async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
@@ -266,6 +281,17 @@ function textValue(value: unknown) {
 
 function payloadByteLength(value: string) {
   return Buffer.byteLength(value, "utf8");
+}
+
+function queueStats(jobs: MeetingAgentQueueJob[]) {
+  const queueDepth = jobs.length;
+  const availableQueueSlots = Math.max(0, MAX_QUEUE_ITEMS - queueDepth);
+  return {
+    queueDepth,
+    maxQueueItems: MAX_QUEUE_ITEMS,
+    availableQueueSlots,
+    queueAlmostFull: availableQueueSlots <= 10,
+  };
 }
 
 function uniqueJobIds(jobIds: string[]) {

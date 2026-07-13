@@ -78,7 +78,9 @@ for (const token of [
   "meeting_page_id: pageId",
   "deduplicated: true",
   "deduplicated: false",
-  "queueDepth: jobs.length",
+  "function queueStats",
+  "availableQueueSlots",
+  "queueAlmostFull",
   "maxQueueItems: MAX_QUEUE_ITEMS",
   "returnedJobs: limitedJobs.length",
   "hasMore: limitedJobs.length < jobs.length",
@@ -114,10 +116,15 @@ for (const token of [
   "jobs: queueResult.jobs",
   "queueDepth: queueResult.queueDepth",
   "maxQueueItems: queueResult.maxQueueItems",
+  "availableQueueSlots: queueResult.availableQueueSlots",
   "returnedJobs: queueResult.returnedJobs",
   "hasMore: queueResult.hasMore",
+  "queueAlmostFull: queueResult.queueAlmostFull",
   "\"reused_existing_job\"",
   "deduplicated: enqueueResult.deduplicated",
+  "queueDepth: enqueueResult.queueDepth",
+  "availableQueueSlots: enqueueResult.availableQueueSlots",
+  "queueAlmostFull: enqueueResult.queueAlmostFull",
 ]) {
   check(jobsRoute.includes(token), `jobs route 缺少 ${token}`);
 }
@@ -170,6 +177,9 @@ for (const token of [
   "manualReviewRequired",
   "nextAction: manualReviewRequired",
   "ackResult.missing",
+  "queueDepth: ackResult.queueDepth",
+  "availableQueueSlots: ackResult.availableQueueSlots",
+  "queueAlmostFull: ackResult.queueAlmostFull",
   "\"partial\"",
   "\"acknowledged_existing_jobs_with_missing_ids\"",
   "unconfirmedJobsPreserved: ackResult.missing.length > 0",
@@ -266,6 +276,11 @@ const queueListMetadataBehavior = await verifyQueueListMetadataBehavior();
 check(
   queueListMetadataBehavior,
   "agent queue list 必须返回队列深度、上限、返回数量和是否还有更多任务"
+);
+const queueMutationMetadataBehavior = await verifyQueueMutationMetadataBehavior();
+check(
+  queueMutationMetadataBehavior,
+  "agent queue enqueue/ack 必须返回写入或确认后的队列状态，方便 UI 和 runner 判断积压"
 );
 const queueDedupeBehavior = await verifyQueueDedupeBehavior();
 check(
@@ -633,10 +648,84 @@ async function verifyQueueListMetadataBehavior() {
     result.jobs[0].id === "job_1" &&
     result.queueDepth === 3 &&
     result.maxQueueItems === 200 &&
+    result.availableQueueSlots === 197 &&
     result.returnedJobs === 2 &&
     result.hasMore === true &&
+    result.queueAlmostFull === false &&
     calls.get === 1 &&
     calls.set === 0
+  );
+}
+
+async function verifyQueueMutationMetadataBehavior() {
+  const seedJobs = [
+    {
+      id: "job_seed",
+      job_type: "meeting_recording_request",
+      payload: syntheticRecordingPayload({ pageId: "meeting_page_seed" }),
+      created_at: "2026-07-13T00:02:00.000Z",
+    },
+  ];
+  const calls = { get: 0, set: 0 };
+  let storedQueue = JSON.stringify(seedJobs);
+  const queue = loadAgentQueueWithFetch(async (url, init) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: storedQueue };
+        },
+      };
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      storedQueue = typeof init?.body === "string" ? init.body : "";
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  const first = await queue.enqueueMeetingAgentJob(mockKv(), {
+    job_type: "meeting_recording_request",
+    payload: syntheticRecordingPayload({ pageId: "meeting_page_mutation" }),
+  });
+  const duplicate = await queue.enqueueMeetingAgentJob(mockKv(), {
+    job_type: "meeting_recording_request",
+    payload: syntheticRecordingPayload({ pageId: "meeting_page_mutation" }),
+  });
+  const ack = await queue.ackMeetingAgentJobs(mockKv(), [first.job.id]);
+  const storedJobs = JSON.parse(storedQueue);
+
+  return (
+    first.deduplicated === false &&
+    first.queueDepth === 2 &&
+    first.maxQueueItems === 200 &&
+    first.availableQueueSlots === 198 &&
+    first.queueAlmostFull === false &&
+    duplicate.deduplicated === true &&
+    duplicate.job.id === first.job.id &&
+    duplicate.queueDepth === 2 &&
+    duplicate.availableQueueSlots === 198 &&
+    ack.acknowledged.length === 1 &&
+    ack.acknowledged[0] === first.job.id &&
+    ack.missing.length === 0 &&
+    ack.queueDepth === 1 &&
+    ack.availableQueueSlots === 199 &&
+    ack.queueAlmostFull === false &&
+    Array.isArray(storedJobs) &&
+    storedJobs.length === 1 &&
+    storedJobs[0].id === "job_seed" &&
+    calls.get === 3 &&
+    calls.set === 2
   );
 }
 

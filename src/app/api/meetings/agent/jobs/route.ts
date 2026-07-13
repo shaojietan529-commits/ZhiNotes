@@ -73,8 +73,10 @@ export async function GET(request: Request) {
       jobs: queueResult.jobs,
       queueDepth: queueResult.queueDepth,
       maxQueueItems: queueResult.maxQueueItems,
+      availableQueueSlots: queueResult.availableQueueSlots,
       returnedJobs: queueResult.returnedJobs,
       hasMore: queueResult.hasMore,
+      queueAlmostFull: queueResult.queueAlmostFull,
       privacy: {
         requires_agent_token: true,
         payload_may_include_meeting_credentials: true,
@@ -188,6 +190,10 @@ export async function POST(request: Request) {
       queueAction: enqueueResult.deduplicated ? "reused_existing_job" : "created_job",
       deduplicated: enqueueResult.deduplicated,
       run_now: body.runNow === true,
+      queueDepth: enqueueResult.queueDepth,
+      maxQueueItems: enqueueResult.maxQueueItems,
+      availableQueueSlots: enqueueResult.availableQueueSlots,
+      queueAlmostFull: enqueueResult.queueAlmostFull,
     });
   } catch (error) {
     return meetingAgentQueueErrorResponse(error);

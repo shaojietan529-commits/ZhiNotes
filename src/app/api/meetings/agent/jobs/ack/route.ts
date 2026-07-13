@@ -70,6 +70,10 @@ export async function POST(request: Request) {
           ? "acknowledged_existing_jobs_with_missing_ids"
           : "acknowledged_existing_jobs",
       unconfirmedJobsPreserved: ackResult.missing.length > 0,
+      queueDepth: ackResult.queueDepth,
+      maxQueueItems: ackResult.maxQueueItems,
+      availableQueueSlots: ackResult.availableQueueSlots,
+      queueAlmostFull: ackResult.queueAlmostFull,
     });
   } catch (error) {
     if (error instanceof MeetingAgentQueueTimeoutError) {
