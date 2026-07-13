@@ -1609,6 +1609,16 @@ check(
   "MeetingScheduleShell 日历首屏应按日期范围只读本地会议 metadata，云端校正延后到空闲任务，不能为渲染日历扫描完整会议根或读取正文"
 );
 check(
+  shells.schedule.includes("const cloudPromise = includeCloud") &&
+    shells.schedule.includes("void cloudPromise.then((cloud)") &&
+    shells.schedule.includes("loadRequestRef.current !== requestId || firstVisibleMs !== null") &&
+    shells.schedule.includes("const earlySelection = publishMeetings([], cloud.pages)") &&
+    shells.schedule.includes("云端会议目录先返回，已先显示 metadata；本地索引和正文继续后台补齐。") &&
+    shells.schedule.includes("writeCachedMeetingCloudMetadata(startDate, endDate, cloud)") &&
+    shells.schedule.includes("source: \"cloud-metadata\""),
+  "MeetingScheduleShell 云端会议 metadata 如果先返回，必须先渲染轻量日历目录并写入浏览器热缓存，不能等待本地索引完成"
+);
+check(
   shells.schedule.includes("function getMeetingCloudUnavailableMessage") &&
     shells.schedule.includes("页面同步已关闭，本地会议日历继续可用。") &&
     shells.schedule.includes("当前浏览器未登录账号，只显示本机会议日历。") &&

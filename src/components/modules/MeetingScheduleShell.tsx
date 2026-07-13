@@ -1113,6 +1113,33 @@ export default function MeetingScheduleShell() {
           recentLimit: recentMetadataLimit,
         }).catch(() => emptyMeetingCloudMetadata(false))
       : null;
+    if (cloudPromise) {
+      void cloudPromise.then((cloud) => {
+        if (loadRequestRef.current !== requestId || firstVisibleMs !== null) {
+          return;
+        }
+        if (!cloud.ok || !cloud.rootId || cloud.pages.length === 0) return;
+
+        publishRootId(cloud.rootId);
+        const earlySelection = publishMeetings([], cloud.pages);
+        publishLoadStatus("cloud-checking", earlySelection, {
+          cloudLoading: true,
+          backgroundActive: true,
+          message:
+            "云端会议目录先返回，已先显示 metadata；本地索引和正文继续后台补齐。",
+        });
+        if (earlySelection) {
+          writeCachedMeetingCloudMetadata(startDate, endDate, cloud);
+          writeMeetingHotCacheSnapshot({
+            startDate,
+            endDate,
+            rootId: cloud.rootId,
+            pages: earlySelection.pages,
+            source: "cloud-metadata",
+          });
+        }
+      });
+    }
 
     let id: string | null = null;
     let localLoadFailed = false;
