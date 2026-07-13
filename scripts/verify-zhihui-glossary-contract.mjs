@@ -316,9 +316,23 @@ for (const token of [
   "terms_only: true",
   "SECRET_LINE_PATTERN",
   "looksLikeSecretToken",
+  "const MAX_PAGE_RECORDS = 24",
+  "const GLOSSARY_KV_READ_TIMEOUT_MS = 1200",
+  "function kvGetForGlossary",
+  "const controller = new AbortController();",
+  "signal: controller.signal",
+  "Promise.allSettled",
+  "page_read_limit: MAX_PAGE_RECORDS",
+  "page_read_failures: pageReadFailures",
+  "page_read_timeout_ms: GLOSSARY_KV_READ_TIMEOUT_MS",
+  "time-budgeted to keep meeting workflows responsive",
 ]) {
   check(helper.includes(token), `glossary helper 缺少 ${token}`);
 }
+check(
+  !helper.includes('from "@/lib/account/server"'),
+  "glossary helper 应使用短预算 KV 读取，不能复用账号通用 8 秒 KV helper 拖慢会议流程"
+);
 check(
   !helper.includes("console."),
   "glossary helper 不应该写日志（避免泄露页面词条）"

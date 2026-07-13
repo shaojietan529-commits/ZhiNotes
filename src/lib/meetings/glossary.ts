@@ -1,11 +1,10 @@
-import { kvGet } from "@/lib/account/server";
-
 const PAGE_SYNC_INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
 const PAGE_SYNC_PAGE_KEY_PREFIX = "zhinotes:pagesync:page:";
 const MAX_INDEX_ITEMS = 180;
-const MAX_PAGE_RECORDS = 80;
+const MAX_PAGE_RECORDS = 24;
 const MAX_PAGE_TEXT_CHARS = 24_000;
 const MAX_TERMS = 140;
+const GLOSSARY_KV_READ_TIMEOUT_MS = 1200;
 
 const GENERIC_TERMS = new Set([
   "and",
@@ -181,16 +180,24 @@ export async function buildZhiHuiGlossary(params: {
   pushTerms(meetingContextTerms, "meeting_context", 100);
 
   let pagesRead = 0;
+  let pageReadFailures = 0;
   let pageTerms = 0;
   const sourceWarnings: string[] = [];
   if (accountEmail) {
-    const pages = await readRelevantPages(params.kv, accountEmail, [
+    const pageReadResult = await readRelevantPages(params.kv, accountEmail, [
       topic,
       organizer,
       platform,
       ...meetingContextTerms,
     ]);
+    const pages = pageReadResult.pages;
     pagesRead = pages.length;
+    pageReadFailures = pageReadResult.readFailures;
+    if (pageReadFailures > 0) {
+      sourceWarnings.push(
+        "Some synced pages were skipped because ZhiHui glossary reads are time-budgeted to keep meeting workflows responsive."
+      );
+    }
     for (const page of pages) {
       const titleTerms = extractTerms(page.title);
       const bodyTerms = extractTerms(page.content_text ?? "");
@@ -219,6 +226,9 @@ export async function buildZhiHuiGlossary(params: {
       workspace_id_present: Boolean(workspaceId),
       account_source: accountEmail ? "configured" : "missing",
       pages_read: pagesRead,
+      page_read_limit: MAX_PAGE_RECORDS,
+      page_read_failures: pageReadFailures,
+      page_read_timeout_ms: GLOSSARY_KV_READ_TIMEOUT_MS,
       warnings: sourceWarnings,
     },
     privacy: {
@@ -244,37 +254,82 @@ async function readRelevantPages(
   accountEmail: string,
   queryTerms: string[]
 ) {
-  const indexRaw = await kvGet(kv, `${PAGE_SYNC_INDEX_KEY_PREFIX}${accountEmail}`);
-  if (!indexRaw) return [];
+  let indexRaw: string | null;
+  try {
+    indexRaw = await kvGetForGlossary(
+      kv,
+      `${PAGE_SYNC_INDEX_KEY_PREFIX}${accountEmail}`
+    );
+  } catch {
+    return { pages: [], readFailures: 1 };
+  }
+  if (!indexRaw) return { pages: [], readFailures: 0 };
 
   let index: Record<string, PageIndexEntry>;
   try {
     index = JSON.parse(indexRaw) as Record<string, PageIndexEntry>;
   } catch {
-    return [];
+    return { pages: [], readFailures: 1 };
   }
 
   const entries = Object.entries(index)
     .filter(([, entry]) => entry && entry.d !== 1)
     .sort((a, b) => String(b[1]?.u ?? "").localeCompare(String(a[1]?.u ?? "")))
-    .slice(0, MAX_INDEX_ITEMS);
+    .slice(0, MAX_INDEX_ITEMS)
+    .slice(0, MAX_PAGE_RECORDS);
 
-  const pages: PageRecord[] = [];
-  for (const [pageId] of entries) {
-    if (pages.length >= MAX_PAGE_RECORDS) break;
-    const raw = await kvGet(kv, `${PAGE_SYNC_PAGE_KEY_PREFIX}${accountEmail}:${pageId}`);
-    const page = parsePageRecord(raw);
-    if (page) pages.push(page);
-  }
+  const pageReads = await Promise.allSettled(
+    entries.map(async ([pageId]) => {
+      const raw = await kvGetForGlossary(
+        kv,
+        `${PAGE_SYNC_PAGE_KEY_PREFIX}${accountEmail}:${pageId}`
+      );
+      return parsePageRecord(raw);
+    })
+  );
+
+  let readFailures = 0;
+  const pages = pageReads.flatMap((result) => {
+    if (result.status === "rejected") {
+      readFailures += 1;
+      return [];
+    }
+    return result.value ? [result.value] : [];
+  });
 
   const needles = queryTerms
     .map((term) => term.toLowerCase())
     .filter((term) => term.length >= 2);
-  return pages
-    .map((page) => ({ page, score: pageMatchScore(page, needles) }))
-    .sort((a, b) => b.score - a.score || b.page.updated_at.localeCompare(a.page.updated_at))
-    .slice(0, MAX_PAGE_RECORDS)
-    .map((item) => item.page);
+  return {
+    pages: pages
+      .map((page) => ({ page, score: pageMatchScore(page, needles) }))
+      .sort(
+        (a, b) => b.score - a.score || b.page.updated_at.localeCompare(a.page.updated_at)
+      )
+      .slice(0, MAX_PAGE_RECORDS)
+      .map((item) => item.page),
+    readFailures,
+  };
+}
+
+async function kvGetForGlossary(env: KvEnv, key: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    GLOSSARY_KV_READ_TIMEOUT_MS
+  );
+  try {
+    const res = await fetch(`${env.url}/get/${encodeURIComponent(key)}`, {
+      headers: { authorization: `Bearer ${env.token}` },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error("glossary kv get failed");
+    const data = await res.json();
+    return typeof data.result === "string" ? data.result : null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function parsePageRecord(raw: string | null): PageRecord | null {
