@@ -3782,7 +3782,8 @@ function run() {
       "usePage foreground quiet windows must be scoped to the current page id so switching pages stays fast.",
     ],
     [
-      "PAGE_FOREGROUND_QUIET_WINDOW_MS = 1600",
+      "PAGE_FOREGROUND_QUIET_WINDOW_MS = 3200",
+      "PAGE_FOREGROUND_REFRESH_MAX_DELAY_MS = 3600",
       "usePage must keep the current-page foreground quiet window explicit and bounded.",
     ],
     [

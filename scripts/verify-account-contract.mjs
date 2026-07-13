@@ -1881,8 +1881,8 @@ check(
     usePageHook.includes("const visiblePageRef = useRef<Page | null>(initialLocalFirstPageSeed)") &&
     usePageHook.includes("const foregroundPageIdRef = useRef<string | null>(pageId);") &&
     usePageHook.includes("const foregroundQuietUntilRef = useRef(0);") &&
-    usePageHook.includes("PAGE_FOREGROUND_QUIET_WINDOW_MS = 1600") &&
-    usePageHook.includes("PAGE_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400") &&
+    usePageHook.includes("PAGE_FOREGROUND_QUIET_WINDOW_MS = 3200") &&
+    usePageHook.includes("PAGE_FOREGROUND_REFRESH_MAX_DELAY_MS = 3600") &&
     usePageHook.includes("PAGE_REVISION_REFRESH_DELAY_MS = 120") &&
     usePageHook.includes("PAGE_REVISION_FALLBACK_REFRESH_DELAY_MS = 900") &&
     usePageHook.includes("foregroundPageIdRef.current = pageId") &&

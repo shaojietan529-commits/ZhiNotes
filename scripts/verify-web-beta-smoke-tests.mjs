@@ -8062,7 +8062,8 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
-    "PAGE_FOREGROUND_QUIET_WINDOW_MS = 1600",
+    "PAGE_FOREGROUND_QUIET_WINDOW_MS = 3200",
+    "PAGE_FOREGROUND_REFRESH_MAX_DELAY_MS = 3600",
     "Page opening must keep the current-page foreground quiet window explicit and bounded."
   );
   assertIncludes(
