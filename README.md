@@ -1114,12 +1114,13 @@ Current local actions:
   `job_leases` map of `{ job_id: lease_id }`. Claim responses also mark
   `ackContract: "lease_aware"`, `ackRequiresLease: true`, and
   `ackLeaseSource: "job.lease.lease_id"` so runners know exactly which value to
-  return. Poll and claim responses mirror `operation`, `queueAction`,
+  return. Poll, claim, and enqueue responses mirror `operation`, `queueAction`,
   `queueReadStatus`, and `queueWriteStatus` at the top level; plain polling is
-  `not_started`, while claim mode reports `lease_claim_completed` or
-  `not_needed_no_available_jobs` so clients can tell when a runner actually
-  mutated the queue lease. Poll, enqueue, and ACK responses also surface `queueHealth`,
-  `attentionRequired`, `attentionReason`, and `reclaimableLeaseCount` so
+  `not_started`, claim mode reports `lease_claim_completed` or
+  `not_needed_no_available_jobs`, and enqueue reports `completed` or
+  `not_needed_existing_job` so clients can tell when a runner lease or page
+  request actually mutated the queue. Poll, enqueue, and ACK responses also
+  surface `queueHealth`, `attentionRequired`, `attentionReason`, and `reclaimableLeaseCount` so
   sync-center UI can show queue pressure or reclaimable expired leases without
   inspecting every job. They also mirror sync-center status fields
   (`syncCenterStatus`, `pendingAgentJobCount`, `pendingRunnerAckCount`,

@@ -302,6 +302,7 @@ export async function POST(request: Request) {
       { runNow: body.runNow === true },
       enqueueHealth
     );
+    const enqueueWriteStatus = queueEnqueueWriteStatus(enqueueResult);
     const queuePendingStatus = buildMeetingAgentQueuePendingStatus({
       queueDepth: enqueueResult.queueDepth,
       attentionRequired: enqueueHealth.attentionRequired,
@@ -309,6 +310,7 @@ export async function POST(request: Request) {
 
     return queueJson({
       ok: true,
+      operation: "enqueue",
       job_id: enqueueResult.job.id,
       status: enqueueResult.deduplicated ? "already_queued" : "queued",
       nextAction: enqueueResult.deduplicated
@@ -322,6 +324,8 @@ export async function POST(request: Request) {
           : enqueueResult.leasedDuplicatePreserved
             ? "created_followup_job_for_leased_duplicate"
             : "created_job",
+      queueReadStatus: "completed",
+      queueWriteStatus: enqueueWriteStatus,
       deduplicated: enqueueResult.deduplicated,
       updatedExisting: enqueueResult.updatedExisting,
       leasedDuplicatePreserved: enqueueResult.leasedDuplicatePreserved,
@@ -475,6 +479,15 @@ function queueListWriteStatus(queueResult: QueueListReceiptInput) {
     : "not_needed_no_available_jobs";
 }
 
+function queueEnqueueWriteStatus(enqueueResult: {
+  deduplicated: boolean;
+  updatedExisting: boolean;
+}) {
+  return enqueueResult.deduplicated && !enqueueResult.updatedExisting
+    ? "not_needed_existing_job"
+    : "completed";
+}
+
 function queueEnqueueReceipt(
   enqueueResult: {
     job: { id: string };
@@ -501,10 +514,7 @@ function queueEnqueueReceipt(
           ? "created_followup_job_for_leased_duplicate"
           : "created_job",
     queueReadStatus: "completed",
-    queueWriteStatus:
-      enqueueResult.deduplicated && !enqueueResult.updatedExisting
-        ? "not_needed_existing_job"
-        : "completed",
+    queueWriteStatus: queueEnqueueWriteStatus(enqueueResult),
     jobId: enqueueResult.job.id,
     deduplicated: enqueueResult.deduplicated,
     updatedExisting: enqueueResult.updatedExisting,
