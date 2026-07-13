@@ -16,6 +16,7 @@ const root = process.cwd();
 const require = createRequire(import.meta.url);
 const importPath = "src/lib/meetings/meetingImportPages.ts";
 const importRoutePath = "src/app/api/meetings/import/route.ts";
+const requestBodyPath = "src/lib/meetings/requestBody.ts";
 const accountSyncRoutePath = "src/app/api/pages/account-sync/route.ts";
 const accountSyncClientPath = "src/lib/pages/accountPageSync.ts";
 const kvStore = new Map();
@@ -25,6 +26,7 @@ let failChangeLogWrite = false;
 const importer = loadImporter(path.join(root, importPath));
 const importerSource = readFileSync(path.join(root, importPath), "utf8");
 const importRouteSource = readFileSync(path.join(root, importRoutePath), "utf8");
+const requestBodySource = readFileSync(path.join(root, requestBodyPath), "utf8");
 const accountSyncRouteSource = readFileSync(
   path.join(root, accountSyncRoutePath),
   "utf8"
@@ -261,17 +263,25 @@ expect(
 expect(
   importRouteSource.includes("MAX_IMPORT_REQUEST_BYTES") &&
     importRouteSource.includes("function importPayloadTooLarge") &&
-    importRouteSource.includes("async function readBoundedImportBody") &&
-    importRouteSource.includes("request.headers.get(\"content-length\")") &&
-    importRouteSource.includes("request.body.getReader()") &&
-    importRouteSource.includes("bytesRead += value.byteLength") &&
-    importRouteSource.includes("await reader.cancel()") &&
-    importRouteSource.includes("JSON.parse(bodyRead.text)") &&
+    importRouteSource.includes(
+      "readBoundedJsonBody(request, MAX_IMPORT_REQUEST_BYTES)"
+    ) &&
     !importRouteSource.includes("request.json()") &&
     importRouteSource.includes("meeting_import_payload_too_large") &&
     importRouteSource.includes("max_bytes: MAX_IMPORT_REQUEST_BYTES") &&
     importRouteSource.includes("{ status: 413 }"),
   "import route should reject oversized meeting payloads with bounded body reads before JSON parsing and cloud writes"
+);
+expect(
+  requestBodySource.includes("export async function readBoundedJsonBody") &&
+    requestBodySource.includes("request.headers.get(\"content-length\")") &&
+    requestBodySource.includes("request.body.getReader()") &&
+    requestBodySource.includes("bytesRead += value.byteLength") &&
+    requestBodySource.includes("await reader.cancel()") &&
+    requestBodySource.includes("JSON.parse(bodyText.text)") &&
+    requestBodySource.includes('reason: "payload_too_large"') &&
+    requestBodySource.includes('reason: "invalid_json"'),
+  "shared meeting request body reader should bound request size before JSON parsing"
 );
 expect(
   importRouteSource.includes("function importJson") &&

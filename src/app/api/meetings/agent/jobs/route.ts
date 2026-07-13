@@ -14,10 +14,12 @@ import {
   MeetingAgentQueueFailureError,
   MeetingAgentQueueTimeoutError,
 } from "@/lib/meetings/agentQueue";
+import { readBoundedJsonBody } from "@/lib/meetings/requestBody";
 
 export const dynamic = "force-dynamic";
 
 const JOB_TYPE = "meeting_recording_request";
+const MAX_QUEUE_REQUEST_BYTES = 128 * 1024;
 const PLATFORMS = new Set([
   "腾讯会议",
   "Zoom",
@@ -57,6 +59,18 @@ function queueJson(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
   response.headers.set("Cache-Control", "no-store, max-age=0");
   return response;
+}
+
+function queueRequestTooLarge() {
+  return queueJson(
+    queueFailurePayload({
+      code: "zhihui_agent_queue_request_too_large",
+      error: "ZhiHui agent queue request payload is too large",
+      retryable: false,
+      details: { max_request_bytes: MAX_QUEUE_REQUEST_BYTES },
+    }),
+    { status: 413 }
+  );
 }
 
 export async function GET(request: Request) {
@@ -175,10 +189,11 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { meeting?: unknown; runNow?: unknown };
-  try {
-    body = await request.json();
-  } catch {
+  const bodyRead = await readBoundedJsonBody(request, MAX_QUEUE_REQUEST_BYTES);
+  if (!bodyRead.ok) {
+    if (bodyRead.reason === "payload_too_large") {
+      return queueRequestTooLarge();
+    }
     return queueJson(
       queueFailurePayload({
         code: "invalid_json",
@@ -188,6 +203,10 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+  const body =
+    bodyRead.value && typeof bodyRead.value === "object"
+      ? (bodyRead.value as { meeting?: unknown; runNow?: unknown })
+      : {};
 
   const parsed = parseMeeting(body.meeting);
   if ("error" in parsed) {

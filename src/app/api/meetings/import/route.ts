@@ -7,6 +7,7 @@ import {
   importMeetingArtifactToPages,
   MeetingImportError,
 } from "@/lib/meetings/meetingImportPages";
+import { readBoundedJsonBody } from "@/lib/meetings/requestBody";
 
 export const dynamic = "force-dynamic";
 
@@ -35,39 +36,6 @@ function importPayloadTooLarge() {
     }),
     { status: 413 }
   );
-}
-
-async function readBoundedImportBody(request: Request) {
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(contentLength) && contentLength > MAX_IMPORT_REQUEST_BYTES) {
-    return { ok: false as const };
-  }
-
-  if (!request.body) {
-    return { ok: true as const, text: "" };
-  }
-
-  const reader = request.body.getReader();
-  const decoder = new TextDecoder();
-  let bytesRead = 0;
-  let text = "";
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      bytesRead += value.byteLength;
-      if (bytesRead > MAX_IMPORT_REQUEST_BYTES) {
-        await reader.cancel();
-        return { ok: false as const };
-      }
-      text += decoder.decode(value, { stream: true });
-    }
-    text += decoder.decode();
-    return { ok: true as const, text };
-  } finally {
-    reader.releaseLock();
-  }
 }
 
 function importFailureReceiptFreshness(now = new Date()) {
@@ -104,15 +72,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const bodyRead = await readBoundedImportBody(request);
+  const bodyRead = await readBoundedJsonBody(request, MAX_IMPORT_REQUEST_BYTES);
   if (!bodyRead.ok) {
-    return importPayloadTooLarge();
-  }
-
-  let payload: unknown;
-  try {
-    payload = JSON.parse(bodyRead.text);
-  } catch {
+    if (bodyRead.reason === "payload_too_large") {
+      return importPayloadTooLarge();
+    }
     return importJson(
       importFailurePayload({
         code: "invalid_json",
@@ -124,7 +88,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await importMeetingArtifactToPages(config.kv, payload);
+    const result = await importMeetingArtifactToPages(config.kv, bodyRead.value);
     return importJson({
       ok: true,
       id: result.importId,

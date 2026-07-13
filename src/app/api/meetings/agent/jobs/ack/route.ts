@@ -7,9 +7,11 @@ import {
   MeetingAgentQueueFailureError,
   MeetingAgentQueueTimeoutError,
 } from "@/lib/meetings/agentQueue";
+import { readBoundedJsonBody } from "@/lib/meetings/requestBody";
 
 export const dynamic = "force-dynamic";
 
+const MAX_ACK_REQUEST_BYTES = 32 * 1024;
 const ackFailureBoundary = {
   source: "zhihui-agent-queue-ack",
   accountSessionUnaffected: true,
@@ -40,6 +42,18 @@ function ackJson(body: unknown, init?: ResponseInit) {
   return response;
 }
 
+function ackRequestTooLarge() {
+  return ackJson(
+    ackFailurePayload({
+      code: "zhihui_agent_queue_ack_request_too_large",
+      error: "ZhiHui agent queue ACK request payload is too large",
+      retryable: false,
+      details: { max_request_bytes: MAX_ACK_REQUEST_BYTES },
+    }),
+    { status: 413 }
+  );
+}
+
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
@@ -64,10 +78,11 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { job_ids?: unknown };
-  try {
-    body = await request.json();
-  } catch {
+  const bodyRead = await readBoundedJsonBody(request, MAX_ACK_REQUEST_BYTES);
+  if (!bodyRead.ok) {
+    if (bodyRead.reason === "payload_too_large") {
+      return ackRequestTooLarge();
+    }
     return ackJson(
       ackFailurePayload({
         code: "invalid_json",
@@ -77,6 +92,10 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+  const body =
+    bodyRead.value && typeof bodyRead.value === "object"
+      ? (bodyRead.value as { job_ids?: unknown })
+      : {};
 
   const jobIds = Array.isArray(body.job_ids)
     ? body.job_ids.filter((item): item is string => typeof item === "string")

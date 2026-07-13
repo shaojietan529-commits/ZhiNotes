@@ -30,6 +30,7 @@ const read = (rel) => {
 const route = read("src/app/api/glossary/route.ts");
 const agentQueue = read("src/lib/meetings/agentQueue.ts");
 const queueReceipts = read("src/lib/meetings/agentQueueReceipts.ts");
+const requestBody = read("src/lib/meetings/requestBody.ts");
 const jobsRoute = read("src/app/api/meetings/agent/jobs/route.ts");
 const ackRoute = read("src/app/api/meetings/agent/jobs/ack/route.ts");
 for (const token of [
@@ -151,10 +152,30 @@ check(
   verifyReceiptTimingBehavior(),
   "agent queue receipt timing 必须生成 active/idle/retry/manual review 的过期时间和建议轮询时间"
 );
+check(
+  requestBody.includes("export async function readBoundedJsonBody") &&
+    requestBody.includes("request.headers.get(\"content-length\")") &&
+    requestBody.includes("request.body.getReader()") &&
+    requestBody.includes("bytesRead += value.byteLength") &&
+    requestBody.includes("await reader.cancel()") &&
+    requestBody.includes("JSON.parse(bodyText.text)") &&
+    requestBody.includes('reason: "payload_too_large"') &&
+    requestBody.includes('reason: "invalid_json"'),
+  "meeting request body helper 必须在 JSON.parse 前按字节限制请求体"
+);
+check(
+  !jobsRoute.includes("request.json()") && !ackRoute.includes("request.json()"),
+  "agent queue jobs/ack routes 不能直接 request.json()，必须先走 bounded request body helper"
+);
 for (const token of [
   "MeetingAgentQueueTimeoutError",
   "MeetingAgentQueueFailureError",
   "function queueJson",
+  "readBoundedJsonBody",
+  "MAX_QUEUE_REQUEST_BYTES",
+  "function queueRequestTooLarge",
+  "zhihui_agent_queue_request_too_large",
+  "max_request_bytes: MAX_QUEUE_REQUEST_BYTES",
   "\"Cache-Control\", \"no-store, max-age=0\"",
   "const queueContinuityReceipt",
   "const queueReceiptBase",
@@ -259,6 +280,7 @@ for (const code of [
   "account_system_not_configured",
   "account_session_required",
   "account_session_unconfirmed",
+  "zhihui_agent_queue_request_too_large",
   "invalid_json",
   "invalid_meeting_payload",
   "zhihui_agent_queue_timeout",
@@ -279,6 +301,11 @@ for (const token of [
   "MeetingAgentQueueTimeoutError",
   "MeetingAgentQueueFailureError",
   "function ackJson",
+  "readBoundedJsonBody",
+  "MAX_ACK_REQUEST_BYTES",
+  "function ackRequestTooLarge",
+  "zhihui_agent_queue_ack_request_too_large",
+  "max_request_bytes: MAX_ACK_REQUEST_BYTES",
   "\"Cache-Control\", \"no-store, max-age=0\"",
   "const ackContinuityReceipt",
   "const ackReceiptBase",
@@ -365,6 +392,7 @@ for (const token of [
 for (const code of [
   "zhihui_agent_queue_not_configured",
   "zhihui_agent_unauthorized",
+  "zhihui_agent_queue_ack_request_too_large",
   "invalid_json",
   "zhihui_agent_queue_timeout",
   "zhihui_agent_queue_kv_get_failed",
