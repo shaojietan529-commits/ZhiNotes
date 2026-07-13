@@ -136,6 +136,9 @@ export async function GET(request: Request) {
       expiredLeaseJobs: queueResult.expiredLeaseJobs,
       leaseDurationMs: queueResult.leaseDurationMs,
       leaseExpiresAt: queueResult.leaseExpiresAt,
+      ackContract: "lease_aware",
+      ackRequiresLease: queueResult.claimMode,
+      ackLeaseSource: queueResult.claimMode ? "job.lease.lease_id" : null,
       runnerIdEchoed: false,
       queueReceipt: queueListReceipt(queueResult),
       ...queueContinuityReceipt,
@@ -346,6 +349,9 @@ function queueListReceipt(queueResult: {
     expiredLeaseJobs: queueResult.expiredLeaseJobs,
     leaseDurationMs: queueResult.leaseDurationMs,
     leaseExpiresAt: queueResult.leaseExpiresAt,
+    ackContract: "lease_aware",
+    ackRequiresLease: queueResult.claimMode,
+    ackLeaseSource: queueResult.claimMode ? "job.lease.lease_id" : null,
     runnerIdEchoed: false,
     nextAction:
       queueResult.claimedJobs > 0

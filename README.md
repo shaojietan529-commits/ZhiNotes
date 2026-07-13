@@ -1086,12 +1086,14 @@ Current local actions:
   should poll `GET /api/meetings/agent/jobs?claim=true` with a stable
   `runner_id` or `x-zhihui-runner-id`, process only the returned claimed jobs,
   and ACK with `POST /api/meetings/agent/jobs/ack` using both `job_ids` and a
-  `job_leases` map of `{ job_id: lease_id }`. The server keeps job-id-only ACK
-  compatibility only for jobs that have never been leased. Once a job carries a
-  `lease.lease_id`, ACK deletes it only when the supplied lease id matches.
-  Missing, lease-less, or mismatched ACKs are preserved and surfaced as
-  manual-review metadata, so another device or restarted runner cannot
-  accidentally sign off work it no longer owns.
+  `job_leases` map of `{ job_id: lease_id }`. Claim responses also mark
+  `ackContract: "lease_aware"`, `ackRequiresLease: true`, and
+  `ackLeaseSource: "job.lease.lease_id"` so runners know exactly which value to
+  return. The server keeps job-id-only ACK compatibility only for jobs that have
+  never been leased. Once a job carries a `lease.lease_id`, ACK deletes it only
+  when the supplied lease id matches. Missing, lease-less, or mismatched ACKs
+  are preserved and surfaced as manual-review metadata, so another device or
+  restarted runner cannot accidentally sign off work it no longer owns.
 - When enqueue sees the same meeting page but the existing queued job is already
   leased by a runner, the server preserves that leased job and creates a
   follow-up job instead of rewriting in-flight work. The enqueue response marks
