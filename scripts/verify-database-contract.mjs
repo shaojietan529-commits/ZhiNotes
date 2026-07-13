@@ -654,9 +654,9 @@ function run() {
     "loadDatabaseSnapshot",
     "databaseSnapshotInFlight",
     "setDatabases(all)",
+    "Render the rebuildable local cache before cloud metadata",
     "Treat local SQLite as a cache",
     "Cloud metadata refresh is best effort",
-    "mergeDatabaseMetadata(all, cloudRecords)",
     "mergeDatabaseMetadata(current, message.records ?? [])",
     "message.records?.length",
     "subscribeDatabasesUpdated",
@@ -671,7 +671,17 @@ function run() {
       files.useDatabases,
       useDatabases,
       snippet,
-      "Database list UI must use cloud metadata delta first, then treat local SQLite as a rebuildable cache fallback."
+      "Database list UI must render local metadata first, then use cloud metadata delta as the authoritative correction."
+    );
+  }
+  if (
+    !(
+      useDatabases.indexOf("all = await loadDatabaseSnapshot();") <
+      useDatabases.indexOf("const cloud = await syncCloudDatabaseMetadataDelta")
+    )
+  ) {
+    failures.push(
+      "Database list UI must read the rebuildable local snapshot before waiting on cloud metadata."
     );
   }
   if (
