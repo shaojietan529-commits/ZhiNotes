@@ -137,14 +137,22 @@ export async function POST(request: Request) {
     const ackResult = await ackMeetingAgentJobs(config.kv, normalizedAck.jobIds, {
       jobLeases: normalizedAckLeases.jobLeases,
     });
-    const hasUnconfirmedJobs =
-      ackResult.missing.length > 0 || ackResult.leaseMismatched.length > 0;
+    const acknowledgedCount = ackResult.acknowledged.length;
+    const missingCount = ackResult.missing.length;
+    const leaseMismatchCount = ackResult.leaseMismatched.length;
+    const unconfirmedJobCount = missingCount + leaseMismatchCount;
+    const hasUnconfirmedJobs = unconfirmedJobCount > 0;
     return ackJson({
       ok: true,
       acknowledged: ackResult.acknowledged,
       missing: ackResult.missing,
       leaseMismatched: ackResult.leaseMismatched,
-      leaseMismatchCount: ackResult.leaseMismatched.length,
+      requestedAckCount: normalizedAck.requestedAckCount,
+      requestedLeaseCount: normalizedAckLeases.requestedLeaseCount,
+      acknowledgedCount,
+      missingCount,
+      leaseMismatchCount,
+      unconfirmedJobCount,
       status: hasUnconfirmedJobs ? "partial" : "acknowledged",
       nextAction:
         hasUnconfirmedJobs
@@ -155,6 +163,8 @@ export async function POST(request: Request) {
         hasUnconfirmedJobs
           ? "acknowledged_existing_jobs_with_missing_or_lease_mismatched_ids"
           : "acknowledged_existing_jobs",
+      ackContract: "lease_aware",
+      manualReviewRequired: hasUnconfirmedJobs,
       unconfirmedJobsPreserved: hasUnconfirmedJobs,
       queueDepth: ackResult.queueDepth,
       maxQueueItems: ackResult.maxQueueItems,

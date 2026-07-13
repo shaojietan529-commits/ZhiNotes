@@ -1094,6 +1094,9 @@ Current local actions:
   when the supplied lease id matches. Missing, lease-less, or mismatched ACKs
   are preserved and surfaced as manual-review metadata, so another device or
   restarted runner cannot accidentally sign off work it no longer owns.
+  ACK responses surface top-level request/confirmed/unconfirmed counts plus
+  `manualReviewRequired`, so clients do not need to parse the nested receipt to
+  decide whether a sync-center review row is needed.
 - When enqueue sees the same meeting page but the existing queued job is already
   leased by a runner, the server preserves that leased job and creates a
   follow-up job instead of rewriting in-flight work. The enqueue response marks
