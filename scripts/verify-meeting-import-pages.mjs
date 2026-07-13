@@ -215,6 +215,12 @@ expect(
   "import route should return sanitized meeting metadata"
 );
 expect(
+  importRouteSource.includes("status: \"imported\"") &&
+    importRouteSource.includes("nextAction: \"refresh_calendar_metadata\"") &&
+    importRouteSource.includes("syncStatus: \"cloud_page_index_updated\""),
+  "import route success responses should expose imported status, next metadata action, and cloud index sync status"
+);
+expect(
   importRouteSource.includes("calendar: result.calendar"),
   "import route should return the calendar visibility receipt"
 );

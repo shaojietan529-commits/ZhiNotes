@@ -60,6 +60,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       id: result.importId,
+      status: "imported",
+      nextAction: "refresh_calendar_metadata",
+      syncStatus: "cloud_page_index_updated",
       url: result.url,
       minutesPageId: result.minutesPageId,
       meetingPageId: result.meetingPageId,
