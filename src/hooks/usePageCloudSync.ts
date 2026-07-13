@@ -147,6 +147,7 @@ export function usePageCloudSync() {
   const authRetryAfterRef = useRef(0);
   const authRetryStateRef = useRef<PageCloudSyncState>("signed-out");
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
+  const recoveringLocalCacheSignalRef = useRef<string | null>(null);
 
   const refreshPendingStatus = useCallback(() => {
     setPendingStatus(getPendingCloudPageSyncStatus());
@@ -265,44 +266,55 @@ export function usePageCloudSync() {
 
   const recoverLocalCacheFromCloud = useCallback(async () => {
     const signal = getLocalCacheRecoverySignal();
-    if (!signal || seenLocalCacheRecoverySignalRef.current === signal.id) {
+    if (
+      !signal ||
+      seenLocalCacheRecoverySignalRef.current === signal.id ||
+      recoveringLocalCacheSignalRef.current === signal.id
+    ) {
       return;
     }
-    seenLocalCacheRecoverySignalRef.current = signal.id;
     if (!isPageSyncEnabled()) return;
-    const accountReady = await gateAccountSync(true);
-    if (!accountReady) return;
-    const result = await syncCloudPageMetadataDelta({
-      force: true,
-      fullRefresh: true,
-    });
-    if (result.status === "ok") {
-      authRetryAfterRef.current = 0;
-      authRetryStateRef.current = "signed-out";
-      recordPageSyncAuthRetryStatus("ok");
-      setState("synced");
-      setLastSyncAt(getLastPageSyncAt());
-      void runSync({ quick: true, forceLease: true });
-    } else if (result.status === "unauthenticated") {
-      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
-      authRetryStateRef.current = "error";
-      recordPageSyncAuthRetryStatus("unauthenticated");
-      setState("error");
-    } else if (result.status === "unconfigured") {
-      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
-      authRetryStateRef.current = "error";
-      recordPageSyncAuthRetryStatus("unconfigured");
-      setState("error");
-    } else if (result.status === "disabled") {
-      authRetryStateRef.current = "signed-out";
-      recordPageSyncAuthRetryStatus("disabled");
-      setState("disabled");
-    } else {
-      authRetryStateRef.current = "error";
-      recordPageSyncAuthRetryStatus("error");
-      setState("error");
+    recoveringLocalCacheSignalRef.current = signal.id;
+    try {
+      const accountReady = await gateAccountSync(true);
+      if (!accountReady) return;
+      const result = await syncCloudPageMetadataDelta({
+        force: true,
+        fullRefresh: true,
+      });
+      if (result.status === "ok") {
+        seenLocalCacheRecoverySignalRef.current = signal.id;
+        authRetryAfterRef.current = 0;
+        authRetryStateRef.current = "signed-out";
+        recordPageSyncAuthRetryStatus("ok");
+        setState("synced");
+        setLastSyncAt(getLastPageSyncAt());
+        void runSync({ quick: true, forceLease: true });
+      } else if (result.status === "unauthenticated") {
+        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+        authRetryStateRef.current = "error";
+        recordPageSyncAuthRetryStatus("unauthenticated");
+        setState("error");
+      } else if (result.status === "unconfigured") {
+        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+        authRetryStateRef.current = "error";
+        recordPageSyncAuthRetryStatus("unconfigured");
+        setState("error");
+      } else if (result.status === "disabled") {
+        authRetryStateRef.current = "signed-out";
+        recordPageSyncAuthRetryStatus("disabled");
+        setState("disabled");
+      } else {
+        authRetryStateRef.current = "error";
+        recordPageSyncAuthRetryStatus("error");
+        setState("error");
+      }
+      refreshPendingStatus();
+    } finally {
+      if (recoveringLocalCacheSignalRef.current === signal.id) {
+        recoveringLocalCacheSignalRef.current = null;
+      }
     }
-    refreshPendingStatus();
   }, [gateAccountSync, refreshPendingStatus, runSync]);
 
   useEffect(() => {

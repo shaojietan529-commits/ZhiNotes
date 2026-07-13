@@ -146,6 +146,7 @@ export function useDatabaseCloudSync() {
   const authRetryAfterRef = useRef(0);
   const authRetryStateRef = useRef<DatabaseCloudSyncState>("signed-out");
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
+  const recoveringLocalCacheSignalRef = useRef<string | null>(null);
 
   const refreshPendingStatus = useCallback(async () => {
     setPendingStatus(await getPendingCloudDatabaseSyncStatus());
@@ -280,46 +281,57 @@ export function useDatabaseCloudSync() {
 
   const recoverLocalCacheFromCloud = useCallback(async () => {
     const signal = getLocalCacheRecoverySignal();
-    if (!signal || seenLocalCacheRecoverySignalRef.current === signal.id) {
+    if (
+      !signal ||
+      seenLocalCacheRecoverySignalRef.current === signal.id ||
+      recoveringLocalCacheSignalRef.current === signal.id
+    ) {
       return;
     }
-    seenLocalCacheRecoverySignalRef.current = signal.id;
     if (!isDatabaseSyncEnabled()) return;
-    const accountReady = await gateAccountSync(true);
-    if (!accountReady) return;
-    const result = await syncCloudDatabaseMetadataDelta({
-      fullRefresh: true,
-    });
-    if (result.status === "ok") {
-      authRetryAfterRef.current = 0;
-      authRetryStateRef.current = "signed-out";
-      recordDatabaseSyncAuthRetryStatus("ok");
-      setState("synced");
-      setLastSyncAt(getLastDatabaseSyncAt());
-      if (result.pulled > 0) {
-        emitDatabasesUpdated("cloud-pull", result.pulled, result.records);
+    recoveringLocalCacheSignalRef.current = signal.id;
+    try {
+      const accountReady = await gateAccountSync(true);
+      if (!accountReady) return;
+      const result = await syncCloudDatabaseMetadataDelta({
+        fullRefresh: true,
+      });
+      if (result.status === "ok") {
+        seenLocalCacheRecoverySignalRef.current = signal.id;
+        authRetryAfterRef.current = 0;
+        authRetryStateRef.current = "signed-out";
+        recordDatabaseSyncAuthRetryStatus("ok");
+        setState("synced");
+        setLastSyncAt(getLastDatabaseSyncAt());
+        if (result.pulled > 0) {
+          emitDatabasesUpdated("cloud-pull", result.pulled, result.records);
+        }
+        void runSync({ forceLease: true, quick: true });
+      } else if (result.status === "unauthenticated") {
+        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+        authRetryStateRef.current = "error";
+        recordDatabaseSyncAuthRetryStatus("unauthenticated");
+        setState("error");
+      } else if (result.status === "unconfigured") {
+        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+        authRetryStateRef.current = "error";
+        recordDatabaseSyncAuthRetryStatus("unconfigured");
+        setState("error");
+      } else if (result.status === "disabled") {
+        authRetryStateRef.current = "signed-out";
+        recordDatabaseSyncAuthRetryStatus("disabled");
+        setState("disabled");
+      } else {
+        authRetryStateRef.current = "error";
+        recordDatabaseSyncAuthRetryStatus("error");
+        setState("error");
       }
-      void runSync({ forceLease: true, quick: true });
-    } else if (result.status === "unauthenticated") {
-      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
-      authRetryStateRef.current = "error";
-      recordDatabaseSyncAuthRetryStatus("unauthenticated");
-      setState("error");
-    } else if (result.status === "unconfigured") {
-      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
-      authRetryStateRef.current = "error";
-      recordDatabaseSyncAuthRetryStatus("unconfigured");
-      setState("error");
-    } else if (result.status === "disabled") {
-      authRetryStateRef.current = "signed-out";
-      recordDatabaseSyncAuthRetryStatus("disabled");
-      setState("disabled");
-    } else {
-      authRetryStateRef.current = "error";
-      recordDatabaseSyncAuthRetryStatus("error");
-      setState("error");
+      void refreshPendingStatus();
+    } finally {
+      if (recoveringLocalCacheSignalRef.current === signal.id) {
+        recoveringLocalCacheSignalRef.current = null;
+      }
     }
-    void refreshPendingStatus();
   }, [gateAccountSync, refreshPendingStatus, runSync]);
 
   useEffect(() => {
