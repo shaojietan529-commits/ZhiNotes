@@ -78,18 +78,6 @@ export function buildPageCloudSaveStatus(
     });
   }
 
-  if (input.status.authRetryStatus) {
-    return view({
-      ...base,
-      id: "offline-buffer",
-      label: "本地缓冲",
-      title:
-        "页面已在本机保存；当前云端暂不可确认，会稍后自动重试，不会因此登出。",
-      tone: "warning",
-      blocksCacheRebuild: true,
-    });
-  }
-
   if (pageManualReview) {
     return view({
       ...base,
@@ -158,6 +146,18 @@ export function buildPageCloudSaveStatus(
         ? `同步排队 ${totalPending}`
         : `等待云同步 ${totalPending}`,
       title: `已有 ${totalPending} 个页面变更进入本地待上传队列；点击打开同步中心处理补传。`,
+      tone: "warning",
+      blocksCacheRebuild: true,
+    });
+  }
+
+  if (input.status.authRetryStatus) {
+    return view({
+      ...base,
+      id: "offline-buffer",
+      label: "本地缓冲",
+      title:
+        "页面已在本机保存；当前云端暂不可确认，会稍后自动重试，不会因此登出。",
       tone: "warning",
       blocksCacheRebuild: true,
     });

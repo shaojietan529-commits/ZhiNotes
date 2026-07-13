@@ -9942,6 +9942,20 @@ function run() {
   ]) {
     assertIncludes(files.pageCloudSaveStatus, pageCloudSaveStatus, snippet, message);
   }
+  assertOrderedSnippets(
+    files.pageCloudSaveStatus,
+    pageCloudSaveStatus,
+    [
+      "if (pageManualReview)",
+      "if (pageFailed)",
+      "if (input.status.manualReviewCount > 0)",
+      "if (input.status.failed > 0)",
+      "if (input.currentPagePending)",
+      "if (totalPending > 0)",
+      "if (input.status.authRetryStatus)",
+    ],
+    "Page save status must show pending, failed, and manual-review queue state before temporary auth retry / offline buffer."
+  );
   assertIncludes(
     files.pageShell,
     pageShell,

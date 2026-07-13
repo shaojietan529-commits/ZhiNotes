@@ -2267,6 +2267,7 @@ check(
 );
 
 const pageShell = read("src/components/providers/PageShell.tsx");
+const pageCloudSaveStatus = read("src/lib/pages/pageCloudSaveStatus.ts");
 const cloudPageMutations = read("src/lib/pages/cloudPageMutations.ts");
 const pageRoute = read("src/app/(workspace)/page/[pageId]/page.tsx");
 const pageRouteLoading = read("src/app/(workspace)/page/[pageId]/loading.tsx");
@@ -2478,7 +2479,7 @@ check(
   "PageShell 正文保存后应合并最新正文并延迟重建 wiki 链接和自动版本快照，避免编辑输入路径被关系索引和版本比较拖慢"
 );
 check(
-    pageShell.includes("PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000") &&
+  pageShell.includes("PAGE_SYNC_STATUS_PENDING_REFRESH_MS = 5000") &&
     pageShell.includes("PAGE_SYNC_STATUS_IDLE_REFRESH_MS = 30 * 1000") &&
     pageShell.includes('PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync."') &&
     pageShell.includes(
@@ -2498,6 +2499,24 @@ check(
     !pageShell.includes("import {\n  getPendingCloudPageSyncStatus") &&
     !pageShell.includes("window.setInterval(refreshStatus, 5000)"),
   "PageShell 同步状态应在 pending 时保持 5 秒反馈、空闲时降到 30 秒，并在标签页恢复可见时刷新，避免固定 5 秒轮询拖慢页面打开"
+);
+const pageSaveAuthRetryIndex = pageCloudSaveStatus.indexOf(
+  "if (input.status.authRetryStatus)"
+);
+check(
+  pageSaveAuthRetryIndex > pageCloudSaveStatus.indexOf("if (pageManualReview)") &&
+    pageSaveAuthRetryIndex > pageCloudSaveStatus.indexOf("if (pageFailed)") &&
+    pageSaveAuthRetryIndex >
+      pageCloudSaveStatus.indexOf("if (input.status.manualReviewCount > 0)") &&
+    pageSaveAuthRetryIndex >
+      pageCloudSaveStatus.indexOf("if (input.status.failed > 0)") &&
+    pageSaveAuthRetryIndex >
+      pageCloudSaveStatus.indexOf("if (input.currentPagePending)") &&
+    pageSaveAuthRetryIndex > pageCloudSaveStatus.indexOf("if (totalPending > 0)") &&
+    pageCloudSaveStatus.includes(
+      "当前云端暂不可确认，会稍后自动重试，不会因此登出"
+    ),
+  "PageCloudSaveStatus 必须优先显示当前页/全局 pending、failed、manual review；auth retry 只能作为队列清空后的本地缓冲状态，避免临时账号不确定盖住待处理数据"
 );
 
 const useVersionsHook = read("src/hooks/useVersions.ts");

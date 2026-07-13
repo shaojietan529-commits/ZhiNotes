@@ -6209,6 +6209,20 @@ function run() {
       message
     );
   }
+  assertSourceOrderedSnippets(
+    files.pageCloudSaveStatus,
+    pageCloudSaveStatus,
+    [
+      "if (pageManualReview)",
+      "if (pageFailed)",
+      "if (input.status.manualReviewCount > 0)",
+      "if (input.status.failed > 0)",
+      "if (input.currentPagePending)",
+      "if (totalPending > 0)",
+      "if (input.status.authRetryStatus)",
+    ],
+    "Page save status must show pending, failed, and manual-review queue state before temporary auth retry / offline buffer."
+  );
   for (const [snippet, message] of [
     [
       "page.content_text",
