@@ -122,9 +122,21 @@ function intakeSuccessStatusFields() {
     calendarMutationStatus: "not_started_requires_user_confirmation",
     calendarVisibilityStatus: "not_visible_until_saved",
     localReviewStatus: "required",
+    ...intakeOwnerReviewFields(),
     cloudWriteAttempted: false,
     calendarWriteAttempted: false,
     highRiskActionStatus: "gated_user_confirmation_required",
+  };
+}
+
+function intakeOwnerReviewFields() {
+  return {
+    ownerReviewRequired: true,
+    ownerReviewStatus: "pending_local_review",
+    ownerReviewReason: "parsed_meeting_requires_calendar_save_confirmation",
+    ownerReviewNextAction: "review_and_save_to_calendar",
+    reviewTarget: "calendar_draft",
+    reviewTargetAction: "save_meeting_to_calendar",
   };
 }
 

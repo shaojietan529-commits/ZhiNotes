@@ -1101,9 +1101,12 @@ Current local actions:
   the receipt. Intake responses also expose `operation`,
   `intakeCompletionStatus`, `calendarMutationStatus`,
   `calendarVisibilityStatus`, `cloudWriteAttempted`,
-  `calendarWriteAttempted`, and `highRiskActionStatus`, so clients can show
-  that this step only parsed the invite and still requires owner review before
-  saving anything to the calendar or cloud. This keeps the intake step visibly
+  `calendarWriteAttempted`, and `highRiskActionStatus`. Successful parse
+  responses also mirror owner-review targeting fields (`ownerReviewRequired`,
+  `ownerReviewStatus`, `ownerReviewReason`, `ownerReviewNextAction`,
+  `reviewTarget`, `reviewTargetAction`) so clients can show that this step
+  produced a calendar draft and still requires owner review before saving
+  anything to the calendar or cloud. This keeps the intake step visibly
   local-review-only: parsing can continue without signing out the account,
   starting cloud writes, or hiding why a retry/manual-review row is blocking
   cache refresh.

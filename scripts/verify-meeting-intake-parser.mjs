@@ -542,6 +542,7 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("function intakeReviewVisibilityFields") &&
         source.includes("function intakeReviewCacheRefreshFields") &&
         source.includes("function intakeSuccessStatusFields") &&
+        source.includes("function intakeOwnerReviewFields") &&
         source.includes("function intakeFailureVisibilityFields") &&
         source.includes("function intakeFailureStatusFields") &&
         source.includes("function intakeFailureSyncCenterStatus") &&
@@ -565,6 +566,15 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("calendarMutationStatus: \"not_started_requires_user_confirmation\"") &&
         source.includes("calendarVisibilityStatus: \"not_visible_until_saved\"") &&
         source.includes("localReviewStatus: \"required\"") &&
+        source.includes("...intakeOwnerReviewFields()") &&
+        source.includes("ownerReviewRequired: true") &&
+        source.includes("ownerReviewStatus: \"pending_local_review\"") &&
+        source.includes(
+          "ownerReviewReason: \"parsed_meeting_requires_calendar_save_confirmation\""
+        ) &&
+        source.includes("ownerReviewNextAction: \"review_and_save_to_calendar\"") &&
+        source.includes("reviewTarget: \"calendar_draft\"") &&
+        source.includes("reviewTargetAction: \"save_meeting_to_calendar\"") &&
         source.includes("cloudWriteAttempted: false") &&
         source.includes("calendarWriteAttempted: false") &&
         source.includes("highRiskActionStatus: \"gated_user_confirmation_required\"") &&
