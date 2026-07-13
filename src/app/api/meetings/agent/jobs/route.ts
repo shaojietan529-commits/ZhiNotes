@@ -280,6 +280,7 @@ export async function POST(request: Request) {
         run_now: body.runNow === true,
       },
     });
+    const enqueueHealth = queueCapacityHealth(enqueueResult);
 
     return queueJson({
       ok: true,
@@ -304,9 +305,16 @@ export async function POST(request: Request) {
       maxQueueItems: enqueueResult.maxQueueItems,
       availableQueueSlots: enqueueResult.availableQueueSlots,
       queueAlmostFull: enqueueResult.queueAlmostFull,
-      queueReceipt: queueEnqueueReceipt(enqueueResult, {
-        runNow: body.runNow === true,
-      }),
+      queueHealth: enqueueHealth.queueHealth,
+      attentionRequired: enqueueHealth.attentionRequired,
+      attentionReason: enqueueHealth.attentionReason,
+      reclaimableLeaseCount: 0,
+      manualReviewRequired: false,
+      queueReceipt: queueEnqueueReceipt(
+        enqueueResult,
+        { runNow: body.runNow === true },
+        enqueueHealth
+      ),
       ...queueContinuityReceipt,
     });
   } catch (error) {
@@ -331,6 +339,21 @@ type QueueListReceiptInput = {
   leaseDurationMs: number | null;
   leaseExpiresAt: string | null;
 };
+
+type QueueCapacityHealthInput = {
+  queueAlmostFull: boolean;
+};
+
+function queueCapacityHealth(queueResult: QueueCapacityHealthInput) {
+  const attentionReason = queueResult.queueAlmostFull
+    ? "queue_almost_full"
+    : null;
+  return {
+    queueHealth: attentionReason ? "attention_recommended" : "healthy",
+    attentionRequired: attentionReason !== null,
+    attentionReason,
+  };
+}
 
 function queueListHealth(queueResult: QueueListReceiptInput) {
   const attentionReason = queueResult.queueAlmostFull
@@ -403,7 +426,8 @@ function queueEnqueueReceipt(
     availableQueueSlots: number;
     queueAlmostFull: boolean;
   },
-  { runNow }: { runNow: boolean }
+  { runNow }: { runNow: boolean },
+  queueHealth = queueCapacityHealth(enqueueResult)
 ) {
   return {
     ...queueReceiptBase,
@@ -430,6 +454,11 @@ function queueEnqueueReceipt(
     maxQueueItems: enqueueResult.maxQueueItems,
     availableQueueSlots: enqueueResult.availableQueueSlots,
     queueAlmostFull: enqueueResult.queueAlmostFull,
+    queueHealth: queueHealth.queueHealth,
+    attentionRequired: queueHealth.attentionRequired,
+    attentionReason: queueHealth.attentionReason,
+    reclaimableLeaseCount: 0,
+    manualReviewRequired: false,
     nextAction: enqueueResult.deduplicated
       ? "wait_for_existing_job"
       : "wait_for_runner_ack",
