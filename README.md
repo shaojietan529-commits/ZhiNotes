@@ -1086,11 +1086,12 @@ Current local actions:
   should poll `GET /api/meetings/agent/jobs?claim=true` with a stable
   `runner_id` or `x-zhihui-runner-id`, process only the returned claimed jobs,
   and ACK with `POST /api/meetings/agent/jobs/ack` using both `job_ids` and a
-  `job_leases` map of `{ job_id: lease_id }`. The server keeps the old
-  job-id-only ACK path for compatibility, but a lease-aware ACK only deletes a
-  job when the stored `lease.lease_id` matches. Missing or mismatched jobs are
-  preserved and surfaced as manual-review metadata, so another device or
-  restarted runner cannot accidentally sign off work it no longer owns.
+  `job_leases` map of `{ job_id: lease_id }`. The server keeps job-id-only ACK
+  compatibility only for jobs that have never been leased. Once a job carries a
+  `lease.lease_id`, ACK deletes it only when the supplied lease id matches.
+  Missing, lease-less, or mismatched ACKs are preserved and surfaced as
+  manual-review metadata, so another device or restarted runner cannot
+  accidentally sign off work it no longer owns.
 - Open meetings from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Meetings module and meeting workbench are local research workspaces.

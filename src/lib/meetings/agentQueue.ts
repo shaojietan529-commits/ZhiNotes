@@ -316,7 +316,7 @@ export async function ackMeetingAgentJobs(
     if (!requestedIds.has(job.id)) return true;
     presentIds.add(job.id);
     const expectedLeaseId = expectedLeases[job.id];
-    if (expectedLeaseId && job.lease?.lease_id !== expectedLeaseId) {
+    if (job.lease && job.lease.lease_id !== expectedLeaseId) {
       leaseMismatched.push(job.id);
       return true;
     }

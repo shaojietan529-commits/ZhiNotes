@@ -507,7 +507,7 @@ for (const token of [
   "POST /api/meetings/agent/jobs/ack",
   "job_leases",
   "lease.lease_id",
-  "Missing or mismatched jobs",
+  "Missing, lease-less, or mismatched ACKs",
 ]) {
   check(readme.includes(token), `README 缺少 ZhiHui runner ACK 合同说明 ${token}`);
 }
@@ -876,6 +876,10 @@ async function verifyAckLeaseMismatchBehavior() {
     { jobLeases: { job_lease_2: "lease_wrong_2" } }
   );
   const afterAllMismatch = JSON.parse(storedQueue);
+  const missingLease = await queue.ackMeetingAgentJobs(mockKv(), [
+    "job_lease_2",
+  ]);
+  const afterMissingLease = JSON.parse(storedQueue);
 
   return (
     Array.isArray(partial.acknowledged) &&
@@ -895,7 +899,13 @@ async function verifyAckLeaseMismatchBehavior() {
     allMismatch.leaseMismatched[0] === "job_lease_2" &&
     afterAllMismatch.length === 1 &&
     afterAllMismatch[0].id === "job_lease_2" &&
-    calls.get === 2 &&
+    missingLease.acknowledged.length === 0 &&
+    missingLease.missing.length === 0 &&
+    missingLease.leaseMismatched.length === 1 &&
+    missingLease.leaseMismatched[0] === "job_lease_2" &&
+    afterMissingLease.length === 1 &&
+    afterMissingLease[0].id === "job_lease_2" &&
+    calls.get === 3 &&
     calls.set === 1
   );
 }
