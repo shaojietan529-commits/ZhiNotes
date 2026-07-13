@@ -17,6 +17,11 @@ export interface MeetingAgentQueueEnqueueResult {
   deduplicated: boolean;
 }
 
+export interface MeetingAgentQueueAckResult {
+  acknowledged: string[];
+  missing: string[];
+}
+
 interface KvEnv {
   url: string;
   token: string;
@@ -135,18 +140,22 @@ export async function enqueueMeetingAgentJob(
 export async function ackMeetingAgentJobs(
   kv: KvEnv,
   jobIds: string[]
-): Promise<string[]> {
-  const ids = new Set(jobIds.filter((id) => typeof id === "string" && id));
-  if (ids.size === 0) return [];
+): Promise<MeetingAgentQueueAckResult> {
+  const ids = uniqueJobIds(jobIds);
+  if (ids.length === 0) return { acknowledged: [], missing: [] };
+  const requestedIds = new Set(ids);
   const jobs = await readQueue(kv);
   const acknowledged: string[] = [];
   const remaining = jobs.filter((job) => {
-    if (!ids.has(job.id)) return true;
+    if (!requestedIds.has(job.id)) return true;
     acknowledged.push(job.id);
     return false;
   });
+  const acknowledgedIds = new Set(acknowledged);
+  const missing = ids.filter((id) => !acknowledgedIds.has(id));
+  if (acknowledged.length === 0) return { acknowledged, missing };
   await writeQueue(kv, remaining);
-  return acknowledged;
+  return { acknowledged, missing };
 }
 
 async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
@@ -236,6 +245,18 @@ function textValue(value: unknown) {
 
 function payloadByteLength(value: string) {
   return Buffer.byteLength(value, "utf8");
+}
+
+function uniqueJobIds(jobIds: string[]) {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const rawId of jobIds) {
+    const id = typeof rawId === "string" ? rawId.trim() : "";
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
 }
 
 async function writeQueue(kv: KvEnv, jobs: MeetingAgentQueueJob[]) {

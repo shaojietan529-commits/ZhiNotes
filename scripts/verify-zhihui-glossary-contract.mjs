@@ -45,6 +45,7 @@ for (const token of [
   "export class MeetingAgentQueueTimeoutError extends Error",
   "export class MeetingAgentQueueFailureError extends Error",
   "export interface MeetingAgentQueueEnqueueResult",
+  "export interface MeetingAgentQueueAckResult",
   "async function fetchMeetingAgentQueueWithTimeout",
   "const controller = new AbortController();",
   "signal: controller.signal",
@@ -74,6 +75,8 @@ for (const token of [
   "deduplicated: false",
   "function payloadByteLength",
   "Buffer.byteLength",
+  "function uniqueJobIds",
+  "missing",
   "manual_review_required: true",
   "unconfirmed_jobs_preserved: true",
   "status: 409",
@@ -150,6 +153,10 @@ for (const token of [
   "failureStatus: manualReviewRequired",
   "manualReviewRequired",
   "nextAction: manualReviewRequired",
+  "ackResult.missing",
+  "\"partial\"",
+  "\"acknowledged_existing_jobs_with_missing_ids\"",
+  "unconfirmedJobsPreserved: ackResult.missing.length > 0",
 ]) {
   check(ackRoute.includes(token), `jobs ack route 缺少 ${token}`);
 }
@@ -227,6 +234,11 @@ const payloadByteLimitBehavior = await verifyPayloadByteLimitBehavior();
 check(
   payloadByteLimitBehavior,
   "agent queue 必须按真实 UTF-8 字节数限制 payload，中文内容超限时不能写入队列"
+);
+const ackMissingBehavior = await verifyAckMissingBehavior();
+check(
+  ackMissingBehavior,
+  "agent queue ACK 必须返回 missing job id，且全 miss 时不能重写队列"
 );
 const queueDedupeBehavior = await verifyQueueDedupeBehavior();
 check(
@@ -369,6 +381,79 @@ async function verifyPayloadByteLimitBehavior() {
     caught.details?.actual_payload_chars < caught.details?.max_payload_bytes &&
     calls.get === 0 &&
     calls.set === 0
+  );
+}
+
+async function verifyAckMissingBehavior() {
+  const seedJobs = [
+    {
+      id: "job_1",
+      job_type: "meeting_recording_request",
+      payload: { synthetic: true },
+      created_at: "2026-07-13T00:00:00.000Z",
+    },
+    {
+      id: "job_2",
+      job_type: "meeting_recording_request",
+      payload: { synthetic: true },
+      created_at: "2026-07-13T00:00:01.000Z",
+    },
+  ];
+  const calls = { get: 0, set: 0 };
+  let storedQueue = JSON.stringify(seedJobs);
+  const queue = loadAgentQueueWithFetch(async (url, init) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: storedQueue };
+        },
+      };
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      storedQueue = typeof init?.body === "string" ? init.body : "";
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  const partial = await queue.ackMeetingAgentJobs(mockKv(), [
+    "job_1",
+    "missing_job",
+    " job_1 ",
+    "",
+  ]);
+  const afterPartial = JSON.parse(storedQueue);
+  const allMissing = await queue.ackMeetingAgentJobs(mockKv(), ["missing_only"]);
+  const afterAllMissing = JSON.parse(storedQueue);
+
+  return (
+    Array.isArray(partial.acknowledged) &&
+    partial.acknowledged.length === 1 &&
+    partial.acknowledged[0] === "job_1" &&
+    Array.isArray(partial.missing) &&
+    partial.missing.length === 1 &&
+    partial.missing[0] === "missing_job" &&
+    afterPartial.length === 1 &&
+    afterPartial[0].id === "job_2" &&
+    Array.isArray(allMissing.acknowledged) &&
+    allMissing.acknowledged.length === 0 &&
+    allMissing.missing.length === 1 &&
+    allMissing.missing[0] === "missing_only" &&
+    afterAllMissing.length === 1 &&
+    afterAllMissing[0].id === "job_2" &&
+    calls.get === 2 &&
+    calls.set === 1
   );
 }
 

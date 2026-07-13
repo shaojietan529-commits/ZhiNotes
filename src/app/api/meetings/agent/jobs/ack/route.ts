@@ -60,8 +60,17 @@ export async function POST(request: Request) {
     ? body.job_ids.filter((item): item is string => typeof item === "string")
     : [];
   try {
-    const acknowledged = await ackMeetingAgentJobs(config.kv, jobIds);
-    return NextResponse.json({ acknowledged });
+    const ackResult = await ackMeetingAgentJobs(config.kv, jobIds);
+    return NextResponse.json({
+      acknowledged: ackResult.acknowledged,
+      missing: ackResult.missing,
+      status: ackResult.missing.length > 0 ? "partial" : "acknowledged",
+      queueAction:
+        ackResult.missing.length > 0
+          ? "acknowledged_existing_jobs_with_missing_ids"
+          : "acknowledged_existing_jobs",
+      unconfirmedJobsPreserved: ackResult.missing.length > 0,
+    });
   } catch (error) {
     if (error instanceof MeetingAgentQueueTimeoutError) {
       return NextResponse.json(
