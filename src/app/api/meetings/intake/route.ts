@@ -365,6 +365,12 @@ function intakeFailurePayload({
     retryable,
     manualReviewRequired,
   });
+  const nextAction = intakeFailureNextAction({ retryable, manualReviewRequired });
+  const recoveryFields = intakeFailureRecoveryFields({
+    retryable,
+    manualReviewRequired,
+    nextAction,
+  });
   return {
     ok: false,
     ...statusFields,
@@ -385,11 +391,8 @@ function intakeFailurePayload({
     localPendingWrite: false,
     safeToContinueLocalUse: true,
     ...visibilityFields,
-    nextAction: manualReviewRequired
-      ? "manual_review"
-      : retryable
-        ? "retry"
-        : "fix_input_or_configuration",
+    nextAction,
+    ...recoveryFields,
     ...intakeReceiptTimingFields(intakeReceipt),
     ...intakeFailureBoundary,
     intakeReceipt,
@@ -441,6 +444,7 @@ function intakeFailureReceipt({
   retryable: boolean;
   manualReviewRequired: boolean;
 }) {
+  const nextAction = intakeFailureNextAction({ retryable, manualReviewRequired });
   return {
     ...intakeReceiptBase,
     ...intakeReceiptFreshness(),
@@ -455,16 +459,60 @@ function intakeFailureReceipt({
     retryable,
     manualReviewRequired,
     requiresUserConfirmation: manualReviewRequired,
-    nextAction: manualReviewRequired
-      ? "manual_review"
-      : retryable
-        ? "retry"
-        : "fix_input_or_configuration",
+    nextAction,
+    ...intakeFailureRecoveryFields({
+      retryable,
+      manualReviewRequired,
+      nextAction,
+    }),
     ...intakeFailureVisibilityFields({
       retryable,
       manualReviewRequired,
     }),
   };
+}
+
+function intakeFailureNextAction({
+  retryable,
+  manualReviewRequired,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+}) {
+  if (manualReviewRequired) return "manual_review";
+  if (retryable) return "retry";
+  return "fix_input_or_configuration";
+}
+
+function intakeFailureRecoveryFields({
+  retryable,
+  manualReviewRequired,
+  nextAction,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+  nextAction: string;
+}) {
+  return {
+    intakeRecoveryRequired: true,
+    intakeRecoveryStatus: intakeFailureRecoveryStatus({
+      retryable,
+      manualReviewRequired,
+    }),
+    intakeRecoveryNextAction: nextAction,
+  };
+}
+
+function intakeFailureRecoveryStatus({
+  retryable,
+  manualReviewRequired,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+}) {
+  if (manualReviewRequired) return "manual_review_required";
+  if (retryable) return "retry_later";
+  return "failed_not_completed";
 }
 
 async function fetchMeetingLinkText(

@@ -1106,7 +1106,10 @@ Current local actions:
   `ownerReviewStatus`, `ownerReviewReason`, `ownerReviewNextAction`,
   `reviewTarget`, `reviewTargetAction`) so clients can show that this step
   produced a calendar draft and still requires owner review before saving
-  anything to the calendar or cloud. This keeps the intake step visibly
+  anything to the calendar or cloud. Intake failures also expose recovery hints
+  (`intakeRecoveryRequired`, `intakeRecoveryStatus`,
+  `intakeRecoveryNextAction`) so clients can distinguish retry, manual review,
+  and input/configuration repair without opening the nested receipt. This keeps the intake step visibly
   local-review-only: parsing can continue without signing out the account,
   starting cloud writes, or hiding why a retry/manual-review row is blocking
   cache refresh.

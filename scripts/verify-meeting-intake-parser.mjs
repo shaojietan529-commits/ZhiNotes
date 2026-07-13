@@ -662,7 +662,18 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("localPendingWrite: false") &&
         source.includes("safeToContinueLocalUse: true") &&
         source.includes("const visibilityFields = intakeFailureVisibilityFields") &&
+        source.includes("const nextAction = intakeFailureNextAction") &&
+        source.includes("const recoveryFields = intakeFailureRecoveryFields") &&
         source.includes("...visibilityFields") &&
+        source.includes("nextAction,") &&
+        source.includes("...recoveryFields") &&
+        source.includes("function intakeFailureNextAction") &&
+        source.includes("function intakeFailureRecoveryFields") &&
+        source.includes("function intakeFailureRecoveryStatus") &&
+        source.includes("intakeRecoveryRequired: true") &&
+        source.includes("intakeRecoveryStatus: intakeFailureRecoveryStatus") &&
+        source.includes("intakeRecoveryNextAction: nextAction") &&
+        source.includes("...intakeFailureRecoveryFields({") &&
         source.includes("const cacheRefresh = intakeFailureCacheRefreshFields") &&
         source.includes("pendingIntakeReviewCount: 0") &&
         source.includes("failedIntakeCount: manualReviewRequired ? 0 : 1") &&
@@ -678,7 +689,6 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes('return "blocked_manual_review"') &&
         source.includes('return "blocked_retry_later"') &&
         source.includes('return "blocked_failed_not_completed"') &&
-        source.includes("nextAction: manualReviewRequired") &&
         source.includes("const intakeReceipt = intakeFailureReceipt") &&
         source.includes("...intakeReceiptTimingFields(intakeReceipt)") &&
         source.includes("intakeReceipt,") &&
