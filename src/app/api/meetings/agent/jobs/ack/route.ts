@@ -166,6 +166,12 @@ export async function POST(request: Request) {
     const leaseMismatchCount = ackResult.leaseMismatched.length;
     const unconfirmedJobCount = missingCount + leaseMismatchCount;
     const hasUnconfirmedJobs = unconfirmedJobCount > 0;
+    const ackCompletionStatus = hasUnconfirmedJobs
+      ? "partial_manual_review_required"
+      : "completed";
+    const ackSyncStatus = hasUnconfirmedJobs
+      ? "agent_queue_ack_partial_manual_review"
+      : "agent_queue_acknowledged";
     const ackHealth = queueAckHealth({
       queueAlmostFull: ackResult.queueAlmostFull,
       hasUnconfirmedJobs,
@@ -193,11 +199,12 @@ export async function POST(request: Request) {
       leaseMismatchCount,
       unconfirmedJobCount,
       status: hasUnconfirmedJobs ? "partial" : "acknowledged",
+      ackCompletionStatus,
       nextAction:
         hasUnconfirmedJobs
           ? "review_missing_or_lease_mismatched_jobs"
           : "poll_for_next_jobs",
-      syncStatus: "agent_queue_acknowledged",
+      syncStatus: ackSyncStatus,
       queueAction:
         hasUnconfirmedJobs
           ? "acknowledged_existing_jobs_with_missing_or_lease_mismatched_ids"
@@ -749,15 +756,24 @@ function queueAckReceipt(
   const missingCount = ackResult.missing.length;
   const leaseMismatchCount = ackResult.leaseMismatched.length;
   const preservedCount = missingCount + leaseMismatchCount;
+  const hasPreservedJobs = preservedCount > 0;
+  const ackCompletionStatus = hasPreservedJobs
+    ? "partial_manual_review_required"
+    : "completed";
+  const ackSyncStatus = hasPreservedJobs
+    ? "agent_queue_ack_partial_manual_review"
+    : "agent_queue_acknowledged";
   return {
     ...ackReceiptBase,
     ...buildMeetingAgentQueueReceiptTiming({
-      pollMode: preservedCount > 0 ? "manual_review" : "idle",
+      pollMode: hasPreservedJobs ? "manual_review" : "idle",
     }),
     queueAction:
-      preservedCount > 0
+      hasPreservedJobs
         ? "acknowledged_existing_jobs_with_missing_or_lease_mismatched_ids"
         : "acknowledged_existing_jobs",
+    ackCompletionStatus,
+    syncStatus: ackSyncStatus,
     queueReadStatus: "completed",
     queueWriteStatus:
       acknowledgedCount > 0 ? "completed" : "not_needed_no_matching_jobs",
@@ -769,7 +785,7 @@ function queueAckReceipt(
     acknowledgedJobIds: ackResult.acknowledged,
     missingJobIds: ackResult.missing,
     leaseMismatchedJobIds: ackResult.leaseMismatched,
-    unconfirmedJobsPreserved: preservedCount > 0,
+    unconfirmedJobsPreserved: hasPreservedJobs,
     queueDepth: ackResult.queueDepth,
     maxQueueItems: ackResult.maxQueueItems,
     availableQueueSlots: ackResult.availableQueueSlots,
@@ -778,15 +794,15 @@ function queueAckReceipt(
     attentionRequired: ackHealth.attentionRequired,
     attentionReason: ackHealth.attentionReason,
     reclaimableLeaseCount: ackHealth.reclaimableLeaseCount,
-    manualReviewRequired: preservedCount > 0,
+    manualReviewRequired: hasPreservedJobs,
     manualReviewJobCount: preservedCount,
     ...buildMeetingAgentQueuePendingStatus({
       queueDepth: ackResult.queueDepth,
       attentionRequired: ackHealth.attentionRequired,
-      manualReviewRequired: preservedCount > 0,
+      manualReviewRequired: hasPreservedJobs,
     }),
     nextAction:
-      preservedCount > 0
+      hasPreservedJobs
         ? "review_missing_or_lease_mismatched_jobs"
         : "poll_for_next_jobs",
   };

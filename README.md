@@ -1133,9 +1133,11 @@ Current local actions:
   when the supplied lease id matches. Missing, lease-less, or mismatched ACKs
   are preserved and surfaced as manual-review metadata, so another device or
   restarted runner cannot accidentally sign off work it no longer owns.
-  ACK responses surface top-level request/confirmed/unconfirmed counts plus
-  `manualReviewRequired`, so clients do not need to parse the nested receipt to
-  decide whether a sync-center review row is needed.
+  ACK responses surface top-level request/confirmed/unconfirmed counts,
+  `manualReviewRequired`, `ackCompletionStatus`, and a conditional `syncStatus`
+  (`agent_queue_acknowledged` or `agent_queue_ack_partial_manual_review`), so
+  clients do not need to parse the nested receipt to decide whether a
+  sync-center review row is needed.
 - ZhiHui meeting import responses also mirror the calendar refresh contract at
   the top level (`metadataRefreshRequired`, `metadataRefreshMode`,
   `affectedCalendars`, `changedPageIds`, `nextCursor`, `receiptStaleAfter`).
