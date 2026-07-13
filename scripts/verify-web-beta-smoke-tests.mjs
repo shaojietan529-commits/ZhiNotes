@@ -9593,6 +9593,12 @@ function run() {
   assertIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
+    "COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS",
+    "Account cloud sync coordinator must back off when account/cloud state is temporarily uncertain instead of retrying every foreground drain tick."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
     "Promise.allSettled",
     "Account cloud sync coordinator must run page and database quick sync together without one failed domain blocking the other."
   );

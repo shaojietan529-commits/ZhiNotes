@@ -15,6 +15,7 @@ import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus";
 import { buildAccountLocalUseReadiness } from "@/lib/sync/accountLocalUseReadiness";
 
 const COORDINATOR_PENDING_DRAIN_DELAY_MS = 900;
+const COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS = 15_000;
 const COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS = 30_000;
 
 export type AccountCloudSyncCoordinatorState =
@@ -312,7 +313,7 @@ export function useAccountCloudSyncCoordinator() {
         : "账号云同步需要登录后继续";
     }
     if (state === "error") {
-      return `账号云同步暂不可确认，稍后重试；本地输入已保留${
+      return `账号云同步暂不可确认，低频重试；本地输入已保留${
         details.length ? `：${details.join("，")}` : ""
       }`;
     }
@@ -386,7 +387,9 @@ export function useAccountCloudSyncCoordinator() {
     const retryDelayMs =
       syncBlockedBySignedOut
         ? COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS
-        : COORDINATOR_PENDING_DRAIN_DELAY_MS;
+        : state === "error"
+          ? COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS
+          : COORDINATOR_PENDING_DRAIN_DELAY_MS;
     const timer = window.setTimeout(() => {
       void syncNow();
     }, retryDelayMs);

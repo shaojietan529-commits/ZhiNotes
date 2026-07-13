@@ -3308,6 +3308,9 @@ check(
     accountCloudSyncCoordinator.includes("useKnowledgeCloudSyncStatus") &&
     accountCloudSyncCoordinator.includes("useGlobalSyncLogStatus") &&
     accountCloudSyncCoordinator.includes("COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
+    accountCloudSyncCoordinator.includes(
+      "COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS"
+    ) &&
     accountCloudSyncCoordinator.includes("COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS") &&
     accountCloudSyncCoordinator.includes("Promise.allSettled") &&
     accountCloudSyncCoordinator.includes("pendingTotal") &&
@@ -3346,7 +3349,7 @@ check(
       accountCloudSyncCoordinator.indexOf("syncBlockedBySignedOut\n                ? \"signed-out\"") &&
     accountCloudSyncCoordinator.includes("账号云同步正在检查") &&
     accountCloudSyncCoordinator.includes("本地输入已保留，会低频检查登录状态") &&
-    accountCloudSyncCoordinator.includes("账号云同步暂不可确认，稍后重试；本地输入已保留") &&
+    accountCloudSyncCoordinator.includes("账号云同步暂不可确认，低频重试；本地输入已保留") &&
     accountCloudSyncCoordinator.includes("syncNow"),
   "账号级云同步协调器应统一页面/数据库/设置/知识库附属/全域 sync_log 同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
 );
@@ -3433,9 +3436,12 @@ check(
     accountCoordinatorAutoRetryEffect.includes(
       "syncBlockedBySignedOut\n        ? COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS"
     ) &&
+    accountCoordinatorAutoRetryEffect.includes(
+      "state === \"error\"\n          ? COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS"
+    ) &&
     accountCoordinatorAutoRetryEffect.includes(": COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
     accountCoordinatorAutoRetryEffect.includes("}, retryDelayMs)"),
-  "账号级云同步协调器不能把 signed-out 当成有待上传队列时的终止态；有可自动重试内容时应优先显示 queued，同时低频检查登录状态，避免本地 pending 队列卡死"
+  "账号级云同步协调器不能把 signed-out 当成有待上传队列时的终止态；有可自动重试内容时应优先显示 queued，同时对未登录/账号不确定状态低频检查，避免本地 pending 队列卡死或高频扰动前台"
 );
 const accountAutoRetryableSyncWorkBlock =
   accountCloudSyncCoordinator.match(
