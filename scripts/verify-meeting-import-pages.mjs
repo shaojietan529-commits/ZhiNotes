@@ -327,6 +327,8 @@ expect(
     importRouteSource.includes("manualReviewImportCount: 0") &&
     importRouteSource.includes("safeToContinueLocalUse: true") &&
     importRouteSource.includes("safeToRefreshCaches: true") &&
+    importRouteSource.includes("cacheRefreshStatus: \"safe\"") &&
+    importRouteSource.includes("cacheRefreshBlockedBy: []") &&
     importRouteSource.includes("syncCenterStatus: \"idle\"") &&
     importRouteSource.includes("...importSuccessClearanceFields()"),
   "import route success responses should expose imported status, next metadata action, completed cloud/calendar write status, and no-pending clearance"
@@ -401,6 +403,8 @@ expect(
     importRouteSource.includes("calendarWriteStatus: writeStatus") &&
     importRouteSource.includes("function importFailureVisibilityFields") &&
     importRouteSource.includes("function importFailureSyncCenterStatus") &&
+    importRouteSource.includes("function importFailureCacheRefreshFields") &&
+    importRouteSource.includes("function importFailureCacheRefreshStatus") &&
     importRouteSource.includes("const partialCloudWritePossible = retryable && !manualReviewRequired") &&
     importRouteSource.includes("const visibilityFields = importFailureVisibilityFields") &&
     importRouteSource.includes("partialCloudWritePossible,") &&
@@ -412,7 +416,15 @@ expect(
     importRouteSource.includes("failedImportCount:") &&
     importRouteSource.includes("manualReviewImportCount: manualReviewRequired ? 1 : 0") &&
     importRouteSource.includes("safeToContinueLocalUse: true") &&
+    importRouteSource.includes("const cacheRefresh = importFailureCacheRefreshFields") &&
     importRouteSource.includes("safeToRefreshCaches: false") &&
+    importRouteSource.includes("cacheRefreshStatus: importFailureCacheRefreshStatus") &&
+    importRouteSource.includes("cacheRefreshBlockedBy") &&
+    importRouteSource.includes("partial_cloud_write_possible") &&
+    importRouteSource.includes("manual_review_required") &&
+    importRouteSource.includes("\"blocked_retryable_unknown\"") &&
+    importRouteSource.includes("\"blocked_retry_later\"") &&
+    importRouteSource.includes("\"blocked_failed_not_completed\"") &&
     importRouteSource.includes("syncCenterStatus: importFailureSyncCenterStatus") &&
     importRouteSource.includes("requiresUserConfirmation: manualReviewRequired") &&
     importRouteSource.includes("highRiskWriteGated: true") &&

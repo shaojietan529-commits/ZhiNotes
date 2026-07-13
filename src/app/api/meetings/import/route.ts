@@ -118,6 +118,8 @@ function importSuccessClearanceFields() {
     highRiskWriteGated: true,
     safeToContinueLocalUse: true,
     safeToRefreshCaches: true,
+    cacheRefreshStatus: "safe",
+    cacheRefreshBlockedBy: [],
     syncCenterStatus: "idle",
   };
 }
@@ -133,6 +135,11 @@ function importFailureVisibilityFields({
   partialCloudWritePossible: boolean;
   failureStatus: string;
 }) {
+  const cacheRefresh = importFailureCacheRefreshFields({
+    retryable,
+    manualReviewRequired,
+    partialCloudWritePossible,
+  });
   return {
     importStatus: failureStatus,
     pendingWriteCount: partialCloudWritePossible ? 1 : 0,
@@ -144,7 +151,7 @@ function importFailureVisibilityFields({
       !partialCloudWritePossible && !manualReviewRequired ? 1 : 0,
     manualReviewImportCount: manualReviewRequired ? 1 : 0,
     safeToContinueLocalUse: true,
-    safeToRefreshCaches: false,
+    ...cacheRefresh,
     syncCenterStatus: importFailureSyncCenterStatus({
       retryable,
       manualReviewRequired,
@@ -166,6 +173,49 @@ function importFailureSyncCenterStatus({
   if (partialCloudWritePossible) return "retryable_unknown";
   if (retryable) return "retry_later";
   return "failed_not_completed";
+}
+
+function importFailureCacheRefreshFields({
+  retryable,
+  manualReviewRequired,
+  partialCloudWritePossible,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+  partialCloudWritePossible: boolean;
+}) {
+  const cacheRefreshBlockedBy = [
+    ...(manualReviewRequired ? ["manual_review_required"] : []),
+    ...(partialCloudWritePossible ? ["partial_cloud_write_possible"] : []),
+    ...(retryable ? ["retry_later"] : []),
+    ...(!retryable && !manualReviewRequired && !partialCloudWritePossible
+      ? ["failed_not_completed"]
+      : []),
+  ];
+  return {
+    safeToRefreshCaches: false,
+    cacheRefreshStatus: importFailureCacheRefreshStatus({
+      retryable,
+      manualReviewRequired,
+      partialCloudWritePossible,
+    }),
+    cacheRefreshBlockedBy,
+  };
+}
+
+function importFailureCacheRefreshStatus({
+  retryable,
+  manualReviewRequired,
+  partialCloudWritePossible,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+  partialCloudWritePossible: boolean;
+}) {
+  if (manualReviewRequired) return "blocked_manual_review";
+  if (partialCloudWritePossible) return "blocked_retryable_unknown";
+  if (retryable) return "blocked_retry_later";
+  return "blocked_failed_not_completed";
 }
 
 export async function POST(request: Request) {
