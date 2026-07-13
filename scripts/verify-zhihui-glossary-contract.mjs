@@ -29,6 +29,7 @@ const read = (rel) => {
 
 const route = read("src/app/api/glossary/route.ts");
 const agentQueue = read("src/lib/meetings/agentQueue.ts");
+const queueReceipts = read("src/lib/meetings/agentQueueReceipts.ts");
 const jobsRoute = read("src/app/api/meetings/agent/jobs/route.ts");
 const ackRoute = read("src/app/api/meetings/agent/jobs/ack/route.ts");
 for (const token of [
@@ -134,13 +135,32 @@ check(
   "agent queue 的 KV get/set 必须统一走 8 秒超时 helper，不能直接分散 fetch"
 );
 for (const token of [
+  "MEETING_AGENT_QUEUE_RECEIPT_STALE_AFTER_MS",
+  "MEETING_AGENT_QUEUE_POLL_INTERVAL_MS",
+  "buildMeetingAgentQueueReceiptTiming",
+  "receiptGeneratedAt",
+  "receiptStaleAfter",
+  "receiptFreshnessWindowMs",
+  "recommendedNextPollMs",
+  "recommendedNextPollAt",
+  "manual_review: null",
+]) {
+  check(queueReceipts.includes(token), `agent queue receipts 缺少 ${token}`);
+}
+check(
+  verifyReceiptTimingBehavior(),
+  "agent queue receipt timing 必须生成 active/idle/retry/manual review 的过期时间和建议轮询时间"
+);
+for (const token of [
   "MeetingAgentQueueTimeoutError",
   "MeetingAgentQueueFailureError",
   "const queueContinuityReceipt",
   "const queueReceiptBase",
   "schema: \"zhinote.zhihui.agent.queue.receipt.v1\"",
-  "function queueReceiptGeneratedAt",
-  "receiptGeneratedAt: queueReceiptGeneratedAt()",
+  "buildMeetingAgentQueueReceiptTiming",
+  "pollMode: queueResult.returnedJobs > 0 ? \"active\" : \"idle\"",
+  "pollMode: \"active\"",
+  "pollMode: manualReviewRequired",
   "function queueListReceipt",
   "function queueEnqueueReceipt",
   "function queueFailureReceipt",
@@ -259,8 +279,9 @@ for (const token of [
   "const ackContinuityReceipt",
   "const ackReceiptBase",
   "schema: \"zhinote.zhihui.agent.queue.receipt.v1\"",
-  "function ackReceiptGeneratedAt",
-  "receiptGeneratedAt: ackReceiptGeneratedAt()",
+  "buildMeetingAgentQueueReceiptTiming",
+  "pollMode: manualReviewRequired",
+  "pollMode: missingCount > 0 ? \"manual_review\" : \"idle\"",
   "function queueAckReceipt",
   "function ackFailureReceipt",
   "...ackContinuityReceipt",
@@ -1010,6 +1031,61 @@ function loadAgentQueueWithFetch(fetchImpl) {
     process: { env: {} },
     require,
     setTimeout,
+  };
+  sandbox.module.exports = sandbox.exports;
+  vm.runInNewContext(compiled, sandbox, { filename: fullPath });
+  return sandbox.module.exports;
+}
+
+function verifyReceiptTimingBehavior() {
+  const helpers = loadTypescriptModule("src/lib/meetings/agentQueueReceipts.ts");
+  const now = new Date("2026-07-13T10:00:00.000Z");
+  const active = helpers.buildMeetingAgentQueueReceiptTiming({
+    now,
+    pollMode: "active",
+  });
+  const idle = helpers.buildMeetingAgentQueueReceiptTiming({
+    now,
+    pollMode: "idle",
+  });
+  const retry = helpers.buildMeetingAgentQueueReceiptTiming({
+    now,
+    pollMode: "retry",
+  });
+  const manualReview = helpers.buildMeetingAgentQueueReceiptTiming({
+    now,
+    pollMode: "manual_review",
+  });
+
+  return (
+    active.receiptGeneratedAt === "2026-07-13T10:00:00.000Z" &&
+    active.receiptStaleAfter === "2026-07-13T10:00:30.000Z" &&
+    active.receiptFreshnessWindowMs === 30000 &&
+    active.recommendedNextPollMs === 4000 &&
+    active.recommendedNextPollAt === "2026-07-13T10:00:04.000Z" &&
+    idle.recommendedNextPollMs === 12000 &&
+    idle.recommendedNextPollAt === "2026-07-13T10:00:12.000Z" &&
+    retry.recommendedNextPollMs === 30000 &&
+    retry.recommendedNextPollAt === "2026-07-13T10:00:30.000Z" &&
+    manualReview.recommendedNextPollMs === null &&
+    manualReview.recommendedNextPollAt === null
+  );
+}
+
+function loadTypescriptModule(rel) {
+  const fullPath = path.join(root, rel);
+  const source = readFileSync(fullPath, "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      esModuleInterop: true,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const sandbox = {
+    exports: {},
+    module: { exports: {} },
+    require,
   };
   sandbox.module.exports = sandbox.exports;
   vm.runInNewContext(compiled, sandbox, { filename: fullPath });

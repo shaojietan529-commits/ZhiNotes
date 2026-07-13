@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildMeetingAgentQueueReceiptTiming } from "@/lib/meetings/agentQueueReceipts";
 import {
   ackMeetingAgentJobs,
   authorizeMeetingAgent,
@@ -32,10 +33,6 @@ const ackReceiptBase = {
   payloadEchoedInReceipt: false,
   ...ackContinuityReceipt,
 };
-
-function ackReceiptGeneratedAt() {
-  return new Date().toISOString();
-}
 
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
@@ -242,7 +239,13 @@ function ackFailureReceipt({
 }) {
   return {
     ...ackReceiptBase,
-    receiptGeneratedAt: ackReceiptGeneratedAt(),
+    ...buildMeetingAgentQueueReceiptTiming({
+      pollMode: manualReviewRequired
+        ? "manual_review"
+        : retryable
+          ? "retry"
+          : "none",
+    }),
     operation: "ack_failure",
     queueAction: "ack_operation_failed",
     status: failureStatus,
@@ -276,7 +279,9 @@ function queueAckReceipt(
   const missingCount = ackResult.missing.length;
   return {
     ...ackReceiptBase,
-    receiptGeneratedAt: ackReceiptGeneratedAt(),
+    ...buildMeetingAgentQueueReceiptTiming({
+      pollMode: missingCount > 0 ? "manual_review" : "idle",
+    }),
     queueAction:
       missingCount > 0
         ? "acknowledged_existing_jobs_with_missing_ids"

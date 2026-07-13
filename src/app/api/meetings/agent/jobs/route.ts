@@ -5,6 +5,7 @@ import {
   readSessionToken,
 } from "@/lib/account/server";
 import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
+import { buildMeetingAgentQueueReceiptTiming } from "@/lib/meetings/agentQueueReceipts";
 import {
   authorizeMeetingAgent,
   enqueueMeetingAgentJob,
@@ -51,10 +52,6 @@ const queueReceiptBase = {
   payloadEchoedInReceipt: false,
   ...queueContinuityReceipt,
 };
-
-function queueReceiptGeneratedAt() {
-  return new Date().toISOString();
-}
 
 export async function GET(request: Request) {
   const config = getMeetingAgentQueueConfig();
@@ -262,7 +259,9 @@ function queueListReceipt(queueResult: {
 }) {
   return {
     ...queueReceiptBase,
-    receiptGeneratedAt: queueReceiptGeneratedAt(),
+    ...buildMeetingAgentQueueReceiptTiming({
+      pollMode: queueResult.returnedJobs > 0 ? "active" : "idle",
+    }),
     operation: "list",
     queueAction: "read_available_jobs",
     queueReadStatus: "completed",
@@ -293,7 +292,7 @@ function queueEnqueueReceipt(
 ) {
   return {
     ...queueReceiptBase,
-    receiptGeneratedAt: queueReceiptGeneratedAt(),
+    ...buildMeetingAgentQueueReceiptTiming({ pollMode: "active" }),
     operation: "enqueue",
     queueAction: enqueueResult.deduplicated
       ? "reused_existing_job"
@@ -458,7 +457,13 @@ function queueFailureReceipt({
 }) {
   return {
     ...queueReceiptBase,
-    receiptGeneratedAt: queueReceiptGeneratedAt(),
+    ...buildMeetingAgentQueueReceiptTiming({
+      pollMode: manualReviewRequired
+        ? "manual_review"
+        : retryable
+          ? "retry"
+          : "none",
+    }),
     operation: "failure",
     queueAction: "queue_operation_failed",
     status: failureStatus,
