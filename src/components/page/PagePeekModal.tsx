@@ -92,8 +92,10 @@ function getInitialPeekPage(
   pageId: string,
   initialPage?: Page | null
 ): Page | null {
+  const localFirstSeed = readLocalFirstPeekSeed(pageId);
+  if (localFirstSeed) return localFirstSeed;
   if (initialPage?.id === pageId) return initialPage;
-  return readLocalFirstPeekSeed(pageId);
+  return null;
 }
 
 function readLocalFirstPeekSeed(pageId: string): Page | null {

@@ -10,7 +10,10 @@ import {
 } from "@/lib/performance/localPerformance";
 import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { prepareLocalFirstPageNavigation } from "@/lib/pages/localFirstPageNavigation";
-import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
+import {
+  readPendingPageDraft,
+  rememberPendingPageDraft,
+} from "@/lib/pages/pendingPageDrafts";
 import { parsePageProperties } from "@/lib/pages/pageProperties";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { Page } from "@/lib/utils/types";
@@ -97,17 +100,42 @@ function LocalFirstPeekLoadingShell({
   const openedAtRef = useRef(getLocalPerformanceNow());
   const openedAtIsoRef = useRef(new Date().toISOString());
   const readyNotifiedRef = useRef<string | null>(null);
+  const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const [seed, setSeed] = useState<Page | null>(() =>
     readLocalFirstLoadingSeed(pageId, initialPage)
   );
+  const [quickDraft, setQuickDraft] = useState(() => ({
+    pageId,
+    text: "",
+    touched: false,
+  }));
+  const quickDraftText = quickDraft.pageId === pageId ? quickDraft.text : "";
+  const quickDraftTouched =
+    quickDraft.pageId === pageId ? quickDraft.touched : false;
   const title = seed ? displayPageTitle(seed.title) : "正在打开页面";
   const propertyCount = seed ? parsePageProperties(seed.properties).length : 0;
   const isOptimisticDraft = seed?.content_text === "";
+  const canUseQuickDraft = Boolean(seed) && (isOptimisticDraft || quickDraftTouched);
   const localSeedState = seed ? "ready" : "loading";
   const openFullFromLoadingShell = useCallback(() => {
     if (seed) prepareLocalFirstPageNavigation(seed, "page-open");
     onOpenFull(pageId);
   }, [onOpenFull, pageId, seed]);
+  const handleQuickDraftChange = useCallback(
+    (value: string) => {
+      if (!seed) return;
+      setQuickDraft({ pageId, text: value, touched: true });
+      const nextPage: Page = {
+        ...seed,
+        content_text: quickDraftTextToHtml(value),
+        updated_at: new Date().toISOString(),
+      };
+      setSeed(nextPage);
+      upsertPages([nextPage]);
+      rememberPendingPageDraft(nextPage);
+    },
+    [pageId, seed, upsertPages]
+  );
 
   useEffect(() => {
     openedAtRef.current = getLocalPerformanceNow();
@@ -235,6 +263,24 @@ function LocalFirstPeekLoadingShell({
                 ? "新页面已在本机创建，完整编辑器正在载入。"
                 : "完整编辑器正在载入，页面标题和属性会先保持可见。"}
             </div>
+            {canUseQuickDraft ? (
+              <div
+                className="mb-6 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+                data-quick-draft-active={canUseQuickDraft}
+              >
+                <textarea
+                  data-testid="page-peek-quick-draft-input"
+                  value={quickDraftText}
+                  onChange={(event) => handleQuickDraftChange(event.target.value)}
+                  autoFocus
+                  placeholder="可以先输入，正式编辑器加载后会接手这段内容..."
+                  className="min-h-28 w-full resize-y bg-transparent text-sm leading-6 text-zinc-800 outline-none placeholder-zinc-400 dark:text-zinc-100 dark:placeholder-zinc-600"
+                />
+                <div className="mt-2 text-xs text-zinc-400">
+                  快速输入已暂存在本机草稿，不会阻塞云同步。
+                </div>
+              </div>
+            ) : null}
             {isOptimisticDraft ? (
               <div className="mb-6 flex flex-wrap items-center gap-2">
                 <button
@@ -273,4 +319,28 @@ function readLocalFirstLoadingSeed(
     readPageRouteHandoff(pageId) ??
     null
   );
+}
+
+function quickDraftTextToHtml(value: string): string {
+  const normalized = value.replace(/\r\n?/g, "\n");
+  if (!normalized.trim()) return "";
+  return normalized
+    .split(/\n{2,}/)
+    .map((paragraph) => {
+      const lines = paragraph
+        .split("\n")
+        .map((line) => escapeQuickDraftHtml(line) || "<br>")
+        .join("<br>");
+      return `<p>${lines}</p>`;
+    })
+    .join("");
+}
+
+function escapeQuickDraftHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
