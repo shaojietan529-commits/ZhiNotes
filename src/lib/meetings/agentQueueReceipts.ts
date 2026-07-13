@@ -21,6 +21,16 @@ export type MeetingAgentQueueSyncCenterStatus =
   | "failed_not_completed"
   | "not_started";
 
+export type MeetingAgentQueueCacheRefreshStatus =
+  | "safe"
+  | "blocked_pending_agent_jobs"
+  | "blocked_attention_required"
+  | "blocked_manual_review"
+  | "blocked_retryable_unknown"
+  | "blocked_retry_later"
+  | "blocked_failed_not_completed"
+  | "blocked_not_started";
+
 export function buildMeetingAgentQueueReceiptTiming({
   now = new Date(),
   pollMode,
@@ -53,6 +63,11 @@ export function buildMeetingAgentQueuePendingStatus({
   attentionRequired?: boolean;
   manualReviewRequired?: boolean;
 }) {
+  const cacheRefresh = queueCacheRefreshState({
+    queueDepth,
+    attentionRequired,
+    manualReviewRequired,
+  });
   return {
     pendingWriteCount: 0,
     failedWriteCount: 0,
@@ -62,8 +77,7 @@ export function buildMeetingAgentQueuePendingStatus({
     failedAgentJobCount: 0,
     agentQueuePending: queueDepth > 0,
     safeToContinueLocalUse: true,
-    safeToRefreshCaches:
-      queueDepth === 0 && !attentionRequired && !manualReviewRequired,
+    ...cacheRefresh,
     syncCenterStatus: queueSyncCenterStatus({
       queueDepth,
       attentionRequired,
@@ -83,6 +97,12 @@ export function buildMeetingAgentQueueFailureStatus({
   partialQueueWritePossible: boolean;
   manualReviewRequired: boolean;
 }) {
+  const cacheRefresh = queueFailureCacheRefreshState({
+    retryable,
+    queueWriteAttempted,
+    partialQueueWritePossible,
+    manualReviewRequired,
+  });
   return {
     pendingWriteCount: partialQueueWritePossible ? 1 : 0,
     failedWriteCount:
@@ -94,7 +114,7 @@ export function buildMeetingAgentQueueFailureStatus({
       manualReviewRequired || retryable || queueWriteAttempted ? 1 : 0,
     agentQueuePending: false,
     safeToContinueLocalUse: true,
-    safeToRefreshCaches: false,
+    ...cacheRefresh,
     syncCenterStatus: queueFailureSyncCenterStatus({
       retryable,
       queueWriteAttempted,
@@ -119,6 +139,46 @@ function queueSyncCenterStatus({
   return "idle";
 }
 
+function queueCacheRefreshState({
+  queueDepth,
+  attentionRequired,
+  manualReviewRequired,
+}: {
+  queueDepth: number;
+  attentionRequired: boolean;
+  manualReviewRequired: boolean;
+}) {
+  const cacheRefreshBlockedBy = [
+    ...(queueDepth > 0 ? ["pending_agent_jobs"] : []),
+    ...(attentionRequired ? ["attention_required"] : []),
+    ...(manualReviewRequired ? ["manual_review_required"] : []),
+  ];
+  return {
+    safeToRefreshCaches: cacheRefreshBlockedBy.length === 0,
+    cacheRefreshStatus: queueCacheRefreshStatus({
+      queueDepth,
+      attentionRequired,
+      manualReviewRequired,
+    }),
+    cacheRefreshBlockedBy,
+  };
+}
+
+function queueCacheRefreshStatus({
+  queueDepth,
+  attentionRequired,
+  manualReviewRequired,
+}: {
+  queueDepth: number;
+  attentionRequired: boolean;
+  manualReviewRequired: boolean;
+}): MeetingAgentQueueCacheRefreshStatus {
+  if (manualReviewRequired) return "blocked_manual_review";
+  if (attentionRequired) return "blocked_attention_required";
+  if (queueDepth > 0) return "blocked_pending_agent_jobs";
+  return "safe";
+}
+
 function queueFailureSyncCenterStatus({
   retryable,
   queueWriteAttempted,
@@ -135,4 +195,59 @@ function queueFailureSyncCenterStatus({
   if (retryable) return "retry_later";
   if (queueWriteAttempted) return "failed_not_completed";
   return "not_started";
+}
+
+function queueFailureCacheRefreshState({
+  retryable,
+  queueWriteAttempted,
+  partialQueueWritePossible,
+  manualReviewRequired,
+}: {
+  retryable: boolean;
+  queueWriteAttempted: boolean;
+  partialQueueWritePossible: boolean;
+  manualReviewRequired: boolean;
+}) {
+  const cacheRefreshBlockedBy = [
+    ...(manualReviewRequired ? ["manual_review_required"] : []),
+    ...(partialQueueWritePossible ? ["partial_queue_write_possible"] : []),
+    ...(retryable ? ["retry_later"] : []),
+    ...(queueWriteAttempted && !partialQueueWritePossible
+      ? ["failed_not_completed"]
+      : []),
+    ...(!manualReviewRequired &&
+    !partialQueueWritePossible &&
+    !retryable &&
+    !queueWriteAttempted
+      ? ["queue_not_started"]
+      : []),
+  ];
+  return {
+    safeToRefreshCaches: false,
+    cacheRefreshStatus: queueFailureCacheRefreshStatus({
+      retryable,
+      queueWriteAttempted,
+      partialQueueWritePossible,
+      manualReviewRequired,
+    }),
+    cacheRefreshBlockedBy,
+  };
+}
+
+function queueFailureCacheRefreshStatus({
+  retryable,
+  queueWriteAttempted,
+  partialQueueWritePossible,
+  manualReviewRequired,
+}: {
+  retryable: boolean;
+  queueWriteAttempted: boolean;
+  partialQueueWritePossible: boolean;
+  manualReviewRequired: boolean;
+}): MeetingAgentQueueCacheRefreshStatus {
+  if (manualReviewRequired) return "blocked_manual_review";
+  if (partialQueueWritePossible) return "blocked_retryable_unknown";
+  if (retryable) return "blocked_retry_later";
+  if (queueWriteAttempted) return "blocked_failed_not_completed";
+  return "blocked_not_started";
 }

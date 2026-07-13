@@ -1105,12 +1105,14 @@ Current local actions:
   inspecting every job. They also mirror sync-center status fields
   (`syncCenterStatus`, `pendingAgentJobCount`, `pendingRunnerAckCount`,
   `failedAgentJobCount`, `pendingWriteCount`, `failedWriteCount`,
-  `localPendingWrite`, `safeToContinueLocalUse`, `safeToRefreshCaches`) at the
-  top level and inside the metadata-only queue receipt. Cache refresh is marked
-  safe only when the queue is empty and has no attention/manual-review state.
-  This lets the UI distinguish an idle queue, queued runner work, retryable
-  unknown writes, and manual review without reading meeting content or treating
-  queue trouble as an account sign-out.
+  `localPendingWrite`, `safeToContinueLocalUse`, `safeToRefreshCaches`,
+  `cacheRefreshStatus`, `cacheRefreshBlockedBy`) at the top level and inside
+  the metadata-only queue receipt. Cache refresh is marked safe only when the
+  queue is empty and has no attention/manual-review state; blocked responses
+  include a short reason such as `pending_agent_jobs`, `retry_later`, or
+  `manual_review_required`. This lets the UI distinguish an idle queue, queued
+  runner work, retryable unknown writes, and manual review without reading
+  meeting content or treating queue trouble as an account sign-out.
   ACK responses use `attentionReason:
   "ack_unconfirmed_jobs_preserved"` when missing or lease-mismatched jobs need
   manual review. Queue responses also mirror receipt timing at the top level

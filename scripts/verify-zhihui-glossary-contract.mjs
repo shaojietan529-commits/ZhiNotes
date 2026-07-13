@@ -187,6 +187,7 @@ for (const token of [
   "buildMeetingAgentQueuePendingStatus",
   "buildMeetingAgentQueueFailureStatus",
   "MeetingAgentQueueSyncCenterStatus",
+  "MeetingAgentQueueCacheRefreshStatus",
   "receiptGeneratedAt",
   "receiptStaleAfter",
   "receiptFreshnessWindowMs",
@@ -202,6 +203,11 @@ for (const token of [
   "agentQueuePending: queueDepth > 0",
   "safeToContinueLocalUse: true",
   "safeToRefreshCaches:",
+  "cacheRefreshStatus:",
+  "cacheRefreshBlockedBy",
+  "\"blocked_pending_agent_jobs\"",
+  "\"blocked_manual_review\"",
+  "\"blocked_retry_later\"",
   "\"agent_jobs_pending\"",
   "\"attention_recommended\"",
   "\"retryable_unknown\"",
@@ -1705,10 +1711,21 @@ function verifyQueueRefreshSafetyBehavior() {
 
   return (
     idle.safeToRefreshCaches === true &&
+    idle.cacheRefreshStatus === "safe" &&
+    idle.cacheRefreshBlockedBy.length === 0 &&
     active.safeToRefreshCaches === false &&
+    active.cacheRefreshStatus === "blocked_pending_agent_jobs" &&
+    active.cacheRefreshBlockedBy.includes("pending_agent_jobs") &&
     attention.safeToRefreshCaches === false &&
+    attention.cacheRefreshStatus === "blocked_attention_required" &&
+    attention.cacheRefreshBlockedBy.includes("attention_required") &&
     manualReview.safeToRefreshCaches === false &&
-    retryFailure.safeToRefreshCaches === false
+    manualReview.cacheRefreshStatus === "blocked_manual_review" &&
+    manualReview.cacheRefreshBlockedBy.includes("manual_review_required") &&
+    retryFailure.safeToRefreshCaches === false &&
+    retryFailure.cacheRefreshStatus === "blocked_retry_later" &&
+    retryFailure.cacheRefreshBlockedBy.includes("retry_later") &&
+    retryFailure.cacheRefreshBlockedBy.includes("failed_not_completed")
   );
 }
 
