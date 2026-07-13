@@ -165,6 +165,35 @@ function ackFailurePayload({
       : queueWriteAttempted
         ? "not_completed"
         : "not_started";
+  const syncStatus = manualReviewRequired
+    ? "manual_review_required"
+    : partialQueueWritePossible
+      ? "retryable_unknown"
+      : queueWriteAttempted
+        ? "failed_not_completed"
+        : "failed_not_started";
+  const failureStatus = manualReviewRequired
+    ? "manual_review"
+    : retryable
+      ? "failed_retryable"
+      : "failed_final";
+  const nextAction = manualReviewRequired
+    ? "manual_review"
+    : retryable
+      ? "retry"
+      : "fix_input_or_configuration";
+  const failureReceipt = ackFailureReceipt({
+    code,
+    retryable,
+    queueWriteAttempted,
+    queueWriteStatus,
+    partialQueueWritePossible,
+    manualReviewRequired,
+    syncStatus,
+    failureStatus,
+    nextAction,
+  });
+
   return {
     ok: false,
     code,
@@ -172,30 +201,58 @@ function ackFailurePayload({
     message: message ?? error,
     retryable,
     details,
-    syncStatus: manualReviewRequired
-      ? "manual_review_required"
-      : partialQueueWritePossible
-        ? "retryable_unknown"
-        : queueWriteAttempted
-          ? "failed_not_completed"
-          : "failed_not_started",
+    syncStatus,
     queueWriteStatus,
     queueWriteAttempted,
     partialQueueWritePossible,
     requiresUserConfirmation: manualReviewRequired,
     highRiskWriteGated: true,
-    failureStatus: manualReviewRequired
-      ? "manual_review"
-      : retryable
-        ? "failed_retryable"
-        : "failed_final",
+    failureStatus,
     manualReviewRequired,
-    nextAction: manualReviewRequired
-      ? "manual_review"
-      : retryable
-        ? "retry"
-        : "fix_input_or_configuration",
+    nextAction,
+    ackFailureReceipt: failureReceipt,
     ...ackFailureBoundary,
+  };
+}
+
+function ackFailureReceipt({
+  code,
+  retryable,
+  queueWriteAttempted,
+  queueWriteStatus,
+  partialQueueWritePossible,
+  manualReviewRequired,
+  syncStatus,
+  failureStatus,
+  nextAction,
+}: {
+  code: string;
+  retryable: boolean;
+  queueWriteAttempted: boolean;
+  queueWriteStatus: string;
+  partialQueueWritePossible: boolean;
+  manualReviewRequired: boolean;
+  syncStatus: string;
+  failureStatus: string;
+  nextAction: string;
+}) {
+  return {
+    ...ackReceiptBase,
+    operation: "ack_failure",
+    queueAction: "ack_operation_failed",
+    status: failureStatus,
+    failureCode: code,
+    retryable,
+    syncStatus,
+    queueReadStatus: queueWriteAttempted ? "unknown" : "not_started",
+    queueWriteStatus,
+    queueWriteAttempted,
+    partialQueueWritePossible,
+    requiresUserConfirmation: manualReviewRequired,
+    manualReviewRequired,
+    highRiskWriteGated: true,
+    unconfirmedJobsPreserved: true,
+    nextAction,
   };
 }
 
