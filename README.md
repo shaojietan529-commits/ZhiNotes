@@ -1082,6 +1082,12 @@ Current local actions:
   and then opens the tracker for manual relation cleanup. It is a local single
   write and does not sync, upload, publish notes, join calls, record audio, or
   call AI.
+- ZhiHui meeting invite intake responses mirror parse status and receipt timing
+  at the top level (`parseStatus`, `fetchedPageReadStatus`, `warningCount`,
+  `confidence`, `receiptStaleAfter`) and mark `pendingWriteCount: 0`,
+  `failedWriteCount: 0`, and `localPendingWrite: false`. This keeps the intake
+  step visibly local-review-only: parsing can continue without signing out the
+  account, starting cloud writes, or hiding a pending queue.
 - ZhiHui agent queue consumers must use the lease-aware ACK contract. A runner
   should poll `GET /api/meetings/agent/jobs?claim=true` with a stable
   `runner_id` or `x-zhihui-runner-id`, process only the returned claimed jobs,

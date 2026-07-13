@@ -538,6 +538,12 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("\"Cache-Control\", \"no-store, max-age=0\"") &&
         source.includes("INTAKE_RECEIPT_FRESHNESS_WINDOW_MS") &&
         source.includes("function intakeReceiptFreshness") &&
+        source.includes("function intakeReceiptTimingFields") &&
+        source.includes("receiptGeneratedAt: receipt.receiptGeneratedAt") &&
+        source.includes("receiptStaleAfter: receipt.receiptStaleAfter") &&
+        source.includes(
+          "receiptFreshnessWindowMs: receipt.receiptFreshnessWindowMs"
+        ) &&
         source.includes("receiptGeneratedAt") &&
         source.includes("receiptStaleAfter") &&
         source.includes("receiptFreshnessWindowMs") &&
@@ -552,8 +558,21 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("cloudWriteStatus: \"not_started\"") &&
         source.includes("calendarWriteStatus: \"not_started\"") &&
         source.includes("requiresUserConfirmation: true") &&
+        source.includes("manualReviewRequired: false") &&
+        source.includes("parseStatus: intakeReceipt.parseStatus") &&
+        source.includes(
+          "fetchedPageReadStatus: intakeReceipt.fetchedPageReadStatus"
+        ) &&
+        source.includes("warningCount: intakeReceipt.warningCount") &&
+        source.includes("confidence: intakeReceipt.confidence") &&
+        source.includes("pendingWriteCount: 0") &&
+        source.includes("failedWriteCount: 0") &&
+        source.includes("localPendingWrite: false") &&
+        source.includes("safeToContinueLocalUse: true") &&
         source.includes("highRiskWriteGated: true") &&
-        source.includes("intakeReceipt: intakeSuccessReceipt") &&
+        source.includes("const intakeReceipt = intakeSuccessReceipt") &&
+        source.includes("...intakeReceiptTimingFields(intakeReceipt)") &&
+        source.includes("intakeReceipt,") &&
         source.includes("parseStatus: \"completed\"") &&
         source.includes("fetchedPageReadStatus: fetched") &&
         source.includes("\"skipped_or_failed_warning\"") &&
@@ -566,7 +585,9 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("localMeetingDataUnaffected: true") &&
         source.includes("localCalendarDataUnaffected: true") &&
         source.includes("rawInviteEchoed: false") &&
-        source.includes("fetchedPageTextEchoed: false"),
+        source.includes("fetchedPageTextEchoed: false") &&
+        source.includes("rawMeetingCredentialsEchoed: false") &&
+        source.includes("payloadEchoedInReceipt: false"),
       message:
         "intake route success responses should tell the UI that parsing did not sign out the account, mutate local data, or echo private invite text",
     },
@@ -587,10 +608,20 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("highRiskWriteGated: true") &&
         source.includes("rawInviteEchoed: false") &&
         source.includes("fetchedPageTextEchoed: false") &&
+        source.includes("rawMeetingCredentialsEchoed: false") &&
+        source.includes("payloadEchoedInReceipt: false") &&
         source.includes("failureStatus: manualReviewRequired") &&
         source.includes("manualReviewRequired") &&
+        source.includes("requiresUserConfirmation: manualReviewRequired") &&
+        source.includes("parseStatus: intakeReceipt.parseStatus") &&
+        source.includes("pendingWriteCount: 0") &&
+        source.includes("failedWriteCount: 0") &&
+        source.includes("localPendingWrite: false") &&
+        source.includes("safeToContinueLocalUse: true") &&
         source.includes("nextAction: manualReviewRequired") &&
-        source.includes("intakeReceipt: intakeFailureReceipt") &&
+        source.includes("const intakeReceipt = intakeFailureReceipt") &&
+        source.includes("...intakeReceiptTimingFields(intakeReceipt)") &&
+        source.includes("intakeReceipt,") &&
         source.includes("failureCode: code") &&
         source.includes("parseStatus: manualReviewRequired") &&
         source.includes("retryable") &&

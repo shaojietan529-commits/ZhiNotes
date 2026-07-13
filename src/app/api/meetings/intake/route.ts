@@ -26,6 +26,9 @@ const intakeFailureBoundary = {
   highRiskWriteGated: true,
   rawInviteEchoed: false,
   fetchedPageTextEchoed: false,
+  rawMeetingCredentialsEchoed: false,
+  payloadEchoedInReceipt: false,
+  metadataOnly: true,
 };
 const intakeContinuityReceipt = {
   accountSessionUnaffected: true,
@@ -34,6 +37,8 @@ const intakeContinuityReceipt = {
   localCalendarDataUnaffected: true,
   rawInviteEchoed: false,
   fetchedPageTextEchoed: false,
+  rawMeetingCredentialsEchoed: false,
+  payloadEchoedInReceipt: false,
 };
 const intakeReceiptBase = {
   schema: "zhinote.zhihui.intake.receipt.v1",
@@ -75,6 +80,20 @@ function intakeReceiptFreshness(now = new Date()) {
       now.getTime() + INTAKE_RECEIPT_FRESHNESS_WINDOW_MS
     ).toISOString(),
     receiptFreshnessWindowMs: INTAKE_RECEIPT_FRESHNESS_WINDOW_MS,
+  };
+}
+
+type IntakeReceiptTimingFieldsInput = {
+  receiptGeneratedAt: string;
+  receiptStaleAfter: string;
+  receiptFreshnessWindowMs: number;
+};
+
+function intakeReceiptTimingFields(receipt: IntakeReceiptTimingFieldsInput) {
+  return {
+    receiptGeneratedAt: receipt.receiptGeneratedAt,
+    receiptStaleAfter: receipt.receiptStaleAfter,
+    receiptFreshnessWindowMs: receipt.receiptFreshnessWindowMs,
   };
 }
 
@@ -136,6 +155,16 @@ export async function POST(req: Request) {
 
   const parsed = parseMeetingInviteInput(input, fetched);
   if (fetchWarning) parsed.meeting.warnings.push(fetchWarning);
+  const intakeReceipt = intakeSuccessReceipt({
+    fetched: Boolean(fetched),
+    fetchAttempted: Boolean(url),
+    warningCount: parsed.meeting.warnings.length,
+    confidence: parsed.meeting.confidence,
+    returnsJoinUrlForCalendarStorage: Boolean(parsed.meeting.joinUrl),
+    returnsMeetingPasscodeForCalendarStorage: Boolean(
+      parsed.meeting.passcode
+    ),
+  });
 
   return intakeJson({
     ok: true,
@@ -147,22 +176,25 @@ export async function POST(req: Request) {
     cloudWriteStatus: "not_started",
     calendarWriteStatus: "not_started",
     requiresUserConfirmation: true,
+    manualReviewRequired: false,
+    parseStatus: intakeReceipt.parseStatus,
+    fetchedPageReadStatus: intakeReceipt.fetchedPageReadStatus,
+    warningCount: intakeReceipt.warningCount,
+    confidence: intakeReceipt.confidence,
+    pendingWriteCount: 0,
+    failedWriteCount: 0,
+    localPendingWrite: false,
+    safeToContinueLocalUse: true,
     highRiskWriteGated: true,
-    intakeReceipt: intakeSuccessReceipt({
-      fetched: Boolean(fetched),
-      fetchAttempted: Boolean(url),
-      warningCount: parsed.meeting.warnings.length,
-      confidence: parsed.meeting.confidence,
-      returnsJoinUrlForCalendarStorage: Boolean(parsed.meeting.joinUrl),
-      returnsMeetingPasscodeForCalendarStorage: Boolean(
-        parsed.meeting.passcode
-      ),
-    }),
+    ...intakeReceiptTimingFields(intakeReceipt),
+    intakeReceipt,
     ...intakeContinuityReceipt,
     privacy: {
       storesRawInvite: false,
       rawInviteEchoed: false,
       fetchedPageTextEchoed: false,
+      rawMeetingCredentialsEchoed: false,
+      payloadEchoedInReceipt: false,
       returnsJoinUrlForCalendarStorage: Boolean(parsed.meeting.joinUrl),
       returnsMeetingPasscodeForCalendarStorage: Boolean(parsed.meeting.passcode),
     },
@@ -181,6 +213,11 @@ function intakeFailurePayload({
   details?: Record<string, unknown> | null;
 }) {
   const manualReviewRequired = details?.manual_review_required === true;
+  const intakeReceipt = intakeFailureReceipt({
+    code,
+    retryable,
+    manualReviewRequired,
+  });
   return {
     ok: false,
     code,
@@ -193,17 +230,20 @@ function intakeFailurePayload({
         ? "failed_retryable"
         : "failed_final",
     manualReviewRequired,
+    requiresUserConfirmation: manualReviewRequired,
+    parseStatus: intakeReceipt.parseStatus,
+    pendingWriteCount: 0,
+    failedWriteCount: 0,
+    localPendingWrite: false,
+    safeToContinueLocalUse: true,
     nextAction: manualReviewRequired
       ? "manual_review"
       : retryable
         ? "retry"
         : "fix_input_or_configuration",
+    ...intakeReceiptTimingFields(intakeReceipt),
     ...intakeFailureBoundary,
-    intakeReceipt: intakeFailureReceipt({
-      code,
-      retryable,
-      manualReviewRequired,
-    }),
+    intakeReceipt,
   };
 }
 
