@@ -525,6 +525,10 @@ function verifyIntakeRouteContract(source) {
         source.includes("localUseCanContinue: true") &&
         source.includes("localMeetingDataUnaffected: true") &&
         source.includes("localCalendarDataUnaffected: true") &&
+        source.includes("syncStatus: \"not_started\"") &&
+        source.includes("cloudWriteStatus: \"not_started\"") &&
+        source.includes("calendarWriteStatus: \"not_started\"") &&
+        source.includes("highRiskWriteGated: true") &&
         source.includes("rawInviteEchoed: false") &&
         source.includes("fetchedPageTextEchoed: false") &&
         source.includes("failureStatus: manualReviewRequired") &&

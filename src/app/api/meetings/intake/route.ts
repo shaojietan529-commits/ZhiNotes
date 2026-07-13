@@ -16,6 +16,10 @@ const intakeFailureBoundary = {
   localUseCanContinue: true,
   localMeetingDataUnaffected: true,
   localCalendarDataUnaffected: true,
+  syncStatus: "not_started",
+  cloudWriteStatus: "not_started",
+  calendarWriteStatus: "not_started",
+  highRiskWriteGated: true,
   rawInviteEchoed: false,
   fetchedPageTextEchoed: false,
 };
