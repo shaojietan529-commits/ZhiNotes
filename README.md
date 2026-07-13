@@ -1148,8 +1148,14 @@ Current local actions:
   the top level (`metadataRefreshRequired`, `metadataRefreshMode`,
   `affectedCalendars`, `changedPageIds`, `nextCursor`, `receiptStaleAfter`).
   This lets Daily and ZhiHui calendars refresh immediately after an import
-  without parsing the nested calendar/import receipts. Successful imports also
-  surface a no-pending clearance (`pendingWriteCount: 0`,
+  without parsing the nested calendar/import receipts. Import responses also
+  surface top-level `operation`, `importCompletionStatus`,
+  `calendarRefreshStatus`, `calendarRefreshNextAction`,
+  `calendarVisibilityStatus`, `cloudWriteAttempted`, and
+  `calendarWriteAttempted`, so clients can distinguish "import wrote cloud
+  records and now needs metadata refresh" from "import failed or needs manual
+  review" without opening the nested receipt. Successful imports also surface a
+  no-pending clearance (`pendingWriteCount: 0`,
   `failedWriteCount: 0`, `manualReviewRequired: false`,
   `safeToRefreshCaches: true`, `cacheRefreshStatus: "safe"`) so sync-center
   and calendar clients can tell the user the meeting write is complete rather

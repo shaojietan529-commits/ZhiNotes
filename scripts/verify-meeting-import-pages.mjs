@@ -318,6 +318,20 @@ expect(
     importRouteSource.includes("cloudWriteStatus: \"completed\"") &&
     importRouteSource.includes("calendarWriteStatus: \"completed\"") &&
     importRouteSource.includes("function importSuccessClearanceFields") &&
+    importRouteSource.includes("function importSuccessStatusFields") &&
+    importRouteSource.includes("operation: \"import_meeting_artifact\"") &&
+    importRouteSource.includes("importCompletionStatus: \"completed\"") &&
+    importRouteSource.includes("calendarRefreshStatus: calendar.requiresMetadataRefresh") &&
+    importRouteSource.includes("\"metadata_refresh_required\"") &&
+    importRouteSource.includes("\"metadata_refresh_not_required\"") &&
+    importRouteSource.includes("calendarRefreshNextAction: calendar.requiresMetadataRefresh") &&
+    importRouteSource.includes("\"refresh_calendar_metadata\"") &&
+    importRouteSource.includes("calendarVisibilityStatus:") &&
+    importRouteSource.includes("\"visible_after_metadata_refresh\"") &&
+    importRouteSource.includes("cloudWriteAttempted: true") &&
+    importRouteSource.includes("calendarWriteAttempted: true") &&
+    importRouteSource.includes("const importStatus = importSuccessStatusFields(result.calendar)") &&
+    importRouteSource.includes("...importStatus") &&
     importRouteSource.includes("importStatus: \"completed\"") &&
     importRouteSource.includes("pendingWriteCount: 0") &&
     importRouteSource.includes("failedWriteCount: 0") &&
@@ -381,8 +395,20 @@ expect(
 expect(
   importRouteSource.includes("function importFailurePayload") &&
     importRouteSource.includes("function importFailureReceipt") &&
+    importRouteSource.includes("function importFailureStatusFields") &&
     importRouteSource.includes("schema: \"zhinote.zhihui.import.failure.receipt.v1\"") &&
     importRouteSource.includes("operation: \"import_meeting_artifact\"") &&
+    importRouteSource.includes("importCompletionStatus: failureStatus") &&
+    importRouteSource.includes("calendarRefreshStatus: manualReviewRequired") &&
+    importRouteSource.includes("\"blocked_manual_review\"") &&
+    importRouteSource.includes("\"blocked_retryable_unknown\"") &&
+    importRouteSource.includes("\"not_started\"") &&
+    importRouteSource.includes("calendarRefreshNextAction: nextAction") &&
+    importRouteSource.includes("\"unknown_manual_review_required\"") &&
+    importRouteSource.includes("\"unknown_retryable\"") &&
+    importRouteSource.includes("\"not_visible_import_failed\"") &&
+    importRouteSource.includes("cloudWriteAttempted: partialCloudWritePossible") &&
+    importRouteSource.includes("calendarWriteAttempted: partialCloudWritePossible") &&
     importRouteSource.includes("failureCode: code") &&
     importRouteSource.includes(
       "const receiptTiming = importReceiptTimingFields(failureReceipt)"
@@ -406,8 +432,10 @@ expect(
     importRouteSource.includes("function importFailureCacheRefreshFields") &&
     importRouteSource.includes("function importFailureCacheRefreshStatus") &&
     importRouteSource.includes("const partialCloudWritePossible = retryable && !manualReviewRequired") &&
+    importRouteSource.includes("const importStatus = importFailureStatusFields") &&
     importRouteSource.includes("const visibilityFields = importFailureVisibilityFields") &&
     importRouteSource.includes("partialCloudWritePossible,") &&
+    importRouteSource.includes("...importStatus") &&
     importRouteSource.includes("...visibilityFields") &&
     importRouteSource.includes("pendingWriteCount: partialCloudWritePossible ? 1 : 0") &&
     importRouteSource.includes("failedWriteCount:") &&

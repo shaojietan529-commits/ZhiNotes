@@ -124,6 +124,25 @@ function importSuccessClearanceFields() {
   };
 }
 
+function importSuccessStatusFields(calendar: ImportCalendarRefreshFieldsInput) {
+  return {
+    operation: "import_meeting_artifact",
+    importCompletionStatus: "completed",
+    calendarRefreshStatus: calendar.requiresMetadataRefresh
+      ? "metadata_refresh_required"
+      : "metadata_refresh_not_required",
+    calendarRefreshNextAction: calendar.requiresMetadataRefresh
+      ? "refresh_calendar_metadata"
+      : "none",
+    calendarVisibilityStatus:
+      calendar.dailyCalendarVisible && calendar.meetingCalendarVisible
+        ? "visible_after_metadata_refresh"
+        : "metadata_refresh_required",
+    cloudWriteAttempted: true,
+    calendarWriteAttempted: true,
+  };
+}
+
 function importFailureVisibilityFields({
   retryable,
   manualReviewRequired,
@@ -157,6 +176,36 @@ function importFailureVisibilityFields({
       manualReviewRequired,
       partialCloudWritePossible,
     }),
+  };
+}
+
+function importFailureStatusFields({
+  manualReviewRequired,
+  partialCloudWritePossible,
+  failureStatus,
+  nextAction,
+}: {
+  manualReviewRequired: boolean;
+  partialCloudWritePossible: boolean;
+  failureStatus: string;
+  nextAction: string;
+}) {
+  return {
+    operation: "import_meeting_artifact",
+    importCompletionStatus: failureStatus,
+    calendarRefreshStatus: manualReviewRequired
+      ? "blocked_manual_review"
+      : partialCloudWritePossible
+        ? "blocked_retryable_unknown"
+        : "not_started",
+    calendarRefreshNextAction: nextAction,
+    calendarVisibilityStatus: manualReviewRequired
+      ? "unknown_manual_review_required"
+      : partialCloudWritePossible
+        ? "unknown_retryable"
+        : "not_visible_import_failed",
+    cloudWriteAttempted: partialCloudWritePossible,
+    calendarWriteAttempted: partialCloudWritePossible,
   };
 }
 
@@ -263,6 +312,7 @@ export async function POST(request: Request) {
       result.importReceipt
     );
     const calendarRefresh = importCalendarRefreshFields(result.calendar);
+    const importStatus = importSuccessStatusFields(result.calendar);
     return importJson({
       ok: true,
       id: result.importId,
@@ -271,6 +321,7 @@ export async function POST(request: Request) {
       syncStatus: "cloud_page_index_updated",
       cloudWriteStatus: "completed",
       calendarWriteStatus: "completed",
+      ...importStatus,
       ...importSuccessClearanceFields(),
       ...calendarRefresh,
       ...importReceiptTiming,
@@ -349,6 +400,12 @@ function importFailurePayload({
     partialCloudWritePossible,
     failureStatus,
   });
+  const importStatus = importFailureStatusFields({
+    manualReviewRequired,
+    partialCloudWritePossible,
+    failureStatus,
+    nextAction,
+  });
   const failureReceipt = importFailureReceipt({
     code,
     retryable,
@@ -363,6 +420,7 @@ function importFailurePayload({
 
   return {
     ok: false,
+    ...importStatus,
     code,
     error,
     retryable,
