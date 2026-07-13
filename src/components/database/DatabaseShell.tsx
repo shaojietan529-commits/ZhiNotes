@@ -174,6 +174,8 @@ const DATABASE_BACKGROUND_ROW_HYDRATION_BATCH = DATABASE_FIRST_PAINT_ROW_LIMIT;
 const DATABASE_RELATION_METADATA_FIRST_PAINT_LIMIT = 360;
 const DATABASE_ROW_PAGE_PRIME_DEDUPE_MS = 2500;
 const DATABASE_VIEW_RENDER_BATCH = 80;
+const DATABASE_FOREGROUND_REFRESH_DELAY_MS = 120;
+const DATABASE_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400;
 const DATABASE_VIEW_RENDER_CAPPED_TYPES = new Set([
   "table",
   "list",
@@ -316,6 +318,34 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   const markOptimisticDatabaseMutation = useCallback(() => {
     optimisticDatabaseMutationBlockUntilRef.current = Date.now() + 1500;
   }, []);
+
+  const getDatabaseForegroundRefreshDelay = useCallback(() => {
+    const remaining =
+      optimisticDatabaseMutationBlockUntilRef.current - Date.now();
+    if (remaining <= 0) return 0;
+    return Math.min(remaining, DATABASE_FOREGROUND_REFRESH_MAX_DELAY_MS);
+  }, []);
+
+  const scheduleDatabaseForegroundAwareRefresh = useCallback(
+    (callback: () => void, delayMs: number) => {
+      let timer: number | null = null;
+      const runWhenQuiet = () => {
+        const foregroundDelay = getDatabaseForegroundRefreshDelay();
+        if (foregroundDelay > 0) {
+          timer = window.setTimeout(runWhenQuiet, foregroundDelay);
+          return;
+        }
+        timer = null;
+        callback();
+      };
+      timer = window.setTimeout(runWhenQuiet, delayMs);
+      return () => {
+        if (timer !== null) window.clearTimeout(timer);
+        timer = null;
+      };
+    },
+    [getDatabaseForegroundRefreshDelay]
+  );
 
   const applyViewConfig = useCallback((configValue: string) => {
     const config = parseDatabaseViewConfig(configValue);
@@ -530,21 +560,18 @@ export default function DatabaseShell({ databaseId }: DatabaseShellProps) {
   }, [reload]);
 
   useEffect(() => {
-    let timer: number | null = null;
+    let cancelReload: (() => void) | null = null;
     const unsubscribe = subscribeDatabasesUpdated(() => {
-      if (Date.now() < optimisticDatabaseMutationBlockUntilRef.current) {
-        return;
-      }
-      if (timer !== null) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
+      cancelReload?.();
+      cancelReload = scheduleDatabaseForegroundAwareRefresh(() => {
         void reload({ preferLocalCache: true });
-      }, 120);
+      }, DATABASE_FOREGROUND_REFRESH_DELAY_MS);
     });
     return () => {
-      if (timer !== null) window.clearTimeout(timer);
+      cancelReload?.();
       unsubscribe();
     };
-  }, [reload]);
+  }, [reload, scheduleDatabaseForegroundAwareRefresh]);
 
   const handleTitleChange = useCallback(
     async (newTitle: string) => {

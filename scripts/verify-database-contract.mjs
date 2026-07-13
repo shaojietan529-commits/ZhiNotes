@@ -1244,13 +1244,16 @@ function run() {
   }
   for (const snippet of [
     "subscribeDatabasesUpdated",
+    "scheduleDatabaseForegroundAwareRefresh",
+    "window.setTimeout(runWhenQuiet, foregroundDelay)",
+    "cancelReload = scheduleDatabaseForegroundAwareRefresh(() => {",
     "void reload({ preferLocalCache: true })",
   ]) {
     assertIncludes(
       files.databaseShell,
       databaseShell,
       snippet,
-      "Open database pages must reload when cloud database changes arrive."
+      "Open database pages must reload cloud database changes without interrupting foreground row edits."
     );
   }
   for (const snippet of [

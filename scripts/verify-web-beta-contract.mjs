@@ -23847,6 +23847,24 @@ function run() {
     [
       files.databaseShell,
       databaseShell,
+      "scheduleDatabaseForegroundAwareRefresh",
+      "Database detail update-bus reloads must go through a foreground-aware scheduler.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "window.setTimeout(runWhenQuiet, foregroundDelay)",
+      "Database detail scheduled reloads must re-check the foreground quiet window when timers fire.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
+      "cancelReload = scheduleDatabaseForegroundAwareRefresh(() => {",
+      "Database detail cross-tab reloads must stay cancellable and defer during foreground row edits.",
+    ],
+    [
+      files.databaseShell,
+      databaseShell,
       "useLocalFirstDatabaseNavigation",
       "Database detail pages must use the shared local-first database navigation path for internal database route clears.",
     ],

@@ -14825,6 +14825,24 @@ function run() {
   assertIncludes(
     files.databaseShell,
     databaseShell,
+    "scheduleDatabaseForegroundAwareRefresh",
+    "Database detail cross-tab refreshes must go through a foreground-aware reload scheduler."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "window.setTimeout(runWhenQuiet, foregroundDelay)",
+    "Database detail scheduled reloads must re-check the foreground quiet window when timers fire."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
+    "cancelReload = scheduleDatabaseForegroundAwareRefresh(() => {",
+    "Database detail update-bus reloads must be cancellable and defer while row edits are foreground-active."
+  );
+  assertIncludes(
+    files.databaseShell,
+    databaseShell,
     "updateLocalRowFieldValues(current, rowId, fieldValues)",
     "Database cell edits must update visible rows before background persistence."
   );
