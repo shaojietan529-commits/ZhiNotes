@@ -42,6 +42,15 @@ const queueContinuityReceipt = {
   localUseCanContinue: true,
   localMeetingDataUnaffected: true,
 };
+const queueReceiptBase = {
+  schema: "zhinote.zhihui.agent.queue.receipt.v1",
+  source: "zhihui-agent-queue",
+  metadataOnly: true,
+  rawMeetingContentEchoed: false,
+  rawMeetingCredentialsEchoed: false,
+  payloadEchoedInReceipt: false,
+  ...queueContinuityReceipt,
+};
 
 export async function GET(request: Request) {
   const config = getMeetingAgentQueueConfig();
@@ -88,6 +97,7 @@ export async function GET(request: Request) {
       returnedJobs: queueResult.returnedJobs,
       hasMore: queueResult.hasMore,
       queueAlmostFull: queueResult.queueAlmostFull,
+      queueReceipt: queueListReceipt(queueResult),
       ...queueContinuityReceipt,
       privacy: {
         requires_agent_token: true,
@@ -226,11 +236,77 @@ export async function POST(request: Request) {
       maxQueueItems: enqueueResult.maxQueueItems,
       availableQueueSlots: enqueueResult.availableQueueSlots,
       queueAlmostFull: enqueueResult.queueAlmostFull,
+      queueReceipt: queueEnqueueReceipt(enqueueResult, {
+        runNow: body.runNow === true,
+      }),
       ...queueContinuityReceipt,
     });
   } catch (error) {
     return meetingAgentQueueErrorResponse(error, { queueWriteAttempted: true });
   }
+}
+
+function queueListReceipt(queueResult: {
+  queueDepth: number;
+  maxQueueItems: number;
+  requestedLimit: number;
+  effectiveLimit: number;
+  availableQueueSlots: number;
+  returnedJobs: number;
+  hasMore: boolean;
+  queueAlmostFull: boolean;
+}) {
+  return {
+    ...queueReceiptBase,
+    operation: "list",
+    queueAction: "read_available_jobs",
+    queueReadStatus: "completed",
+    queueWriteStatus: "not_started",
+    requestedLimit: queueResult.requestedLimit,
+    effectiveLimit: queueResult.effectiveLimit,
+    returnedJobs: queueResult.returnedJobs,
+    hasMore: queueResult.hasMore,
+    queueDepth: queueResult.queueDepth,
+    maxQueueItems: queueResult.maxQueueItems,
+    availableQueueSlots: queueResult.availableQueueSlots,
+    queueAlmostFull: queueResult.queueAlmostFull,
+    nextAction:
+      queueResult.returnedJobs > 0 ? "dispatch_available_jobs" : "poll_later",
+  };
+}
+
+function queueEnqueueReceipt(
+  enqueueResult: {
+    job: { id: string };
+    deduplicated: boolean;
+    queueDepth: number;
+    maxQueueItems: number;
+    availableQueueSlots: number;
+    queueAlmostFull: boolean;
+  },
+  { runNow }: { runNow: boolean }
+) {
+  return {
+    ...queueReceiptBase,
+    operation: "enqueue",
+    queueAction: enqueueResult.deduplicated
+      ? "reused_existing_job"
+      : "created_job",
+    queueReadStatus: "completed",
+    queueWriteStatus: enqueueResult.deduplicated
+      ? "not_needed_existing_job"
+      : "completed",
+    jobId: enqueueResult.job.id,
+    deduplicated: enqueueResult.deduplicated,
+    runNow,
+    queueDepth: enqueueResult.queueDepth,
+    maxQueueItems: enqueueResult.maxQueueItems,
+    availableQueueSlots: enqueueResult.availableQueueSlots,
+    queueAlmostFull: enqueueResult.queueAlmostFull,
+    nextAction: enqueueResult.deduplicated
+      ? "wait_for_existing_job"
+      : "wait_for_runner_ack",
+  };
 }
 
 function meetingAgentQueueErrorResponse(

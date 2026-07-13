@@ -22,6 +22,16 @@ const ackContinuityReceipt = {
   localUseCanContinue: true,
   localMeetingDataUnaffected: true,
 };
+const ackReceiptBase = {
+  schema: "zhinote.zhihui.agent.queue.receipt.v1",
+  source: "zhihui-agent-queue-ack",
+  operation: "ack",
+  metadataOnly: true,
+  rawMeetingContentEchoed: false,
+  rawMeetingCredentialsEchoed: false,
+  payloadEchoedInReceipt: false,
+  ...ackContinuityReceipt,
+};
 
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
@@ -85,6 +95,7 @@ export async function POST(request: Request) {
       maxQueueItems: ackResult.maxQueueItems,
       availableQueueSlots: ackResult.availableQueueSlots,
       queueAlmostFull: ackResult.queueAlmostFull,
+      queueReceipt: queueAckReceipt(ackResult, jobIds.length),
       ...ackContinuityReceipt,
     });
   } catch (error) {
@@ -185,5 +196,41 @@ function ackFailurePayload({
         ? "retry"
         : "fix_input_or_configuration",
     ...ackFailureBoundary,
+  };
+}
+
+function queueAckReceipt(
+  ackResult: {
+    acknowledged: string[];
+    missing: string[];
+    queueDepth: number;
+    maxQueueItems: number;
+    availableQueueSlots: number;
+    queueAlmostFull: boolean;
+  },
+  requestedAckCount: number
+) {
+  const acknowledgedCount = ackResult.acknowledged.length;
+  const missingCount = ackResult.missing.length;
+  return {
+    ...ackReceiptBase,
+    queueAction:
+      missingCount > 0
+        ? "acknowledged_existing_jobs_with_missing_ids"
+        : "acknowledged_existing_jobs",
+    queueReadStatus: "completed",
+    queueWriteStatus:
+      acknowledgedCount > 0 ? "completed" : "not_needed_no_matching_jobs",
+    requestedAckCount,
+    acknowledgedCount,
+    missingCount,
+    acknowledgedJobIds: ackResult.acknowledged,
+    missingJobIds: ackResult.missing,
+    unconfirmedJobsPreserved: missingCount > 0,
+    queueDepth: ackResult.queueDepth,
+    maxQueueItems: ackResult.maxQueueItems,
+    availableQueueSlots: ackResult.availableQueueSlots,
+    queueAlmostFull: ackResult.queueAlmostFull,
+    nextAction: missingCount > 0 ? "review_missing_jobs" : "poll_for_next_jobs",
   };
 }
