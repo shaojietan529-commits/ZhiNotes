@@ -497,6 +497,9 @@ function verifyIntakeRouteContract(source) {
       name: "success responses are structured and local-safe",
       passed:
         source.includes("const intakeContinuityReceipt") &&
+        source.includes("const intakeReceiptBase") &&
+        source.includes("schema: \"zhinote.zhihui.intake.receipt.v1\"") &&
+        source.includes("function intakeSuccessReceipt") &&
         source.includes("ok: true") &&
         source.includes("status: \"parsed\"") &&
         source.includes("nextAction: \"review_and_save_to_calendar\"") &&
@@ -505,6 +508,13 @@ function verifyIntakeRouteContract(source) {
         source.includes("calendarWriteStatus: \"not_started\"") &&
         source.includes("requiresUserConfirmation: true") &&
         source.includes("highRiskWriteGated: true") &&
+        source.includes("intakeReceipt: intakeSuccessReceipt") &&
+        source.includes("parseStatus: \"completed\"") &&
+        source.includes("fetchedPageReadStatus: fetched") &&
+        source.includes("\"skipped_or_failed_warning\"") &&
+        source.includes("warningCount") &&
+        source.includes("confidence") &&
+        source.includes("metadataOnly: true") &&
         source.includes("...intakeContinuityReceipt") &&
         source.includes("accountSessionUnaffected: true") &&
         source.includes("localUseCanContinue: true") &&
@@ -519,6 +529,7 @@ function verifyIntakeRouteContract(source) {
       name: "failure responses are structured and local-safe",
       passed:
         source.includes("function intakeFailurePayload") &&
+        source.includes("function intakeFailureReceipt") &&
         source.includes("ok: false") &&
         source.includes('source: "zhihui-meeting-intake"') &&
         source.includes("accountSessionUnaffected: true") &&
@@ -534,6 +545,11 @@ function verifyIntakeRouteContract(source) {
         source.includes("failureStatus: manualReviewRequired") &&
         source.includes("manualReviewRequired") &&
         source.includes("nextAction: manualReviewRequired") &&
+        source.includes("intakeReceipt: intakeFailureReceipt") &&
+        source.includes("failureCode: code") &&
+        source.includes("parseStatus: manualReviewRequired") &&
+        source.includes("retryable") &&
+        source.includes("metadataOnly: true") &&
         source.includes("\"manual_review\"") &&
         source.includes("\"failed_retryable\"") &&
         source.includes("\"failed_final\"") &&

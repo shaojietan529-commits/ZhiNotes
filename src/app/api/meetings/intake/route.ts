@@ -31,6 +31,17 @@ const intakeContinuityReceipt = {
   rawInviteEchoed: false,
   fetchedPageTextEchoed: false,
 };
+const intakeReceiptBase = {
+  schema: "zhinote.zhihui.intake.receipt.v1",
+  source: "zhihui-meeting-intake",
+  operation: "parse_meeting_invite",
+  metadataOnly: true,
+  cloudWriteStatus: "not_started",
+  calendarWriteStatus: "not_started",
+  localWriteStatus: "not_started",
+  highRiskWriteGated: true,
+  ...intakeContinuityReceipt,
+};
 
 export async function POST(req: Request) {
   let body: { input?: unknown };
@@ -97,6 +108,16 @@ export async function POST(req: Request) {
     calendarWriteStatus: "not_started",
     requiresUserConfirmation: true,
     highRiskWriteGated: true,
+    intakeReceipt: intakeSuccessReceipt({
+      fetched: Boolean(fetched),
+      fetchAttempted: Boolean(url),
+      warningCount: parsed.meeting.warnings.length,
+      confidence: parsed.meeting.confidence,
+      returnsJoinUrlForCalendarStorage: Boolean(parsed.meeting.joinUrl),
+      returnsMeetingPasscodeForCalendarStorage: Boolean(
+        parsed.meeting.passcode
+      ),
+    }),
     ...intakeContinuityReceipt,
     privacy: {
       storesRawInvite: false,
@@ -138,6 +159,73 @@ function intakeFailurePayload({
         ? "retry"
         : "fix_input_or_configuration",
     ...intakeFailureBoundary,
+    intakeReceipt: intakeFailureReceipt({
+      code,
+      retryable,
+      manualReviewRequired,
+    }),
+  };
+}
+
+function intakeSuccessReceipt({
+  fetched,
+  fetchAttempted,
+  warningCount,
+  confidence,
+  returnsJoinUrlForCalendarStorage,
+  returnsMeetingPasscodeForCalendarStorage,
+}: {
+  fetched: boolean;
+  fetchAttempted: boolean;
+  warningCount: number;
+  confidence: string;
+  returnsJoinUrlForCalendarStorage: boolean;
+  returnsMeetingPasscodeForCalendarStorage: boolean;
+}) {
+  return {
+    ...intakeReceiptBase,
+    parseStatus: "completed",
+    syncStatus: "local_review_required",
+    fetchedPageReadStatus: fetched
+      ? "completed"
+      : fetchAttempted
+        ? "skipped_or_failed_warning"
+        : "not_started",
+    warningCount,
+    confidence,
+    requiresUserConfirmation: true,
+    nextAction: "review_and_save_to_calendar",
+    returnsJoinUrlForCalendarStorage,
+    returnsMeetingPasscodeForCalendarStorage,
+  };
+}
+
+function intakeFailureReceipt({
+  code,
+  retryable,
+  manualReviewRequired,
+}: {
+  code: string;
+  retryable: boolean;
+  manualReviewRequired: boolean;
+}) {
+  return {
+    ...intakeReceiptBase,
+    parseStatus: manualReviewRequired
+      ? "manual_review_required"
+      : retryable
+        ? "failed_retryable"
+        : "failed_final",
+    syncStatus: "not_started",
+    failureCode: code,
+    retryable,
+    manualReviewRequired,
+    requiresUserConfirmation: manualReviewRequired,
+    nextAction: manualReviewRequired
+      ? "manual_review"
+      : retryable
+        ? "retry"
+        : "fix_input_or_configuration",
   };
 }
 
