@@ -265,6 +265,8 @@ expect(
   "meeting metadata change-log refresh should read changed ids, update cache records, and persist the cache"
 );
 
+const corruptIndexManualReview = await verifyCorruptIndexManualReview();
+
 if (failures.length > 0) {
   console.error("verify:meeting-import 失败：");
   for (const failure of failures) console.error(`- ${failure}`);
@@ -288,6 +290,7 @@ console.log(
       metadata_actions: result.calendar.metadataActions,
       calendar_recognizable_page_records: true,
       structured_failure_contract: true,
+      corrupt_index_manual_review: corruptIndexManualReview,
       downstream_cache_refresh_contract: true,
       privacy_boundary:
         "Synthetic in-memory KV verification only. It does not connect real cloud storage, read browser storage, page bodies, real meeting content, transcripts, join URLs, passcodes, cookies, credentials, or file bytes.",
@@ -322,6 +325,61 @@ function propertyValue(record, name) {
   const properties = parseJson(record?.properties);
   if (!Array.isArray(properties)) return "";
   return properties.find((property) => property?.name === name)?.value ?? "";
+}
+
+async function verifyCorruptIndexManualReview() {
+  const previousIndexRaw = kvStore.get(indexKey);
+  const previousPageRecordCount = countPageRecords();
+  const corruptIndexValue = "{corrupt-page-index";
+  let caught = null;
+
+  kvStore.set(indexKey, corruptIndexValue);
+  try {
+    await importer.importMeetingArtifactToPages(
+      { url: "memory://kv", token: "mock-token" },
+      {
+        ...payload,
+        source_manifest: {
+          content_fingerprint: {
+            sha256: "synthetic-corrupt-index-fingerprint",
+          },
+        },
+      }
+    );
+  } catch (error) {
+    caught = error;
+  } finally {
+    if (typeof previousIndexRaw === "string") {
+      kvStore.set(indexKey, previousIndexRaw);
+    } else {
+      kvStore.delete(indexKey);
+    }
+  }
+
+  const caughtError = caught && typeof caught === "object" ? caught : null;
+  const passed =
+    caughtError?.code === "meeting_import_index_corrupt" &&
+    caughtError?.status === 409 &&
+    caughtError?.retryable === false &&
+    caughtError?.details?.manual_review_required === true &&
+    caughtError?.details?.unconfirmed_pages_preserved === true &&
+    countPageRecords() === previousPageRecordCount;
+
+  expect(
+    passed,
+    "corrupt page index should stop ZhiHui import with manual review and preserve existing page records"
+  );
+  expect(
+    kvStore.get(indexKey) === previousIndexRaw,
+    "corrupt index verification should restore the synthetic page index after the safety check"
+  );
+  return passed;
+}
+
+function countPageRecords() {
+  return [...kvStore.keys()].filter((key) =>
+    key.startsWith("zhinotes:pagesync:page:owner@example.com:")
+  ).length;
 }
 
 function loadImporter(fullPath) {
