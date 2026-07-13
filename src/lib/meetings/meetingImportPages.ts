@@ -114,6 +114,10 @@ export interface MeetingImportResult {
     meetingCalendarVisible: true;
     requiresMetadataRefresh: true;
     metadataRefreshReason: "meeting-import-change-log";
+    metadataRefreshMode: "incremental-change-log";
+    fullCacheRebuildRequired: false;
+    localUseCanContinue: true;
+    accountSessionUnaffected: true;
   };
 }
 
@@ -269,6 +273,10 @@ export async function importMeetingArtifactToPages(
       meetingCalendarVisible: true,
       requiresMetadataRefresh: true,
       metadataRefreshReason: "meeting-import-change-log",
+      metadataRefreshMode: "incremental-change-log",
+      fullCacheRebuildRequired: false,
+      localUseCanContinue: true,
+      accountSessionUnaffected: true,
     },
   };
 }

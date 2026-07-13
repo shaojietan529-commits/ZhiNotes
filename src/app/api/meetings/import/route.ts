@@ -70,6 +70,7 @@ export async function POST(request: Request) {
       meeting: result.meeting,
       calendar: result.calendar,
       accountEmail: result.accountEmail,
+      ...failureBoundary,
     });
   } catch (error) {
     if (error instanceof MeetingImportError) {

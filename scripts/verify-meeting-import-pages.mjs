@@ -109,6 +109,22 @@ expect(
   result.calendar.metadataRefreshReason === "meeting-import-change-log",
   "calendar receipt should explain that visibility is driven by the meeting import change log"
 );
+expect(
+  result.calendar.metadataRefreshMode === "incremental-change-log",
+  "calendar receipt should tell the UI to use incremental change-log refresh"
+);
+expect(
+  result.calendar.fullCacheRebuildRequired === false,
+  "calendar receipt should not require a full cache rebuild for a normal import"
+);
+expect(
+  result.calendar.localUseCanContinue === true,
+  "calendar receipt should state local use can continue after import"
+);
+expect(
+  result.calendar.accountSessionUnaffected === true,
+  "calendar receipt should state the account session is unaffected by import refresh"
+);
 
 for (const id of result.calendar.changedPageIds) {
   expect(Boolean(index?.[id]), `changed page ${id} should be present in the page index`);
@@ -201,6 +217,15 @@ expect(
 expect(
   importRouteSource.includes("calendar: result.calendar"),
   "import route should return the calendar visibility receipt"
+);
+expect(
+  importRouteSource.includes("...failureBoundary"),
+  "import route success responses should carry the same local-use continuity boundary as failures"
+);
+expect(
+  importRouteSource.includes("localUseCanContinue: true") &&
+    importRouteSource.includes("accountSessionUnaffected: true"),
+  "import route should preserve local-use and account-session continuity fields"
 );
 expect(
   importRouteSource.includes("function importFailurePayload") &&
@@ -309,6 +334,10 @@ console.log(
       meeting_calendar_visible: result.calendar.meetingCalendarVisible,
       metadata_refresh_required: result.calendar.requiresMetadataRefresh,
       metadata_refresh_reason: result.calendar.metadataRefreshReason,
+      metadata_refresh_mode: result.calendar.metadataRefreshMode,
+      full_cache_rebuild_required: result.calendar.fullCacheRebuildRequired,
+      local_use_can_continue: result.calendar.localUseCanContinue,
+      account_session_unaffected: result.calendar.accountSessionUnaffected,
       calendar_recognizable_page_records: true,
       structured_failure_contract: true,
       corrupt_index_manual_review: corruptIndexManualReview,
