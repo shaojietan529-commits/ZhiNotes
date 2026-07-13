@@ -29,6 +29,7 @@ export interface MeetingAgentQueueEnqueueResult {
   job: MeetingAgentQueueJob;
   deduplicated: boolean;
   updatedExisting: boolean;
+  leasedDuplicatePreserved: boolean;
   queueDepth: number;
   maxQueueItems: number;
   availableQueueSlots: number;
@@ -249,11 +250,12 @@ export async function enqueueMeetingAgentJob(
     });
   }
   const jobs = await readQueue(kv);
-  const existingJob = findDuplicateQueueJob(
+  const duplicateMatch = findDuplicateQueueJob(
     jobs,
     payload.job_type,
     payload.payload
   );
+  const existingJob = duplicateMatch.job;
   if (existingJob) {
     const existingPayload = JSON.stringify(existingJob.payload);
     if (existingPayload === serializedPayload) {
@@ -261,6 +263,7 @@ export async function enqueueMeetingAgentJob(
         job: existingJob,
         deduplicated: true,
         updatedExisting: false,
+        leasedDuplicatePreserved: duplicateMatch.leasedDuplicatePreserved,
         ...queueStats(jobs),
       };
     }
@@ -274,6 +277,7 @@ export async function enqueueMeetingAgentJob(
       job: updatedJob,
       deduplicated: true,
       updatedExisting: true,
+      leasedDuplicatePreserved: duplicateMatch.leasedDuplicatePreserved,
       ...queueStats(updatedJobs),
     };
   }
@@ -289,7 +293,13 @@ export async function enqueueMeetingAgentJob(
   };
   jobs.push(job);
   await writeQueue(kv, jobs);
-  return { job, deduplicated: false, updatedExisting: false, ...queueStats(jobs) };
+  return {
+    job,
+    deduplicated: false,
+    updatedExisting: false,
+    leasedDuplicatePreserved: duplicateMatch.leasedDuplicatePreserved,
+    ...queueStats(jobs),
+  };
 }
 
 export async function ackMeetingAgentJobs(
@@ -447,20 +457,30 @@ function findDuplicateQueueJob(
   payload: Record<string, unknown>
 ) {
   const targetKey = queueDedupeKey(jobType, payload);
-  if (!targetKey) return null;
+  if (!targetKey) return { job: null, leasedDuplicatePreserved: false };
   const candidates = jobs.filter(
     (job) =>
       job.job_type === jobType &&
       queueDedupeKey(job.job_type, job.payload) === targetKey
   );
   const serializedPayload = JSON.stringify(payload);
-  return (
+  const exactJob =
     candidates.find(
       (job) => JSON.stringify(job.payload) === serializedPayload
-    ) ??
-    candidates.find((job) => !job.lease) ??
-    null
-  );
+    ) ?? null;
+  if (exactJob) {
+    return { job: exactJob, leasedDuplicatePreserved: false };
+  }
+
+  const unleasedJob = candidates.find((job) => !job.lease) ?? null;
+  if (unleasedJob) {
+    return { job: unleasedJob, leasedDuplicatePreserved: false };
+  }
+
+  return {
+    job: null,
+    leasedDuplicatePreserved: candidates.some((job) => Boolean(job.lease)),
+  };
 }
 
 function queueDedupeKey(jobType: string, payload: Record<string, unknown>) {

@@ -1092,6 +1092,12 @@ Current local actions:
   Missing, lease-less, or mismatched ACKs are preserved and surfaced as
   manual-review metadata, so another device or restarted runner cannot
   accidentally sign off work it no longer owns.
+- When enqueue sees the same meeting page but the existing queued job is already
+  leased by a runner, the server preserves that leased job and creates a
+  follow-up job instead of rewriting in-flight work. The enqueue response marks
+  this with `leasedDuplicatePreserved: true` and
+  `queueAction: "created_followup_job_for_leased_duplicate"` so clients can show
+  the user that a later update is waiting behind active work.
 - Open meetings from the sidebar Platform section or Cmd/Ctrl+K.
 
 The current Meetings module and meeting workbench are local research workspaces.

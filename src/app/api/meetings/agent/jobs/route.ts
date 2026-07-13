@@ -284,9 +284,12 @@ export async function POST(request: Request) {
         ? "updated_existing_job"
         : enqueueResult.deduplicated
           ? "reused_existing_job"
-          : "created_job",
+          : enqueueResult.leasedDuplicatePreserved
+            ? "created_followup_job_for_leased_duplicate"
+            : "created_job",
       deduplicated: enqueueResult.deduplicated,
       updatedExisting: enqueueResult.updatedExisting,
+      leasedDuplicatePreserved: enqueueResult.leasedDuplicatePreserved,
       run_now: body.runNow === true,
       queueDepth: enqueueResult.queueDepth,
       maxQueueItems: enqueueResult.maxQueueItems,
@@ -358,6 +361,7 @@ function queueEnqueueReceipt(
     job: { id: string };
     deduplicated: boolean;
     updatedExisting: boolean;
+    leasedDuplicatePreserved: boolean;
     queueDepth: number;
     maxQueueItems: number;
     availableQueueSlots: number;
@@ -373,7 +377,9 @@ function queueEnqueueReceipt(
       ? "updated_existing_job"
       : enqueueResult.deduplicated
         ? "reused_existing_job"
-        : "created_job",
+        : enqueueResult.leasedDuplicatePreserved
+          ? "created_followup_job_for_leased_duplicate"
+          : "created_job",
     queueReadStatus: "completed",
     queueWriteStatus:
       enqueueResult.deduplicated && !enqueueResult.updatedExisting
@@ -382,6 +388,7 @@ function queueEnqueueReceipt(
     jobId: enqueueResult.job.id,
     deduplicated: enqueueResult.deduplicated,
     updatedExisting: enqueueResult.updatedExisting,
+    leasedDuplicatePreserved: enqueueResult.leasedDuplicatePreserved,
     runNow,
     queueDepth: enqueueResult.queueDepth,
     maxQueueItems: enqueueResult.maxQueueItems,

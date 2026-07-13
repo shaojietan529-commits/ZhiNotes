@@ -132,6 +132,7 @@ for (const token of [
   "meeting_page_id: pageId",
   "updatedExisting: true",
   "updatedExisting: false",
+  "leasedDuplicatePreserved",
   "deduplicated: true",
   "deduplicated: false",
   "function queueStats",
@@ -317,6 +318,8 @@ for (const token of [
   "syncStatus: \"agent_queue_updated\"",
   "deduplicated: enqueueResult.deduplicated",
   "updatedExisting: enqueueResult.updatedExisting",
+  "leasedDuplicatePreserved: enqueueResult.leasedDuplicatePreserved",
+  "\"created_followup_job_for_leased_duplicate\"",
   "queueDepth: enqueueResult.queueDepth",
   "availableQueueSlots: enqueueResult.availableQueueSlots",
   "queueAlmostFull: enqueueResult.queueAlmostFull",
@@ -1385,6 +1388,7 @@ async function verifyLeasedDuplicateQueueBehavior() {
   return (
     changed.deduplicated === false &&
     changed.updatedExisting === false &&
+    changed.leasedDuplicatePreserved === true &&
     changed.job.id !== leasedSeedJob.id &&
     changed.queueDepth === 2 &&
     afterChanged.length === 2 &&
@@ -1396,6 +1400,7 @@ async function verifyLeasedDuplicateQueueBehavior() {
     !afterChanged[1].lease &&
     repeatedChanged.deduplicated === true &&
     repeatedChanged.updatedExisting === false &&
+    repeatedChanged.leasedDuplicatePreserved === false &&
     repeatedChanged.job.id === changed.job.id &&
     afterRepeated.length === 2 &&
     calls.get === 2 &&
