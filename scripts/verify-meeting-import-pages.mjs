@@ -259,6 +259,14 @@ expect(
   "import route should return sanitized meeting metadata"
 );
 expect(
+  importRouteSource.includes("MAX_IMPORT_REQUEST_BYTES") &&
+    importRouteSource.includes("request.headers.get(\"content-length\")") &&
+    importRouteSource.includes("meeting_import_payload_too_large") &&
+    importRouteSource.includes("max_bytes: MAX_IMPORT_REQUEST_BYTES") &&
+    importRouteSource.includes("{ status: 413 }"),
+  "import route should reject oversized meeting payloads before JSON parsing and cloud writes"
+);
+expect(
   importRouteSource.includes("function importJson") &&
     importRouteSource.includes("\"Cache-Control\", \"no-store, max-age=0\"") &&
     importRouteSource.includes("IMPORT_FAILURE_RECEIPT_FRESHNESS_WINDOW_MS") &&

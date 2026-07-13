@@ -10,6 +10,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const MAX_IMPORT_REQUEST_BYTES = 2_000_000;
 const IMPORT_FAILURE_RECEIPT_FRESHNESS_WINDOW_MS = 30_000;
 const failureBoundary = {
   source: "zhihui-meeting-import",
@@ -55,6 +56,19 @@ export async function POST(request: Request) {
         retryable: false,
       }),
       { status: 401 }
+    );
+  }
+
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_IMPORT_REQUEST_BYTES) {
+    return importJson(
+      importFailurePayload({
+        code: "meeting_import_payload_too_large",
+        error: "ZhiHui meeting import payload is too large",
+        retryable: false,
+        details: { max_bytes: MAX_IMPORT_REQUEST_BYTES },
+      }),
+      { status: 413 }
     );
   }
 
