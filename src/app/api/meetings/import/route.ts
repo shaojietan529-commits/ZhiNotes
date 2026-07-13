@@ -17,10 +17,16 @@ const failureBoundary = {
   rawMeetingContentEchoed: false,
 };
 
+function importJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  return response;
+}
+
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
-    return NextResponse.json(
+    return importJson(
       importFailurePayload({
         code: "zhihui_meeting_import_not_configured",
         error: "ZhiHui meeting import not configured",
@@ -31,7 +37,7 @@ export async function POST(request: Request) {
     );
   }
   if (!authorizeMeetingAgent(request, config.agentToken)) {
-    return NextResponse.json(
+    return importJson(
       importFailurePayload({
         code: "zhihui_agent_unauthorized",
         error: "unauthorized",
@@ -45,7 +51,7 @@ export async function POST(request: Request) {
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json(
+    return importJson(
       importFailurePayload({
         code: "invalid_json",
         error: "invalid JSON",
@@ -57,7 +63,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await importMeetingArtifactToPages(config.kv, payload);
-    return NextResponse.json({
+    return importJson({
       ok: true,
       id: result.importId,
       status: "imported",
@@ -78,7 +84,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof MeetingImportError) {
-      return NextResponse.json(
+      return importJson(
         importFailurePayload({
           code: error.code,
           error: error.message,
@@ -88,7 +94,7 @@ export async function POST(request: Request) {
         { status: error.status }
       );
     }
-    return NextResponse.json(
+    return importJson(
       importFailurePayload({
         code: "zhihui_meeting_import_failed",
         error: "ZhiHui meeting import failed",

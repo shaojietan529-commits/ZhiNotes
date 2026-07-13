@@ -43,12 +43,18 @@ const intakeReceiptBase = {
   ...intakeContinuityReceipt,
 };
 
+function intakeJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  return response;
+}
+
 export async function POST(req: Request) {
   let body: { input?: unknown };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
+    return intakeJson(
       intakeFailurePayload({
         code: "invalid_json",
         error: "invalid JSON",
@@ -60,7 +66,7 @@ export async function POST(req: Request) {
 
   const input = typeof body.input === "string" ? body.input.trim() : "";
   if (!input) {
-    return NextResponse.json(
+    return intakeJson(
       intakeFailurePayload({
         code: "meeting_intake_empty_input",
         error: "请输入会议邀请或入会链接。",
@@ -70,7 +76,7 @@ export async function POST(req: Request) {
     );
   }
   if (input.length > MAX_INPUT_CHARS) {
-    return NextResponse.json(
+    return intakeJson(
       intakeFailurePayload({
         code: "meeting_intake_input_too_large",
         error: "会议邀请内容太长，请删掉无关正文后再导入。",
@@ -97,7 +103,7 @@ export async function POST(req: Request) {
   const parsed = parseMeetingInviteInput(input, fetched);
   if (fetchWarning) parsed.meeting.warnings.push(fetchWarning);
 
-  return NextResponse.json({
+  return intakeJson({
     ok: true,
     meeting: parsed.meeting,
     fetched: Boolean(fetched),

@@ -496,6 +496,8 @@ function verifyIntakeRouteContract(source) {
     {
       name: "success responses are structured and local-safe",
       passed:
+        source.includes("function intakeJson") &&
+        source.includes("\"Cache-Control\", \"no-store, max-age=0\"") &&
         source.includes("const intakeContinuityReceipt") &&
         source.includes("const intakeReceiptBase") &&
         source.includes("schema: \"zhinote.zhihui.intake.receipt.v1\"") &&

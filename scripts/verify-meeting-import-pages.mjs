@@ -242,6 +242,11 @@ expect(
   "import route should return sanitized meeting metadata"
 );
 expect(
+  importRouteSource.includes("function importJson") &&
+    importRouteSource.includes("\"Cache-Control\", \"no-store, max-age=0\""),
+  "import route responses should disable caching so calendar refresh and failure status are not stale"
+);
+expect(
   importRouteSource.includes("status: \"imported\"") &&
     importRouteSource.includes("nextAction: \"refresh_calendar_metadata\"") &&
     importRouteSource.includes("syncStatus: \"cloud_page_index_updated\""),
