@@ -29,17 +29,36 @@ const PLATFORMS = new Set([
 const RECORDING_DEVICES = new Set(["MacBook Pro", "Mac Mini"]);
 const TRANSCRIPTION_MODELS = new Set(["qwen", "gpt"]);
 const MEETING_PRIORITIES = new Set(["default", "high"]);
+const queueFailureBoundary = {
+  source: "zhihui-agent-queue",
+  accountSessionUnaffected: true,
+  localUseCanContinue: true,
+  localMeetingDataUnaffected: true,
+  rawMeetingContentEchoed: false,
+};
 
 export async function GET(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
     return NextResponse.json(
-      { error: "ZhiHui agent queue not configured", missing_env: config.missing },
+      queueFailurePayload({
+        code: "zhihui_agent_queue_not_configured",
+        error: "ZhiHui agent queue not configured",
+        retryable: false,
+        details: { missing_env: config.missing },
+      }),
       { status: 501 }
     );
   }
   if (!authorizeMeetingAgent(request, config.agentToken)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      queueFailurePayload({
+        code: "zhihui_agent_unauthorized",
+        error: "unauthorized",
+        retryable: false,
+      }),
+      { status: 401 }
+    );
   }
 
   const url = new URL(request.url);
@@ -65,10 +84,12 @@ export async function POST(request: Request) {
   const queueConfig = getMeetingAgentQueueConfig();
   if (queueConfig.status !== "ok") {
     return NextResponse.json(
-      {
+      queueFailurePayload({
+        code: "zhihui_agent_queue_not_configured",
         error: "ZhiHui 云端任务队列未配置。",
-        missing_env: queueConfig.missing,
-      },
+        retryable: false,
+        details: { missing_env: queueConfig.missing },
+      }),
       { status: 501 }
     );
   }
@@ -76,13 +97,24 @@ export async function POST(request: Request) {
   const accountConfig = getAccountConfig();
   if (!accountConfig) {
     return NextResponse.json(
-      { error: "账号系统未配置，不能从页面创建录制任务。" },
+      queueFailurePayload({
+        code: "account_system_not_configured",
+        error: "账号系统未配置，不能从页面创建录制任务。",
+        retryable: false,
+      }),
       { status: 501 }
     );
   }
   const token = readSessionToken(request);
   if (!token) {
-    return NextResponse.json({ error: "请先登录 ZhiNote。" }, { status: 401 });
+    return NextResponse.json(
+      queueFailurePayload({
+        code: "account_session_required",
+        error: "请先登录 ZhiNote。",
+        retryable: false,
+      }),
+      { status: 401 }
+    );
   }
   const account = await getSessionAccount(accountConfig, token);
   if (!account) {
@@ -95,12 +127,26 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+    return NextResponse.json(
+      queueFailurePayload({
+        code: "invalid_json",
+        error: "invalid JSON",
+        retryable: false,
+      }),
+      { status: 400 }
+    );
   }
 
   const parsed = parseMeeting(body.meeting);
   if ("error" in parsed) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return NextResponse.json(
+      queueFailurePayload({
+        code: "invalid_meeting_payload",
+        error: parsed.error,
+        retryable: false,
+      }),
+      { status: 400 }
+    );
   }
 
   try {
@@ -144,24 +190,52 @@ export async function POST(request: Request) {
 function meetingAgentQueueErrorResponse(error: unknown) {
   if (error instanceof MeetingAgentQueueTimeoutError) {
     return NextResponse.json(
-      {
+      queueFailurePayload({
+        code: "zhihui_agent_queue_timeout",
         error: "zhihui-agent-queue-timeout",
         message:
           "ZhiHui 云端任务队列请求超时；会议页和日历本地数据不受影响，可稍后重试接入 runner。",
-        timeout_ms: error.timeoutMs,
-      },
+        retryable: true,
+        details: { timeout_ms: error.timeoutMs },
+      }),
       { status: error.status }
     );
   }
 
   return NextResponse.json(
-    {
+    queueFailurePayload({
+      code: "zhihui_agent_queue_failed",
       error: "zhihui-agent-queue-failed",
       message:
         "ZhiHui 云端任务队列暂时不可用；会议页和日历本地数据不受影响。",
-    },
+      retryable: true,
+    }),
     { status: 502 }
   );
+}
+
+function queueFailurePayload({
+  code,
+  error,
+  message,
+  retryable,
+  details = null,
+}: {
+  code: string;
+  error: string;
+  message?: string;
+  retryable: boolean;
+  details?: Record<string, unknown> | null;
+}) {
+  return {
+    ok: false,
+    code,
+    error,
+    message: message ?? error,
+    retryable,
+    details,
+    ...queueFailureBoundary,
+  };
 }
 
 function parseMeeting(value: unknown):

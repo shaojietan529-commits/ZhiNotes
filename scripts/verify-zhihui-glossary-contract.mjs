@@ -62,12 +62,56 @@ for (const token of [
   check(jobsRoute.includes(token), `jobs route 缺少 ${token}`);
 }
 for (const token of [
+  "function queueFailurePayload",
+  "ok: false",
+  'source: "zhihui-agent-queue"',
+  "accountSessionUnaffected: true",
+  "localUseCanContinue: true",
+  "localMeetingDataUnaffected: true",
+  "rawMeetingContentEchoed: false",
+]) {
+  check(jobsRoute.includes(token), `jobs route 结构化失败响应缺少 ${token}`);
+}
+for (const code of [
+  "zhihui_agent_queue_not_configured",
+  "zhihui_agent_unauthorized",
+  "account_system_not_configured",
+  "account_session_required",
+  "invalid_json",
+  "invalid_meeting_payload",
+  "zhihui_agent_queue_timeout",
+  "zhihui_agent_queue_failed",
+]) {
+  check(jobsRoute.includes(code), `jobs route 缺少稳定失败 code ${code}`);
+}
+for (const token of [
   "MeetingAgentQueueTimeoutError",
   "zhihui-agent-queue-timeout",
   "不会清空未确认任务",
   "timeout_ms: error.timeoutMs",
 ]) {
   check(ackRoute.includes(token), `jobs ack route 缺少 ${token}`);
+}
+for (const token of [
+  "function ackFailurePayload",
+  "ok: false",
+  'source: "zhihui-agent-queue-ack"',
+  "accountSessionUnaffected: true",
+  "localUseCanContinue: true",
+  "localMeetingDataUnaffected: true",
+  "rawMeetingContentEchoed: false",
+  "unconfirmedJobsPreserved: true",
+]) {
+  check(ackRoute.includes(token), `jobs ack route 结构化失败响应缺少 ${token}`);
+}
+for (const code of [
+  "zhihui_agent_queue_not_configured",
+  "zhihui_agent_unauthorized",
+  "invalid_json",
+  "zhihui_agent_queue_timeout",
+  "zhihui_agent_queue_ack_failed",
+]) {
+  check(ackRoute.includes(code), `jobs ack route 缺少稳定失败 code ${code}`);
 }
 
 const helper = read("src/lib/meetings/glossary.ts");
