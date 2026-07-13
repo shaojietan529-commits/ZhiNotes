@@ -52,6 +52,10 @@ const queueReceiptBase = {
   ...queueContinuityReceipt,
 };
 
+function queueReceiptGeneratedAt() {
+  return new Date().toISOString();
+}
+
 export async function GET(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
@@ -258,6 +262,7 @@ function queueListReceipt(queueResult: {
 }) {
   return {
     ...queueReceiptBase,
+    receiptGeneratedAt: queueReceiptGeneratedAt(),
     operation: "list",
     queueAction: "read_available_jobs",
     queueReadStatus: "completed",
@@ -288,6 +293,7 @@ function queueEnqueueReceipt(
 ) {
   return {
     ...queueReceiptBase,
+    receiptGeneratedAt: queueReceiptGeneratedAt(),
     operation: "enqueue",
     queueAction: enqueueResult.deduplicated
       ? "reused_existing_job"
@@ -452,6 +458,7 @@ function queueFailureReceipt({
 }) {
   return {
     ...queueReceiptBase,
+    receiptGeneratedAt: queueReceiptGeneratedAt(),
     operation: "failure",
     queueAction: "queue_operation_failed",
     status: failureStatus,

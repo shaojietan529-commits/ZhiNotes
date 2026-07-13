@@ -33,6 +33,10 @@ const ackReceiptBase = {
   ...ackContinuityReceipt,
 };
 
+function ackReceiptGeneratedAt() {
+  return new Date().toISOString();
+}
+
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
@@ -238,6 +242,7 @@ function ackFailureReceipt({
 }) {
   return {
     ...ackReceiptBase,
+    receiptGeneratedAt: ackReceiptGeneratedAt(),
     operation: "ack_failure",
     queueAction: "ack_operation_failed",
     status: failureStatus,
@@ -271,6 +276,7 @@ function queueAckReceipt(
   const missingCount = ackResult.missing.length;
   return {
     ...ackReceiptBase,
+    receiptGeneratedAt: ackReceiptGeneratedAt(),
     queueAction:
       missingCount > 0
         ? "acknowledged_existing_jobs_with_missing_ids"
