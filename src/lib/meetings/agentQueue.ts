@@ -4,6 +4,7 @@ const QUEUE_KEY = "zhinotes:zhihui:agent-jobs";
 const MAX_QUEUE_ITEMS = 200;
 const MAX_LISTED_QUEUE_JOBS = 50;
 const MAX_PAYLOAD_BYTES = 64 * 1024;
+const MAX_QUEUE_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000;
 
 export interface MeetingAgentQueueJob {
@@ -219,14 +220,18 @@ async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
       details: { upstream_status: res.status },
     });
   }
-  const data = await res.json();
-  if (data.result == null || data.result === "") return [];
-  if (typeof data.result !== "string") {
+  const data = await readBoundedQueueResponseJson(res);
+  if (!data || typeof data !== "object") {
+    throw queueCorruptError("kv_response_not_object");
+  }
+  const result = (data as { result?: unknown }).result;
+  if (result == null || result === "") return [];
+  if (typeof result !== "string") {
     throw queueCorruptError("non_string_result");
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(data.result);
+    parsed = JSON.parse(result);
   } catch {
     throw queueCorruptError("invalid_json");
   }
@@ -240,6 +245,64 @@ async function readQueue(kv: KvEnv): Promise<MeetingAgentQueueJob[]> {
     throw queueOversizedError(parsed.length);
   }
   return parsed;
+}
+
+async function readBoundedQueueResponseJson(response: Response) {
+  const contentLength = Number(response.headers.get("content-length") ?? 0);
+  if (
+    Number.isFinite(contentLength) &&
+    contentLength > MAX_QUEUE_RESPONSE_BYTES
+  ) {
+    throw queueResponseTooLargeError(contentLength);
+  }
+
+  const body = await readBoundedQueueResponseText(
+    response,
+    MAX_QUEUE_RESPONSE_BYTES
+  );
+  if (!body.ok) {
+    throw queueResponseTooLargeError(body.bytesRead);
+  }
+
+  try {
+    return JSON.parse(body.text) as unknown;
+  } catch {
+    throw queueCorruptError("kv_response_invalid_json");
+  }
+}
+
+async function readBoundedQueueResponseText(
+  response: Response,
+  maxBytes: number
+) {
+  if (!response.body) {
+    return { ok: true as const, text: "", bytesRead: 0 };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      bytesRead += value.byteLength;
+      if (bytesRead > maxBytes) {
+        await reader.cancel();
+        return { ok: false as const, bytesRead };
+      }
+
+      text += decoder.decode(value, { stream: true });
+    }
+
+    text += decoder.decode();
+    return { ok: true as const, text, bytesRead };
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 function findDuplicateQueueJob(
@@ -418,6 +481,22 @@ function queueOversizedError(actualQueueItems: number) {
     details: {
       max_queue_items: MAX_QUEUE_ITEMS,
       actual_queue_items: actualQueueItems,
+      manual_review_required: true,
+      unconfirmed_jobs_preserved: true,
+    },
+  });
+}
+
+function queueResponseTooLargeError(actualResponseBytes: number) {
+  return new MeetingAgentQueueFailureError({
+    code: "zhihui_agent_queue_response_too_large",
+    message:
+      "ZhiHui 云端任务队列响应过大；为避免页面或 runner 卡顿，已暂停读取，请人工复核队列。",
+    status: 409,
+    retryable: false,
+    details: {
+      max_response_bytes: MAX_QUEUE_RESPONSE_BYTES,
+      actual_response_bytes: actualResponseBytes,
       manual_review_required: true,
       unconfirmed_jobs_preserved: true,
     },

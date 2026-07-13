@@ -76,6 +76,7 @@ for (const token of [
 for (const token of [
   "MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000",
   "MAX_LISTED_QUEUE_JOBS = 50",
+  "MAX_QUEUE_RESPONSE_BYTES = 4 * 1024 * 1024",
   "export class MeetingAgentQueueTimeoutError extends Error",
   "export class MeetingAgentQueueFailureError extends Error",
   "export interface MeetingAgentQueueListResult",
@@ -88,6 +89,14 @@ for (const token of [
   "clearTimeout(timeout)",
   "fetchMeetingAgentQueueWithTimeout(\n    `${kv.url}/get/",
   "fetchMeetingAgentQueueWithTimeout(\n    `${kv.url}/set/",
+  "function readBoundedQueueResponseJson",
+  "function readBoundedQueueResponseText",
+  "response.headers.get(\"content-length\")",
+  "response.body.getReader()",
+  "bytesRead += value.byteLength",
+  "await reader.cancel()",
+  "JSON.parse(body.text)",
+  "function queueResponseTooLargeError",
 ]) {
   check(agentQueue.includes(token), `agent queue 缺少 ${token}`);
 }
@@ -103,6 +112,9 @@ for (const token of [
   "zhihui_agent_queue_corrupt",
   "zhihui_agent_queue_full",
   "zhihui_agent_queue_oversized",
+  "zhihui_agent_queue_response_too_large",
+  "max_response_bytes: MAX_QUEUE_RESPONSE_BYTES",
+  "actual_response_bytes: actualResponseBytes",
   "upstream_status: res.status",
   "function queueCorruptError",
   "function queueFullError",
@@ -134,6 +146,10 @@ for (const token of [
 check(
   (agentQueue.match(/\bfetch\(/g) ?? []).length === 1,
   "agent queue 的 KV get/set 必须统一走 8 秒超时 helper，不能直接分散 fetch"
+);
+check(
+  !agentQueue.includes("res.json()") && !agentQueue.includes("response.json()"),
+  "agent queue 读取 KV 响应必须先按字节限额读取，不能直接 response.json()"
 );
 for (const token of [
   "MEETING_AGENT_QUEUE_RECEIPT_STALE_AFTER_MS",
@@ -290,6 +306,7 @@ for (const code of [
   "zhihui_agent_queue_corrupt",
   "zhihui_agent_queue_full",
   "zhihui_agent_queue_oversized",
+  "zhihui_agent_queue_response_too_large",
   "zhihui_agent_queue_failed",
 ]) {
   check(
@@ -399,6 +416,7 @@ for (const code of [
   "zhihui_agent_queue_kv_set_failed",
   "zhihui_agent_queue_corrupt",
   "zhihui_agent_queue_oversized",
+  "zhihui_agent_queue_response_too_large",
   "zhihui_agent_queue_ack_failed",
 ]) {
   check(
@@ -474,6 +492,11 @@ check(
   queueCapacityBehavior,
   "agent queue 满载或超过上限时必须进入 manual review，不能静默截断未确认任务"
 );
+const queueResponseByteLimitBehavior = await verifyQueueResponseByteLimitBehavior();
+check(
+  queueResponseByteLimitBehavior,
+  "agent queue 读取 KV 响应必须先按字节限额，超大响应进入 manual review 且不能写回"
+);
 const queueListMetadataBehavior = await verifyQueueListMetadataBehavior();
 check(
   queueListMetadataBehavior,
@@ -517,13 +540,7 @@ async function verifyCorruptQueueBehavior() {
         const requestUrl = String(url);
         if (requestUrl.includes("/get/")) {
           calls.get += 1;
-          return {
-            ok: true,
-            status: 200,
-            async json() {
-              return { result: testCase.result };
-            },
-          };
+          return kvJsonResponse({ result: testCase.result });
         }
         if (requestUrl.includes("/set/")) {
           calls.set += 1;
@@ -580,13 +597,7 @@ async function verifyPayloadByteLimitBehavior() {
     const requestUrl = String(url);
     if (requestUrl.includes("/get/")) {
       calls.get += 1;
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return { result: "" };
-        },
-      };
+      return kvJsonResponse({ result: "" });
     }
     if (requestUrl.includes("/set/")) {
       calls.set += 1;
@@ -649,13 +660,7 @@ async function verifyAckMissingBehavior() {
     const requestUrl = String(url);
     if (requestUrl.includes("/get/")) {
       calls.get += 1;
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return { result: storedQueue };
-        },
-      };
+      return kvJsonResponse({ result: storedQueue });
     }
     if (requestUrl.includes("/set/")) {
       calls.set += 1;
@@ -723,13 +728,7 @@ async function verifyQueueCapacityBehavior() {
     const requestUrl = String(url);
     if (requestUrl.includes("/get/")) {
       fullCalls.get += 1;
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return { result: JSON.stringify(fullQueue) };
-        },
-      };
+      return kvJsonResponse({ result: JSON.stringify(fullQueue) });
     }
     if (requestUrl.includes("/set/")) {
       fullCalls.set += 1;
@@ -759,13 +758,7 @@ async function verifyQueueCapacityBehavior() {
     const requestUrl = String(url);
     if (requestUrl.includes("/get/")) {
       oversizedCalls.get += 1;
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return { result: JSON.stringify(oversizedQueue) };
-        },
-      };
+      return kvJsonResponse({ result: JSON.stringify(oversizedQueue) });
     }
     if (requestUrl.includes("/set/")) {
       oversizedCalls.set += 1;
@@ -809,6 +802,53 @@ async function verifyQueueCapacityBehavior() {
   );
 }
 
+async function verifyQueueResponseByteLimitBehavior() {
+  const calls = { get: 0, set: 0 };
+  const queue = loadAgentQueueWithFetch(async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return new Response("{}", {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "content-length": String(4 * 1024 * 1024 + 1),
+        },
+      });
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  let caught = null;
+  try {
+    await queue.listMeetingAgentJobs(mockKv(), 25);
+  } catch (error) {
+    caught = error;
+  }
+
+  return (
+    caught &&
+    caught.code === "zhihui_agent_queue_response_too_large" &&
+    caught.status === 409 &&
+    caught.retryable === false &&
+    caught.details?.manual_review_required === true &&
+    caught.details?.unconfirmed_jobs_preserved === true &&
+    caught.details?.actual_response_bytes === 4 * 1024 * 1024 + 1 &&
+    calls.get === 1 &&
+    calls.set === 0
+  );
+}
+
 async function verifyQueueListMetadataBehavior() {
   const seedJobs = Array.from({ length: 3 }, (_, index) => ({
     id: `job_${index + 1}`,
@@ -821,13 +861,7 @@ async function verifyQueueListMetadataBehavior() {
     const requestUrl = String(url);
     if (requestUrl.includes("/get/")) {
       calls.get += 1;
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return { result: JSON.stringify(seedJobs) };
-        },
-      };
+      return kvJsonResponse({ result: JSON.stringify(seedJobs) });
     }
     if (requestUrl.includes("/set/")) {
       calls.set += 1;
@@ -881,13 +915,7 @@ async function verifyQueueMutationMetadataBehavior() {
     const requestUrl = String(url);
     if (requestUrl.includes("/get/")) {
       calls.get += 1;
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return { result: storedQueue };
-        },
-      };
+      return kvJsonResponse({ result: storedQueue });
     }
     if (requestUrl.includes("/set/")) {
       calls.set += 1;
@@ -945,13 +973,7 @@ async function verifyQueueDedupeBehavior() {
     const requestUrl = String(url);
     if (requestUrl.includes("/get/")) {
       calls.get += 1;
-      return {
-        ok: true,
-        status: 200,
-        async json() {
-          return { result: storedQueue };
-        },
-      };
+      return kvJsonResponse({ result: storedQueue });
     }
     if (requestUrl.includes("/set/")) {
       calls.set += 1;
@@ -1043,6 +1065,13 @@ function mockKv() {
   return { url: "https://kv.example.invalid", token: "synthetic-token" };
 }
 
+function kvJsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
 function loadAgentQueueWithFetch(fetchImpl) {
   const fullPath = path.join(root, "src/lib/meetings/agentQueue.ts");
   const source = readFileSync(fullPath, "utf8");
@@ -1063,6 +1092,7 @@ function loadAgentQueueWithFetch(fetchImpl) {
     process: { env: {} },
     require,
     setTimeout,
+    TextDecoder,
   };
   sandbox.module.exports = sandbox.exports;
   vm.runInNewContext(compiled, sandbox, { filename: fullPath });
