@@ -1086,7 +1086,9 @@ Current local actions:
   Successful receipts expose `termsReturned: true`, `syncCenterStatus: "idle"`,
   zero pending/failed writes, `safeToContinueLocalUse: true`,
   `safeToRefreshCaches: true`, `cacheRefreshStatus: "safe"`, and an empty
-  `cacheRefreshBlockedBy`. Failure receipts keep the same local-use/cache safety
+  `cacheRefreshBlockedBy`; they also mark `glossaryRecoveryRequired: false` so
+  clients can clear any stale glossary repair row. Failure receipts keep the
+  same local-use/cache safety
   fields with `termsReturned: false`, so a glossary fetch/config/token problem
   can be shown as a retry/configuration issue without blocking local writing,
   page sync, or calendar cache refresh. Failure receipts also expose

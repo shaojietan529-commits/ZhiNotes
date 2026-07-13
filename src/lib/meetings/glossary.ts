@@ -234,6 +234,9 @@ export async function buildZhiHuiGlossary(params: {
     requiresUserConfirmation: false,
     highRiskWriteGated: true,
     termsReturned: true,
+    glossaryRecoveryRequired: false,
+    glossaryRecoveryStatus: "idle",
+    glossaryRecoveryNextAction: "none",
     terms,
     source_counts: {
       meeting_context: meetingContextTerms.length,

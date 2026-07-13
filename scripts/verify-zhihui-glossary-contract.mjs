@@ -780,6 +780,9 @@ for (const token of [
   "requiresUserConfirmation: false",
   "highRiskWriteGated: true",
   "termsReturned: true",
+  "glossaryRecoveryRequired: false",
+  'glossaryRecoveryStatus: "idle"',
+  'glossaryRecoveryNextAction: "none"',
 ]) {
   check(helper.includes(token), `glossary helper 成功回执缺少 ${token}`);
 }
