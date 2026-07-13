@@ -162,21 +162,24 @@ function getAccountSyncIcon(accountSync: {
   }
 }
 
-function getAccountSyncToneClass(state: AccountCloudSyncCoordinatorState) {
-  switch (state) {
+function getAccountSyncToneClass(accountSync: {
+  state: AccountCloudSyncCoordinatorState;
+  localUseReadiness: AccountLocalUseReadiness;
+}) {
+  switch (accountSync.localUseReadiness.status) {
+    case "needs-review":
+      return "border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300";
+    case "pending-upload":
+      return "border-amber-500/25 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300";
     case "checking":
     case "syncing":
+    case "cloud-uncertain":
       return "border-blue-500/20 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-300";
-    case "queued":
-      return "border-amber-500/25 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300";
-    case "attention":
-    case "error":
-      return "border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300";
     case "signed-out":
       return "border-zinc-300 bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800";
-    case "disabled":
+    case "local-only":
       return "border-zinc-200 text-zinc-400 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-500 dark:hover:bg-zinc-900";
-    case "synced":
+    case "ready":
     default:
       return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300";
   }
@@ -806,7 +809,7 @@ export default function Sidebar() {
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
   const accountSyncButtonLabel = getAccountSyncButtonLabel(accountSync);
   const accountSyncIcon = getAccountSyncIcon(accountSync);
-  const accountSyncToneClass = getAccountSyncToneClass(accountSync.state);
+  const accountSyncToneClass = getAccountSyncToneClass(accountSync);
   const accountSyncDomainBreakdown =
     getAccountSyncDomainBreakdown(accountSync);
   const accountSyncDomainBreakdownItems =

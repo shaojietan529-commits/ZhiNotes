@@ -3535,6 +3535,12 @@ check(
     sidebar.includes("accountSyncDomainBreakdownItems") &&
     sidebar.includes("accountSyncDomainBreakdown") &&
     sidebar.includes("getAccountSyncToneClass") &&
+    sidebar.includes("switch (accountSync.localUseReadiness.status)") &&
+    sidebar.includes('case "needs-review":') &&
+    sidebar.includes('case "pending-upload":') &&
+    sidebar.includes('case "cloud-uncertain":') &&
+    sidebar.includes("const accountSyncToneClass = getAccountSyncToneClass(accountSync)") &&
+    !sidebar.includes("const accountSyncToneClass = getAccountSyncToneClass(accountSync.state)") &&
     sidebar.includes("检查中") &&
     sidebar.includes("重试中") &&
     sidebar.includes("accountSync.localUseReadiness.label") &&
