@@ -22,6 +22,7 @@ const kvStore = new Map();
 let idCounter = 0;
 
 const importer = loadImporter(path.join(root, importPath));
+const importerSource = readFileSync(path.join(root, importPath), "utf8");
 const importRouteSource = readFileSync(path.join(root, importRoutePath), "utf8");
 const accountSyncRouteSource = readFileSync(
   path.join(root, accountSyncRoutePath),
@@ -176,6 +177,15 @@ expect(
 );
 
 expect(
+  importerSource.includes("export class MeetingImportError extends Error") &&
+    importerSource.includes("this.code = options.code ?? \"meeting_import_validation_failed\"") &&
+    importerSource.includes("this.retryable = options.retryable ?? status >= 500") &&
+    importerSource.includes("meeting_import_index_corrupt") &&
+    importerSource.includes("manual_review_required: true") &&
+    importerSource.includes("unconfirmed_pages_preserved: true"),
+  "meeting import should stop corrupt page indexes with a stable manual-review failure"
+);
+expect(
   importRouteSource.includes("meeting: result.meeting"),
   "import route should return sanitized meeting metadata"
 );
@@ -192,6 +202,8 @@ expect(
     importRouteSource.includes("failureStatus: manualReviewRequired") &&
     importRouteSource.includes("manualReviewRequired") &&
     importRouteSource.includes("nextAction: manualReviewRequired") &&
+    importRouteSource.includes("code: error.code") &&
+    importRouteSource.includes("retryable: error.retryable") &&
     importRouteSource.includes("\"manual_review\"") &&
     importRouteSource.includes("\"failed_retryable\"") &&
     importRouteSource.includes("\"failed_final\"") &&
@@ -203,11 +215,13 @@ for (const expectedFailureCode of [
   "zhihui_agent_unauthorized",
   "invalid_json",
   "meeting_import_validation_failed",
+  "meeting_import_index_corrupt",
   "zhihui_meeting_import_failed",
 ]) {
   expect(
-    importRouteSource.includes(expectedFailureCode),
-    `import route should expose stable failure code ${expectedFailureCode}`
+    importRouteSource.includes(expectedFailureCode) ||
+      importerSource.includes(expectedFailureCode),
+    `import path should expose stable failure code ${expectedFailureCode}`
   );
 }
 expect(

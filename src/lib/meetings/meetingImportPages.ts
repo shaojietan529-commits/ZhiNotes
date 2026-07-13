@@ -114,12 +114,19 @@ export interface MeetingImportResult {
 }
 
 export class MeetingImportError extends Error {
+  code: string;
+  retryable: boolean;
+
   constructor(
     message: string,
     public readonly status = 400,
-    public readonly details?: Record<string, unknown>
+    public readonly details?: Record<string, unknown>,
+    options: { code?: string; retryable?: boolean } = {}
   ) {
     super(message);
+    this.name = "MeetingImportError";
+    this.code = options.code ?? "meeting_import_validation_failed";
+    this.retryable = options.retryable ?? status >= 500;
   }
 }
 
@@ -653,9 +660,21 @@ async function readIndex(kv: KvEnv, email: string) {
       return parsed as Record<string, IndexEntry>;
     }
   } catch {
-    // corrupt index; caller can rebuild touched records
+    // handled below
   }
-  return {};
+  throw new MeetingImportError(
+    "ZhiHui meeting import page index is corrupt; paused to avoid overwriting the cloud page directory.",
+    409,
+    {
+      manual_review_required: true,
+      unconfirmed_pages_preserved: true,
+      index_key_prefix: INDEX_KEY_PREFIX,
+    },
+    {
+      code: "meeting_import_index_corrupt",
+      retryable: false,
+    }
+  );
 }
 
 async function writeIndex(

@@ -75,9 +75,9 @@ export async function POST(request: Request) {
     if (error instanceof MeetingImportError) {
       return NextResponse.json(
         importFailurePayload({
-          code: "meeting_import_validation_failed",
+          code: error.code,
           error: error.message,
-          retryable: error.status >= 500,
+          retryable: error.retryable,
           details: error.details ?? null,
         }),
         { status: error.status }
