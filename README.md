@@ -1125,7 +1125,11 @@ Current local actions:
   request actually mutated the queue. Poll, enqueue, and ACK responses also
   surface `queueHealth`, `attentionRequired`, `attentionReason`, and `reclaimableLeaseCount` so
   sync-center UI can show queue pressure or reclaimable expired leases without
-  inspecting every job. They also mirror sync-center status fields
+  inspecting every job. Queue list and enqueue success responses also mirror
+  attention recovery hints (`queueRecoveryRequired`, `queueRecoveryStatus`,
+  `attentionNextAction`) so sync-center UI can show whether the next safe action
+  is reclaiming expired leases, letting the runner ACK/clear completed jobs, or
+  doing nothing. They also mirror sync-center status fields
   (`syncCenterStatus`, `pendingAgentJobCount`, `pendingRunnerAckCount`,
   `failedAgentJobCount`, `pendingWriteCount`, `failedWriteCount`,
   `localPendingWrite`, `safeToContinueLocalUse`, `safeToRefreshCaches`,

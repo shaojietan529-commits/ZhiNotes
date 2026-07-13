@@ -153,6 +153,7 @@ export async function GET(request: Request) {
       queueHealth: queueHealth.queueHealth,
       attentionRequired: queueHealth.attentionRequired,
       attentionReason: queueHealth.attentionReason,
+      ...queueAttentionFields(queueHealth),
       reclaimableLeaseCount: queueHealth.reclaimableLeaseCount,
       manualReviewRequired: false,
       manualReviewJobCount: 0,
@@ -337,6 +338,7 @@ export async function POST(request: Request) {
       queueHealth: enqueueHealth.queueHealth,
       attentionRequired: enqueueHealth.attentionRequired,
       attentionReason: enqueueHealth.attentionReason,
+      ...queueAttentionFields(enqueueHealth),
       reclaimableLeaseCount: 0,
       manualReviewRequired: false,
       manualReviewJobCount: 0,
@@ -370,6 +372,10 @@ type QueueListReceiptInput = {
 
 type QueueCapacityHealthInput = {
   queueAlmostFull: boolean;
+};
+
+type QueueAttentionFieldsInput = {
+  attentionReason: string | null;
 };
 
 type QueueReceiptTimingFieldsInput = {
@@ -417,6 +423,34 @@ function queueListHealth(queueResult: QueueListReceiptInput) {
   };
 }
 
+function queueAttentionFields(queueHealth: QueueAttentionFieldsInput) {
+  return {
+    queueRecoveryRequired: queueHealth.attentionReason !== null,
+    queueRecoveryStatus: queueRecoveryStatus(queueHealth.attentionReason),
+    attentionNextAction: queueAttentionNextAction(queueHealth.attentionReason),
+  };
+}
+
+function queueRecoveryStatus(attentionReason: string | null) {
+  if (attentionReason === "expired_leases_reclaimable") {
+    return "expired_leases_reclaimable";
+  }
+  if (attentionReason === "queue_almost_full") {
+    return "capacity_attention_recommended";
+  }
+  return "not_needed";
+}
+
+function queueAttentionNextAction(attentionReason: string | null) {
+  if (attentionReason === "expired_leases_reclaimable") {
+    return "claim_or_requeue_expired_leases";
+  }
+  if (attentionReason === "queue_almost_full") {
+    return "let_runner_ack_or_clear_completed_jobs";
+  }
+  return "none";
+}
+
 function queueListReceipt(
   queueResult: QueueListReceiptInput,
   queueHealth = queueListHealth(queueResult)
@@ -448,6 +482,7 @@ function queueListReceipt(
     queueHealth: queueHealth.queueHealth,
     attentionRequired: queueHealth.attentionRequired,
     attentionReason: queueHealth.attentionReason,
+    ...queueAttentionFields(queueHealth),
     reclaimableLeaseCount: queueHealth.reclaimableLeaseCount,
     manualReviewRequired: false,
     manualReviewJobCount: 0,
@@ -527,6 +562,7 @@ function queueEnqueueReceipt(
     queueHealth: queueHealth.queueHealth,
     attentionRequired: queueHealth.attentionRequired,
     attentionReason: queueHealth.attentionReason,
+    ...queueAttentionFields(queueHealth),
     reclaimableLeaseCount: 0,
     manualReviewRequired: false,
     manualReviewJobCount: 0,
