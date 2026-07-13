@@ -1162,6 +1162,8 @@ for (const token of [
   "cachedHotSnapshot,\n        startDate,\n        endDate",
   "const currentNotes = collectVisibleDailyNotesForHotCache(notesByDate);",
   "writeOptimisticDailyHotCache",
+  "rootId: dailyRootId",
+  "source: hotCache.source",
   "applyRemotePages([pageToRemoteRecord(note)])",
   "queueCloudPagePush(record)",
   "openNotePage",

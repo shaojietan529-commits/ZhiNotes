@@ -2782,6 +2782,22 @@ function run() {
       "Daily notes must refresh the local hot cache snapshot after metadata loads.",
     ],
     [
+      "applyDailyPageUpdatePayloads(\n        dailyPayloads,",
+      "Daily notes must apply lightweight page-update payloads without reloading full page bodies.",
+    ],
+    [
+      "rootId: dailyRootId",
+      "Daily notes must keep page-update payload hot-cache writes scoped to the daily root.",
+    ],
+    [
+      "message.reason === \"cloud-pull\"\n              ? \"cloud-metadata\"\n              : \"optimistic-local\"",
+      "Daily notes must label payload hot-cache writes by cloud vs local source.",
+    ],
+    [
+      "source: hotCache.source",
+      "Daily notes must refresh the daily hot cache after page-update payload metadata changes.",
+    ],
+    [
       "DAILY_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000",
       "Daily notes must define a fresh cloud-metadata cache window for immediate directory first paint.",
     ],

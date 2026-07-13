@@ -1305,7 +1305,14 @@ export default function DailyNotesShell() {
         dailyPayloads,
         setNotes,
         notesRef,
-        viewMonth
+        viewMonth,
+        {
+          rootId: dailyRootId,
+          source:
+            message.reason === "cloud-pull"
+              ? "cloud-metadata"
+              : "optimistic-local",
+        }
       );
       scheduleLocalMetadataRefresh();
     });
@@ -2842,7 +2849,11 @@ function applyDailyPageUpdatePayloads(
   payloads: PageUpdatePayload[],
   setNotes: (updater: (current: DailyNote[]) => DailyNote[]) => void,
   notesRef: { current: DailyNote[] },
-  viewMonth: Date
+  viewMonth: Date,
+  hotCache?: {
+    rootId: string | null;
+    source: DailyHotCacheSnapshot["source"];
+  }
 ): void {
   const visibleRange = buildMonthGrid(viewMonth);
   const startDate = toDateKey(visibleRange[0].date);
@@ -2894,6 +2905,15 @@ function applyDailyPageUpdatePayloads(
         Math.max(DAILY_RECENT_VISIBLE_LIMIT, DAILY_RENDER_RECENT_BUFFER_LIMIT)
       );
       notesRef.current = selection.notes;
+      if (hotCache) {
+        writeDailyHotCacheSnapshot({
+          startDate,
+          endDate,
+          rootId: hotCache.rootId,
+          pages: selection.notes,
+          source: hotCache.source,
+        });
+      }
       return selection.notes;
     });
   });

@@ -6045,6 +6045,26 @@ function run() {
     "writeDailyHotCacheSnapshot",
     "Daily notes must refresh the local hot cache snapshot after metadata loads."
   );
+  for (const [snippet, message] of [
+    [
+      "applyDailyPageUpdatePayloads(\n        dailyPayloads,",
+      "Daily notes must apply lightweight page-update payloads without reloading full page bodies.",
+    ],
+    [
+      "rootId: dailyRootId",
+      "Daily notes must keep page-update payload hot-cache writes scoped to the daily root.",
+    ],
+    [
+      "message.reason === \"cloud-pull\"\n              ? \"cloud-metadata\"\n              : \"optimistic-local\"",
+      "Daily notes must label payload hot-cache writes by cloud vs local source.",
+    ],
+    [
+      "source: hotCache.source",
+      "Daily notes must refresh the daily hot cache after page-update payload metadata changes.",
+    ],
+  ]) {
+    assertIncludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
+  }
   assertIncludes(
     files.dailyHotCacheSnapshot,
     dailyHotCacheSnapshot,
