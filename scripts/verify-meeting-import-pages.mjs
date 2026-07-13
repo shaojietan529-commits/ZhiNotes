@@ -181,9 +181,11 @@ expect(
     importerSource.includes("this.code = options.code ?? \"meeting_import_validation_failed\"") &&
     importerSource.includes("this.retryable = options.retryable ?? status >= 500") &&
     importerSource.includes("meeting_import_index_corrupt") &&
+    importerSource.includes("meeting_import_page_record_missing") &&
+    importerSource.includes("meeting_import_page_record_corrupt") &&
     importerSource.includes("manual_review_required: true") &&
     importerSource.includes("unconfirmed_pages_preserved: true"),
-  "meeting import should stop corrupt page indexes with a stable manual-review failure"
+  "meeting import should stop corrupt page indexes and page records with stable manual-review failures"
 );
 expect(
   importRouteSource.includes("meeting: result.meeting"),
@@ -216,6 +218,8 @@ for (const expectedFailureCode of [
   "invalid_json",
   "meeting_import_validation_failed",
   "meeting_import_index_corrupt",
+  "meeting_import_page_record_missing",
+  "meeting_import_page_record_corrupt",
   "zhihui_meeting_import_failed",
 ]) {
   expect(
@@ -266,6 +270,12 @@ expect(
 );
 
 const corruptIndexManualReview = await verifyCorruptIndexManualReview();
+const corruptPageRecordManualReview = await verifyPageRecordManualReview({
+  mode: "corrupt",
+});
+const missingPageRecordManualReview = await verifyPageRecordManualReview({
+  mode: "missing",
+});
 
 if (failures.length > 0) {
   console.error("verify:meeting-import 失败：");
@@ -291,6 +301,8 @@ console.log(
       calendar_recognizable_page_records: true,
       structured_failure_contract: true,
       corrupt_index_manual_review: corruptIndexManualReview,
+      corrupt_page_record_manual_review: corruptPageRecordManualReview,
+      missing_page_record_manual_review: missingPageRecordManualReview,
       downstream_cache_refresh_contract: true,
       privacy_boundary:
         "Synthetic in-memory KV verification only. It does not connect real cloud storage, read browser storage, page bodies, real meeting content, transcripts, join URLs, passcodes, cookies, credentials, or file bytes.",
@@ -372,6 +384,66 @@ async function verifyCorruptIndexManualReview() {
   expect(
     kvStore.get(indexKey) === previousIndexRaw,
     "corrupt index verification should restore the synthetic page index after the safety check"
+  );
+  return passed;
+}
+
+async function verifyPageRecordManualReview({ mode }) {
+  const pageId = result.meetingPageId;
+  const key = pageRecordKey(pageId);
+  const previousRaw = kvStore.get(key);
+  const previousPageRecordCount = countPageRecords();
+  let caught = null;
+
+  if (mode === "missing") {
+    kvStore.delete(key);
+  } else {
+    kvStore.set(key, "{corrupt-page-record");
+  }
+
+  try {
+    await importer.importMeetingArtifactToPages(
+      { url: "memory://kv", token: "mock-token" },
+      {
+        ...payload,
+        source_manifest: {
+          content_fingerprint: {
+            sha256: `synthetic-${mode}-page-record-fingerprint`,
+          },
+        },
+      }
+    );
+  } catch (error) {
+    caught = error;
+  } finally {
+    if (typeof previousRaw === "string") {
+      kvStore.set(key, previousRaw);
+    } else {
+      kvStore.delete(key);
+    }
+  }
+
+  const expectedCode =
+    mode === "missing"
+      ? "meeting_import_page_record_missing"
+      : "meeting_import_page_record_corrupt";
+  const caughtError = caught && typeof caught === "object" ? caught : null;
+  const passed =
+    caughtError?.code === expectedCode &&
+    caughtError?.status === 409 &&
+    caughtError?.retryable === false &&
+    caughtError?.details?.manual_review_required === true &&
+    caughtError?.details?.unconfirmed_pages_preserved === true &&
+    caughtError?.details?.page_id === pageId &&
+    countPageRecords() === previousPageRecordCount;
+
+  expect(
+    passed,
+    `${mode} active page record should stop ZhiHui import with manual review and preserve existing page records`
+  );
+  expect(
+    kvStore.get(key) === previousRaw,
+    `${mode} page record verification should restore the synthetic page record after the safety check`
   );
   return passed;
 }

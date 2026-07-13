@@ -808,9 +808,43 @@ async function readActivePages(
     const raws = await Promise.all(
       chunk.map((id) => kvGet(kv, `${PAGE_KEY_PREFIX}${email}:${id}`))
     );
-    for (const raw of raws) {
+    for (let offset = 0; offset < raws.length; offset += 1) {
+      const id = chunk[offset];
+      const raw = raws[offset];
+      if (!raw) {
+        throw new MeetingImportError(
+          "ZhiHui meeting import page record is missing; paused to avoid rebuilding from an incomplete cloud page directory.",
+          409,
+          {
+            manual_review_required: true,
+            unconfirmed_pages_preserved: true,
+            page_id: id,
+            page_record_key_prefix: `${PAGE_KEY_PREFIX}${email}:`,
+          },
+          {
+            code: "meeting_import_page_record_missing",
+            retryable: false,
+          }
+        );
+      }
       const page = parsePageRecord(raw);
-      if (page && !page.deleted_at) pages.push(page);
+      if (!page) {
+        throw new MeetingImportError(
+          "ZhiHui meeting import page record is corrupt; paused to avoid rebuilding from an incomplete cloud page directory.",
+          409,
+          {
+            manual_review_required: true,
+            unconfirmed_pages_preserved: true,
+            page_id: id,
+            page_record_key_prefix: `${PAGE_KEY_PREFIX}${email}:`,
+          },
+          {
+            code: "meeting_import_page_record_corrupt",
+            retryable: false,
+          }
+        );
+      }
+      if (!page.deleted_at) pages.push(page);
     }
   }
   return pages;
