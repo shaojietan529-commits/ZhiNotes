@@ -82,6 +82,11 @@ type ImportCalendarRefreshFieldsInput = {
   fullCacheRebuildRequired: boolean;
 };
 
+type ImportNavigationFieldsInput = {
+  minutesPageId: string;
+  minutesPageUrl: string;
+};
+
 function importCalendarRefreshFields(
   calendar: ImportCalendarRefreshFieldsInput
 ) {
@@ -100,6 +105,17 @@ function importCalendarRefreshFields(
     metadataRefreshReason: calendar.metadataRefreshReason,
     metadataRefreshMode: calendar.metadataRefreshMode,
     fullCacheRebuildRequired: calendar.fullCacheRebuildRequired,
+  };
+}
+
+function importNavigationFields(result: ImportNavigationFieldsInput) {
+  return {
+    openPageAfterImport: true,
+    openPageId: result.minutesPageId,
+    openPageUrl: result.minutesPageUrl,
+    openPageKind: "meeting_minutes",
+    navigationStatus: "ready",
+    navigationNextAction: "open_imported_minutes_page",
   };
 }
 
@@ -312,6 +328,7 @@ export async function POST(request: Request) {
       result.importReceipt
     );
     const calendarRefresh = importCalendarRefreshFields(result.calendar);
+    const navigationFields = importNavigationFields(result);
     const importStatus = importSuccessStatusFields(result.calendar);
     return importJson({
       ok: true,
@@ -324,6 +341,7 @@ export async function POST(request: Request) {
       ...importStatus,
       ...importSuccessClearanceFields(),
       ...calendarRefresh,
+      ...navigationFields,
       ...importReceiptTiming,
       url: result.url,
       minutesPageId: result.minutesPageId,

@@ -149,6 +149,10 @@ expect(
     result.importReceipt.changeLogEntries === result.calendar.changeLogEntries &&
     result.importReceipt.metadataRefreshMode === "incremental-change-log" &&
     result.importReceipt.fullCacheRebuildRequired === false &&
+    result.importReceipt.primaryPageId === result.minutesPageId &&
+    result.importReceipt.primaryPageUrl === result.minutesPageUrl &&
+    result.importReceipt.openPageAfterImport === true &&
+    result.importReceipt.openAction === "open_imported_minutes_page" &&
     result.importReceipt.partialCloudWritePossible === false &&
     result.importReceipt.localUseCanContinue === true &&
     result.importReceipt.accountSessionUnaffected === true &&
@@ -265,6 +269,10 @@ expect(
     importerSource.includes("\"failed_fallback_to_full_rebuild\"") &&
     importerSource.includes("metadataRefreshMode") &&
     importerSource.includes("fullCacheRebuildRequired") &&
+    importerSource.includes("primaryPageId: minutesPage.id") &&
+    importerSource.includes("primaryPageUrl: `/page/${minutesPage.id}`") &&
+    importerSource.includes("openPageAfterImport: true") &&
+    importerSource.includes("openAction: \"open_imported_minutes_page\"") &&
     importerSource.includes("metadataOnly: true"),
   "meeting import should stop corrupt page indexes and page records with stable manual-review failures"
 );
@@ -348,14 +356,19 @@ expect(
   "import route success responses should expose imported status, next metadata action, completed cloud/calendar write status, and no-pending clearance"
 );
 expect(
-  importRouteSource.includes("function importCalendarRefreshFields") &&
+    importRouteSource.includes("function importCalendarRefreshFields") &&
+    importRouteSource.includes("function importNavigationFields") &&
     importRouteSource.includes(
       "const importReceiptTiming = importReceiptTimingFields("
     ) &&
     importRouteSource.includes(
       "const calendarRefresh = importCalendarRefreshFields(result.calendar)"
     ) &&
+    importRouteSource.includes(
+      "const navigationFields = importNavigationFields(result)"
+    ) &&
     importRouteSource.includes("...calendarRefresh") &&
+    importRouteSource.includes("...navigationFields") &&
     importRouteSource.includes("...importReceiptTiming") &&
     importRouteSource.includes("calendarRefreshSource: calendar.source") &&
     importRouteSource.includes("calendarDateKey: calendar.dateKey") &&
@@ -368,8 +381,16 @@ expect(
     ) &&
     importRouteSource.includes(
       "metadataRefreshMode: calendar.metadataRefreshMode"
+    ) &&
+    importRouteSource.includes("openPageAfterImport: true") &&
+    importRouteSource.includes("openPageId: result.minutesPageId") &&
+    importRouteSource.includes("openPageUrl: result.minutesPageUrl") &&
+    importRouteSource.includes("openPageKind: \"meeting_minutes\"") &&
+    importRouteSource.includes("navigationStatus: \"ready\"") &&
+    importRouteSource.includes(
+      "navigationNextAction: \"open_imported_minutes_page\""
     ),
-  "import route success responses should mirror calendar refresh fields at the top level for immediate client refresh"
+  "import route success responses should mirror calendar refresh and navigation fields at the top level for immediate client refresh and page opening"
 );
 expect(
   importRouteSource.includes("calendar: result.calendar"),

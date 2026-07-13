@@ -1161,7 +1161,12 @@ Current local actions:
   `calendarVisibilityStatus`, `cloudWriteAttempted`, and
   `calendarWriteAttempted`, so clients can distinguish "import wrote cloud
   records and now needs metadata refresh" from "import failed or needs manual
-  review" without opening the nested receipt. Successful imports also surface a
+  review" without opening the nested receipt. Successful imports also surface
+  top-level navigation fields (`openPageAfterImport`, `openPageId`,
+  `openPageUrl`, `openPageKind`, `navigationStatus`,
+  `navigationNextAction`) pointing at the imported minutes page, so clients can
+  open the new note immediately after the write instead of leaving the user on
+  a stale calendar. Successful imports also surface a
   no-pending clearance (`pendingWriteCount: 0`,
   `failedWriteCount: 0`, `manualReviewRequired: false`,
   `safeToRefreshCaches: true`, `cacheRefreshStatus: "safe"`) so sync-center

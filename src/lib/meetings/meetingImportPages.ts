@@ -144,6 +144,10 @@ export interface MeetingImportResult {
     changeLogEntries: number;
     metadataRefreshMode: MeetingImportMetadataRefreshMode;
     fullCacheRebuildRequired: boolean;
+    primaryPageId: string;
+    primaryPageUrl: string;
+    openPageAfterImport: true;
+    openAction: "open_imported_minutes_page";
     partialCloudWritePossible: false;
     localUseCanContinue: true;
     accountSessionUnaffected: true;
@@ -332,6 +336,10 @@ export async function importMeetingArtifactToPages(
       changeLogEntries,
       metadataRefreshMode,
       fullCacheRebuildRequired,
+      primaryPageId: minutesPage.id,
+      primaryPageUrl: `/page/${minutesPage.id}`,
+      openPageAfterImport: true,
+      openAction: "open_imported_minutes_page",
       partialCloudWritePossible: false,
       localUseCanContinue: true,
       accountSessionUnaffected: true,
