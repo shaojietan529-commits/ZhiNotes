@@ -679,7 +679,29 @@ export function usePages(options: UsePagesOptions = {}) {
     let timer: number | null = null;
     const unsubscribe = subscribePagesUpdated((message: PageUpdateMessage) => {
       if (message.pages?.length) {
-        upsertPages(message.pages.map(remoteMetadataToPage));
+        const incomingPages = message.pages.map(remoteMetadataToPage);
+        upsertPages(incomingPages);
+        const nextPages = useWorkspaceStore.getState().pages;
+        writePageListHotCacheSnapshot({
+          pages: nextPages,
+          source:
+            message.reason === "cloud-pull"
+              ? "cloud-metadata"
+              : "optimistic-local",
+        });
+        setPageListLoadStatus(
+          createPageListStatusFromPages(
+            message.reason === "cloud-pull" ? "cloud-ready" : "optimistic-local",
+            nextPages,
+            {
+              backgroundActive: message.reason !== "cloud-pull",
+              message:
+                message.reason === "cloud-pull"
+                  ? "页面列表已接收云端 metadata 更新，热缓存已同步。"
+                  : "页面列表已接收跨端本地 metadata 更新，热缓存已同步。",
+            }
+          )
+        );
         return;
       }
       if (timer !== null) window.clearTimeout(timer);

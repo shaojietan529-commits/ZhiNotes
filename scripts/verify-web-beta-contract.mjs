@@ -25072,6 +25072,30 @@ function run() {
       "usePages must mark cloud metadata correction instead of leaving the sidebar page list ambiguous.",
     ],
     [
+      files.usePages,
+      usePages,
+      "const incomingPages = message.pages.map(remoteMetadataToPage);",
+      "usePages must convert page-update payload metadata before applying cross-tab updates.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      "writePageListHotCacheSnapshot({\n          pages: nextPages,",
+      "usePages must refresh the browser page-list hot cache after payload metadata updates.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      '"页面列表已接收云端 metadata 更新，热缓存已同步。"',
+      "usePages must expose when cloud metadata payloads updated the hot cache.",
+    ],
+    [
+      files.usePages,
+      usePages,
+      '"页面列表已接收跨端本地 metadata 更新，热缓存已同步。"',
+      "usePages must expose when cross-tab local metadata payloads updated the hot cache.",
+    ],
+    [
       files.pageTree,
       pageTree,
       'data-testid="sidebar-page-list-load-status"',

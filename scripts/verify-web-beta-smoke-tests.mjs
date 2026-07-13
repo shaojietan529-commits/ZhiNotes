@@ -5805,6 +5805,22 @@ function run() {
       'createPageListStatusFromPages("cloud-checking"',
       "usePages must label cloud metadata correction instead of making the page list look blank.",
     ],
+    [
+      "const incomingPages = message.pages.map(remoteMetadataToPage);",
+      "usePages must convert page-update payload metadata before applying cross-tab updates.",
+    ],
+    [
+      "writePageListHotCacheSnapshot({\n          pages: nextPages,",
+      "usePages must refresh the browser page-list hot cache after payload metadata updates.",
+    ],
+    [
+      '"页面列表已接收云端 metadata 更新，热缓存已同步。"',
+      "usePages must expose when cloud metadata payloads updated the hot cache.",
+    ],
+    [
+      '"页面列表已接收跨端本地 metadata 更新，热缓存已同步。"',
+      "usePages must expose when cross-tab local metadata payloads updated the hot cache.",
+    ],
   ]) {
     assertIncludes(files.usePages, usePages, snippet, message);
   }

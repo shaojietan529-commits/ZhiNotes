@@ -988,9 +988,14 @@ check(
     usePagesHook.includes("message.pages?.length") &&
     !usePagesHook.includes('if (message.reason === "cloud-pull" && message.pages?.length)') &&
     usePagesHook.includes("emitPageSnapshotsUpdated(reason, incomingPages)") &&
-    usePagesHook.includes("upsertPages(message.pages.map(remoteMetadataToPage))") &&
+    usePagesHook.includes("const incomingPages = message.pages.map(remoteMetadataToPage);") &&
+    usePagesHook.includes("upsertPages(incomingPages)") &&
+    usePagesHook.includes("const nextPages = useWorkspaceStore.getState().pages;") &&
+    usePagesHook.includes("writePageListHotCacheSnapshot({\n          pages: nextPages,") &&
+    usePagesHook.includes('"页面列表已接收云端 metadata 更新，热缓存已同步。"') &&
+    usePagesHook.includes('"页面列表已接收跨端本地 metadata 更新，热缓存已同步。"') &&
     !usePagesHook.includes("!includeContent &&\n        message.reason === \"cloud-pull\""),
-  "页面多端同步事件必须携带轻量 metadata payload；当前标签页也要收到本地事件用于防抖同步，includeContent 模块不能全量重读正文"
+  "页面多端同步事件必须携带轻量 metadata payload；当前标签页也要收到本地事件用于防抖同步，includeContent 模块不能全量重读正文，并且 payload 更新要同步页面列表热缓存"
 );
 check(
   pagePeekModal.includes("getPageMetadata") &&

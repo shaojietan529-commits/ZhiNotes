@@ -1125,6 +1125,11 @@ check(
     usePagesHook.includes("pageListHotCacheSnapshotPageToPage") &&
     usePagesHook.includes("writePageListHotCacheSnapshot") &&
     usePagesHook.includes("browserHotCacheBootstrappedRef") &&
+    usePagesHook.includes("const incomingPages = message.pages.map(remoteMetadataToPage);") &&
+    usePagesHook.includes("pages: nextPages") &&
+    usePagesHook.includes('message.reason === "cloud-pull"') &&
+    usePagesHook.includes('"页面列表已接收云端 metadata 更新，热缓存已同步。"') &&
+    usePagesHook.includes('"页面列表已接收跨端本地 metadata 更新，热缓存已同步。"') &&
     usePagesHook.includes("isPageListHotCacheFirstPaintPage") &&
     usePagesHook.includes("!isPageListHotCacheFirstPaintPage(current)") &&
     usePagesHook.indexOf("await renderLocalPagesSnapshot()") <
