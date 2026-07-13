@@ -110,12 +110,27 @@ function importFailurePayload({
   details?: Record<string, unknown> | null;
 }) {
   const manualReviewRequired = details?.manual_review_required === true;
+  const writeStatus = manualReviewRequired
+    ? "manual_review_required"
+    : retryable
+      ? "unknown_retryable"
+      : "not_completed";
   return {
     ok: false,
     code,
     error,
     retryable,
     details,
+    syncStatus: manualReviewRequired
+      ? "manual_review_required"
+      : retryable
+        ? "retryable_unknown"
+        : "failed_not_completed",
+    cloudWriteStatus: writeStatus,
+    calendarWriteStatus: writeStatus,
+    partialCloudWritePossible: retryable && !manualReviewRequired,
+    requiresUserConfirmation: manualReviewRequired,
+    highRiskWriteGated: true,
     failureStatus: manualReviewRequired
       ? "manual_review"
       : retryable

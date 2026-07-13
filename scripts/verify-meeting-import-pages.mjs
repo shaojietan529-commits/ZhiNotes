@@ -241,6 +241,17 @@ expect(
     importRouteSource.includes("rawMeetingContentEchoed: false") &&
     importRouteSource.includes("failureStatus: manualReviewRequired") &&
     importRouteSource.includes("manualReviewRequired") &&
+    importRouteSource.includes("syncStatus: manualReviewRequired") &&
+    importRouteSource.includes("cloudWriteStatus: writeStatus") &&
+    importRouteSource.includes("calendarWriteStatus: writeStatus") &&
+    importRouteSource.includes("partialCloudWritePossible: retryable && !manualReviewRequired") &&
+    importRouteSource.includes("requiresUserConfirmation: manualReviewRequired") &&
+    importRouteSource.includes("highRiskWriteGated: true") &&
+    importRouteSource.includes("\"manual_review_required\"") &&
+    importRouteSource.includes("\"unknown_retryable\"") &&
+    importRouteSource.includes("\"not_completed\"") &&
+    importRouteSource.includes("\"retryable_unknown\"") &&
+    importRouteSource.includes("\"failed_not_completed\"") &&
     importRouteSource.includes("nextAction: manualReviewRequired") &&
     importRouteSource.includes("code: error.code") &&
     importRouteSource.includes("retryable: error.retryable") &&
