@@ -6219,9 +6219,10 @@ function run() {
       "if (input.status.failed > 0)",
       "if (input.currentPagePending)",
       "if (totalPending > 0)",
+      "if (!input.status.enabled)",
       "if (input.status.authRetryStatus)",
     ],
-    "Page save status must show pending, failed, and manual-review queue state before temporary auth retry / offline buffer."
+    "Page save status must show pending, failed, and manual-review queue state before local-only disabled sync or temporary auth retry / offline buffer."
   );
   for (const [snippet, message] of [
     [

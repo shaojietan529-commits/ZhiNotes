@@ -67,17 +67,6 @@ export function buildPageCloudSaveStatus(
       "Page save status is computed locally from queue counts, page id membership in pending/failure samples, auth retry state, and last sync timestamps. It never reads page body text, editor state, database row values, comments, files, secrets, tokens, cookies, or remote data. It does not read page body text, does not send network requests, does not upload data, does not write server data, does not acknowledge remote rows, does not mark local rows synced, and does not clear cache.",
   };
 
-  if (!input.status.enabled) {
-    return view({
-      ...base,
-      id: "local-only",
-      label: "本地已保存",
-      title: "页面同步已关闭；点击打开同步中心查看设置。",
-      tone: "neutral",
-      blocksCacheRebuild: false,
-    });
-  }
-
   if (pageManualReview) {
     return view({
       ...base,
@@ -148,6 +137,17 @@ export function buildPageCloudSaveStatus(
       title: `已有 ${totalPending} 个页面变更进入本地待上传队列；点击打开同步中心处理补传。`,
       tone: "warning",
       blocksCacheRebuild: true,
+    });
+  }
+
+  if (!input.status.enabled) {
+    return view({
+      ...base,
+      id: "local-only",
+      label: "本地已保存",
+      title: "页面同步已关闭；点击打开同步中心查看设置。",
+      tone: "neutral",
+      blocksCacheRebuild: false,
     });
   }
 

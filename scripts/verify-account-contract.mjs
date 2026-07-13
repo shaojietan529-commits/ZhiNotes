@@ -2503,8 +2503,22 @@ check(
 const pageSaveAuthRetryIndex = pageCloudSaveStatus.indexOf(
   "if (input.status.authRetryStatus)"
 );
+const pageSaveLocalOnlyIndex = pageCloudSaveStatus.indexOf(
+  "if (!input.status.enabled)"
+);
 check(
-  pageSaveAuthRetryIndex > pageCloudSaveStatus.indexOf("if (pageManualReview)") &&
+  pageSaveLocalOnlyIndex >
+    pageCloudSaveStatus.indexOf("if (pageManualReview)") &&
+    pageSaveLocalOnlyIndex > pageCloudSaveStatus.indexOf("if (pageFailed)") &&
+    pageSaveLocalOnlyIndex >
+      pageCloudSaveStatus.indexOf("if (input.status.manualReviewCount > 0)") &&
+    pageSaveLocalOnlyIndex >
+      pageCloudSaveStatus.indexOf("if (input.status.failed > 0)") &&
+    pageSaveLocalOnlyIndex >
+      pageCloudSaveStatus.indexOf("if (input.currentPagePending)") &&
+    pageSaveLocalOnlyIndex >
+      pageCloudSaveStatus.indexOf("if (totalPending > 0)") &&
+    pageSaveAuthRetryIndex > pageCloudSaveStatus.indexOf("if (pageManualReview)") &&
     pageSaveAuthRetryIndex > pageCloudSaveStatus.indexOf("if (pageFailed)") &&
     pageSaveAuthRetryIndex >
       pageCloudSaveStatus.indexOf("if (input.status.manualReviewCount > 0)") &&
@@ -2513,10 +2527,11 @@ check(
     pageSaveAuthRetryIndex >
       pageCloudSaveStatus.indexOf("if (input.currentPagePending)") &&
     pageSaveAuthRetryIndex > pageCloudSaveStatus.indexOf("if (totalPending > 0)") &&
+    pageSaveAuthRetryIndex > pageSaveLocalOnlyIndex &&
     pageCloudSaveStatus.includes(
       "当前云端暂不可确认，会稍后自动重试，不会因此登出"
     ),
-  "PageCloudSaveStatus 必须优先显示当前页/全局 pending、failed、manual review；auth retry 只能作为队列清空后的本地缓冲状态，避免临时账号不确定盖住待处理数据"
+  "PageCloudSaveStatus 必须优先显示当前页/全局 pending、failed、manual review；同步关闭和 auth retry 只能作为队列清空后的状态，避免盖住待处理数据"
 );
 
 const useVersionsHook = read("src/hooks/useVersions.ts");
