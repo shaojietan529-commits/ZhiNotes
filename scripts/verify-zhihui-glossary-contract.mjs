@@ -97,6 +97,7 @@ for (const token of [
   "await reader.cancel()",
   "JSON.parse(body.text)",
   "function queueResponseTooLargeError",
+  "function queueStorageTooLargeError",
 ]) {
   check(agentQueue.includes(token), `agent queue 缺少 ${token}`);
 }
@@ -113,8 +114,11 @@ for (const token of [
   "zhihui_agent_queue_full",
   "zhihui_agent_queue_oversized",
   "zhihui_agent_queue_response_too_large",
+  "zhihui_agent_queue_storage_too_large",
   "max_response_bytes: MAX_QUEUE_RESPONSE_BYTES",
   "actual_response_bytes: actualResponseBytes",
+  "max_storage_bytes: MAX_QUEUE_RESPONSE_BYTES",
+  "actual_storage_bytes: actualStorageBytes",
   "upstream_status: res.status",
   "function queueCorruptError",
   "function queueFullError",
@@ -307,6 +311,7 @@ for (const code of [
   "zhihui_agent_queue_full",
   "zhihui_agent_queue_oversized",
   "zhihui_agent_queue_response_too_large",
+  "zhihui_agent_queue_storage_too_large",
   "zhihui_agent_queue_failed",
 ]) {
   check(
@@ -417,6 +422,7 @@ for (const code of [
   "zhihui_agent_queue_corrupt",
   "zhihui_agent_queue_oversized",
   "zhihui_agent_queue_response_too_large",
+  "zhihui_agent_queue_storage_too_large",
   "zhihui_agent_queue_ack_failed",
 ]) {
   check(
@@ -496,6 +502,11 @@ const queueResponseByteLimitBehavior = await verifyQueueResponseByteLimitBehavio
 check(
   queueResponseByteLimitBehavior,
   "agent queue 读取 KV 响应必须先按字节限额，超大响应进入 manual review 且不能写回"
+);
+const queueStorageByteLimitBehavior = await verifyQueueStorageByteLimitBehavior();
+check(
+  queueStorageByteLimitBehavior,
+  "agent queue 写入 KV 前必须按字节限额，超大写入进入 manual review 且不能调用 set"
 );
 const queueListMetadataBehavior = await verifyQueueListMetadataBehavior();
 check(
@@ -847,6 +858,101 @@ async function verifyQueueResponseByteLimitBehavior() {
     calls.get === 1 &&
     calls.set === 0
   );
+}
+
+async function verifyQueueStorageByteLimitBehavior() {
+  const { seedJobs, newPayload } = buildQueueStorageLimitFixture();
+  const calls = { get: 0, set: 0 };
+  let storedQueue = JSON.stringify(seedJobs);
+  const queue = loadAgentQueueWithFetch(async (url, init) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return kvJsonResponse({ result: storedQueue });
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      storedQueue = typeof init?.body === "string" ? init.body : "";
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  let caught = null;
+  try {
+    await queue.enqueueMeetingAgentJob(mockKv(), {
+      job_type: "meeting_recording_request",
+      payload: newPayload,
+    });
+  } catch (error) {
+    caught = error;
+  }
+
+  return (
+    caught &&
+    caught.code === "zhihui_agent_queue_storage_too_large" &&
+    caught.status === 409 &&
+    caught.retryable === false &&
+    caught.details?.actual_storage_bytes >
+      caught.details?.max_storage_bytes &&
+    caught.details?.manual_review_required === true &&
+    caught.details?.unconfirmed_jobs_preserved === true &&
+    calls.get === 1 &&
+    calls.set === 0
+  );
+}
+
+function buildQueueStorageLimitFixture() {
+  const maxQueueBytes = 4 * 1024 * 1024;
+  const maxPayloadBytes = 64 * 1024;
+  const newPayload = {
+    meeting: {
+      page_id: "meeting_page_storage_limit",
+      topic: "新".repeat(17000),
+    },
+  };
+  const newPayloadBytes = Buffer.byteLength(JSON.stringify(newPayload), "utf8");
+  if (newPayloadBytes >= maxPayloadBytes) {
+    throw new Error("queue storage fixture payload unexpectedly exceeds limit");
+  }
+
+  for (let fillerLength = 7200; fillerLength >= 1000; fillerLength -= 100) {
+    const seedJobs = Array.from({ length: 199 }, (_, index) => ({
+      id: `job_storage_${index + 1}`,
+      job_type: "meeting_recording_request",
+      payload: { synthetic: true, filler: "中".repeat(fillerLength) },
+      created_at: `2026-07-13T00:04:${String(index % 60).padStart(
+        2,
+        "0"
+      )}.000Z`,
+    }));
+    const storedQueue = JSON.stringify(seedJobs);
+    const responseBytes = Buffer.byteLength(
+      JSON.stringify({ result: storedQueue }),
+      "utf8"
+    );
+    const nextJob = {
+      id: "synthetic_storage_limit_job",
+      job_type: "meeting_recording_request",
+      payload: newPayload,
+      created_at: "2026-07-13T00:05:00.000Z",
+    };
+    const writeBytes = Buffer.byteLength(
+      JSON.stringify([...seedJobs, nextJob]),
+      "utf8"
+    );
+    if (responseBytes < maxQueueBytes && writeBytes > maxQueueBytes) {
+      return { seedJobs, newPayload };
+    }
+  }
+
+  throw new Error("unable to build queue storage byte-limit fixture");
 }
 
 async function verifyQueueListMetadataBehavior() {

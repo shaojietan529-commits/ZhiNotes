@@ -380,12 +380,18 @@ function uniqueJobIds(jobIds: string[]) {
 }
 
 async function writeQueue(kv: KvEnv, jobs: MeetingAgentQueueJob[]) {
+  const serializedJobs = JSON.stringify(jobs);
+  const serializedJobsBytes = payloadByteLength(serializedJobs);
+  if (serializedJobsBytes > MAX_QUEUE_RESPONSE_BYTES) {
+    throw queueStorageTooLargeError(serializedJobsBytes);
+  }
+
   const res = await fetchMeetingAgentQueueWithTimeout(
     `${kv.url}/set/${encodeURIComponent(QUEUE_KEY)}`,
     {
       method: "POST",
       headers: { authorization: `Bearer ${kv.token}` },
-      body: JSON.stringify(jobs),
+      body: serializedJobs,
     }
   );
   if (!res.ok) {
@@ -497,6 +503,22 @@ function queueResponseTooLargeError(actualResponseBytes: number) {
     details: {
       max_response_bytes: MAX_QUEUE_RESPONSE_BYTES,
       actual_response_bytes: actualResponseBytes,
+      manual_review_required: true,
+      unconfirmed_jobs_preserved: true,
+    },
+  });
+}
+
+function queueStorageTooLargeError(actualStorageBytes: number) {
+  return new MeetingAgentQueueFailureError({
+    code: "zhihui_agent_queue_storage_too_large",
+    message:
+      "ZhiHui 云端任务队列写入体过大；为避免写出后无法快速读取，已暂停写入，请人工复核队列。",
+    status: 409,
+    retryable: false,
+    details: {
+      max_storage_bytes: MAX_QUEUE_RESPONSE_BYTES,
+      actual_storage_bytes: actualStorageBytes,
       manual_review_required: true,
       unconfirmed_jobs_preserved: true,
     },
