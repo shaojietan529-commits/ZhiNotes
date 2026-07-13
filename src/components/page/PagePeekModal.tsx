@@ -85,6 +85,7 @@ export interface PagePeekModalProps {
   onOpenFull: (pageId: string) => void;
   onReady?: (pageId: string) => void;
   onChanged?: () => void;
+  readyOnLocalShell?: boolean;
 }
 
 function getInitialPeekPage(

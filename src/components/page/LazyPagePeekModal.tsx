@@ -92,6 +92,7 @@ function LocalFirstPeekLoadingShell({
   onClose,
   onOpenFull,
   onReady,
+  readyOnLocalShell = true,
 }: PagePeekModalProps) {
   const openedAtRef = useRef(getLocalPerformanceNow());
   const openedAtIsoRef = useRef(new Date().toISOString());
@@ -139,7 +140,9 @@ function LocalFirstPeekLoadingShell({
     if (!seed) return;
     if (readyNotifiedRef.current === pageId) return;
     readyNotifiedRef.current = pageId;
-    onReady?.(pageId);
+    if (readyOnLocalShell) {
+      onReady?.(pageId);
+    }
     const durationMs = getLocalPerformanceNow() - openedAtRef.current;
     recordLocalPerformanceSnapshot({
       kind: "page-peek",
@@ -157,7 +160,14 @@ function LocalFirstPeekLoadingShell({
         property_count: propertyCount,
       },
     });
-  }, [isOptimisticDraft, onReady, pageId, propertyCount, seed]);
+  }, [
+    isOptimisticDraft,
+    onReady,
+    pageId,
+    propertyCount,
+    readyOnLocalShell,
+    seed,
+  ]);
 
   return (
     <div
