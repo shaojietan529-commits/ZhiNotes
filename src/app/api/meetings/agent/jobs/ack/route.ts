@@ -34,10 +34,16 @@ const ackReceiptBase = {
   ...ackContinuityReceipt,
 };
 
+function ackJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  return response;
+}
+
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
-    return NextResponse.json(
+    return ackJson(
       ackFailurePayload({
         code: "zhihui_agent_queue_not_configured",
         error: "ZhiHui agent queue not configured",
@@ -48,7 +54,7 @@ export async function POST(request: Request) {
     );
   }
   if (!authorizeMeetingAgent(request, config.agentToken)) {
-    return NextResponse.json(
+    return ackJson(
       ackFailurePayload({
         code: "zhihui_agent_unauthorized",
         error: "unauthorized",
@@ -62,7 +68,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
+    return ackJson(
       ackFailurePayload({
         code: "invalid_json",
         error: "invalid JSON",
@@ -77,7 +83,7 @@ export async function POST(request: Request) {
     : [];
   try {
     const ackResult = await ackMeetingAgentJobs(config.kv, jobIds);
-    return NextResponse.json({
+    return ackJson({
       ok: true,
       acknowledged: ackResult.acknowledged,
       missing: ackResult.missing,
@@ -101,7 +107,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof MeetingAgentQueueTimeoutError) {
-      return NextResponse.json(
+      return ackJson(
         ackFailurePayload({
           code: "zhihui_agent_queue_timeout",
           error: "zhihui-agent-queue-timeout",
@@ -115,7 +121,7 @@ export async function POST(request: Request) {
       );
     }
     if (error instanceof MeetingAgentQueueFailureError) {
-      return NextResponse.json(
+      return ackJson(
         ackFailurePayload({
           code: error.code,
           error: error.code,
@@ -127,7 +133,7 @@ export async function POST(request: Request) {
         { status: error.status }
       );
     }
-    return NextResponse.json(
+    return ackJson(
       ackFailurePayload({
         code: "zhihui_agent_queue_ack_failed",
         error: "zhihui-agent-queue-ack-failed",

@@ -53,10 +53,16 @@ const queueReceiptBase = {
   ...queueContinuityReceipt,
 };
 
+function queueJson(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  return response;
+}
+
 export async function GET(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
-    return NextResponse.json(
+    return queueJson(
       queueFailurePayload({
         code: "zhihui_agent_queue_not_configured",
         error: "ZhiHui agent queue not configured",
@@ -67,7 +73,7 @@ export async function GET(request: Request) {
     );
   }
   if (!authorizeMeetingAgent(request, config.agentToken)) {
-    return NextResponse.json(
+    return queueJson(
       queueFailurePayload({
         code: "zhihui_agent_unauthorized",
         error: "unauthorized",
@@ -84,7 +90,7 @@ export async function GET(request: Request) {
       config.kv,
       Number.isFinite(limit) ? limit : 25
     );
-    return NextResponse.json({
+    return queueJson({
       ok: true,
       status: "ready",
       nextAction: queueResult.jobs.length > 0 ? "dispatch_available_jobs" : "poll_later",
@@ -113,7 +119,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const queueConfig = getMeetingAgentQueueConfig();
   if (queueConfig.status !== "ok") {
-    return NextResponse.json(
+    return queueJson(
       queueFailurePayload({
         code: "zhihui_agent_queue_not_configured",
         error: "ZhiHui 云端任务队列未配置。",
@@ -126,7 +132,7 @@ export async function POST(request: Request) {
 
   const accountConfig = getAccountConfig();
   if (!accountConfig) {
-    return NextResponse.json(
+    return queueJson(
       queueFailurePayload({
         code: "account_system_not_configured",
         error: "账号系统未配置，不能从页面创建录制任务。",
@@ -137,7 +143,7 @@ export async function POST(request: Request) {
   }
   const token = readSessionToken(request);
   if (!token) {
-    return NextResponse.json(
+    return queueJson(
       queueFailurePayload({
         code: "account_session_required",
         error: "请先登录 ZhiNote。",
@@ -151,7 +157,7 @@ export async function POST(request: Request) {
     const sessionUnconfirmed = accountSessionUnconfirmedPayload(
       "会议录制任务暂时无法确认账号；不会登出，请稍后重试。"
     );
-    return NextResponse.json(
+    return queueJson(
       {
         ...queueFailurePayload({
           code: "account_session_unconfirmed",
@@ -173,7 +179,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
+    return queueJson(
       queueFailurePayload({
         code: "invalid_json",
         error: "invalid JSON",
@@ -185,7 +191,7 @@ export async function POST(request: Request) {
 
   const parsed = parseMeeting(body.meeting);
   if ("error" in parsed) {
-    return NextResponse.json(
+    return queueJson(
       queueFailurePayload({
         code: "invalid_meeting_payload",
         error: parsed.error,
@@ -222,7 +228,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({
+    return queueJson({
       ok: true,
       job_id: enqueueResult.job.id,
       status: enqueueResult.deduplicated ? "already_queued" : "queued",
@@ -319,7 +325,7 @@ function meetingAgentQueueErrorResponse(
   { queueWriteAttempted = false }: { queueWriteAttempted?: boolean } = {}
 ) {
   if (error instanceof MeetingAgentQueueTimeoutError) {
-    return NextResponse.json(
+    return queueJson(
       queueFailurePayload({
         code: "zhihui_agent_queue_timeout",
         error: "zhihui-agent-queue-timeout",
@@ -333,7 +339,7 @@ function meetingAgentQueueErrorResponse(
     );
   }
   if (error instanceof MeetingAgentQueueFailureError) {
-    return NextResponse.json(
+    return queueJson(
       queueFailurePayload({
         code: error.code,
         error: error.code,
@@ -346,7 +352,7 @@ function meetingAgentQueueErrorResponse(
     );
   }
 
-  return NextResponse.json(
+  return queueJson(
     queueFailurePayload({
       code: "zhihui_agent_queue_failed",
       error: "zhihui-agent-queue-failed",

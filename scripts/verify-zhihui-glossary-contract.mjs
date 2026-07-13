@@ -154,6 +154,8 @@ check(
 for (const token of [
   "MeetingAgentQueueTimeoutError",
   "MeetingAgentQueueFailureError",
+  "function queueJson",
+  "\"Cache-Control\", \"no-store, max-age=0\"",
   "const queueContinuityReceipt",
   "const queueReceiptBase",
   "schema: \"zhinote.zhihui.agent.queue.receipt.v1\"",
@@ -276,6 +278,8 @@ for (const code of [
 for (const token of [
   "MeetingAgentQueueTimeoutError",
   "MeetingAgentQueueFailureError",
+  "function ackJson",
+  "\"Cache-Control\", \"no-store, max-age=0\"",
   "const ackContinuityReceipt",
   "const ackReceiptBase",
   "schema: \"zhinote.zhihui.agent.queue.receipt.v1\"",
