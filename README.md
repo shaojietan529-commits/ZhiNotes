@@ -1150,7 +1150,11 @@ Current local actions:
   (`agent_queue_acknowledged` or `agent_queue_ack_partial_manual_review`), so
   clients do not need to parse the nested receipt to decide whether a
   sync-center review row is needed or whether the ACK actually changed the
-  queue.
+  queue. ACK responses also mirror `ackReadStatus`, `ackWriteStatus`,
+  `ackNextAction`, `manualReviewReason`, `acknowledgedJobIds`,
+  `missingJobIds`, and `leaseMismatchedJobIds` at the top level, so a runner or
+  sync-center surface can show "ack complete" versus "partial manual review"
+  without treating `ok: true` as a full success.
 - ZhiHui meeting import responses also mirror the calendar refresh contract at
   the top level (`metadataRefreshRequired`, `metadataRefreshMode`,
   `affectedCalendars`, `changedPageIds`, `nextCursor`, `receiptStaleAfter`).

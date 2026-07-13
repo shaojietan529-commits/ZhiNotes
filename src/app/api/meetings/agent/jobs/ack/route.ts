@@ -173,6 +173,12 @@ export async function POST(request: Request) {
       ? "agent_queue_ack_partial_manual_review"
       : "agent_queue_acknowledged";
     const ackWriteStatus = ackQueueWriteStatus(acknowledgedCount);
+    const ackNextAction = hasUnconfirmedJobs
+      ? "review_missing_or_lease_mismatched_jobs"
+      : "poll_for_next_jobs";
+    const manualReviewReason = hasUnconfirmedJobs
+      ? "missing_or_lease_mismatched_jobs"
+      : null;
     const ackHealth = queueAckHealth({
       queueAlmostFull: ackResult.queueAlmostFull,
       hasUnconfirmedJobs,
@@ -202,10 +208,10 @@ export async function POST(request: Request) {
       unconfirmedJobCount,
       status: hasUnconfirmedJobs ? "partial" : "acknowledged",
       ackCompletionStatus,
-      nextAction:
-        hasUnconfirmedJobs
-          ? "review_missing_or_lease_mismatched_jobs"
-          : "poll_for_next_jobs",
+      ackReadStatus: "completed",
+      ackWriteStatus,
+      ackNextAction,
+      nextAction: ackNextAction,
       syncStatus: ackSyncStatus,
       queueAction:
         hasUnconfirmedJobs
@@ -215,8 +221,12 @@ export async function POST(request: Request) {
       queueWriteStatus: ackWriteStatus,
       ackContract: "lease_aware",
       manualReviewRequired: hasUnconfirmedJobs,
+      manualReviewReason,
       manualReviewJobCount: unconfirmedJobCount,
       unconfirmedJobsPreserved: hasUnconfirmedJobs,
+      acknowledgedJobIds: ackResult.acknowledged,
+      missingJobIds: ackResult.missing,
+      leaseMismatchedJobIds: ackResult.leaseMismatched,
       queueDepth: ackResult.queueDepth,
       maxQueueItems: ackResult.maxQueueItems,
       availableQueueSlots: ackResult.availableQueueSlots,
@@ -668,6 +678,9 @@ function ackFailurePayload({
     retryable,
     details,
     syncStatus,
+    ackReadStatus: queueWriteAttempted ? "unknown" : "not_started",
+    ackWriteStatus: queueWriteStatus,
+    ackNextAction: nextAction,
     queueReadStatus: queueWriteAttempted ? "unknown" : "not_started",
     queueWriteStatus,
     queueWriteAttempted,
@@ -676,6 +689,9 @@ function ackFailurePayload({
     highRiskWriteGated: true,
     failureStatus,
     manualReviewRequired,
+    manualReviewReason: manualReviewRequired
+      ? "queue_manual_review_required"
+      : null,
     manualReviewJobCount: manualReviewRequired ? 1 : 0,
     nextAction,
     ...queueFailureStatus,
@@ -721,12 +737,18 @@ function ackFailureReceipt({
     failureCode: code,
     retryable,
     syncStatus,
+    ackReadStatus: queueWriteAttempted ? "unknown" : "not_started",
+    ackWriteStatus: queueWriteStatus,
+    ackNextAction: nextAction,
     queueReadStatus: queueWriteAttempted ? "unknown" : "not_started",
     queueWriteStatus,
     queueWriteAttempted,
     partialQueueWritePossible,
     requiresUserConfirmation: manualReviewRequired,
     manualReviewRequired,
+    manualReviewReason: manualReviewRequired
+      ? "queue_manual_review_required"
+      : null,
     highRiskWriteGated: true,
     unconfirmedJobsPreserved: true,
     manualReviewJobCount: manualReviewRequired ? 1 : 0,
@@ -770,6 +792,9 @@ function queueAckReceipt(
     ? "agent_queue_ack_partial_manual_review"
     : "agent_queue_acknowledged";
   const ackWriteStatus = ackQueueWriteStatus(acknowledgedCount);
+  const ackNextAction = hasPreservedJobs
+    ? "review_missing_or_lease_mismatched_jobs"
+    : "poll_for_next_jobs";
   return {
     ...ackReceiptBase,
     ...buildMeetingAgentQueueReceiptTiming({
@@ -781,6 +806,9 @@ function queueAckReceipt(
         : "acknowledged_existing_jobs",
     ackCompletionStatus,
     syncStatus: ackSyncStatus,
+    ackReadStatus: "completed",
+    ackWriteStatus,
+    ackNextAction,
     queueReadStatus: "completed",
     queueWriteStatus: ackWriteStatus,
     requestedAckCount,
@@ -801,16 +829,16 @@ function queueAckReceipt(
     attentionReason: ackHealth.attentionReason,
     reclaimableLeaseCount: ackHealth.reclaimableLeaseCount,
     manualReviewRequired: hasPreservedJobs,
+    manualReviewReason: hasPreservedJobs
+      ? "missing_or_lease_mismatched_jobs"
+      : null,
     manualReviewJobCount: preservedCount,
     ...buildMeetingAgentQueuePendingStatus({
       queueDepth: ackResult.queueDepth,
       attentionRequired: ackHealth.attentionRequired,
       manualReviewRequired: hasPreservedJobs,
     }),
-    nextAction:
-      hasPreservedJobs
-        ? "review_missing_or_lease_mismatched_jobs"
-        : "poll_for_next_jobs",
+    nextAction: ackNextAction,
   };
 }
 

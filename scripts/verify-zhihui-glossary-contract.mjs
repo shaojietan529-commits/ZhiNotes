@@ -553,6 +553,9 @@ for (const token of [
   "\"partial_manual_review_required\"",
   "operation: \"ack\"",
   "ackCompletionStatus,",
+  "ackReadStatus: \"completed\"",
+  "ackWriteStatus,",
+  "ackNextAction,",
   "syncStatus: ackSyncStatus",
   "queueReadStatus: \"completed\"",
   "queueWriteStatus: ackWriteStatus",
@@ -560,7 +563,11 @@ for (const token of [
   "\"ack_unconfirmed_jobs_preserved\"",
   "ackContract: \"lease_aware\"",
   "manualReviewRequired: hasUnconfirmedJobs",
+  "manualReviewReason,",
   "manualReviewJobCount: unconfirmedJobCount",
+  "acknowledgedJobIds: ackResult.acknowledged",
+  "missingJobIds: ackResult.missing",
+  "leaseMismatchedJobIds: ackResult.leaseMismatched",
   "...queuePendingStatus",
   "ok: true",
   "const queueReceipt = queueAckReceipt(",
@@ -578,6 +585,11 @@ for (const token of [
   "acknowledgedJobIds: ackResult.acknowledged",
   "missingJobIds: ackResult.missing",
   "leaseMismatchedJobIds: ackResult.leaseMismatched",
+  "const ackNextAction = hasPreservedJobs",
+  "ackReadStatus: \"completed\"",
+  "ackWriteStatus,",
+  "ackNextAction,",
+  "manualReviewReason: hasPreservedJobs",
   "\"review_missing_or_lease_mismatched_jobs\"",
   "\"poll_for_next_jobs\"",
   "\"agent_queue_acknowledged\"",
@@ -596,6 +608,7 @@ for (const token of [
   "\"partial\"",
   "\"acknowledged_existing_jobs_with_missing_or_lease_mismatched_ids\"",
   "unconfirmedJobsPreserved: hasUnconfirmedJobs",
+  "missing_or_lease_mismatched_jobs",
 ]) {
   check(ackRoute.includes(token), `jobs ack route 缺少 ${token}`);
 }
@@ -612,6 +625,10 @@ for (const token of [
   "\"failed_retryable\"",
   "\"failed_final\"",
   "\"fix_input_or_configuration\"",
+  "ackReadStatus: queueWriteAttempted ? \"unknown\" : \"not_started\"",
+  "ackWriteStatus: queueWriteStatus",
+  "ackNextAction: nextAction",
+  "queue_manual_review_required",
 ]) {
   check(ackRoute.includes(token), `jobs ack route 结构化失败响应缺少 ${token}`);
 }
