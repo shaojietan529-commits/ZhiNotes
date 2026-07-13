@@ -695,7 +695,9 @@ check(
   "pages ingest route 必须保留 CORS 边界，同时把带 cookie 的临时 session 不可确认返回为可重试 session-unconfirmed"
 );
 check(
-  meetingAgentJobsRoute.includes("accountSessionUnconfirmedResponse") &&
+  meetingAgentJobsRoute.includes("accountSessionUnconfirmedPayload") &&
+    meetingAgentJobsRoute.includes("sessionUnconfirmed.reason") &&
+    meetingAgentJobsRoute.includes("sessionUnconfirmed.keeps_session_cookie") &&
     meetingAgentJobsRoute.includes("会议录制任务暂时无法确认账号；不会登出，请稍后重试。") &&
     !meetingAgentJobsRoute.includes("登录已过期，请重新登录。"),
   "meeting agent jobs route 有 cookie 但 session 暂时查不到时必须返回可重试 session-unconfirmed，不能返回登录过期"

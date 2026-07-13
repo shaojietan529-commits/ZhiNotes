@@ -97,6 +97,7 @@ export async function POST(request: Request) {
             "ZhiHui 云端任务队列确认超时；runner 可稍后重试，不会清空未确认任务。",
           retryable: true,
           details: { timeout_ms: error.timeoutMs },
+          queueWriteAttempted: true,
         }),
         { status: error.status }
       );
@@ -109,6 +110,7 @@ export async function POST(request: Request) {
           message: error.message,
           retryable: error.retryable,
           details: error.details,
+          queueWriteAttempted: true,
         }),
         { status: error.status }
       );
@@ -120,6 +122,7 @@ export async function POST(request: Request) {
         message:
           "ZhiHui 云端任务队列确认失败；runner 可稍后重试，不会清空未确认任务。",
         retryable: true,
+        queueWriteAttempted: true,
       }),
       { status: 502 }
     );
@@ -132,19 +135,25 @@ function ackFailurePayload({
   message,
   retryable,
   details = null,
+  queueWriteAttempted = false,
 }: {
   code: string;
   error: string;
   message?: string;
   retryable: boolean;
   details?: Record<string, unknown> | null;
+  queueWriteAttempted?: boolean;
 }) {
   const manualReviewRequired = details?.manual_review_required === true;
+  const partialQueueWritePossible =
+    queueWriteAttempted && retryable && !manualReviewRequired;
   const queueWriteStatus = manualReviewRequired
     ? "manual_review_required"
-    : retryable
+    : partialQueueWritePossible
       ? "unknown_retryable"
-      : "not_completed";
+      : queueWriteAttempted
+        ? "not_completed"
+        : "not_started";
   return {
     ok: false,
     code,
@@ -154,11 +163,14 @@ function ackFailurePayload({
     details,
     syncStatus: manualReviewRequired
       ? "manual_review_required"
-      : retryable
+      : partialQueueWritePossible
         ? "retryable_unknown"
-        : "failed_not_completed",
+        : queueWriteAttempted
+          ? "failed_not_completed"
+          : "failed_not_started",
     queueWriteStatus,
-    partialQueueWritePossible: retryable && !manualReviewRequired,
+    queueWriteAttempted,
+    partialQueueWritePossible,
     requiresUserConfirmation: manualReviewRequired,
     highRiskWriteGated: true,
     failureStatus: manualReviewRequired

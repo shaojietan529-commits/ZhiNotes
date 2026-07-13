@@ -4,7 +4,7 @@ import {
   getSessionAccount,
   readSessionToken,
 } from "@/lib/account/server";
-import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
+import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
 import {
   authorizeMeetingAgent,
   enqueueMeetingAgentJob,
@@ -137,8 +137,24 @@ export async function POST(request: Request) {
   }
   const account = await getSessionAccount(accountConfig, token);
   if (!account) {
-    return accountSessionUnconfirmedResponse(
+    const sessionUnconfirmed = accountSessionUnconfirmedPayload(
       "会议录制任务暂时无法确认账号；不会登出，请稍后重试。"
+    );
+    return NextResponse.json(
+      {
+        ...queueFailurePayload({
+          code: "account_session_unconfirmed",
+          error: sessionUnconfirmed.error,
+          retryable: sessionUnconfirmed.retryable,
+          details: {
+            reason: sessionUnconfirmed.reason,
+            keeps_session_cookie: sessionUnconfirmed.keeps_session_cookie,
+          },
+        }),
+        reason: sessionUnconfirmed.reason,
+        keeps_session_cookie: sessionUnconfirmed.keeps_session_cookie,
+      },
+      { status: 503 }
     );
   }
 
@@ -213,11 +229,14 @@ export async function POST(request: Request) {
       ...queueContinuityReceipt,
     });
   } catch (error) {
-    return meetingAgentQueueErrorResponse(error);
+    return meetingAgentQueueErrorResponse(error, { queueWriteAttempted: true });
   }
 }
 
-function meetingAgentQueueErrorResponse(error: unknown) {
+function meetingAgentQueueErrorResponse(
+  error: unknown,
+  { queueWriteAttempted = false }: { queueWriteAttempted?: boolean } = {}
+) {
   if (error instanceof MeetingAgentQueueTimeoutError) {
     return NextResponse.json(
       queueFailurePayload({
@@ -227,6 +246,7 @@ function meetingAgentQueueErrorResponse(error: unknown) {
           "ZhiHui 云端任务队列请求超时；会议页和日历本地数据不受影响，可稍后重试接入 runner。",
         retryable: true,
         details: { timeout_ms: error.timeoutMs },
+        queueWriteAttempted,
       }),
       { status: error.status }
     );
@@ -239,6 +259,7 @@ function meetingAgentQueueErrorResponse(error: unknown) {
         message: error.message,
         retryable: error.retryable,
         details: error.details,
+        queueWriteAttempted,
       }),
       { status: error.status }
     );
@@ -251,6 +272,7 @@ function meetingAgentQueueErrorResponse(error: unknown) {
       message:
         "ZhiHui 云端任务队列暂时不可用；会议页和日历本地数据不受影响。",
       retryable: true,
+      queueWriteAttempted,
     }),
     { status: 502 }
   );
@@ -262,19 +284,25 @@ function queueFailurePayload({
   message,
   retryable,
   details = null,
+  queueWriteAttempted = false,
 }: {
   code: string;
   error: string;
   message?: string;
   retryable: boolean;
   details?: Record<string, unknown> | null;
+  queueWriteAttempted?: boolean;
 }) {
   const manualReviewRequired = details?.manual_review_required === true;
+  const partialQueueWritePossible =
+    queueWriteAttempted && retryable && !manualReviewRequired;
   const queueWriteStatus = manualReviewRequired
     ? "manual_review_required"
-    : retryable
+    : partialQueueWritePossible
       ? "unknown_retryable"
-      : "not_completed";
+      : queueWriteAttempted
+        ? "not_completed"
+        : "not_started";
   return {
     ok: false,
     code,
@@ -284,11 +312,14 @@ function queueFailurePayload({
     details,
     syncStatus: manualReviewRequired
       ? "manual_review_required"
-      : retryable
+      : partialQueueWritePossible
         ? "retryable_unknown"
-        : "failed_not_completed",
+        : queueWriteAttempted
+          ? "failed_not_completed"
+          : "failed_not_started",
     queueWriteStatus,
-    partialQueueWritePossible: retryable && !manualReviewRequired,
+    queueWriteAttempted,
+    partialQueueWritePossible,
     requiresUserConfirmation: manualReviewRequired,
     highRiskWriteGated: true,
     failureStatus: manualReviewRequired
