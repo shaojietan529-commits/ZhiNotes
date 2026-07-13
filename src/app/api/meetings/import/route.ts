@@ -18,6 +18,9 @@ const failureBoundary = {
   accountSessionUnaffected: true,
   localUseCanContinue: true,
   rawMeetingContentEchoed: false,
+  rawMeetingCredentialsEchoed: false,
+  payloadEchoedInReceipt: false,
+  metadataOnly: true,
 };
 
 function importJson(body: unknown, init?: ResponseInit) {
@@ -100,6 +103,20 @@ function importCalendarRefreshFields(
   };
 }
 
+function importSuccessClearanceFields() {
+  return {
+    importStatus: "completed",
+    pendingWriteCount: 0,
+    failedWriteCount: 0,
+    localPendingWrite: false,
+    manualReviewRequired: false,
+    requiresUserConfirmation: false,
+    partialCloudWritePossible: false,
+    highRiskWriteGated: true,
+    safeToRefreshCaches: true,
+  };
+}
+
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
@@ -153,6 +170,7 @@ export async function POST(request: Request) {
       syncStatus: "cloud_page_index_updated",
       cloudWriteStatus: "completed",
       calendarWriteStatus: "completed",
+      ...importSuccessClearanceFields(),
       ...calendarRefresh,
       ...importReceiptTiming,
       url: result.url,

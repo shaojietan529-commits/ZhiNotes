@@ -316,8 +316,15 @@ expect(
     importRouteSource.includes("nextAction: \"refresh_calendar_metadata\"") &&
     importRouteSource.includes("syncStatus: \"cloud_page_index_updated\"") &&
     importRouteSource.includes("cloudWriteStatus: \"completed\"") &&
-    importRouteSource.includes("calendarWriteStatus: \"completed\""),
-  "import route success responses should expose imported status, next metadata action, and completed cloud/calendar write status"
+    importRouteSource.includes("calendarWriteStatus: \"completed\"") &&
+    importRouteSource.includes("function importSuccessClearanceFields") &&
+    importRouteSource.includes("importStatus: \"completed\"") &&
+    importRouteSource.includes("pendingWriteCount: 0") &&
+    importRouteSource.includes("failedWriteCount: 0") &&
+    importRouteSource.includes("localPendingWrite: false") &&
+    importRouteSource.includes("safeToRefreshCaches: true") &&
+    importRouteSource.includes("...importSuccessClearanceFields()"),
+  "import route success responses should expose imported status, next metadata action, completed cloud/calendar write status, and no-pending clearance"
 );
 expect(
   importRouteSource.includes("function importCalendarRefreshFields") &&
@@ -357,8 +364,12 @@ expect(
 );
 expect(
   importRouteSource.includes("localUseCanContinue: true") &&
-    importRouteSource.includes("accountSessionUnaffected: true"),
-  "import route should preserve local-use and account-session continuity fields"
+    importRouteSource.includes("accountSessionUnaffected: true") &&
+    importRouteSource.includes("rawMeetingContentEchoed: false") &&
+    importRouteSource.includes("rawMeetingCredentialsEchoed: false") &&
+    importRouteSource.includes("payloadEchoedInReceipt: false") &&
+    importRouteSource.includes("metadataOnly: true"),
+  "import route should preserve local-use, account-session, and metadata-only privacy fields"
 );
 expect(
   importRouteSource.includes("function importFailurePayload") &&

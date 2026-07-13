@@ -1110,7 +1110,11 @@ Current local actions:
   the top level (`metadataRefreshRequired`, `metadataRefreshMode`,
   `affectedCalendars`, `changedPageIds`, `nextCursor`, `receiptStaleAfter`).
   This lets Daily and ZhiHui calendars refresh immediately after an import
-  without parsing the nested calendar/import receipts.
+  without parsing the nested calendar/import receipts. Successful imports also
+  surface a no-pending clearance (`pendingWriteCount: 0`,
+  `failedWriteCount: 0`, `manualReviewRequired: false`,
+  `safeToRefreshCaches: true`) so sync-center and calendar clients can tell
+  the user the meeting write is complete rather than pending or failed.
 - When enqueue sees the same meeting page but the existing queued job is already
   leased by a runner, the server preserves that leased job and creates a
   follow-up job instead of rewriting in-flight work. The enqueue response marks
