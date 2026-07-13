@@ -300,6 +300,12 @@ expect(
     importRouteSource.includes("\"Cache-Control\", \"no-store, max-age=0\"") &&
     importRouteSource.includes("IMPORT_FAILURE_RECEIPT_FRESHNESS_WINDOW_MS") &&
     importRouteSource.includes("function importFailureReceiptFreshness") &&
+    importRouteSource.includes("function importReceiptTimingFields") &&
+    importRouteSource.includes("receiptGeneratedAt: receipt.receiptGeneratedAt") &&
+    importRouteSource.includes("receiptStaleAfter: receipt.receiptStaleAfter") &&
+    importRouteSource.includes(
+      "receiptFreshnessWindowMs: receipt.receiptFreshnessWindowMs"
+    ) &&
     importRouteSource.includes("receiptGeneratedAt") &&
     importRouteSource.includes("receiptStaleAfter") &&
     importRouteSource.includes("receiptFreshnessWindowMs"),
@@ -308,8 +314,34 @@ expect(
 expect(
   importRouteSource.includes("status: \"imported\"") &&
     importRouteSource.includes("nextAction: \"refresh_calendar_metadata\"") &&
-    importRouteSource.includes("syncStatus: \"cloud_page_index_updated\""),
-  "import route success responses should expose imported status, next metadata action, and cloud index sync status"
+    importRouteSource.includes("syncStatus: \"cloud_page_index_updated\"") &&
+    importRouteSource.includes("cloudWriteStatus: \"completed\"") &&
+    importRouteSource.includes("calendarWriteStatus: \"completed\""),
+  "import route success responses should expose imported status, next metadata action, and completed cloud/calendar write status"
+);
+expect(
+  importRouteSource.includes("function importCalendarRefreshFields") &&
+    importRouteSource.includes(
+      "const importReceiptTiming = importReceiptTimingFields("
+    ) &&
+    importRouteSource.includes(
+      "const calendarRefresh = importCalendarRefreshFields(result.calendar)"
+    ) &&
+    importRouteSource.includes("...calendarRefresh") &&
+    importRouteSource.includes("...importReceiptTiming") &&
+    importRouteSource.includes("calendarRefreshSource: calendar.source") &&
+    importRouteSource.includes("calendarDateKey: calendar.dateKey") &&
+    importRouteSource.includes("affectedCalendars: calendar.affectedCalendars") &&
+    importRouteSource.includes("metadataActions: calendar.metadataActions") &&
+    importRouteSource.includes("changedPageIds: calendar.changedPageIds") &&
+    importRouteSource.includes("nextCursor: calendar.nextCursor") &&
+    importRouteSource.includes(
+      "metadataRefreshRequired: calendar.requiresMetadataRefresh"
+    ) &&
+    importRouteSource.includes(
+      "metadataRefreshMode: calendar.metadataRefreshMode"
+    ),
+  "import route success responses should mirror calendar refresh fields at the top level for immediate client refresh"
 );
 expect(
   importRouteSource.includes("calendar: result.calendar"),
@@ -334,6 +366,10 @@ expect(
     importRouteSource.includes("schema: \"zhinote.zhihui.import.failure.receipt.v1\"") &&
     importRouteSource.includes("operation: \"import_meeting_artifact\"") &&
     importRouteSource.includes("failureCode: code") &&
+    importRouteSource.includes(
+      "const receiptTiming = importReceiptTimingFields(failureReceipt)"
+    ) &&
+    importRouteSource.includes("...receiptTiming") &&
     importRouteSource.includes("importFailureReceipt: failureReceipt") &&
     importRouteSource.includes("metadataOnly: true") &&
     importRouteSource.includes("ok: false") &&

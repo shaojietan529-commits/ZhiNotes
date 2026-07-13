@@ -1106,6 +1106,11 @@ Current local actions:
   ACK responses surface top-level request/confirmed/unconfirmed counts plus
   `manualReviewRequired`, so clients do not need to parse the nested receipt to
   decide whether a sync-center review row is needed.
+- ZhiHui meeting import responses also mirror the calendar refresh contract at
+  the top level (`metadataRefreshRequired`, `metadataRefreshMode`,
+  `affectedCalendars`, `changedPageIds`, `nextCursor`, `receiptStaleAfter`).
+  This lets Daily and ZhiHui calendars refresh immediately after an import
+  without parsing the nested calendar/import receipts.
 - When enqueue sees the same meeting page but the existing queued job is already
   leased by a runner, the server preserves that leased job and creates a
   follow-up job instead of rewriting in-flight work. The enqueue response marks

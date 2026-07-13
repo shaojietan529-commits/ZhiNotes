@@ -48,6 +48,58 @@ function importFailureReceiptFreshness(now = new Date()) {
   };
 }
 
+type ImportReceiptTimingFieldsInput = {
+  receiptGeneratedAt: string;
+  receiptStaleAfter: string;
+  receiptFreshnessWindowMs: number;
+};
+
+function importReceiptTimingFields(receipt: ImportReceiptTimingFieldsInput) {
+  return {
+    receiptGeneratedAt: receipt.receiptGeneratedAt,
+    receiptStaleAfter: receipt.receiptStaleAfter,
+    receiptFreshnessWindowMs: receipt.receiptFreshnessWindowMs,
+  };
+}
+
+type ImportCalendarRefreshFieldsInput = {
+  source: string;
+  dateKey: string;
+  affectedCalendars: string[];
+  metadataActions: string[];
+  changedPageIds: string[];
+  changeLogEntries: number;
+  previousCursor: string;
+  nextCursor: string;
+  dailyCalendarVisible: boolean;
+  meetingCalendarVisible: boolean;
+  requiresMetadataRefresh: boolean;
+  metadataRefreshReason: string;
+  metadataRefreshMode: string;
+  fullCacheRebuildRequired: boolean;
+};
+
+function importCalendarRefreshFields(
+  calendar: ImportCalendarRefreshFieldsInput
+) {
+  return {
+    calendarRefreshSource: calendar.source,
+    calendarDateKey: calendar.dateKey,
+    affectedCalendars: calendar.affectedCalendars,
+    metadataActions: calendar.metadataActions,
+    changedPageIds: calendar.changedPageIds,
+    changeLogEntries: calendar.changeLogEntries,
+    previousCursor: calendar.previousCursor,
+    nextCursor: calendar.nextCursor,
+    dailyCalendarVisible: calendar.dailyCalendarVisible,
+    meetingCalendarVisible: calendar.meetingCalendarVisible,
+    metadataRefreshRequired: calendar.requiresMetadataRefresh,
+    metadataRefreshReason: calendar.metadataRefreshReason,
+    metadataRefreshMode: calendar.metadataRefreshMode,
+    fullCacheRebuildRequired: calendar.fullCacheRebuildRequired,
+  };
+}
+
 export async function POST(request: Request) {
   const config = getMeetingAgentQueueConfig();
   if (config.status !== "ok") {
@@ -89,12 +141,20 @@ export async function POST(request: Request) {
 
   try {
     const result = await importMeetingArtifactToPages(config.kv, bodyRead.value);
+    const importReceiptTiming = importReceiptTimingFields(
+      result.importReceipt
+    );
+    const calendarRefresh = importCalendarRefreshFields(result.calendar);
     return importJson({
       ok: true,
       id: result.importId,
       status: "imported",
       nextAction: "refresh_calendar_metadata",
       syncStatus: "cloud_page_index_updated",
+      cloudWriteStatus: "completed",
+      calendarWriteStatus: "completed",
+      ...calendarRefresh,
+      ...importReceiptTiming,
       url: result.url,
       minutesPageId: result.minutesPageId,
       meetingPageId: result.meetingPageId,
@@ -172,6 +232,7 @@ function importFailurePayload({
     failureStatus,
     nextAction,
   });
+  const receiptTiming = importReceiptTimingFields(failureReceipt);
 
   return {
     ok: false,
@@ -188,6 +249,7 @@ function importFailurePayload({
     failureStatus,
     manualReviewRequired,
     nextAction,
+    ...receiptTiming,
     importFailureReceipt: failureReceipt,
     ...failureBoundary,
   };
