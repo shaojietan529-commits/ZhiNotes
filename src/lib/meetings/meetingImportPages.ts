@@ -103,6 +103,9 @@ export interface MeetingImportResult {
   };
   calendar: {
     source: "meeting-agent-import";
+    receiptGeneratedAt: string;
+    receiptStaleAfter: string;
+    receiptFreshnessWindowMs: number;
     dateKey: string;
     affectedCalendars: Array<"daily" | "meeting">;
     metadataActions: Array<
@@ -287,6 +290,7 @@ export async function importMeetingArtifactToPages(
     },
     calendar: {
       source: "meeting-agent-import",
+      ...buildImportReceiptFreshness(now),
       dateKey: meeting.date,
       affectedCalendars: ["daily", "meeting"],
       metadataActions: [

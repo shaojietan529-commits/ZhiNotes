@@ -83,6 +83,13 @@ expect(result.meeting.date === "2026-06-14", "result should expose normalized me
 expect(result.meeting.time === "10:00-11:00", "result should expose normalized meeting time range");
 expect(result.meeting.platform === "Zoom", "result should expose normalized meeting platform");
 expect(result.calendar.source === "meeting-agent-import", "calendar receipt should identify the import source");
+expect(
+  Date.parse(result.calendar.receiptGeneratedAt) > 0 &&
+    Date.parse(result.calendar.receiptStaleAfter) >
+      Date.parse(result.calendar.receiptGeneratedAt) &&
+    result.calendar.receiptFreshnessWindowMs === 30000,
+  "calendar receipt should expose freshness timestamps so stale calendar refresh results are detectable"
+);
 expect(result.calendar.dateKey === "2026-06-14", "calendar receipt should expose the meeting date key");
 expect(
   Array.isArray(result.calendar.affectedCalendars) &&
@@ -232,6 +239,7 @@ expect(
     importerSource.includes("unconfirmed_pages_preserved: true") &&
     importerSource.includes("IMPORT_RECEIPT_FRESHNESS_WINDOW_MS") &&
     importerSource.includes("function buildImportReceiptFreshness") &&
+    importerSource.includes("calendar: {") &&
     importerSource.includes("receiptGeneratedAt") &&
     importerSource.includes("receiptStaleAfter") &&
     importerSource.includes("receiptFreshnessWindowMs") &&
