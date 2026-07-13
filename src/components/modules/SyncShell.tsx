@@ -20154,6 +20154,76 @@ function SyncOperationalStatusStrip({
           tone={readiness.cacheRebuildBlocked ? "pending" : "ready"}
         />
       </div>
+      <div
+        data-testid="sync-operational-domain-matrix"
+        data-visible-domain-count={pendingDomainRows.length}
+        data-pending-domain-count={
+          pendingDomainRows.filter((row) => row.pending > 0).length
+        }
+        data-failed-domain-count={
+          pendingDomainRows.filter((row) => row.failed > 0).length
+        }
+        data-manual-review-domain-count={
+          pendingDomainRows.filter((row) => row.manualReview > 0).length
+        }
+        className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900"
+      >
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              全域同步状态矩阵
+            </p>
+            <p className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+              每个投研模块都显示待上传、失败、人工处理和上传中计数；只读队列元数据。
+            </p>
+          </div>
+          <p className="text-[11px] leading-4 text-zinc-400">
+            本地输入：{readiness.localInputCanContinue ? "可继续" : "先暂停"}
+          </p>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {pendingDomainRows.map((row) => {
+            const status = getPendingDomainStatus(row);
+            return (
+              <div
+                key={row.id}
+                data-testid={`sync-operational-domain-state-${row.id}`}
+                data-domain-id={row.id}
+                data-domain-status={status}
+                data-domain-pending={row.pending}
+                data-domain-failed={row.failed}
+                data-domain-manual-review={row.manualReview}
+                data-domain-in-flight={row.inFlight}
+                className="rounded-md border border-zinc-100 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-xs font-medium text-zinc-800 dark:text-zinc-100">
+                      {row.label}
+                    </div>
+                    <div className="mt-1 truncate text-[10px] text-zinc-400">
+                      {row.tableNames[0] ?? "暂无队列表"}
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${pendingDomainStatusClass(
+                      status
+                    )}`}
+                  >
+                    {formatPendingDomainStatus(status)}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-4 gap-1 text-center text-[10px]">
+                  <PendingDomainCountPill label="待" value={row.pending} />
+                  <PendingDomainCountPill label="败" value={row.failed} />
+                  <PendingDomainCountPill label="人" value={row.manualReview} />
+                  <PendingDomainCountPill label="传" value={row.inFlight} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
       <div className="mt-4 rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -20242,6 +20312,64 @@ function SyncOperationalStatusStrip({
         )}
       </div>
     </section>
+  );
+}
+
+type PendingDomainStatus =
+  | "clear"
+  | "pending"
+  | "in-flight"
+  | "failed"
+  | "manual-review";
+
+function getPendingDomainStatus(row: PendingDomainRow): PendingDomainStatus {
+  if (row.manualReview > 0) return "manual-review";
+  if (row.failed > 0) return "failed";
+  if (row.inFlight > 0) return "in-flight";
+  if (row.pending > 0) return "pending";
+  return "clear";
+}
+
+function formatPendingDomainStatus(status: PendingDomainStatus) {
+  if (status === "manual-review") return "需人工";
+  if (status === "failed") return "失败";
+  if (status === "in-flight") return "上传中";
+  if (status === "pending") return "待上传";
+  return "已清空";
+}
+
+function pendingDomainStatusClass(status: PendingDomainStatus) {
+  const classes: Record<PendingDomainStatus, string> = {
+    clear:
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    pending:
+      "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    "in-flight": "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+    failed: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+    "manual-review": "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+  };
+  return classes[status];
+}
+
+function PendingDomainCountPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  const active = value > 0;
+  return (
+    <div
+      className={`rounded px-1.5 py-1 ${
+        active
+          ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
+          : "bg-zinc-100 text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500"
+      }`}
+    >
+      <span className="mr-1">{label}</span>
+      <span className="font-mono">{value}</span>
+    </div>
   );
 }
 
