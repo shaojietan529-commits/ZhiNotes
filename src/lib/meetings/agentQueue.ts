@@ -12,6 +12,11 @@ export interface MeetingAgentQueueJob {
   created_at: string;
 }
 
+export interface MeetingAgentQueueEnqueueResult {
+  job: MeetingAgentQueueJob;
+  deduplicated: boolean;
+}
+
 interface KvEnv {
   url: string;
   token: string;
@@ -91,7 +96,7 @@ export async function enqueueMeetingAgentJob(
     job_type: string;
     payload: Record<string, unknown>;
   }
-): Promise<MeetingAgentQueueJob> {
+): Promise<MeetingAgentQueueEnqueueResult> {
   const serializedPayload = JSON.stringify(payload.payload);
   if (serializedPayload.length > MAX_PAYLOAD_BYTES) {
     throw new MeetingAgentQueueFailureError({
@@ -112,7 +117,7 @@ export async function enqueueMeetingAgentJob(
     payload.job_type,
     payload.payload
   );
-  if (existingJob) return existingJob;
+  if (existingJob) return { job: existingJob, deduplicated: true };
 
   const job: MeetingAgentQueueJob = {
     id: `zhihui_${randomUUID()}`,
@@ -122,7 +127,7 @@ export async function enqueueMeetingAgentJob(
   };
   jobs.push(job);
   await writeQueue(kv, jobs.slice(-MAX_QUEUE_ITEMS));
-  return job;
+  return { job, deduplicated: false };
 }
 
 export async function ackMeetingAgentJobs(

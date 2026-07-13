@@ -151,7 +151,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const job = await enqueueMeetingAgentJob(queueConfig.kv, {
+    const enqueueResult = await enqueueMeetingAgentJob(queueConfig.kv, {
       job_type: JOB_TYPE,
       payload: {
         schema: "zhinote.zhihui.meeting-recording-request.v1",
@@ -179,8 +179,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      job_id: job.id,
-      status: "queued",
+      job_id: enqueueResult.job.id,
+      status: enqueueResult.deduplicated ? "already_queued" : "queued",
+      queueAction: enqueueResult.deduplicated ? "reused_existing_job" : "created_job",
+      deduplicated: enqueueResult.deduplicated,
       run_now: body.runNow === true,
     });
   } catch (error) {

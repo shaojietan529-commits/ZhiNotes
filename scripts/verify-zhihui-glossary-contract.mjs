@@ -44,6 +44,7 @@ for (const token of [
   "MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000",
   "export class MeetingAgentQueueTimeoutError extends Error",
   "export class MeetingAgentQueueFailureError extends Error",
+  "export interface MeetingAgentQueueEnqueueResult",
   "async function fetchMeetingAgentQueueWithTimeout",
   "const controller = new AbortController();",
   "signal: controller.signal",
@@ -68,6 +69,8 @@ for (const token of [
   "function findDuplicateQueueJob",
   "function queueDedupeKey",
   "meeting_page_id: pageId",
+  "deduplicated: true",
+  "deduplicated: false",
   "manual_review_required: true",
   "unconfirmed_jobs_preserved: true",
   "status: 409",
@@ -91,6 +94,10 @@ for (const token of [
   "failureStatus: manualReviewRequired",
   "manualReviewRequired",
   "nextAction: manualReviewRequired",
+  "\"already_queued\"",
+  "queueAction",
+  "\"reused_existing_job\"",
+  "deduplicated: enqueueResult.deduplicated",
 ]) {
   check(jobsRoute.includes(token), `jobs route 缺少 ${token}`);
 }
@@ -350,14 +357,17 @@ async function verifyQueueDedupeBehavior() {
   const storedJobs = JSON.parse(storedQueue);
 
   return (
-    first.id === second.id &&
-    first.id !== third.id &&
+    first.job.id === second.job.id &&
+    first.job.id !== third.job.id &&
+    first.deduplicated === false &&
+    second.deduplicated === true &&
+    third.deduplicated === false &&
     calls.get === 3 &&
     calls.set === 2 &&
     Array.isArray(storedJobs) &&
     storedJobs.length === 2 &&
-    storedJobs[0].id === first.id &&
-    storedJobs[1].id === third.id
+    storedJobs[0].id === first.job.id &&
+    storedJobs[1].id === third.job.id
   );
 }
 
