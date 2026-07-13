@@ -1415,6 +1415,10 @@ check(
     dailyNotesShell.includes("updateDailyCreateOpenMode") &&
     dailyNotesShell.includes("upsertWorkspaceSetting(") &&
     dailyNotesShell.includes("setOpeningDraft({ pageId: optimisticNote.id, dateKey })") &&
+    dailyNotesShell.includes("DAILY_CREATE_FEEDBACK_FRAME_TIMEOUT_MS") &&
+    dailyNotesShell.includes("waitForDailyCreateFeedbackFrame") &&
+    dailyNotesShell.indexOf("await waitForDailyCreateFeedbackFrame();") <
+      dailyNotesShell.indexOf('openPage(optimisticNote, { source: "daily-create" })') &&
     dailyNotesShell.includes("const warmDailyPeekOpen = useCallback") &&
     dailyNotesShell.includes("const warmDailyCreateOpenPath = useCallback") &&
     dailyNotesShell.includes("warmDailyPeekOpen();") &&
