@@ -151,6 +151,7 @@ const MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 3400;
 const MEETING_FOREGROUND_QUIET_WINDOW_MS = 1800;
 const MEETING_FOREGROUND_REFRESH_MAX_DELAY_MS = 2600;
 const MEETING_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
+const MEETING_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const loadPageMutationModule = () => import("@/lib/pages/cloudPageMutations");
 const loadPageAccountSyncModule = () => import("@/lib/pages/accountPageSync");
@@ -355,6 +356,8 @@ interface MeetingCloudMetadataSnapshot {
   scanned?: number;
   cached?: boolean;
   watermark?: string;
+  cachedAt?: string;
+  stale?: boolean;
 }
 
 type MeetingCloudMetadataCacheEntry = MeetingCloudMetadataSnapshot & {
@@ -657,10 +660,12 @@ export default function MeetingScheduleShell() {
       visibleDays: countMeetingDateCounts(selection.countsByDate),
       cloudLoading: true,
       backgroundActive: true,
-      staleCloud: false,
+      staleCloud: Boolean(cachedCloud?.stale),
       message:
         cachedCloudPages.length > 0
-          ? "浏览器缓存的云端会议目录已先显示，本地索引和云端刷新继续后台补齐。"
+          ? cachedCloud?.stale
+            ? "较早缓存的云端会议目录已先显示，本地索引和云端刷新继续后台补齐。"
+            : "浏览器缓存的云端会议目录已先显示，本地索引和云端刷新继续后台补齐。"
           : staleHotCachePages > 0
             ? "较早的浏览器热缓存已先显示，本地索引和云端目录继续后台校正。"
           : "浏览器热缓存已先显示，本地索引和云端目录继续后台校正。",
@@ -1069,6 +1074,7 @@ export default function MeetingScheduleShell() {
           first_visible_meetings: firstVisibleCount,
           hot_cache_pages: cachedHotCount,
           cloud_enabled: includeCloud ? 1 : 0,
+          cached_cloud_stale: cachedCloud?.stale ? 1 : 0,
           ...counts,
         },
       });
@@ -1099,11 +1105,15 @@ export default function MeetingScheduleShell() {
       publishLoadStatus("cached-cloud", publishMeetings([], cachedCloud.pages), {
         cloudLoading: includeCloud,
         backgroundActive: true,
-        staleCloud: false,
+        staleCloud: cachedCloud.stale,
         message:
-          "浏览器缓存的云端会议目录已先显示，本地索引和云端刷新继续后台补齐。",
+          cachedCloud.stale
+            ? "较早缓存的云端会议目录已先显示，本地索引和云端刷新继续后台补齐。"
+            : "浏览器缓存的云端会议目录已先显示，本地索引和云端刷新继续后台补齐。",
       });
-      void persistMeetingCloudMetadata(cachedCloud, upsertPages);
+      if (!cachedCloud.stale) {
+        void persistMeetingCloudMetadata(cachedCloud, upsertPages);
+      }
     }
 
     const cloudPromise = includeCloud
@@ -3858,9 +3868,10 @@ function readCachedMeetingCloudMetadata(
       cachedAt?: string;
     };
     const cachedAt = parsed.cachedAt ? Date.parse(parsed.cachedAt) : 0;
-    if (!cachedAt || Date.now() - cachedAt > MEETING_CLOUD_CACHE_FRESH_MS) {
-      return null;
-    }
+    const cacheAgeMs = cachedAt
+      ? Date.now() - cachedAt
+      : Number.POSITIVE_INFINITY;
+    if (!cachedAt || cacheAgeMs > MEETING_CLOUD_CACHE_STALE_MS) return null;
     if (!parsed.ok || !Array.isArray(parsed.pages)) return null;
     return {
       ok: true,
@@ -3876,6 +3887,8 @@ function readCachedMeetingCloudMetadata(
       cached: typeof parsed.cached === "boolean" ? parsed.cached : undefined,
       watermark:
         typeof parsed.watermark === "string" ? parsed.watermark : undefined,
+      cachedAt: new Date(cachedAt).toISOString(),
+      stale: cacheAgeMs > MEETING_CLOUD_CACHE_FRESH_MS,
     };
   } catch {
     return null;

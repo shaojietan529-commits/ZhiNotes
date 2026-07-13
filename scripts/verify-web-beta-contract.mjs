@@ -3258,6 +3258,30 @@ function run() {
       "Meeting schedule must define a bounded fresh window for cloud-metadata cache rewrites.",
     ],
     [
+      "MEETING_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000",
+      "Meeting schedule must keep a bounded stale cloud-metadata cache fallback for large workspaces.",
+    ],
+    [
+      "cacheAgeMs > MEETING_CLOUD_CACHE_STALE_MS",
+      "Meeting schedule must stop using cloud-metadata cache once it is outside the stale fallback window.",
+    ],
+    [
+      "stale: cacheAgeMs > MEETING_CLOUD_CACHE_FRESH_MS",
+      "Meeting schedule must mark old cloud directory cache as stale instead of treating it as fresh.",
+    ],
+    [
+      "较早缓存的云端会议目录已先显示",
+      "Meeting schedule must visibly label stale cloud directory cache while background refresh continues.",
+    ],
+    [
+      "cached_cloud_stale",
+      "Meeting calendar performance snapshots must record when first paint used stale cloud metadata.",
+    ],
+    [
+      "if (!cachedCloud.stale)",
+      "Meeting schedule must not persist stale cloud directory cache back into the local database.",
+    ],
+    [
       "shouldWriteCachedMeetingCloudMetadata",
       "Meeting schedule must skip unchanged fresh cloud-metadata cache writes to reduce calendar refresh storage churn.",
     ],

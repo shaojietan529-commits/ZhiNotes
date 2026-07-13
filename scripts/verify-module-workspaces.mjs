@@ -1619,6 +1619,16 @@ check(
   "MeetingScheduleShell 云端会议 metadata 如果先返回，必须先渲染轻量日历目录并写入浏览器热缓存，不能等待本地索引完成"
 );
 check(
+  shells.schedule.includes("MEETING_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000") &&
+    shells.schedule.includes("MEETING_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000") &&
+    shells.schedule.includes("cacheAgeMs > MEETING_CLOUD_CACHE_STALE_MS") &&
+    shells.schedule.includes("stale: cacheAgeMs > MEETING_CLOUD_CACHE_FRESH_MS") &&
+    shells.schedule.includes("cached_cloud_stale") &&
+    shells.schedule.includes("较早缓存的云端会议目录已先显示") &&
+    shells.schedule.includes("if (!cachedCloud.stale)"),
+  "MeetingScheduleShell 会议日历必须保留 7 天内的旧云端 metadata 作为首屏兜底，并且旧缓存不能写回本地数据库"
+);
+check(
   shells.schedule.includes("function getMeetingCloudUnavailableMessage") &&
     shells.schedule.includes("页面同步已关闭，本地会议日历继续可用。") &&
     shells.schedule.includes("当前浏览器未登录账号，只显示本机会议日历。") &&
