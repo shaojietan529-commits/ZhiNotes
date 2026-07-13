@@ -116,33 +116,86 @@ function importFailurePayload({
     : retryable
       ? "unknown_retryable"
       : "not_completed";
+  const syncStatus = manualReviewRequired
+    ? "manual_review_required"
+    : retryable
+      ? "retryable_unknown"
+      : "failed_not_completed";
+  const failureStatus = manualReviewRequired
+    ? "manual_review"
+    : retryable
+      ? "failed_retryable"
+      : "failed_final";
+  const nextAction = manualReviewRequired
+    ? "manual_review"
+    : retryable
+      ? "retry"
+      : "fix_input_or_configuration";
+  const failureReceipt = importFailureReceipt({
+    code,
+    retryable,
+    manualReviewRequired,
+    writeStatus,
+    syncStatus,
+    failureStatus,
+    nextAction,
+  });
+
   return {
     ok: false,
     code,
     error,
     retryable,
     details,
-    syncStatus: manualReviewRequired
-      ? "manual_review_required"
-      : retryable
-        ? "retryable_unknown"
-        : "failed_not_completed",
+    syncStatus,
     cloudWriteStatus: writeStatus,
     calendarWriteStatus: writeStatus,
     partialCloudWritePossible: retryable && !manualReviewRequired,
     requiresUserConfirmation: manualReviewRequired,
     highRiskWriteGated: true,
-    failureStatus: manualReviewRequired
-      ? "manual_review"
-      : retryable
-        ? "failed_retryable"
-        : "failed_final",
+    failureStatus,
     manualReviewRequired,
-    nextAction: manualReviewRequired
-      ? "manual_review"
-      : retryable
-        ? "retry"
-        : "fix_input_or_configuration",
+    nextAction,
+    importFailureReceipt: failureReceipt,
     ...failureBoundary,
+  };
+}
+
+function importFailureReceipt({
+  code,
+  retryable,
+  manualReviewRequired,
+  writeStatus,
+  syncStatus,
+  failureStatus,
+  nextAction,
+}: {
+  code: string;
+  retryable: boolean;
+  manualReviewRequired: boolean;
+  writeStatus: string;
+  syncStatus: string;
+  failureStatus: string;
+  nextAction: string;
+}) {
+  return {
+    schema: "zhinote.zhihui.import.failure.receipt.v1",
+    source: failureBoundary.source,
+    operation: "import_meeting_artifact",
+    status: failureStatus,
+    failureCode: code,
+    retryable,
+    syncStatus,
+    cloudWriteStatus: writeStatus,
+    calendarWriteStatus: writeStatus,
+    partialCloudWritePossible: retryable && !manualReviewRequired,
+    requiresUserConfirmation: manualReviewRequired,
+    manualReviewRequired,
+    highRiskWriteGated: true,
+    nextAction,
+    localUseCanContinue: true,
+    accountSessionUnaffected: true,
+    rawMeetingContentEchoed: false,
+    metadataOnly: true,
   };
 }

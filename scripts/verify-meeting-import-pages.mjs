@@ -266,13 +266,21 @@ expect(
 );
 expect(
   importRouteSource.includes("function importFailurePayload") &&
+    importRouteSource.includes("function importFailureReceipt") &&
+    importRouteSource.includes("schema: \"zhinote.zhihui.import.failure.receipt.v1\"") &&
+    importRouteSource.includes("operation: \"import_meeting_artifact\"") &&
+    importRouteSource.includes("failureCode: code") &&
+    importRouteSource.includes("importFailureReceipt: failureReceipt") &&
+    importRouteSource.includes("metadataOnly: true") &&
     importRouteSource.includes("ok: false") &&
     importRouteSource.includes("accountSessionUnaffected: true") &&
     importRouteSource.includes("localUseCanContinue: true") &&
     importRouteSource.includes("rawMeetingContentEchoed: false") &&
-    importRouteSource.includes("failureStatus: manualReviewRequired") &&
+    importRouteSource.includes("const failureStatus = manualReviewRequired") &&
+    importRouteSource.includes("failureStatus,") &&
     importRouteSource.includes("manualReviewRequired") &&
-    importRouteSource.includes("syncStatus: manualReviewRequired") &&
+    importRouteSource.includes("const syncStatus = manualReviewRequired") &&
+    importRouteSource.includes("syncStatus,") &&
     importRouteSource.includes("cloudWriteStatus: writeStatus") &&
     importRouteSource.includes("calendarWriteStatus: writeStatus") &&
     importRouteSource.includes("partialCloudWritePossible: retryable && !manualReviewRequired") &&
@@ -283,7 +291,8 @@ expect(
     importRouteSource.includes("\"not_completed\"") &&
     importRouteSource.includes("\"retryable_unknown\"") &&
     importRouteSource.includes("\"failed_not_completed\"") &&
-    importRouteSource.includes("nextAction: manualReviewRequired") &&
+    importRouteSource.includes("const nextAction = manualReviewRequired") &&
+    importRouteSource.includes("nextAction,") &&
     importRouteSource.includes("code: error.code") &&
     importRouteSource.includes("retryable: error.retryable") &&
     importRouteSource.includes("\"manual_review\"") &&
