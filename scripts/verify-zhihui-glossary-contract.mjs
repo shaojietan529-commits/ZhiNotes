@@ -6,10 +6,14 @@
 // - It returns short glossary terms and diagnostics, not raw page text or meeting secrets.
 
 import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
+import vm from "node:vm";
+import ts from "typescript";
 
 const root = process.cwd();
+const require = createRequire(import.meta.url);
 const errors = [];
 const check = (cond, msg) => {
   if (!cond) errors.push(msg);
@@ -201,6 +205,12 @@ check(
   "package.json 缺少 verify:zhihui-glossary 脚本"
 );
 
+const queueBehavior = await verifyCorruptQueueBehavior();
+check(
+  queueBehavior,
+  "agent queue 遇到损坏队列时必须进入 manual review，且 list/enqueue/ack 都不能写回清空未确认任务"
+);
+
 if (errors.length > 0) {
   console.error("verify:zhihui-glossary 失败：");
   for (const err of errors) console.error(`  - ${err}`);
@@ -210,3 +220,106 @@ if (errors.length > 0) {
 console.log(
   "verify:zhihui-glossary 通过 ✓ （agent token、同步页读取、只返回短词条、隐藏原文和会议密钥）"
 );
+
+async function verifyCorruptQueueBehavior() {
+  const cases = [
+    { name: "invalid-json", result: "{not-json" },
+    { name: "not-array", result: JSON.stringify({ id: "job_1" }) },
+    {
+      name: "invalid-job-shape",
+      result: JSON.stringify([{ id: "job_1", job_type: "recording" }]),
+    },
+  ];
+
+  for (const testCase of cases) {
+    for (const operation of ["list", "enqueue", "ack"]) {
+      const calls = { get: 0, set: 0 };
+      const queue = loadAgentQueueWithFetch(async (url) => {
+        const requestUrl = String(url);
+        if (requestUrl.includes("/get/")) {
+          calls.get += 1;
+          return {
+            ok: true,
+            status: 200,
+            async json() {
+              return { result: testCase.result };
+            },
+          };
+        }
+        if (requestUrl.includes("/set/")) {
+          calls.set += 1;
+          return {
+            ok: true,
+            status: 200,
+            async json() {
+              return { result: "OK" };
+            },
+          };
+        }
+        throw new Error(`unexpected queue URL ${requestUrl}`);
+      });
+
+      let caught = null;
+      try {
+        if (operation === "list") {
+          await queue.listMeetingAgentJobs(mockKv(), 25);
+        } else if (operation === "enqueue") {
+          await queue.enqueueMeetingAgentJob(mockKv(), {
+            job_type: "meeting_recording_request",
+            payload: { synthetic: true },
+          });
+        } else {
+          await queue.ackMeetingAgentJobs(mockKv(), ["job_1"]);
+        }
+      } catch (error) {
+        caught = error;
+      }
+
+      const passed =
+        caught &&
+        caught.code === "zhihui_agent_queue_corrupt" &&
+        caught.status === 409 &&
+        caught.retryable === false &&
+        caught.details?.manual_review_required === true &&
+        caught.details?.unconfirmed_jobs_preserved === true &&
+        calls.get === 1 &&
+        calls.set === 0;
+      if (!passed) {
+        errors.push(
+          `agent queue corrupt behavior failed for ${testCase.name}/${operation}`
+        );
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function mockKv() {
+  return { url: "https://kv.example.invalid", token: "synthetic-token" };
+}
+
+function loadAgentQueueWithFetch(fetchImpl) {
+  const fullPath = path.join(root, "src/lib/meetings/agentQueue.ts");
+  const source = readFileSync(fullPath, "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      esModuleInterop: true,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const sandbox = {
+    AbortController,
+    clearTimeout,
+    exports: {},
+    fetch: fetchImpl,
+    module: { exports: {} },
+    process: { env: {} },
+    require,
+    setTimeout,
+  };
+  sandbox.module.exports = sandbox.exports;
+  vm.runInNewContext(compiled, sandbox, { filename: fullPath });
+  return sandbox.module.exports;
+}
