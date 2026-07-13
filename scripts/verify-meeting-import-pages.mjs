@@ -352,8 +352,11 @@ expect(
     importRouteSource.includes("cacheRefreshStatus: \"safe\"") &&
     importRouteSource.includes("cacheRefreshBlockedBy: []") &&
     importRouteSource.includes("syncCenterStatus: \"idle\"") &&
+    importRouteSource.includes("importRecoveryRequired: false") &&
+    importRouteSource.includes("importRecoveryStatus: \"idle\"") &&
+    importRouteSource.includes("importRecoveryNextAction: \"none\"") &&
     importRouteSource.includes("...importSuccessClearanceFields()"),
-  "import route success responses should expose imported status, next metadata action, completed cloud/calendar write status, and no-pending clearance"
+  "import route success responses should expose imported status, next metadata action, completed cloud/calendar write status, no-pending clearance, and recovery-clear status"
 );
 expect(
     importRouteSource.includes("function importCalendarRefreshFields") &&

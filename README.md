@@ -1204,10 +1204,13 @@ Current local actions:
   a stale calendar. Successful imports also surface a
   no-pending clearance (`pendingWriteCount: 0`,
   `failedWriteCount: 0`, `manualReviewRequired: false`,
-  `safeToRefreshCaches: true`, `cacheRefreshStatus: "safe"`) so sync-center
-  and calendar clients can tell the user the meeting write is complete rather
-  than pending or failed. Import failures mirror the same sync-center status
-  family (`syncCenterStatus`, `pendingImportCount`, `failedImportCount`,
+  `safeToRefreshCaches: true`, `cacheRefreshStatus: "safe"`) plus
+  `importRecoveryRequired: false`, `importRecoveryStatus: "idle"`, and
+  `importRecoveryNextAction: "none"` so sync-center and calendar clients can
+  tell the user the meeting write is complete rather than pending or failed,
+  and can clear any stale import repair row. Import failures mirror the same
+  sync-center status family (`syncCenterStatus`, `pendingImportCount`,
+  `failedImportCount`,
   `manualReviewImportCount`, `safeToContinueLocalUse`,
   `safeToRefreshCaches: false`, `cacheRefreshStatus`,
   `cacheRefreshBlockedBy`) plus import-specific recovery hints

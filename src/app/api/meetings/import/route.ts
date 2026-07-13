@@ -137,6 +137,9 @@ function importSuccessClearanceFields() {
     cacheRefreshStatus: "safe",
     cacheRefreshBlockedBy: [],
     syncCenterStatus: "idle",
+    importRecoveryRequired: false,
+    importRecoveryStatus: "idle",
+    importRecoveryNextAction: "none",
   };
 }
 
