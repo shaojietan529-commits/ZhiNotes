@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 
 const QUEUE_KEY = "zhinotes:zhihui:agent-jobs";
 const MAX_QUEUE_ITEMS = 200;
@@ -6,12 +6,23 @@ const MAX_LISTED_QUEUE_JOBS = 50;
 const MAX_PAYLOAD_BYTES = 64 * 1024;
 const MAX_QUEUE_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000;
+const MEETING_AGENT_QUEUE_LEASE_MS = 90 * 1000;
+const MAX_RUNNER_ID_CHARS = 80;
 
 export interface MeetingAgentQueueJob {
   id: string;
   job_type: string;
   payload: Record<string, unknown>;
   created_at: string;
+  lease?: MeetingAgentQueueLease;
+}
+
+export interface MeetingAgentQueueLease {
+  lease_id: string;
+  runner_id_hash: string;
+  leased_at: string;
+  expires_at: string;
+  attempts: number;
 }
 
 export interface MeetingAgentQueueEnqueueResult {
@@ -34,6 +45,13 @@ export interface MeetingAgentQueueListResult {
   returnedJobs: number;
   hasMore: boolean;
   queueAlmostFull: boolean;
+  claimMode: boolean;
+  claimedJobs: number;
+  availableQueueJobs: number;
+  leasedQueueJobs: number;
+  expiredLeaseJobs: number;
+  leaseDurationMs: number | null;
+  leaseExpiresAt: string | null;
 }
 
 export interface MeetingAgentQueueAckResult {
@@ -112,22 +130,97 @@ export function authorizeMeetingAgent(request: Request, agentToken: string) {
 
 export async function listMeetingAgentJobs(
   kv: KvEnv,
-  limit: number
+  limit: number,
+  options: {
+    claim?: boolean;
+    runnerId?: string;
+    now?: Date;
+    leaseDurationMs?: number;
+  } = {}
 ): Promise<MeetingAgentQueueListResult> {
   const jobs = await readQueue(kv);
+  const now = options.now ?? new Date();
+  const visibility = queueVisibility(jobs, now);
   const requestedLimit = Number.isFinite(limit) ? limit : 25;
   const effectiveLimit = Math.max(
     1,
     Math.min(Math.trunc(requestedLimit), MAX_LISTED_QUEUE_JOBS)
   );
-  const limitedJobs = jobs.slice(0, effectiveLimit);
+  const limitedJobs = visibility.availableJobs.slice(0, effectiveLimit);
+  const claimMode = options.claim === true;
+  if (!claimMode || limitedJobs.length === 0) {
+    return {
+      jobs: limitedJobs,
+      ...queueStats(jobs),
+      requestedLimit,
+      effectiveLimit,
+      returnedJobs: limitedJobs.length,
+      hasMore: limitedJobs.length < visibility.availableJobs.length,
+      claimMode,
+      claimedJobs: 0,
+      availableQueueJobs: visibility.availableJobs.length,
+      leasedQueueJobs: visibility.leasedQueueJobs,
+      expiredLeaseJobs: visibility.expiredLeaseJobs,
+      leaseDurationMs: null,
+      leaseExpiresAt: null,
+    };
+  }
+
+  const runnerId = normalizeRunnerId(options.runnerId);
+  if (!runnerId) {
+    throw new MeetingAgentQueueFailureError({
+      code: "zhihui_agent_queue_claim_runner_required",
+      message:
+        "ZhiHui runner 认领任务时必须提供 runner_id；未写入队列，任务仍可稍后处理。",
+      status: 400,
+      retryable: false,
+      details: {
+        max_runner_id_chars: MAX_RUNNER_ID_CHARS,
+        queue_write_status: "not_started",
+      },
+    });
+  }
+
+  const leaseDurationMs = Math.max(
+    15_000,
+    Math.min(
+      Math.trunc(options.leaseDurationMs ?? MEETING_AGENT_QUEUE_LEASE_MS),
+      5 * 60 * 1000
+    )
+  );
+  const leasedAt = now.toISOString();
+  const expiresAt = new Date(now.getTime() + leaseDurationMs).toISOString();
+  const selectedIds = new Set(limitedJobs.map((job) => job.id));
+  const runnerIdHash = hashRunnerId(runnerId);
+  const claimedJobs = jobs.map((job) => {
+    if (!selectedIds.has(job.id)) return job;
+    return {
+      ...job,
+      lease: {
+        lease_id: `lease_${randomUUID()}`,
+        runner_id_hash: runnerIdHash,
+        leased_at: leasedAt,
+        expires_at: expiresAt,
+        attempts: (job.lease?.attempts ?? 0) + 1,
+      },
+    };
+  });
+  await writeQueue(kv, claimedJobs);
+  const claimedJobMap = new Map(claimedJobs.map((job) => [job.id, job]));
   return {
-    jobs: limitedJobs,
-    ...queueStats(jobs),
+    jobs: limitedJobs.map((job) => claimedJobMap.get(job.id) ?? job),
+    ...queueStats(claimedJobs),
     requestedLimit,
     effectiveLimit,
     returnedJobs: limitedJobs.length,
-    hasMore: limitedJobs.length < jobs.length,
+    hasMore: limitedJobs.length < visibility.availableJobs.length,
+    claimMode,
+    claimedJobs: limitedJobs.length,
+    availableQueueJobs: visibility.availableJobs.length,
+    leasedQueueJobs: visibility.leasedQueueJobs,
+    expiredLeaseJobs: visibility.expiredLeaseJobs,
+    leaseDurationMs,
+    leaseExpiresAt: expiresAt,
   };
 }
 
@@ -377,6 +470,39 @@ function queueStats(jobs: MeetingAgentQueueJob[]) {
   };
 }
 
+function queueVisibility(jobs: MeetingAgentQueueJob[], now: Date) {
+  const availableJobs: MeetingAgentQueueJob[] = [];
+  let leasedQueueJobs = 0;
+  let expiredLeaseJobs = 0;
+  for (const job of jobs) {
+    if (isLeaseActive(job.lease, now)) {
+      leasedQueueJobs += 1;
+      continue;
+    }
+    if (job.lease) {
+      expiredLeaseJobs += 1;
+    }
+    availableJobs.push(job);
+  }
+  return { availableJobs, leasedQueueJobs, expiredLeaseJobs };
+}
+
+function isLeaseActive(lease: MeetingAgentQueueLease | undefined, now: Date) {
+  if (!lease) return false;
+  const expiresAt = Date.parse(lease.expires_at);
+  return Number.isFinite(expiresAt) && expiresAt > now.getTime();
+}
+
+function normalizeRunnerId(runnerId: unknown) {
+  return typeof runnerId === "string"
+    ? runnerId.trim().slice(0, MAX_RUNNER_ID_CHARS)
+    : "";
+}
+
+function hashRunnerId(runnerId: string) {
+  return createHash("sha256").update(runnerId).digest("hex").slice(0, 16);
+}
+
 function uniqueJobIds(jobIds: string[]) {
   const ids: string[] = [];
   const seen = new Set<string>();
@@ -452,7 +578,21 @@ function isQueueJob(value: unknown): value is MeetingAgentQueueJob {
     typeof item.job_type === "string" &&
     typeof item.created_at === "string" &&
     Boolean(item.payload) &&
-    typeof item.payload === "object"
+    typeof item.payload === "object" &&
+    (item.lease == null || isQueueLease(item.lease))
+  );
+}
+
+function isQueueLease(value: unknown): value is MeetingAgentQueueLease {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.lease_id === "string" &&
+    typeof item.runner_id_hash === "string" &&
+    typeof item.leased_at === "string" &&
+    typeof item.expires_at === "string" &&
+    typeof item.attempts === "number" &&
+    Number.isFinite(item.attempts)
   );
 }
 

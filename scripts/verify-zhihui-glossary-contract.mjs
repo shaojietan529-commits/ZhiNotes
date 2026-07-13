@@ -75,8 +75,11 @@ for (const token of [
 }
 for (const token of [
   "MEETING_AGENT_QUEUE_REQUEST_TIMEOUT_MS = 8000",
+  "MEETING_AGENT_QUEUE_LEASE_MS = 90 * 1000",
+  "MAX_RUNNER_ID_CHARS = 80",
   "MAX_LISTED_QUEUE_JOBS = 50",
   "MAX_QUEUE_RESPONSE_BYTES = 4 * 1024 * 1024",
+  "export interface MeetingAgentQueueLease",
   "export class MeetingAgentQueueTimeoutError extends Error",
   "export class MeetingAgentQueueFailureError extends Error",
   "export interface MeetingAgentQueueListResult",
@@ -131,13 +134,31 @@ for (const token of [
   "deduplicated: true",
   "deduplicated: false",
   "function queueStats",
+  "function queueVisibility",
+  "function isLeaseActive",
+  "function normalizeRunnerId",
+  "function hashRunnerId",
+  "function isQueueLease",
+  "createHash(\"sha256\")",
+  "zhihui_agent_queue_claim_runner_required",
+  "lease_id: `lease_${randomUUID()}`",
+  "runner_id_hash: runnerIdHash",
+  "expires_at: expiresAt",
+  "attempts: (job.lease?.attempts ?? 0) + 1",
   "availableQueueSlots",
   "queueAlmostFull",
   "maxQueueItems: MAX_QUEUE_ITEMS",
   "requestedLimit",
   "effectiveLimit",
   "returnedJobs: limitedJobs.length",
-  "hasMore: limitedJobs.length < jobs.length",
+  "claimMode",
+  "claimedJobs",
+  "availableQueueJobs",
+  "leasedQueueJobs",
+  "expiredLeaseJobs",
+  "leaseDurationMs",
+  "leaseExpiresAt",
+  "hasMore: limitedJobs.length < visibility.availableJobs.length",
   "function payloadByteLength",
   "Buffer.byteLength",
   "function uniqueJobIds",
@@ -212,7 +233,15 @@ for (const token of [
   "...queueContinuityReceipt",
   "ok: true",
   "status: \"ready\"",
-  "nextAction: queueResult.jobs.length > 0 ? \"dispatch_available_jobs\" : \"poll_later\"",
+  "queueResult.claimedJobs > 0",
+  "? \"process_claimed_jobs\"",
+  ": queueResult.jobs.length > 0",
+  "? \"dispatch_available_jobs\"",
+  ": \"poll_later\"",
+  "const claimMode = url.searchParams.get(\"claim\") === \"true\"",
+  "request.headers.get(\"x-zhihui-runner-id\")",
+  "claimMode ? { claim: true, runnerId } : {}",
+  "\"process_claimed_jobs\"",
   "syncStatus: \"agent_queue_index_read\"",
   "queueReceipt: queueListReceipt(queueResult)",
   "queueReceipt: queueEnqueueReceipt(enqueueResult",
@@ -272,6 +301,14 @@ for (const token of [
   "returnedJobs: queueResult.returnedJobs",
   "hasMore: queueResult.hasMore",
   "queueAlmostFull: queueResult.queueAlmostFull",
+  "claimMode: queueResult.claimMode",
+  "claimedJobs: queueResult.claimedJobs",
+  "availableQueueJobs: queueResult.availableQueueJobs",
+  "leasedQueueJobs: queueResult.leasedQueueJobs",
+  "expiredLeaseJobs: queueResult.expiredLeaseJobs",
+  "leaseDurationMs: queueResult.leaseDurationMs",
+  "leaseExpiresAt: queueResult.leaseExpiresAt",
+  "runnerIdEchoed: false",
   "\"reused_existing_job\"",
   "\"updated_existing_job\"",
   "\"wait_for_existing_job\"",
@@ -307,6 +344,7 @@ for (const code of [
   "account_session_required",
   "account_session_unconfirmed",
   "zhihui_agent_queue_request_too_large",
+  "zhihui_agent_queue_claim_runner_required",
   "invalid_json",
   "invalid_meeting_payload",
   "zhihui_agent_queue_timeout",
@@ -542,6 +580,11 @@ const queueDedupeBehavior = await verifyQueueDedupeBehavior();
 check(
   queueDedupeBehavior,
   "agent queue 重复入同一会议录制任务时必须复用已有 job，不能重复写入队列"
+);
+const queueClaimLeaseBehavior = await verifyQueueClaimLeaseBehavior();
+check(
+  queueClaimLeaseBehavior,
+  "agent queue 认领任务时必须写入短租约，未过期租约不可重复派发，过期后必须重新可见"
 );
 
 if (errors.length > 0) {
@@ -1150,6 +1193,80 @@ async function verifyQueueDedupeBehavior() {
     storedJobs[0].id === first.job.id &&
     storedJobs[0].payload.meeting.recording_device === "Mac Mini" &&
     storedJobs[0].payload.routing.target_runner_id === "mac-mini"
+  );
+}
+
+async function verifyQueueClaimLeaseBehavior() {
+  const seedJobs = [
+    {
+      id: "job_claim_1",
+      job_type: "meeting_recording_request",
+      payload: { synthetic: true, index: 1 },
+      created_at: "2026-07-13T00:06:00.000Z",
+    },
+    {
+      id: "job_claim_2",
+      job_type: "meeting_recording_request",
+      payload: { synthetic: true, index: 2 },
+      created_at: "2026-07-13T00:06:01.000Z",
+    },
+  ];
+  const calls = { get: 0, set: 0 };
+  let storedQueue = JSON.stringify(seedJobs);
+  const queue = loadAgentQueueWithFetch(async (url, init) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes("/get/")) {
+      calls.get += 1;
+      return kvJsonResponse({ result: storedQueue });
+    }
+    if (requestUrl.includes("/set/")) {
+      calls.set += 1;
+      storedQueue = typeof init?.body === "string" ? init.body : "";
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { result: "OK" };
+        },
+      };
+    }
+    throw new Error(`unexpected queue URL ${requestUrl}`);
+  });
+
+  const now = new Date("2026-07-13T10:00:00.000Z");
+  const claimed = await queue.listMeetingAgentJobs(mockKv(), 1, {
+    claim: true,
+    runnerId: "MacBook Pro",
+    now,
+    leaseDurationMs: 60000,
+  });
+  const storedAfterClaim = JSON.parse(storedQueue);
+  const blocked = await queue.listMeetingAgentJobs(mockKv(), 5, { now });
+  const expired = await queue.listMeetingAgentJobs(mockKv(), 5, {
+    now: new Date("2026-07-13T10:02:00.000Z"),
+  });
+
+  return (
+    claimed.claimMode === true &&
+    claimed.claimedJobs === 1 &&
+    claimed.returnedJobs === 1 &&
+    claimed.jobs[0].id === "job_claim_1" &&
+    claimed.jobs[0].lease?.lease_id?.startsWith("lease_") &&
+    typeof claimed.jobs[0].lease?.runner_id_hash === "string" &&
+    claimed.jobs[0].lease.runner_id_hash.length === 16 &&
+    claimed.jobs[0].lease.expires_at === "2026-07-13T10:01:00.000Z" &&
+    claimed.jobs[0].lease.attempts === 1 &&
+    storedAfterClaim[0].lease?.expires_at === "2026-07-13T10:01:00.000Z" &&
+    blocked.claimMode === false &&
+    blocked.jobs.length === 1 &&
+    blocked.jobs[0].id === "job_claim_2" &&
+    blocked.leasedQueueJobs === 1 &&
+    blocked.expiredLeaseJobs === 0 &&
+    expired.jobs.length === 2 &&
+    expired.jobs[0].id === "job_claim_1" &&
+    expired.expiredLeaseJobs === 1 &&
+    calls.get === 3 &&
+    calls.set === 1
   );
 }
 

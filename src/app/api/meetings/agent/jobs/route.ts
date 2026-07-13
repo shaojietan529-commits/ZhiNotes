@@ -99,15 +99,26 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const limit = Number(url.searchParams.get("limit") ?? "25");
+  const claimMode = url.searchParams.get("claim") === "true";
+  const runnerId =
+    url.searchParams.get("runner_id") ??
+    request.headers.get("x-zhihui-runner-id") ??
+    "";
   try {
     const queueResult = await listMeetingAgentJobs(
       config.kv,
-      Number.isFinite(limit) ? limit : 25
+      Number.isFinite(limit) ? limit : 25,
+      claimMode ? { claim: true, runnerId } : {}
     );
     return queueJson({
       ok: true,
       status: "ready",
-      nextAction: queueResult.jobs.length > 0 ? "dispatch_available_jobs" : "poll_later",
+      nextAction:
+        queueResult.claimedJobs > 0
+          ? "process_claimed_jobs"
+          : queueResult.jobs.length > 0
+            ? "dispatch_available_jobs"
+            : "poll_later",
       syncStatus: "agent_queue_index_read",
       jobs: queueResult.jobs,
       queueDepth: queueResult.queueDepth,
@@ -118,6 +129,14 @@ export async function GET(request: Request) {
       returnedJobs: queueResult.returnedJobs,
       hasMore: queueResult.hasMore,
       queueAlmostFull: queueResult.queueAlmostFull,
+      claimMode: queueResult.claimMode,
+      claimedJobs: queueResult.claimedJobs,
+      availableQueueJobs: queueResult.availableQueueJobs,
+      leasedQueueJobs: queueResult.leasedQueueJobs,
+      expiredLeaseJobs: queueResult.expiredLeaseJobs,
+      leaseDurationMs: queueResult.leaseDurationMs,
+      leaseExpiresAt: queueResult.leaseExpiresAt,
+      runnerIdEchoed: false,
       queueReceipt: queueListReceipt(queueResult),
       ...queueContinuityReceipt,
       privacy: {
@@ -126,7 +145,13 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    return meetingAgentQueueErrorResponse(error);
+    const queueWriteAttempted =
+      claimMode &&
+      !(
+        error instanceof MeetingAgentQueueFailureError &&
+        error.code === "zhihui_agent_queue_claim_runner_required"
+      );
+    return meetingAgentQueueErrorResponse(error, { queueWriteAttempted });
   }
 }
 
@@ -286,6 +311,13 @@ function queueListReceipt(queueResult: {
   returnedJobs: number;
   hasMore: boolean;
   queueAlmostFull: boolean;
+  claimMode: boolean;
+  claimedJobs: number;
+  availableQueueJobs: number;
+  leasedQueueJobs: number;
+  expiredLeaseJobs: number;
+  leaseDurationMs: number | null;
+  leaseExpiresAt: string | null;
 }) {
   return {
     ...queueReceiptBase,
@@ -304,8 +336,20 @@ function queueListReceipt(queueResult: {
     maxQueueItems: queueResult.maxQueueItems,
     availableQueueSlots: queueResult.availableQueueSlots,
     queueAlmostFull: queueResult.queueAlmostFull,
+    claimMode: queueResult.claimMode,
+    claimedJobs: queueResult.claimedJobs,
+    availableQueueJobs: queueResult.availableQueueJobs,
+    leasedQueueJobs: queueResult.leasedQueueJobs,
+    expiredLeaseJobs: queueResult.expiredLeaseJobs,
+    leaseDurationMs: queueResult.leaseDurationMs,
+    leaseExpiresAt: queueResult.leaseExpiresAt,
+    runnerIdEchoed: false,
     nextAction:
-      queueResult.returnedJobs > 0 ? "dispatch_available_jobs" : "poll_later",
+      queueResult.claimedJobs > 0
+        ? "process_claimed_jobs"
+        : queueResult.returnedJobs > 0
+          ? "dispatch_available_jobs"
+          : "poll_later",
   };
 }
 
