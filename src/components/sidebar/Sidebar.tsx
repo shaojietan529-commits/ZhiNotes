@@ -106,7 +106,7 @@ function getAccountSyncShortLabel(state: AccountCloudSyncCoordinatorState) {
     case "attention":
       return "需处理";
     case "signed-out":
-      return "未登录";
+      return "待确认";
     case "error":
       return "重试中";
     case "disabled":
@@ -777,7 +777,7 @@ export default function Sidebar() {
         : pageSync.state === "syncing"
           ? "页面同步中…"
           : pageSync.state === "signed-out"
-            ? "页面同步：未登录"
+            ? "页面同步：账号待确认"
             : pageSync.state === "disabled" && pageSync.pendingStatus.enabled
               ? "页面同步：已开启，等待后台检查"
               : pageSync.state === "disabled"
@@ -797,7 +797,7 @@ export default function Sidebar() {
         : databaseSync.state === "syncing"
           ? "数据库同步中…"
           : databaseSync.state === "signed-out"
-            ? "数据库同步：未登录"
+            ? "数据库同步：账号待确认"
             : databaseSync.state === "disabled" &&
                 databaseSync.pendingStatus.enabled
               ? "数据库同步：已开启，等待后台检查"

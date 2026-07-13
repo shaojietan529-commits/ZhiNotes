@@ -10275,6 +10275,36 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
+    'return "待确认";',
+    "Sidebar raw signed-out sync status should read as pending confirmation instead of an apparent forced logout."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "页面同步：账号待确认",
+    "Sidebar page sync tooltip should avoid saying the user is logged out when the account state is only pending confirmation."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "数据库同步：账号待确认",
+    "Sidebar database sync tooltip should avoid saying the user is logged out when the account state is only pending confirmation."
+  );
+  assertExcludes(
+    files.sidebar,
+    sidebar,
+    "页面同步：未登录",
+    "Sidebar page sync tooltip must not present temporary account uncertainty as a logout."
+  );
+  assertExcludes(
+    files.sidebar,
+    sidebar,
+    "数据库同步：未登录",
+    "Sidebar database sync tooltip must not present temporary account uncertainty as a logout."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
     'localUseReadiness.status === "cloud-uncertain"',
     "Sidebar cloud-sync control must treat temporary cloud uncertainty as local-usable state."
   );

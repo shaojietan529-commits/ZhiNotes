@@ -3603,6 +3603,11 @@ check(
     sidebar.includes('case "needs-review":') &&
     sidebar.includes('case "pending-upload":') &&
     sidebar.includes('case "cloud-uncertain":') &&
+    sidebar.includes('return "待确认";') &&
+    sidebar.includes("页面同步：账号待确认") &&
+    sidebar.includes("数据库同步：账号待确认") &&
+    !sidebar.includes("页面同步：未登录") &&
+    !sidebar.includes("数据库同步：未登录") &&
     sidebar.includes("const accountSyncToneClass = getAccountSyncToneClass(accountSync)") &&
     !sidebar.includes("const accountSyncToneClass = getAccountSyncToneClass(accountSync.state)") &&
     sidebar.includes("检查中") &&
