@@ -75,6 +75,13 @@ export type DatabaseCloudSyncState =
   | "signed-out"
   | "error";
 
+interface DatabaseCloudSyncRunOptions {
+  forceLease?: boolean;
+  forceAccountGate?: boolean;
+  quick?: boolean;
+  includeManualReview?: boolean;
+}
+
 function getRetryStateFromAccountGate(
   status: AccountCloudSyncGateStatus
 ): DatabaseCloudSyncState {
@@ -134,9 +141,8 @@ export function useDatabaseCloudSync() {
   const [pendingStatus, setPendingStatus] =
     useState<PendingCloudDatabaseSyncStatus>(EMPTY_DATABASE_PENDING_STATUS);
   const runningRef = useRef(false);
-  const rerunAfterCurrentSyncRef = useRef<
-    { forceLease?: boolean; quick?: boolean; includeManualReview?: boolean } | null
-  >(null);
+  const rerunAfterCurrentSyncRef =
+    useRef<DatabaseCloudSyncRunOptions | null>(null);
   const authRetryAfterRef = useRef(0);
   const authRetryStateRef = useRef<DatabaseCloudSyncState>("signed-out");
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
@@ -167,11 +173,7 @@ export function useDatabaseCloudSync() {
 
   const runSync = useCallback(
     async (
-      options: {
-        forceLease?: boolean;
-        quick?: boolean;
-        includeManualReview?: boolean;
-      } = {}
+      options: DatabaseCloudSyncRunOptions = {}
     ) => {
       if (!isDatabaseSyncEnabled()) {
         setState("disabled");
@@ -182,6 +184,9 @@ export function useDatabaseCloudSync() {
         const pendingRerun = rerunAfterCurrentSyncRef.current;
         rerunAfterCurrentSyncRef.current = {
           forceLease: Boolean(options.forceLease || pendingRerun?.forceLease),
+          forceAccountGate: Boolean(
+            options.forceAccountGate || pendingRerun?.forceAccountGate
+          ),
           quick: options.quick ?? pendingRerun?.quick ?? true,
           includeManualReview: Boolean(
             options.includeManualReview || pendingRerun?.includeManualReview
@@ -190,12 +195,14 @@ export function useDatabaseCloudSync() {
         void refreshPendingStatus();
         return;
       }
-      if (!options.forceLease && Date.now() < authRetryAfterRef.current) {
+      if (!options.forceAccountGate && Date.now() < authRetryAfterRef.current) {
         setState(authRetryStateRef.current);
         void refreshPendingStatus();
         return;
       }
-      const accountReady = await gateAccountSync(Boolean(options.forceLease));
+      const accountReady = await gateAccountSync(
+        Boolean(options.forceAccountGate)
+      );
       if (!accountReady) return;
       if (!claimSyncLease(options.forceLease)) {
         const last = getLastDatabaseSyncAt();
@@ -260,6 +267,7 @@ export function useDatabaseCloudSync() {
           window.setTimeout(() => {
             void runSync({
               forceLease: pendingRerun.forceLease,
+              forceAccountGate: pendingRerun.forceAccountGate,
               quick: pendingRerun.quick ?? true,
               includeManualReview: pendingRerun.includeManualReview,
             });
@@ -333,7 +341,8 @@ export function useDatabaseCloudSync() {
         void runSync({ quick: true });
       }
     }, SYNC_INTERVAL_MS);
-    const handleConfig = () => void runSync({ forceLease: true, quick: true });
+    const handleConfig = () =>
+      void runSync({ forceLease: true, forceAccountGate: true, quick: true });
     const handleVisible = () => {
       if (document.visibilityState === "visible") {
         void runSync({ forceLease: true, quick: true });
@@ -341,6 +350,9 @@ export function useDatabaseCloudSync() {
     };
     const handleForeground = () => {
       void runSync({ forceLease: true, quick: true });
+    };
+    const handleOnline = () => {
+      void runSync({ forceLease: true, forceAccountGate: true, quick: true });
     };
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
@@ -382,7 +394,7 @@ export function useDatabaseCloudSync() {
       handleLocalDatabaseUpdate
     );
     window.addEventListener("focus", handleForeground);
-    window.addEventListener("online", handleForeground);
+    window.addEventListener("online", handleOnline);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
       if (quickSyncTimer !== undefined) window.clearTimeout(quickSyncTimer);
@@ -400,7 +412,7 @@ export function useDatabaseCloudSync() {
         handleLocalDatabaseUpdate
       );
       window.removeEventListener("focus", handleForeground);
-      window.removeEventListener("online", handleForeground);
+      window.removeEventListener("online", handleOnline);
       document.removeEventListener("visibilitychange", handleVisible);
     };
   }, [dbReady, recoverLocalCacheFromCloud, refreshPendingStatus, runSync]);

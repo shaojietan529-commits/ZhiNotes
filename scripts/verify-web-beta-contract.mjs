@@ -5933,13 +5933,19 @@ function run() {
     files.pageCloudSync,
     pageCloudSync,
     "void runSync({ quick: true, forceLease: true });",
-    "Page foreground and online sync must let the visible tab take over the cloud sync lease."
+    "Page foreground sync must let the visible tab take over the cloud sync lease without forcing an account-gate retry."
   );
   assertSourceIncludes(
     files.pageCloudSync,
     pageCloudSync,
-    'window.addEventListener("online", handleForeground)',
-    "Page cloud sync must retry immediately when the network comes back online."
+    'window.addEventListener("online", handleOnline)',
+    "Page cloud sync must use a dedicated online handler when the network comes back."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "void runSync({ quick: true, forceLease: true, forceAccountGate: true });",
+    "Page online/config sync may bypass account retry backoff, while normal foreground focus only takes the lease."
   );
   assertSourceIncludes(
     files.pageCloudSync,
@@ -11717,11 +11723,15 @@ function run() {
     ],
     [
       "void runSync({ forceLease: true, quick: true });",
-      "Database foreground and online sync must let the visible tab take over the cloud sync lease.",
+      "Database foreground sync must let the visible tab take over the cloud sync lease without forcing an account-gate retry.",
     ],
     [
-      'window.addEventListener("online", handleForeground)',
-      "Database cloud sync must retry immediately when the network comes back online.",
+      'window.addEventListener("online", handleOnline)',
+      "Database cloud sync must use a dedicated online handler when the network comes back.",
+    ],
+    [
+      "void runSync({ forceLease: true, forceAccountGate: true, quick: true });",
+      "Database online/config sync may bypass account retry backoff, while normal foreground focus only takes the lease.",
     ],
     [
       'document.addEventListener("visibilitychange", handleVisible)',

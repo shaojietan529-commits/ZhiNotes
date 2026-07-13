@@ -2021,11 +2021,13 @@ const databaseCloudSyncHook = read("src/hooks/useDatabaseCloudSync.ts");
 check(
   pageCloudSyncHook.includes("checkAccountCloudSyncGate") &&
     pageCloudSyncHook.includes("gateAccountSync") &&
-    pageCloudSyncHook.includes("const accountReady = await gateAccountSync(Boolean(options.forceLease))") &&
+    pageCloudSyncHook.includes("forceAccountGate?: boolean") &&
+    pageCloudSyncHook.includes("const accountReady = await gateAccountSync(Boolean(options.forceAccountGate))") &&
     databaseCloudSyncHook.includes("checkAccountCloudSyncGate") &&
     databaseCloudSyncHook.includes("gateAccountSync") &&
-    databaseCloudSyncHook.includes("const accountReady = await gateAccountSync(Boolean(options.forceLease))"),
-  "页面/数据库后台云同步应先共享账号 gate，再访问具体 account-sync 接口，避免未配置或未登录时重复空转"
+    databaseCloudSyncHook.includes("forceAccountGate?: boolean") &&
+    databaseCloudSyncHook.includes("Boolean(options.forceAccountGate)"),
+  "页面/数据库后台云同步应先共享账号 gate，再访问具体 account-sync 接口；租约接管和账号强制检查必须分开，避免前台切换时重复空转"
 );
 check(
   (pageCloudSyncHook.match(/runSync\(\{ quick: true \}/g) ?? []).length >= 4,
@@ -2044,12 +2046,23 @@ check(
 );
 check(
   pageCloudSyncHook.includes("window.addEventListener(\"focus\", handleForeground)") &&
-    pageCloudSyncHook.includes("window.addEventListener(\"online\", handleForeground)"),
-  "页面云同步 hook 的聚焦和联网恢复应使用增量前台同步"
+    pageCloudSyncHook.includes("window.addEventListener(\"online\", handleOnline)"),
+  "页面云同步 hook 的聚焦和联网恢复应使用增量同步，但联网恢复应走独立 handler 以便显式确认账号"
 );
 check(
-  pageCloudSyncHook.includes("handleConfig = () => void runSync({ quick: true, forceLease: true })"),
+  pageCloudSyncHook.includes("handleConfig = () =>") &&
+    pageCloudSyncHook.includes(
+      "void runSync({ quick: true, forceLease: true, forceAccountGate: true });"
+    ),
   "页面同步配置变化也应走 quick 增量；完整校验应只保留给账户页手动同步"
+);
+check(
+  pageCloudSyncHook.includes("!options.forceAccountGate && Date.now() < authRetryAfterRef.current") &&
+    pageCloudSyncHook.includes("window.addEventListener(\"online\", handleOnline)") &&
+    pageCloudSyncHook.includes("window.addEventListener(\"focus\", handleForeground)") &&
+    pageCloudSyncHook.includes("window.removeEventListener(\"online\", handleOnline)") &&
+    pageCloudSyncHook.includes("void runSync({ quick: true, forceLease: true });"),
+  "页面同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化才强制重新确认账号"
 );
 check(
   pageCloudSyncHook.includes("localStorage is only a cross-tab coordination cache") &&
@@ -2164,6 +2177,17 @@ check(
       'result.status === "unconfigured") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";'
     ),
   "数据库同步应短期退避；只有共享账号 gate 明确 signed-out 才能显示未登录，具体同步接口认证失败必须显示成云端暂不可确认，避免误导用户以为账号掉线"
+);
+check(
+  databaseCloudSyncHook.includes("!options.forceAccountGate && Date.now() < authRetryAfterRef.current") &&
+    databaseCloudSyncHook.includes("window.addEventListener(\"online\", handleOnline)") &&
+    databaseCloudSyncHook.includes("window.addEventListener(\"focus\", handleForeground)") &&
+    databaseCloudSyncHook.includes("window.removeEventListener(\"online\", handleOnline)") &&
+    databaseCloudSyncHook.includes("void runSync({ forceLease: true, quick: true });") &&
+    databaseCloudSyncHook.includes(
+      "void runSync({ forceLease: true, forceAccountGate: true, quick: true });"
+    ),
+  "数据库同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化才强制重新确认账号"
 );
 check(
   databaseCloudSyncHook.includes("DATABASE_SYNC_STATUS_EVENT") &&

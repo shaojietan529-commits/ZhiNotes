@@ -10059,13 +10059,19 @@ function run() {
     files.pageCloudSync,
     pageCloudSync,
     "void runSync({ quick: true, forceLease: true });",
-    "Page foreground and online sync must let the visible tab take over the cloud sync lease."
+    "Page foreground sync must let the visible tab take over the cloud sync lease without forcing an account-gate retry."
   );
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
-    'window.addEventListener("online", handleForeground)',
-    "Page cloud sync must retry immediately when the network comes back online."
+    'window.addEventListener("online", handleOnline)',
+    "Page cloud sync must use a dedicated online handler when the network comes back."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "void runSync({ quick: true, forceLease: true, forceAccountGate: true });",
+    "Page online/config sync may bypass account retry backoff, while normal foreground focus only takes the lease."
   );
   assertIncludes(
     files.pageCloudSync,
@@ -14787,13 +14793,19 @@ function run() {
     files.databaseCloudSync,
     databaseCloudSync,
     "void runSync({ forceLease: true, quick: true });",
-    "Database foreground and online sync must let the visible tab take over the cloud sync lease."
+    "Database foreground sync must let the visible tab take over the cloud sync lease without forcing an account-gate retry."
   );
   assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
-    'window.addEventListener("online", handleForeground)',
-    "Database cloud sync must retry immediately when the network comes back online."
+    'window.addEventListener("online", handleOnline)',
+    "Database cloud sync must use a dedicated online handler when the network comes back."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "void runSync({ forceLease: true, forceAccountGate: true, quick: true });",
+    "Database online/config sync may bypass account retry backoff, while normal foreground focus only takes the lease."
   );
   assertIncludes(
     files.databaseCloudSync,

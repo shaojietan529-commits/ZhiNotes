@@ -77,6 +77,13 @@ export type PageCloudSyncState =
   | "signed-out"
   | "error";
 
+interface PageCloudSyncRunOptions {
+  quick?: boolean;
+  forceLease?: boolean;
+  forceAccountGate?: boolean;
+  includeManualReview?: boolean;
+}
+
 function getRetryStateFromAccountGate(
   status: AccountCloudSyncGateStatus
 ): PageCloudSyncState {
@@ -135,9 +142,8 @@ export function usePageCloudSync() {
     EMPTY_PAGE_PENDING_STATUS
   );
   const runningRef = useRef(false);
-  const rerunAfterCurrentSyncRef = useRef<
-    { quick?: boolean; forceLease?: boolean; includeManualReview?: boolean } | null
-  >(null);
+  const rerunAfterCurrentSyncRef =
+    useRef<PageCloudSyncRunOptions | null>(null);
   const authRetryAfterRef = useRef(0);
   const authRetryStateRef = useRef<PageCloudSyncState>("signed-out");
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
@@ -166,7 +172,7 @@ export function usePageCloudSync() {
     return false;
   }, [refreshPendingStatus]);
 
-  const runSync = useCallback(async (options: { quick?: boolean; forceLease?: boolean; includeManualReview?: boolean } = {}) => {
+  const runSync = useCallback(async (options: PageCloudSyncRunOptions = {}) => {
     if (!isPageSyncEnabled()) {
       setState("disabled");
       refreshPendingStatus();
@@ -177,6 +183,9 @@ export function usePageCloudSync() {
       rerunAfterCurrentSyncRef.current = {
         quick: options.quick ?? pendingRerun?.quick ?? true,
         forceLease: Boolean(options.forceLease || pendingRerun?.forceLease),
+        forceAccountGate: Boolean(
+          options.forceAccountGate || pendingRerun?.forceAccountGate
+        ),
         includeManualReview: Boolean(
           options.includeManualReview || pendingRerun?.includeManualReview
         ),
@@ -184,12 +193,12 @@ export function usePageCloudSync() {
       refreshPendingStatus();
       return;
     }
-    if (!options.forceLease && Date.now() < authRetryAfterRef.current) {
+    if (!options.forceAccountGate && Date.now() < authRetryAfterRef.current) {
       setState(authRetryStateRef.current);
       refreshPendingStatus();
       return;
     }
-    const accountReady = await gateAccountSync(Boolean(options.forceLease));
+    const accountReady = await gateAccountSync(Boolean(options.forceAccountGate));
     if (!accountReady) return;
     if (!claimSyncLease(options.forceLease)) {
       const last = getLastPageSyncAt();
@@ -246,6 +255,7 @@ export function usePageCloudSync() {
           void runSync({
             quick: pendingRerun.quick ?? true,
             forceLease: pendingRerun.forceLease,
+            forceAccountGate: pendingRerun.forceAccountGate,
             includeManualReview: pendingRerun.includeManualReview,
           });
         }, 0);
@@ -319,7 +329,8 @@ export function usePageCloudSync() {
         void runSync({ quick: true });
       }
     }, SYNC_INTERVAL_MS);
-    const handleConfig = () => void runSync({ quick: true, forceLease: true });
+    const handleConfig = () =>
+      void runSync({ quick: true, forceLease: true, forceAccountGate: true });
     // Switching back to a tab (the user's two-domain workflow) pulls the
     // latest immediately. The visible tab takes over the short lease instead
     // of waiting for a hidden tab's lease to expire.
@@ -330,6 +341,9 @@ export function usePageCloudSync() {
     };
     const handleForeground = () => {
       void runSync({ quick: true, forceLease: true });
+    };
+    const handleOnline = () => {
+      void runSync({ quick: true, forceLease: true, forceAccountGate: true });
     };
     const handleLocalPageUpdate = (event: Event) => {
       const message = (event as CustomEvent<PageUpdateMessage>).detail;
@@ -374,7 +388,7 @@ export function usePageCloudSync() {
     window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
     window.addEventListener("storage", handleLocalCacheRecoveryStorage);
     window.addEventListener("focus", handleForeground);
-    window.addEventListener("online", handleForeground);
+    window.addEventListener("online", handleOnline);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
       if (editSyncTimer !== undefined) window.clearTimeout(editSyncTimer);
@@ -392,7 +406,7 @@ export function usePageCloudSync() {
       );
       window.removeEventListener("storage", handleLocalCacheRecoveryStorage);
       window.removeEventListener("focus", handleForeground);
-      window.removeEventListener("online", handleForeground);
+      window.removeEventListener("online", handleOnline);
       document.removeEventListener("visibilitychange", handleVisible);
     };
   }, [dbReady, recoverLocalCacheFromCloud, refreshPendingStatus, runSync]);
