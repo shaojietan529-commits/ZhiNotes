@@ -20,6 +20,11 @@ const glossaryFailureBoundary = {
   highRiskWriteGated: true,
 };
 
+type GlossaryFailureNextAction =
+  | "configure_environment"
+  | "check_agent_token"
+  | "retry";
+
 function glossaryJson(body: unknown, init?: ResponseInit) {
   const response = NextResponse.json(body, init);
   response.headers.set("Cache-Control", "no-store, max-age=0");
@@ -81,7 +86,7 @@ function glossaryFailurePayload({
   code: string;
   error: string;
   retryable: boolean;
-  nextAction: "configure_environment" | "check_agent_token" | "retry";
+  nextAction: GlossaryFailureNextAction;
   details?: Record<string, unknown> | null;
 }) {
   return {
@@ -108,6 +113,7 @@ function glossaryFailurePayload({
     manualReviewRequired: false,
     requiresUserConfirmation: false,
     nextAction,
+    ...glossaryFailureRecoveryFields({ retryable, nextAction }),
     privacy: {
       raw_page_text_returned: false,
       raw_meeting_credentials_returned: false,
@@ -115,4 +121,34 @@ function glossaryFailurePayload({
     },
     ...glossaryFailureBoundary,
   };
+}
+
+function glossaryFailureRecoveryFields({
+  retryable,
+  nextAction,
+}: {
+  retryable: boolean;
+  nextAction: GlossaryFailureNextAction;
+}) {
+  return {
+    glossaryRecoveryRequired: true,
+    glossaryRecoveryStatus: glossaryFailureRecoveryStatus({
+      retryable,
+      nextAction,
+    }),
+    glossaryRecoveryNextAction: nextAction,
+  };
+}
+
+function glossaryFailureRecoveryStatus({
+  retryable,
+  nextAction,
+}: {
+  retryable: boolean;
+  nextAction: GlossaryFailureNextAction;
+}) {
+  if (retryable) return "retry_later";
+  if (nextAction === "configure_environment") return "configuration_required";
+  if (nextAction === "check_agent_token") return "agent_token_required";
+  return "failed_not_started";
 }

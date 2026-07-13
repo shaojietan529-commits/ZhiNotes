@@ -1089,7 +1089,10 @@ Current local actions:
   `cacheRefreshBlockedBy`. Failure receipts keep the same local-use/cache safety
   fields with `termsReturned: false`, so a glossary fetch/config/token problem
   can be shown as a retry/configuration issue without blocking local writing,
-  page sync, or calendar cache refresh.
+  page sync, or calendar cache refresh. Failure receipts also expose
+  `glossaryRecoveryRequired`, `glossaryRecoveryStatus`, and
+  `glossaryRecoveryNextAction`, distinguishing retryable fetch issues from
+  missing environment configuration or an invalid agent token.
 - ZhiHui meeting invite intake responses mirror parse status and receipt timing
   at the top level (`parseStatus`, `fetchedPageReadStatus`, `warningCount`,
   `confidence`, `receiptStaleAfter`) and mark `pendingWriteCount: 0`,
