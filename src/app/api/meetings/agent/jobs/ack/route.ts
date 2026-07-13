@@ -172,6 +172,7 @@ export async function POST(request: Request) {
     const ackSyncStatus = hasUnconfirmedJobs
       ? "agent_queue_ack_partial_manual_review"
       : "agent_queue_acknowledged";
+    const ackWriteStatus = ackQueueWriteStatus(acknowledgedCount);
     const ackHealth = queueAckHealth({
       queueAlmostFull: ackResult.queueAlmostFull,
       hasUnconfirmedJobs,
@@ -189,6 +190,7 @@ export async function POST(request: Request) {
     });
     return ackJson({
       ok: true,
+      operation: "ack",
       acknowledged: ackResult.acknowledged,
       missing: ackResult.missing,
       leaseMismatched: ackResult.leaseMismatched,
@@ -209,6 +211,8 @@ export async function POST(request: Request) {
         hasUnconfirmedJobs
           ? "acknowledged_existing_jobs_with_missing_or_lease_mismatched_ids"
           : "acknowledged_existing_jobs",
+      queueReadStatus: "completed",
+      queueWriteStatus: ackWriteStatus,
       ackContract: "lease_aware",
       manualReviewRequired: hasUnconfirmedJobs,
       manualReviewJobCount: unconfirmedJobCount,
@@ -657,12 +661,14 @@ function ackFailurePayload({
 
   return {
     ok: false,
+    operation: "ack_failure",
     code,
     error,
     message: message ?? error,
     retryable,
     details,
     syncStatus,
+    queueReadStatus: queueWriteAttempted ? "unknown" : "not_started",
     queueWriteStatus,
     queueWriteAttempted,
     partialQueueWritePossible,
@@ -763,6 +769,7 @@ function queueAckReceipt(
   const ackSyncStatus = hasPreservedJobs
     ? "agent_queue_ack_partial_manual_review"
     : "agent_queue_acknowledged";
+  const ackWriteStatus = ackQueueWriteStatus(acknowledgedCount);
   return {
     ...ackReceiptBase,
     ...buildMeetingAgentQueueReceiptTiming({
@@ -775,8 +782,7 @@ function queueAckReceipt(
     ackCompletionStatus,
     syncStatus: ackSyncStatus,
     queueReadStatus: "completed",
-    queueWriteStatus:
-      acknowledgedCount > 0 ? "completed" : "not_needed_no_matching_jobs",
+    queueWriteStatus: ackWriteStatus,
     requestedAckCount,
     requestedLeaseCount,
     acknowledgedCount,
@@ -806,6 +812,10 @@ function queueAckReceipt(
         ? "review_missing_or_lease_mismatched_jobs"
         : "poll_for_next_jobs",
   };
+}
+
+function ackQueueWriteStatus(acknowledgedCount: number) {
+  return acknowledgedCount > 0 ? "completed" : "not_needed_no_matching_jobs";
 }
 
 function queueAckHealth({
