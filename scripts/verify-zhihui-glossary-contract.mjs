@@ -81,6 +81,9 @@ for (const token of [
   "code: error.code",
   "retryable: error.retryable",
   "details: error.details",
+  "failureStatus: manualReviewRequired",
+  "manualReviewRequired",
+  "nextAction: manualReviewRequired",
 ]) {
   check(jobsRoute.includes(token), `jobs route 缺少 ${token}`);
 }
@@ -92,6 +95,10 @@ for (const token of [
   "localUseCanContinue: true",
   "localMeetingDataUnaffected: true",
   "rawMeetingContentEchoed: false",
+  "\"manual_review\"",
+  "\"failed_retryable\"",
+  "\"failed_final\"",
+  "\"fix_input_or_configuration\"",
 ]) {
   check(jobsRoute.includes(token), `jobs route 结构化失败响应缺少 ${token}`);
 }
@@ -123,6 +130,9 @@ for (const token of [
   "code: error.code",
   "retryable: error.retryable",
   "details: error.details",
+  "failureStatus: manualReviewRequired",
+  "manualReviewRequired",
+  "nextAction: manualReviewRequired",
 ]) {
   check(ackRoute.includes(token), `jobs ack route 缺少 ${token}`);
 }
@@ -135,6 +145,10 @@ for (const token of [
   "localMeetingDataUnaffected: true",
   "rawMeetingContentEchoed: false",
   "unconfirmedJobsPreserved: true",
+  "\"manual_review\"",
+  "\"failed_retryable\"",
+  "\"failed_final\"",
+  "\"fix_input_or_configuration\"",
 ]) {
   check(ackRoute.includes(token), `jobs ack route 结构化失败响应缺少 ${token}`);
 }

@@ -240,6 +240,7 @@ function queueFailurePayload({
   retryable: boolean;
   details?: Record<string, unknown> | null;
 }) {
+  const manualReviewRequired = details?.manual_review_required === true;
   return {
     ok: false,
     code,
@@ -247,6 +248,17 @@ function queueFailurePayload({
     message: message ?? error,
     retryable,
     details,
+    failureStatus: manualReviewRequired
+      ? "manual_review"
+      : retryable
+        ? "failed_retryable"
+        : "failed_final",
+    manualReviewRequired,
+    nextAction: manualReviewRequired
+      ? "manual_review"
+      : retryable
+        ? "retry"
+        : "fix_input_or_configuration",
     ...queueFailureBoundary,
   };
 }
