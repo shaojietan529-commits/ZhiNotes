@@ -11433,6 +11433,18 @@ function run() {
       "Meeting opening draft fallback must use one local-first full-page escape path.",
     ],
     [
+      "const scheduleMeetingCreatePeekReadyFallback = useCallback",
+      "Meeting creation must schedule an automatic full-page fallback when the peek shell does not become ready.",
+    ],
+    [
+      "MEETING_PEEK_CREATE_READY_RETRY_MS",
+      "Meeting create peek fallback must use a bounded retry window instead of waiting indefinitely.",
+    ],
+    [
+      "window.location.pathname.startsWith(\"/schedule\")",
+      "Meeting create peek fallback must not navigate away after the user has already left the schedule route.",
+    ],
+    [
       "current?.pageId === pageId ? null : current",
       "Meeting opening feedback must clear from the ready page id, not from background persistence timing.",
     ],
@@ -11443,6 +11455,10 @@ function run() {
     [
       'data-testid="meeting-opening-draft-toast"',
       "Meeting creation must show a viewport-fixed opening toast when the user clicks + from a scrolled calendar.",
+    ],
+    [
+      "已自动打开完整会议页",
+      "Meeting create must tell the user when the slow peek path falls back to the full page automatically.",
     ],
     [
       "openingMeetingId === entry.page.id",

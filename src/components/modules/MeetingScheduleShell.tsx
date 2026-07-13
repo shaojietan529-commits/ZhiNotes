@@ -140,6 +140,7 @@ const MEETING_CALENDAR_HYDRATION_BATCH = 7;
 const MEETING_CALENDAR_HYDRATION_FRAME_DELAY_MS = 32;
 const MEETING_PEEK_EDITOR_WARMUP_DELAY_MS = 1600;
 const MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2000;
+const MEETING_PEEK_CREATE_READY_RETRY_MS = 900;
 const MEETING_INTAKE_TIMEOUT_MS = 8000;
 const MEETING_AGENT_QUEUE_TIMEOUT_MS = 12000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
@@ -437,6 +438,7 @@ export default function MeetingScheduleShell() {
   const creatingMeetingDateKeyRef = useRef<string | null>(null);
   const [openingDraft, setOpeningDraft] =
     useState<OpeningMeetingDraft | null>(null);
+  const openingDraftRef = useRef<OpeningMeetingDraft | null>(null);
   const { viewMonth, setViewMonth } =
     useCalendarViewMonthPreference("meeting");
   const {
@@ -518,6 +520,10 @@ export default function MeetingScheduleShell() {
   useEffect(() => {
     meetingsRef.current = meetings;
   }, [meetings]);
+
+  useEffect(() => {
+    openingDraftRef.current = openingDraft;
+  }, [openingDraft]);
 
   const markMeetingForegroundInteraction = useCallback(
     (durationMs = MEETING_FOREGROUND_QUIET_WINDOW_MS) => {
@@ -2185,6 +2191,27 @@ export default function MeetingScheduleShell() {
     [publishCalendarStatus, router, upsertPages, warmMeetingPeekOpen]
   );
 
+  const scheduleMeetingCreatePeekReadyFallback = useCallback(
+    (page: Page, dateKey: string) => {
+      window.setTimeout(() => {
+        if (!window.location.pathname.startsWith("/schedule")) return;
+        const currentOpeningDraft = openingDraftRef.current;
+        if (
+          currentOpeningDraft?.pageId !== page.id ||
+          currentOpeningDraft.dateKey !== dateKey
+        ) {
+          return;
+        }
+        const seededPage = prepareMeetingPageOpen(page, "meeting-create");
+        openPage(seededPage, { source: "meeting-create" });
+        setIntakeMessage(
+          `${dateKey} 的会议弹窗准备较慢，已自动打开完整会议页。`
+        );
+      }, MEETING_PEEK_CREATE_READY_RETRY_MS);
+    },
+    [openPage, prepareMeetingPageOpen]
+  );
+
   const openCreatedMeetingPage = useCallback(
     (page: Page) => {
       markMeetingForegroundInteraction();
@@ -2194,8 +2221,16 @@ export default function MeetingScheduleShell() {
       setPeekInitialPage(seededPage);
       setOpeningMeetingId(seededPage.id);
       setPeekPageId(seededPage.id);
+      const dateKey = toMeetingEntry(seededPage).dateKey;
+      if (dateKey) {
+        scheduleMeetingCreatePeekReadyFallback(seededPage, dateKey);
+      }
     },
-    [markMeetingForegroundInteraction, prepareMeetingPageOpen]
+    [
+      markMeetingForegroundInteraction,
+      prepareMeetingPageOpen,
+      scheduleMeetingCreatePeekReadyFallback,
+    ]
   );
 
   const handlePeekReady = useCallback((pageId: string) => {
@@ -5042,7 +5077,7 @@ function MeetingOpeningDraftBanner({
         {dateKey} 的会议页面已创建，弹窗正在准备。
       </span>
       <span className="text-amber-600 dark:text-amber-400">
-        日历和云端同步会在后台继续。
+        如果弹窗没有立刻准备完成，系统会自动打开完整会议页。日历和云端同步会在后台继续。
       </span>
       <button
         type="button"
@@ -5079,7 +5114,7 @@ function MeetingOpeningDraftToast({
       >
         <div className="font-medium">{dateKey} 的会议页面已在本机创建。</div>
         <div className="mt-1 text-amber-600 dark:text-amber-400">
-          弹窗正在准备，日历和云端同步会在后台继续。
+          弹窗正在准备；如果没有立刻准备完成，系统会自动打开完整会议页。日历和云端同步会在后台继续。
         </div>
         <div className="mt-2 flex gap-2">
           <button
