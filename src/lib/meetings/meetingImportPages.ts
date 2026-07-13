@@ -110,6 +110,10 @@ export interface MeetingImportResult {
     changeLogEntries: number;
     previousCursor: string;
     nextCursor: string;
+    dailyCalendarVisible: true;
+    meetingCalendarVisible: true;
+    requiresMetadataRefresh: true;
+    metadataRefreshReason: "meeting-import-change-log";
   };
 }
 
@@ -261,6 +265,10 @@ export async function importMeetingArtifactToPages(
       changeLogEntries,
       previousCursor: previousSummary.cursor,
       nextCursor: nextSummary.cursor,
+      dailyCalendarVisible: true,
+      meetingCalendarVisible: true,
+      requiresMetadataRefresh: true,
+      metadataRefreshReason: "meeting-import-change-log",
     },
   };
 }

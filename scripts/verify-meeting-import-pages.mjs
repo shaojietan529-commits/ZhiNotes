@@ -102,6 +102,13 @@ expect(result.calendar.changedPageIds.length === 5, "calendar receipt should inc
 expect(result.calendar.changeLogEntries === result.calendar.changedPageIds.length, "calendar receipt should report every change-log entry");
 expect(result.calendar.previousCursor === "", "first import should start from an empty previous cursor");
 expect(Boolean(result.calendar.nextCursor), "calendar receipt should expose the next change cursor");
+expect(result.calendar.dailyCalendarVisible === true, "calendar receipt should state the daily calendar is visible after import");
+expect(result.calendar.meetingCalendarVisible === true, "calendar receipt should state the ZhiHui meeting calendar is visible after import");
+expect(result.calendar.requiresMetadataRefresh === true, "calendar receipt should require a metadata refresh after import");
+expect(
+  result.calendar.metadataRefreshReason === "meeting-import-change-log",
+  "calendar receipt should explain that visibility is driven by the meeting import change log"
+);
 
 for (const id of result.calendar.changedPageIds) {
   expect(Boolean(index?.[id]), `changed page ${id} should be present in the page index`);
@@ -298,6 +305,10 @@ console.log(
       calendar_date_key: result.calendar.dateKey,
       affected_calendars: result.calendar.affectedCalendars,
       metadata_actions: result.calendar.metadataActions,
+      daily_calendar_visible: result.calendar.dailyCalendarVisible,
+      meeting_calendar_visible: result.calendar.meetingCalendarVisible,
+      metadata_refresh_required: result.calendar.requiresMetadataRefresh,
+      metadata_refresh_reason: result.calendar.metadataRefreshReason,
       calendar_recognizable_page_records: true,
       structured_failure_contract: true,
       corrupt_index_manual_review: corruptIndexManualReview,
