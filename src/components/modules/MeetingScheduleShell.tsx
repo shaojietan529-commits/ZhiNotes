@@ -148,8 +148,8 @@ const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
 const MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS = 2000;
 const MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 3400;
-const MEETING_FOREGROUND_QUIET_WINDOW_MS = 1800;
-const MEETING_FOREGROUND_REFRESH_MAX_DELAY_MS = 2600;
+const MEETING_FOREGROUND_QUIET_WINDOW_MS = 3200;
+const MEETING_FOREGROUND_REFRESH_MAX_DELAY_MS = 3600;
 const MEETING_CLOUD_CACHE_FRESH_MS = 24 * 60 * 60 * 1000;
 const MEETING_CLOUD_CACHE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -2723,7 +2723,7 @@ export default function MeetingScheduleShell() {
 
   const openMeetingFullPage = useCallback(
     (page: Page, source: "meeting-create" | "meeting-open" = "meeting-open") => {
-      markMeetingForegroundInteraction(1200);
+      markMeetingForegroundInteraction();
       page = prepareMeetingPageOpen(page, source);
       openPage(page, { source });
     },

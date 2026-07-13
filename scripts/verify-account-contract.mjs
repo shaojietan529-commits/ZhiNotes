@@ -1647,7 +1647,8 @@ check(
     meetingScheduleShell.includes("MEETING_LOCAL_METADATA_REFRESH_DELAY_MS") &&
     meetingScheduleShell.includes("MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS") &&
     meetingScheduleShell.includes("MEETING_CLOUD_METADATA_RECHECK_DELAY_MS") &&
-    meetingScheduleShell.includes("MEETING_FOREGROUND_QUIET_WINDOW_MS") &&
+    meetingScheduleShell.includes("MEETING_FOREGROUND_QUIET_WINDOW_MS = 3200") &&
+    meetingScheduleShell.includes("MEETING_FOREGROUND_REFRESH_MAX_DELAY_MS = 3600") &&
     meetingScheduleShell.includes("foregroundQuietUntilRef") &&
     meetingScheduleShell.includes("markMeetingForegroundInteraction();") &&
     meetingScheduleShell.includes("scheduleMeetingForegroundAwareRefresh") &&

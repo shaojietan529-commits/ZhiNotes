@@ -23861,7 +23861,8 @@ function run() {
     "Meeting calendar background persistence must not trigger global page refreshes."
   );
   for (const snippet of [
-    "MEETING_FOREGROUND_QUIET_WINDOW_MS",
+    "MEETING_FOREGROUND_QUIET_WINDOW_MS = 3200",
+    "MEETING_FOREGROUND_REFRESH_MAX_DELAY_MS = 3600",
     "foregroundQuietUntilRef",
     "markMeetingForegroundInteraction();",
     "scheduleMeetingForegroundAwareRefresh",

@@ -1654,7 +1654,8 @@ check(
     shells.schedule.includes("pendingOptimisticHotCacheWritesRef.current.clear();") &&
     shells.schedule.includes("scheduleMeetingIdleTask(() => {") &&
     shells.schedule.includes("writeOptimisticMeetingHotCache(page, rootHint);") &&
-    shells.schedule.includes("MEETING_FOREGROUND_QUIET_WINDOW_MS") &&
+    shells.schedule.includes("MEETING_FOREGROUND_QUIET_WINDOW_MS = 3200") &&
+    shells.schedule.includes("MEETING_FOREGROUND_REFRESH_MAX_DELAY_MS = 3600") &&
     shells.schedule.includes("scheduleMeetingForegroundAwareRefresh") &&
     shells.schedule.includes("window.setTimeout(runWhenQuiet, foregroundDelay)") &&
     shells.schedule.includes('const seededPage = prepareMeetingPageOpen(page, "meeting-create");\n      setSelectedMeeting(null);\n      setRunNowMessage("");\n      setPeekInitialPage(seededPage);') &&
