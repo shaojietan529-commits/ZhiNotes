@@ -122,6 +122,7 @@ export async function GET(request: Request) {
     });
     return queueJson({
       ok: true,
+      operation: "list",
       status: "ready",
       nextAction:
         queueResult.claimedJobs > 0
@@ -130,6 +131,9 @@ export async function GET(request: Request) {
             ? "dispatch_available_jobs"
             : "poll_later",
       syncStatus: "agent_queue_index_read",
+      queueAction: queueListAction(queueResult),
+      queueReadStatus: "completed",
+      queueWriteStatus: queueListWriteStatus(queueResult),
       jobs: queueResult.jobs,
       queueDepth: queueResult.queueDepth,
       maxQueueItems: queueResult.maxQueueItems,
@@ -419,9 +423,9 @@ function queueListReceipt(
       pollMode: queueResult.returnedJobs > 0 ? "active" : "idle",
     }),
     operation: "list",
-    queueAction: "read_available_jobs",
+    queueAction: queueListAction(queueResult),
     queueReadStatus: "completed",
-    queueWriteStatus: "not_started",
+    queueWriteStatus: queueListWriteStatus(queueResult),
     requestedLimit: queueResult.requestedLimit,
     effectiveLimit: queueResult.effectiveLimit,
     returnedJobs: queueResult.returnedJobs,
@@ -458,6 +462,17 @@ function queueListReceipt(
           ? "dispatch_available_jobs"
           : "poll_later",
   };
+}
+
+function queueListAction(queueResult: QueueListReceiptInput) {
+  return queueResult.claimMode ? "claim_available_jobs" : "read_available_jobs";
+}
+
+function queueListWriteStatus(queueResult: QueueListReceiptInput) {
+  if (!queueResult.claimMode) return "not_started";
+  return queueResult.claimedJobs > 0
+    ? "lease_claim_completed"
+    : "not_needed_no_available_jobs";
 }
 
 function queueEnqueueReceipt(
