@@ -115,6 +115,19 @@ function intakeReviewCacheRefreshFields() {
   };
 }
 
+function intakeSuccessStatusFields() {
+  return {
+    operation: "parse_meeting_invite",
+    intakeCompletionStatus: "parsed_pending_review",
+    calendarMutationStatus: "not_started_requires_user_confirmation",
+    calendarVisibilityStatus: "not_visible_until_saved",
+    localReviewStatus: "required",
+    cloudWriteAttempted: false,
+    calendarWriteAttempted: false,
+    highRiskActionStatus: "gated_user_confirmation_required",
+  };
+}
+
 function intakeFailureVisibilityFields({
   retryable,
   manualReviewRequired,
@@ -135,6 +148,31 @@ function intakeFailureVisibilityFields({
       retryable,
       manualReviewRequired,
     }),
+  };
+}
+
+function intakeFailureStatusFields({
+  retryable,
+  manualReviewRequired,
+}: {
+  retryable: boolean;
+  manualReviewRequired: boolean;
+}) {
+  return {
+    operation: "parse_meeting_invite",
+    intakeCompletionStatus: manualReviewRequired
+      ? "manual_review_required"
+      : retryable
+        ? "failed_retryable"
+        : "failed_final",
+    calendarMutationStatus: "not_started",
+    calendarVisibilityStatus: "not_visible_intake_failed",
+    localReviewStatus: manualReviewRequired
+      ? "manual_review_required"
+      : "not_started",
+    cloudWriteAttempted: false,
+    calendarWriteAttempted: false,
+    highRiskActionStatus: "gated_user_confirmation_required",
   };
 }
 
@@ -255,6 +293,7 @@ export async function POST(req: Request) {
 
   return intakeJson({
     ok: true,
+    ...intakeSuccessStatusFields(),
     meeting: parsed.meeting,
     fetched: Boolean(fetched),
     status: "parsed",
@@ -310,8 +349,13 @@ function intakeFailurePayload({
     retryable,
     manualReviewRequired,
   });
+  const statusFields = intakeFailureStatusFields({
+    retryable,
+    manualReviewRequired,
+  });
   return {
     ok: false,
+    ...statusFields,
     code,
     error,
     retryable,
@@ -358,6 +402,7 @@ function intakeSuccessReceipt({
   return {
     ...intakeReceiptBase,
     ...intakeReceiptFreshness(),
+    ...intakeSuccessStatusFields(),
     parseStatus: "completed",
     syncStatus: "local_review_required",
     fetchedPageReadStatus: fetched
@@ -387,6 +432,7 @@ function intakeFailureReceipt({
   return {
     ...intakeReceiptBase,
     ...intakeReceiptFreshness(),
+    ...intakeFailureStatusFields({ retryable, manualReviewRequired }),
     parseStatus: manualReviewRequired
       ? "manual_review_required"
       : retryable

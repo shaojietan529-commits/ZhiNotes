@@ -541,7 +541,9 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("function intakeReceiptTimingFields") &&
         source.includes("function intakeReviewVisibilityFields") &&
         source.includes("function intakeReviewCacheRefreshFields") &&
+        source.includes("function intakeSuccessStatusFields") &&
         source.includes("function intakeFailureVisibilityFields") &&
+        source.includes("function intakeFailureStatusFields") &&
         source.includes("function intakeFailureSyncCenterStatus") &&
         source.includes("function intakeFailureCacheRefreshFields") &&
         source.includes("function intakeFailureCacheRefreshStatus") &&
@@ -558,6 +560,15 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("schema: \"zhinote.zhihui.intake.receipt.v1\"") &&
         source.includes("function intakeSuccessReceipt") &&
         source.includes("ok: true") &&
+        source.includes("operation: \"parse_meeting_invite\"") &&
+        source.includes("intakeCompletionStatus: \"parsed_pending_review\"") &&
+        source.includes("calendarMutationStatus: \"not_started_requires_user_confirmation\"") &&
+        source.includes("calendarVisibilityStatus: \"not_visible_until_saved\"") &&
+        source.includes("localReviewStatus: \"required\"") &&
+        source.includes("cloudWriteAttempted: false") &&
+        source.includes("calendarWriteAttempted: false") &&
+        source.includes("highRiskActionStatus: \"gated_user_confirmation_required\"") &&
+        source.includes("...intakeSuccessStatusFields()") &&
         source.includes("status: \"parsed\"") &&
         source.includes("nextAction: \"review_and_save_to_calendar\"") &&
         source.includes("syncStatus: \"local_review_required\"") &&
@@ -612,6 +623,13 @@ function verifyIntakeRouteContract(source, requestBody) {
         source.includes("function intakeFailurePayload") &&
         source.includes("function intakeFailureReceipt") &&
         source.includes("ok: false") &&
+        source.includes("const statusFields = intakeFailureStatusFields") &&
+        source.includes("...statusFields") &&
+        source.includes("intakeCompletionStatus: manualReviewRequired") &&
+        source.includes("calendarMutationStatus: \"not_started\"") &&
+        source.includes("calendarVisibilityStatus: \"not_visible_intake_failed\"") &&
+        source.includes("localReviewStatus: manualReviewRequired") &&
+        source.includes("...intakeFailureStatusFields({ retryable, manualReviewRequired })") &&
         source.includes('source: "zhihui-meeting-intake"') &&
         source.includes("accountSessionUnaffected: true") &&
         source.includes("localUseCanContinue: true") &&
