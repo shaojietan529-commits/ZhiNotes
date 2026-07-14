@@ -169,18 +169,48 @@ export function usePageCloudSync() {
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
   const recoveringLocalCacheSignalRef = useRef<string | null>(null);
   const pendingStatusRefreshGenerationRef = useRef(0);
+  const mountedRef = useRef(false);
+
+  const setStateIfMounted = useCallback((nextState: PageCloudSyncState) => {
+    if (!mountedRef.current) return;
+    setState(nextState);
+  }, []);
+
+  const setLastSyncAtIfMounted = useCallback((nextLastSyncAt: string | null) => {
+    if (!mountedRef.current) return;
+    setLastSyncAt(nextLastSyncAt);
+  }, []);
+
+  const setPendingStatusIfMounted = useCallback(
+    (nextStatus: PendingCloudPageSyncStatus) => {
+      if (!mountedRef.current) return;
+      setPendingStatus(nextStatus);
+    },
+    []
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      pendingStatusRefreshGenerationRef.current += 1;
+      rerunAfterCurrentSyncRef.current = null;
+    };
+  }, []);
 
   const refreshPendingStatus = useCallback(() => {
     const generation = pendingStatusRefreshGenerationRef.current + 1;
     pendingStatusRefreshGenerationRef.current = generation;
     void getPendingCloudPageSyncStatusWithSyncLog().then((status) => {
       if (pendingStatusRefreshGenerationRef.current !== generation) return;
-      setPendingStatus(status);
+      setPendingStatusIfMounted(status);
     });
-  }, []);
+  }, [setPendingStatusIfMounted]);
 
   const gateAccountSync = useCallback(async (force = false) => {
+    if (!mountedRef.current) return false;
     const accountGate = await checkAccountCloudSyncGate({ force });
+    if (!mountedRef.current) return false;
     if (accountGate.status === "ready") {
       authRetryAfterRef.current = 0;
       authRetryStateRef.current = "signed-out";
@@ -194,14 +224,15 @@ export function usePageCloudSync() {
     recordPageSyncAuthRetryStatus(
       getAuthRetryStatusFromAccountGate(accountGate.status)
     );
-    setState(authRetryStateRef.current);
+    if (mountedRef.current) setState(authRetryStateRef.current);
     refreshPendingStatus();
     return false;
   }, [refreshPendingStatus]);
 
   const runSync = useCallback(async (options: PageCloudSyncRunOptions = {}) => {
+    if (!mountedRef.current) return;
     if (!isPageSyncEnabled()) {
-      setState("disabled");
+      setStateIfMounted("disabled");
       refreshPendingStatus();
       return;
     }
@@ -221,24 +252,25 @@ export function usePageCloudSync() {
       return;
     }
     if (!options.forceAccountGate && Date.now() < authRetryAfterRef.current) {
-      setState(authRetryStateRef.current);
+      setStateIfMounted(authRetryStateRef.current);
       refreshPendingStatus();
       return;
     }
     const accountReady = await gateAccountSync(Boolean(options.forceAccountGate));
+    if (!mountedRef.current) return;
     if (!accountReady) return;
     if (!claimSyncLease(options.forceLease)) {
       const last = getLastPageSyncAt();
       if (last) {
-        setState("synced");
-        setLastSyncAt(last);
+        setStateIfMounted("synced");
+        setLastSyncAtIfMounted(last);
       }
       refreshPendingStatus();
       return;
     }
     if (runningRef.current) return;
     runningRef.current = true;
-    setState("syncing");
+    setStateIfMounted("syncing");
     refreshPendingStatus();
     try {
       const result = await reconcilePageSync({
@@ -246,44 +278,45 @@ export function usePageCloudSync() {
         includeManualReview: options.includeManualReview,
         forceAccountGate: options.forceAccountGate,
       });
+      if (!mountedRef.current) return;
       if (result.status === "ok") {
         authRetryAfterRef.current = 0;
         authRetryStateRef.current = "signed-out";
         recordPageSyncAuthRetryStatus("ok");
-        setState("synced");
-        setLastSyncAt(getLastPageSyncAt());
+        setStateIfMounted("synced");
+        setLastSyncAtIfMounted(getLastPageSyncAt());
       } else if (result.status === "unauthenticated") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("unauthenticated");
-        setState("error");
+        setStateIfMounted("error");
       } else if (result.status === "unconfigured") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("unconfigured");
-        setState("error");
+        setStateIfMounted("error");
       } else if (result.status === "unconfirmed") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("unconfirmed");
-        setState("error");
+        setStateIfMounted("error");
       } else if (result.status === "disabled") {
         authRetryAfterRef.current = 0;
         authRetryStateRef.current = "signed-out";
         recordPageSyncAuthRetryStatus("disabled");
-        setState("disabled");
+        setStateIfMounted("disabled");
       } else {
         authRetryAfterRef.current = 0;
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("error");
-        setState("error");
+        setStateIfMounted("error");
       }
     } finally {
       runningRef.current = false;
       refreshPendingStatus();
       const pendingRerun = rerunAfterCurrentSyncRef.current;
       rerunAfterCurrentSyncRef.current = null;
-      if (pendingRerun && isPageSyncEnabled()) {
+      if (pendingRerun && isPageSyncEnabled() && mountedRef.current) {
         window.setTimeout(() => {
           void runSync({
             quick: pendingRerun.quick ?? true,
@@ -294,9 +327,15 @@ export function usePageCloudSync() {
         }, 0);
       }
     }
-  }, [gateAccountSync, refreshPendingStatus]);
+  }, [
+    gateAccountSync,
+    refreshPendingStatus,
+    setLastSyncAtIfMounted,
+    setStateIfMounted,
+  ]);
 
   const recoverLocalCacheFromCloud = useCallback(async () => {
+    if (!mountedRef.current) return;
     const signal = getLocalCacheRecoverySignal();
     if (
       !signal ||
@@ -309,42 +348,44 @@ export function usePageCloudSync() {
     recoveringLocalCacheSignalRef.current = signal.id;
     try {
       const accountReady = await gateAccountSync(true);
+      if (!mountedRef.current) return;
       if (!accountReady) return;
       const result = await syncCloudPageMetadataDelta({
         force: true,
         fullRefresh: true,
       });
+      if (!mountedRef.current) return;
       if (result.status === "ok") {
         seenLocalCacheRecoverySignalRef.current = signal.id;
         authRetryAfterRef.current = 0;
         authRetryStateRef.current = "signed-out";
         recordPageSyncAuthRetryStatus("ok");
-        setState("synced");
-        setLastSyncAt(getLastPageSyncAt());
+        setStateIfMounted("synced");
+        setLastSyncAtIfMounted(getLastPageSyncAt());
         void runSync({ quick: true, forceLease: true });
       } else if (result.status === "unauthenticated") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("unauthenticated");
-        setState("error");
+        setStateIfMounted("error");
       } else if (result.status === "unconfigured") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("unconfigured");
-        setState("error");
+        setStateIfMounted("error");
       } else if (result.status === "unconfirmed") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("unconfirmed");
-        setState("error");
+        setStateIfMounted("error");
       } else if (result.status === "disabled") {
         authRetryStateRef.current = "signed-out";
         recordPageSyncAuthRetryStatus("disabled");
-        setState("disabled");
+        setStateIfMounted("disabled");
       } else {
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("error");
-        setState("error");
+        setStateIfMounted("error");
       }
       refreshPendingStatus();
     } finally {
@@ -352,7 +393,13 @@ export function usePageCloudSync() {
         recoveringLocalCacheSignalRef.current = null;
       }
     }
-  }, [gateAccountSync, refreshPendingStatus, runSync]);
+  }, [
+    gateAccountSync,
+    refreshPendingStatus,
+    runSync,
+    setLastSyncAtIfMounted,
+    setStateIfMounted,
+  ]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -374,7 +421,7 @@ export function usePageCloudSync() {
     };
     const refreshStatusAndScheduleIfNeeded = () => {
       void getPendingCloudPageSyncStatusWithSyncLog().then((status) => {
-        setPendingStatus(status);
+        setPendingStatusIfMounted(status);
         const totalPending =
           status.pending + status.queued + (status.syncLogPending ?? 0);
         if (status.enabled && totalPending > 0) {
@@ -443,7 +490,7 @@ export function usePageCloudSync() {
       }
       if (event.key?.startsWith("zhinote.pagesync.")) {
         void getPendingCloudPageSyncStatusWithSyncLog().then((nextStatus) => {
-          setPendingStatus(nextStatus);
+          setPendingStatusIfMounted(nextStatus);
           if (PAGE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
             schedulePendingStatusSync({
               forceAccountGate:
@@ -459,7 +506,7 @@ export function usePageCloudSync() {
     const handleStatus = (event: Event) => {
       const detail = (event as CustomEvent<PendingCloudPageSyncStatus>).detail;
       if (detail) {
-        setPendingStatus(detail);
+        setPendingStatusIfMounted(detail);
         const totalPending =
           detail.pending + detail.queued + (detail.syncLogPending ?? 0);
         if (detail.enabled && totalPending > 0) {
@@ -510,7 +557,13 @@ export function usePageCloudSync() {
       window.removeEventListener("online", handleOnline);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [dbReady, recoverLocalCacheFromCloud, refreshPendingStatus, runSync]);
+  }, [
+    dbReady,
+    recoverLocalCacheFromCloud,
+    refreshPendingStatus,
+    runSync,
+    setPendingStatusIfMounted,
+  ]);
 
   return { state, lastSyncAt, pendingStatus, syncNow: runSync };
 }

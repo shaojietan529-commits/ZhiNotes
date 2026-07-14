@@ -163,18 +163,48 @@ export function useDatabaseCloudSync() {
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
   const recoveringLocalCacheSignalRef = useRef<string | null>(null);
   const pendingStatusRefreshGenerationRef = useRef(0);
+  const mountedRef = useRef(false);
+
+  const setStateIfMounted = useCallback((nextState: DatabaseCloudSyncState) => {
+    if (!mountedRef.current) return;
+    setState(nextState);
+  }, []);
+
+  const setLastSyncAtIfMounted = useCallback((nextLastSyncAt: string | null) => {
+    if (!mountedRef.current) return;
+    setLastSyncAt(nextLastSyncAt);
+  }, []);
+
+  const setPendingStatusIfMounted = useCallback(
+    (nextStatus: PendingCloudDatabaseSyncStatus) => {
+      if (!mountedRef.current) return;
+      setPendingStatus(nextStatus);
+    },
+    []
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      pendingStatusRefreshGenerationRef.current += 1;
+      rerunAfterCurrentSyncRef.current = null;
+    };
+  }, []);
 
   const refreshPendingStatus = useCallback(() => {
     const generation = pendingStatusRefreshGenerationRef.current + 1;
     pendingStatusRefreshGenerationRef.current = generation;
     void getPendingCloudDatabaseSyncStatus().then((status) => {
       if (pendingStatusRefreshGenerationRef.current !== generation) return;
-      setPendingStatus(status);
+      setPendingStatusIfMounted(status);
     });
-  }, []);
+  }, [setPendingStatusIfMounted]);
 
   const gateAccountSync = useCallback(async (force = false) => {
+    if (!mountedRef.current) return false;
     const accountGate = await checkAccountCloudSyncGate({ force });
+    if (!mountedRef.current) return false;
     if (accountGate.status === "ready") {
       authRetryAfterRef.current = 0;
       authRetryStateRef.current = "signed-out";
@@ -188,7 +218,7 @@ export function useDatabaseCloudSync() {
     recordDatabaseSyncAuthRetryStatus(
       getAuthRetryStatusFromAccountGate(accountGate.status)
     );
-    setState(authRetryStateRef.current);
+    if (mountedRef.current) setState(authRetryStateRef.current);
     void refreshPendingStatus();
     return false;
   }, [refreshPendingStatus]);
@@ -197,8 +227,9 @@ export function useDatabaseCloudSync() {
     async (
       options: DatabaseCloudSyncRunOptions = {}
     ) => {
+      if (!mountedRef.current) return;
       if (!isDatabaseSyncEnabled()) {
-        setState("disabled");
+        setStateIfMounted("disabled");
         void refreshPendingStatus();
         return;
       }
@@ -218,26 +249,27 @@ export function useDatabaseCloudSync() {
         return;
       }
       if (!options.forceAccountGate && Date.now() < authRetryAfterRef.current) {
-        setState(authRetryStateRef.current);
+        setStateIfMounted(authRetryStateRef.current);
         void refreshPendingStatus();
         return;
       }
       const accountReady = await gateAccountSync(
         Boolean(options.forceAccountGate)
       );
+      if (!mountedRef.current) return;
       if (!accountReady) return;
       if (!claimSyncLease(options.forceLease)) {
         const last = getLastDatabaseSyncAt();
         if (last) {
-          setState("synced");
-          setLastSyncAt(last);
+          setStateIfMounted("synced");
+          setLastSyncAtIfMounted(last);
         }
         void refreshPendingStatus();
         return;
       }
       if (runningRef.current) return;
       runningRef.current = true;
-      setState("syncing");
+      setStateIfMounted("syncing");
       void refreshPendingStatus();
       try {
         const result = await reconcileDatabaseSync({
@@ -245,12 +277,13 @@ export function useDatabaseCloudSync() {
           includeManualReview: options.includeManualReview,
           forceAccountGate: options.forceAccountGate,
         });
+        if (!mountedRef.current) return;
         if (result.status === "ok") {
           authRetryAfterRef.current = 0;
           authRetryStateRef.current = "signed-out";
           recordDatabaseSyncAuthRetryStatus("ok");
-          setState("synced");
-          setLastSyncAt(getLastDatabaseSyncAt());
+          setStateIfMounted("synced");
+          setLastSyncAtIfMounted(getLastDatabaseSyncAt());
           if (result.pulled > 0) {
             emitDatabasesUpdated(
               "cloud-pull",
@@ -264,34 +297,34 @@ export function useDatabaseCloudSync() {
           authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
           authRetryStateRef.current = "error";
           recordDatabaseSyncAuthRetryStatus("unauthenticated");
-          setState("error");
+          setStateIfMounted("error");
         } else if (result.status === "unconfigured") {
           authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
           authRetryStateRef.current = "error";
           recordDatabaseSyncAuthRetryStatus("unconfigured");
-          setState("error");
+          setStateIfMounted("error");
         } else if (result.status === "unconfirmed") {
           authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
           authRetryStateRef.current = "error";
           recordDatabaseSyncAuthRetryStatus("unconfirmed");
-          setState("error");
+          setStateIfMounted("error");
         } else if (result.status === "disabled") {
           authRetryAfterRef.current = 0;
           authRetryStateRef.current = "signed-out";
           recordDatabaseSyncAuthRetryStatus("disabled");
-          setState("disabled");
+          setStateIfMounted("disabled");
         } else {
           authRetryAfterRef.current = 0;
           authRetryStateRef.current = "error";
           recordDatabaseSyncAuthRetryStatus("error");
-          setState("error");
+          setStateIfMounted("error");
         }
       } finally {
         runningRef.current = false;
         void refreshPendingStatus();
         const pendingRerun = rerunAfterCurrentSyncRef.current;
         rerunAfterCurrentSyncRef.current = null;
-        if (pendingRerun && isDatabaseSyncEnabled()) {
+        if (pendingRerun && isDatabaseSyncEnabled() && mountedRef.current) {
           window.setTimeout(() => {
             void runSync({
               forceLease: pendingRerun.forceLease,
@@ -303,10 +336,16 @@ export function useDatabaseCloudSync() {
         }
       }
     },
-    [gateAccountSync, refreshPendingStatus]
+    [
+      gateAccountSync,
+      refreshPendingStatus,
+      setLastSyncAtIfMounted,
+      setStateIfMounted,
+    ]
   );
 
   const recoverLocalCacheFromCloud = useCallback(async () => {
+    if (!mountedRef.current) return;
     const signal = getLocalCacheRecoverySignal();
     if (
       !signal ||
@@ -319,17 +358,19 @@ export function useDatabaseCloudSync() {
     recoveringLocalCacheSignalRef.current = signal.id;
     try {
       const accountReady = await gateAccountSync(true);
+      if (!mountedRef.current) return;
       if (!accountReady) return;
       const result = await syncCloudDatabaseMetadataDelta({
         fullRefresh: true,
       });
+      if (!mountedRef.current) return;
       if (result.status === "ok") {
         seenLocalCacheRecoverySignalRef.current = signal.id;
         authRetryAfterRef.current = 0;
         authRetryStateRef.current = "signed-out";
         recordDatabaseSyncAuthRetryStatus("ok");
-        setState("synced");
-        setLastSyncAt(getLastDatabaseSyncAt());
+        setStateIfMounted("synced");
+        setLastSyncAtIfMounted(getLastDatabaseSyncAt());
         if (result.pulled > 0) {
           emitDatabasesUpdated("cloud-pull", result.pulled, result.records);
         }
@@ -338,25 +379,25 @@ export function useDatabaseCloudSync() {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordDatabaseSyncAuthRetryStatus("unauthenticated");
-        setState("error");
+        setStateIfMounted("error");
       } else if (result.status === "unconfigured") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordDatabaseSyncAuthRetryStatus("unconfigured");
-        setState("error");
+        setStateIfMounted("error");
       } else if (result.status === "unconfirmed") {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordDatabaseSyncAuthRetryStatus("unconfirmed");
-        setState("error");
+        setStateIfMounted("error");
       } else if (result.status === "disabled") {
         authRetryStateRef.current = "signed-out";
         recordDatabaseSyncAuthRetryStatus("disabled");
-        setState("disabled");
+        setStateIfMounted("disabled");
       } else {
         authRetryStateRef.current = "error";
         recordDatabaseSyncAuthRetryStatus("error");
-        setState("error");
+        setStateIfMounted("error");
       }
       void refreshPendingStatus();
     } finally {
@@ -364,7 +405,13 @@ export function useDatabaseCloudSync() {
         recoveringLocalCacheSignalRef.current = null;
       }
     }
-  }, [gateAccountSync, refreshPendingStatus, runSync]);
+  }, [
+    gateAccountSync,
+    refreshPendingStatus,
+    runSync,
+    setLastSyncAtIfMounted,
+    setStateIfMounted,
+  ]);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -424,7 +471,7 @@ export function useDatabaseCloudSync() {
       if (event.key?.startsWith("zhinote.databasesync.")) {
         void getPendingCloudDatabaseSyncStatus()
           .then((nextStatus) => {
-            setPendingStatus(nextStatus);
+            setPendingStatusIfMounted(nextStatus);
             if (DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
               scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS, {
                 forceAccountGate:
@@ -449,7 +496,7 @@ export function useDatabaseCloudSync() {
       const detail = (event as CustomEvent<PendingCloudDatabaseSyncStatus>)
         .detail;
       if (detail) {
-        setPendingStatus(detail);
+        setPendingStatusIfMounted(detail);
         const totalPending =
           detail.pending + detail.queued + (detail.syncLogPending ?? 0);
         if (detail.enabled && totalPending > 0) {
@@ -500,7 +547,13 @@ export function useDatabaseCloudSync() {
       window.removeEventListener("online", handleOnline);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [dbReady, recoverLocalCacheFromCloud, refreshPendingStatus, runSync]);
+  }, [
+    dbReady,
+    recoverLocalCacheFromCloud,
+    refreshPendingStatus,
+    runSync,
+    setPendingStatusIfMounted,
+  ]);
 
   return { state, lastSyncAt, pendingStatus, syncNow: runSync };
 }
