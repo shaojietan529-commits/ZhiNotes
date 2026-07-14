@@ -177,6 +177,7 @@ check(
     shell.includes("clearAccountSessionCache") &&
     shell.includes("clearAccountSessionRuntimeCache") &&
     shell.includes("clearAccountSessionCache({ clearLastAuthenticated: true })") &&
+    shell.includes("getLastAuthenticatedAccount") &&
     shell.includes("rememberLastAuthenticatedAccount") &&
     shell.includes("formatClientAccountLabel(account)"),
   "AccountShell 应通过共享账号状态 helper 检查会话，并在登录/改名/退出后刷新缓存；成功登录或改名后要重写最近登录账号兜底"
@@ -432,6 +433,16 @@ check(
     shell.indexOf("rememberLastAuthenticatedAccount(nextAccount)") <
       shell.indexOf("notifyAccountProfileUpdated()"),
   "AccountShell 设置登录账号时必须先重写最近登录账号兜底，再通知侧栏刷新"
+);
+check(
+  shell.includes("showStoredAccountFallback") &&
+    shell.includes("const lastAuthenticatedAccount = getLastAuthenticatedAccount()") &&
+    shell.includes("正在确认账号云端状态") &&
+    shell.includes("本机已先保留最近一次登录状态") &&
+    shell.includes("账号检查暂时失败，已保留最近一次登录状态") &&
+    shell.indexOf("showStoredAccountFallback(\n      \"正在确认账号云端状态") <
+      shell.indexOf("const session = await fetchAccountSession({ force: true })"),
+  "AccountShell 打开账号页时应先显示本机最近登录身份，再异步确认云端 session，避免刷新/弱网时看起来自动掉线"
 );
 check(
   shell.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&

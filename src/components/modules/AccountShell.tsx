@@ -35,6 +35,7 @@ import {
   clearAccountSessionCache,
   clearAccountSessionRuntimeCache,
   fetchAccountSession,
+  getLastAuthenticatedAccount,
   rememberLastAuthenticatedAccount,
 } from "@/lib/account/clientSession";
 import {
@@ -455,7 +456,20 @@ export default function AccountShell() {
     notifyAccountProfileUpdated();
   }, []);
 
+  const showStoredAccountFallback = useCallback((message: string) => {
+    const lastAuthenticatedAccount = getLastAuthenticatedAccount();
+    if (!lastAuthenticatedAccount) return false;
+    setAccount(lastAuthenticatedAccount);
+    setDisplayNameInput(lastAuthenticatedAccount.display_name);
+    setPhase("signed-in");
+    setNotice(message);
+    return true;
+  }, []);
+
   const refreshSession = useCallback(async () => {
+    showStoredAccountFallback(
+      "正在确认账号云端状态；本机已先保留最近一次登录状态，本地输入可继续保存。"
+    );
     try {
       const session = await fetchAccountSession({ force: true });
       if (session.authenticated && session.account) {
@@ -475,14 +489,28 @@ export default function AccountShell() {
         return;
       }
       if (session.status === "unconfirmed" || session.status === "error") {
+        if (
+          showStoredAccountFallback(
+            "账号会话暂时无法向云端确认，已保留最近一次登录状态；本地输入可继续保存，同步会稍后重试。"
+          )
+        ) {
+          return;
+        }
         setPhase("error");
         return;
       }
       setPhase("email");
     } catch {
+      if (
+        showStoredAccountFallback(
+          "账号检查暂时失败，已保留最近一次登录状态；本地输入可继续保存，同步会稍后重试。"
+        )
+      ) {
+        return;
+      }
       setPhase("error");
     }
-  }, [setSignedInAccount]);
+  }, [setSignedInAccount, showStoredAccountFallback]);
 
   useEffect(() => {
     void refreshSession();
