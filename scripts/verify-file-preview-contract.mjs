@@ -654,6 +654,18 @@ function run() {
       "File byte uploads must stay out of the high-frequency account auto-retry loop.",
     ],
     [
+      files.accountSyncCoordinator,
+      accountSyncCoordinator,
+      "const accountUncertainByAuthRetry = Boolean(authRetryDomainLabel)",
+      "Global account sync status must treat file auth retry markers as cloud uncertainty before reporting synced.",
+    ],
+    [
+      files.accountSyncCoordinator,
+      accountSyncCoordinator,
+      'accountUncertainByAuthRetry\n                ? "error"',
+      "Global account sync status must not report synced when only a file auth retry marker remains.",
+    ],
+    [
       files.sidebar,
       sidebar,
       "data-file-pending-total",

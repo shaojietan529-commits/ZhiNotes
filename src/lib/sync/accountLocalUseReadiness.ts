@@ -233,7 +233,9 @@ export function buildAccountLocalUseReadiness(
       cloudHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续写作，云端暂不可确认",
-      detail: "账号或网络暂时不可确认；本地输入已保留，后台会低频重试。",
+      detail: withQueueDetail(
+        "账号或网络暂时不可确认；本地输入已保留，后台会低频重试。"
+      ),
       nextAction: "先继续本地使用；等云端低频检查恢复后再做同步交接或缓存重建。",
     };
   }

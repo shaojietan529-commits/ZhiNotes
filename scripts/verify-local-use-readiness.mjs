@@ -7,6 +7,7 @@ import process from "node:process";
 const root = process.cwd();
 const files = {
   readiness: "src/lib/sync/accountLocalUseReadiness.ts",
+  accountCoordinator: "src/hooks/useAccountCloudSyncCoordinator.ts",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
   privateAlpha: "scripts/verify-private-alpha-p0.mjs",
@@ -25,6 +26,7 @@ function readProjectFile(file) {
 }
 
 const readiness = readProjectFile(files.readiness);
+const accountCoordinator = readProjectFile(files.accountCoordinator);
 const sidebar = readProjectFile(files.sidebar);
 const syncShell = readProjectFile(files.syncShell);
 const privateAlpha = readProjectFile(files.privateAlpha);
@@ -103,9 +105,11 @@ check(
 );
 check(
   readiness.includes('status: "cloud-uncertain"') &&
+    readiness.includes('detail: withQueueDetail(\n        "账号或网络暂时不可确认；本地输入已保留，后台会低频重试。"') &&
     readiness.includes("本地输入已保留，后台会低频重试") &&
+    readiness.includes("账号重试：") &&
     readiness.includes("先继续本地使用"),
-  "云端暂不可确认时必须保持本地可用并提示低频重试"
+  "云端暂不可确认时必须保持本地可用、提示低频重试，并显示具体账号重试域"
 );
 check(
   readiness.includes('status: "local-only"') &&
@@ -118,6 +122,14 @@ check(
     readiness.includes("cloudHandoffReady: true") &&
     readiness.includes("当前没有 pending、failed 或 manual review 队列"),
   "只有 pending/failed/manual review 全清零时才能声明云端交接就绪"
+);
+
+check(
+  accountCoordinator.includes("const accountUncertainByAuthRetry = Boolean(authRetryDomainLabel)") &&
+    accountCoordinator.includes('accountUncertainByAuthRetry\n                ? "error"') &&
+    accountCoordinator.includes('fileSync.status.authRetryStatus ? "文件" : null') &&
+    accountCoordinator.includes("fileSync.status.authRetryUntil"),
+  "全局同步总控必须把文件账号重试纳入云端不确定状态，不能在只剩 auth retry 标记时显示已同步"
 );
 
 for (const snippet of [

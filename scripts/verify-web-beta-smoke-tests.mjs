@@ -9938,6 +9938,14 @@ function run() {
 	      "Account cloud sync coordinator must include file upload auth retry timing in the account-level retry label.",
 	    ],
 	    [
+	      "const accountUncertainByAuthRetry = Boolean(authRetryDomainLabel)",
+	      "Account cloud sync coordinator must treat any remaining auth retry domain as cloud uncertainty before declaring synced.",
+	    ],
+	    [
+	      'accountUncertainByAuthRetry\n                ? "error"',
+	      "Account cloud sync coordinator must not report synced when only an auth retry marker remains.",
+	    ],
+	    [
 	      "globalSyncLogExtraRetryableFailedTotal",
 	      "Account cloud sync coordinator must calculate uncovered sync_log retryable failures separately from manual-review rows.",
 	    ],

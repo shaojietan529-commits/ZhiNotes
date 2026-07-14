@@ -282,6 +282,7 @@ export function useAccountCloudSyncCoordinator() {
     (databaseSync.pendingStatus.enabled && databaseSync.state === "disabled");
   const syncBlockedBySignedOut =
     pageSync.state === "signed-out" || databaseSync.state === "signed-out";
+  const accountUncertainByAuthRetry = Boolean(authRetryDomainLabel);
 
   const state: AccountCloudSyncCoordinatorState =
     enabledDomainCount === 0
@@ -294,6 +295,8 @@ export function useAccountCloudSyncCoordinator() {
             ? "syncing"
             : pendingTotal > 0
               ? "queued"
+              : accountUncertainByAuthRetry
+                ? "error"
               : syncBlockedBySignedOut
                 ? "signed-out"
                 : initializingEnabledDomain
