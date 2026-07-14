@@ -113,6 +113,9 @@ function verifySourceContracts() {
   assertIncludes(healthSource, "explicit_logout_required_to_clear_session: true", "account session policy must require explicit logout before clearing session");
   assertIncludes(healthSource, "sync_failure_can_clear_session: false", "sync failure must not be allowed to clear session state");
   assertIncludes(healthSource, "local_input_can_continue_during_uncertainty: true", "local input must remain available during session uncertainty");
+  assertIncludes(healthSource, "local_use_policy", "account session policy must expose local-use behavior for stable-use checks");
+  assertIncludes(healthSource, "local_input_can_continue: true", "local-use policy must keep local input available");
+  assertIncludes(healthSource, "upload_block_does_not_block_writing: true", "upload blocks must not block local writing");
   assertIncludes(healthSource, "hot_cache_safety_policy", "health response must expose hot cache safety policy");
   assertIncludes(healthSource, 'architecture_target: "cloud-master-local-hot-cache"', "hot cache policy must preserve the cloud-master/local-hot-cache target");
   assertIncludes(healthSource, 'local_hot_cache_role: "rebuildable-speed-layer"', "hot cache policy must keep local cache as a rebuildable speed layer");
@@ -322,9 +325,34 @@ function verifyRouteResult(result) {
     true,
     "account_session_policy.local_input_can_continue_during_uncertainty"
   );
-  if (!String(accountPolicy.user_facing_copy ?? "").includes("明确退出登录")) {
+  const localUsePolicy = accountPolicy.local_use_policy ?? {};
+  assertEqual(
+    localUsePolicy.local_input_can_continue,
+    true,
+    "account_session_policy.local_use_policy.local_input_can_continue"
+  );
+  assertEqual(
+    localUsePolicy.sync_failure_can_clear_session,
+    false,
+    "account_session_policy.local_use_policy.sync_failure_can_clear_session"
+  );
+  assertEqual(
+    localUsePolicy.explicit_logout_required_to_clear_session,
+    true,
+    "account_session_policy.local_use_policy.explicit_logout_required_to_clear_session"
+  );
+  assertEqual(
+    localUsePolicy.upload_block_does_not_block_writing,
+    true,
+    "account_session_policy.local_use_policy.upload_block_does_not_block_writing"
+  );
+  const accountPolicyCopy = String(accountPolicy.user_facing_copy ?? "");
+  if (
+    !accountPolicyCopy.includes("明确退出登录") ||
+    !accountPolicyCopy.includes("不能阻止本地写作")
+  ) {
     failures.push(
-      "account_session_policy.user_facing_copy must explain that only explicit logout clears the session"
+      "account_session_policy.user_facing_copy must explain that only explicit logout clears the session and upload failures cannot block local writing"
     );
   }
   const hotCachePolicy = body?.hot_cache_safety_policy ?? {};
@@ -808,6 +836,12 @@ function printReceipt(result, status, port, devServer) {
     sync_failure_can_clear_session:
       result?.body?.account_session_policy?.sync_failure_can_clear_session ??
       null,
+    local_input_can_continue:
+      result?.body?.account_session_policy?.local_use_policy
+        ?.local_input_can_continue ?? null,
+    upload_block_does_not_block_writing:
+      result?.body?.account_session_policy?.local_use_policy
+        ?.upload_block_does_not_block_writing ?? null,
     hot_cache_source_of_truth:
       result?.body?.hot_cache_safety_policy?.source_of_truth ?? null,
     hot_cache_rebuild_requires_pending_clear:

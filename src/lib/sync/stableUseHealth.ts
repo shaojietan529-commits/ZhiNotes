@@ -35,6 +35,12 @@ export interface StableUseAccountSessionPolicy {
   explicit_logout_required_to_clear_session: true;
   sync_failure_can_clear_session: false;
   local_input_can_continue_during_uncertainty: true;
+  local_use_policy: {
+    local_input_can_continue: true;
+    sync_failure_can_clear_session: false;
+    explicit_logout_required_to_clear_session: true;
+    upload_block_does_not_block_writing: true;
+  };
   user_facing_copy: string;
 }
 
@@ -163,8 +169,14 @@ const STABLE_USE_ACCOUNT_SESSION_POLICY: StableUseAccountSessionPolicy = {
   explicit_logout_required_to_clear_session: true,
   sync_failure_can_clear_session: false,
   local_input_can_continue_during_uncertainty: true,
+  local_use_policy: {
+    local_input_can_continue: true,
+    sync_failure_can_clear_session: false,
+    explicit_logout_required_to_clear_session: true,
+    upload_block_does_not_block_writing: true,
+  },
   user_facing_copy:
-    "登录状态暂时无法确认时保持本地可用；只有明确退出登录才清除会话。",
+    "登录状态暂时无法确认时保持本地可用；同步或上传失败只能影响云端上传状态，不能阻止本地写作；只有明确退出登录才清除会话。",
 };
 
 const STABLE_USE_HOT_CACHE_SAFETY_POLICY: StableUseHotCacheSafetyPolicy = {

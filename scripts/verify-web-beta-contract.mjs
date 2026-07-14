@@ -19872,6 +19872,18 @@ function run() {
       "Stable-use account session policy must keep local input available during uncertainty.",
     ],
     [
+      "local_use_policy",
+      "Stable-use account session policy must expose local-use behavior.",
+    ],
+    [
+      "local_input_can_continue: true",
+      "Stable-use local-use policy must keep local input available.",
+    ],
+    [
+      "upload_block_does_not_block_writing: true",
+      "Stable-use local-use policy must keep upload blocks from blocking local writing.",
+    ],
+    [
       "hot_cache_safety_policy",
       "Stable-use health response must expose hot cache safety policy.",
     ],
