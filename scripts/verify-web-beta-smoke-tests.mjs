@@ -11572,7 +11572,8 @@ function run() {
     );
   }
   for (const snippet of [
-    "warmDailyCreateOpenPath();\n        setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+    "warmDailyCreateOpenPath();\n        setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
+    "openingDraftRef.current = resolved;",
     "DEFAULT_DAILY_CREATE_OPEN_MODE",
     'data-testid="daily-create-open-mode"',
     'openPage(optimisticNote, { source: "daily-create" });',
@@ -11609,7 +11610,7 @@ function run() {
     dailyNotesShell,
     [
       "warmDailyCreateOpenPath();",
-      "setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+      "setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
       "rememberPendingPageDraft(optimisticNote);",
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
       "upsertPages([optimisticNote]);",

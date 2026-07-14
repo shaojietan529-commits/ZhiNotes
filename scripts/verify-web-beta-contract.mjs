@@ -6795,8 +6795,12 @@ function run() {
       "Daily + creation must hand off the optimistic page before peek or full-page opening.",
     ],
     [
-      "warmDailyCreateOpenPath();\n        setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+      "warmDailyCreateOpenPath();\n        setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
       "Daily + creation must warm the selected open path before setting the opening draft state.",
+    ],
+    [
+      "openingDraftRef.current = resolved;",
+      "Daily + creation must keep the fallback retry ref aligned with the visible opening draft state.",
     ],
     [
       'data-testid="daily-opening-draft-banner"',
@@ -7785,7 +7789,7 @@ function run() {
     dailyNotesShell,
     [
       "warmDailyCreateOpenPath();",
-      "setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+      "setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
       "rememberPendingPageDraft(optimisticNote);",
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
       "upsertPages([optimisticNote]);",

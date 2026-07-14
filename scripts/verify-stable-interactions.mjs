@@ -127,6 +127,14 @@ function run() {
       "Daily calendar must show an immediate opening chip after + is clicked.",
     ],
     [
+      "const setOpeningDraftAndRef = useCallback",
+      "Daily create/open fallback must keep the visible draft state and synchronous retry ref aligned.",
+    ],
+    [
+      "openingDraftRef.current = resolved;",
+      "Daily create/open fallback must update the retry ref in the same step as the visible opening state.",
+    ],
+    [
       "status: \"daily-create-local-shell-requested\"",
       "Daily create must record local-shell latency instead of only cloud latency.",
     ],
@@ -155,7 +163,7 @@ function run() {
     dailyShell,
     [
       "warmDailyCreateOpenPath();",
-      "setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
+      "setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
       "rememberPendingPageDraft(optimisticNote);",
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
       "setNotes((current) => [",

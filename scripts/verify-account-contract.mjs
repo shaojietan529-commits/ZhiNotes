@@ -1452,7 +1452,7 @@ check(
       "const currentNotes = collectVisibleDailyNotesForHotCache(notesByDate);"
     ) &&
     dailyNotesShell.includes(
-      "warmDailyCreateOpenPath();\n        setOpeningDraft({ pageId: optimisticNote.id, dateKey });"
+      "warmDailyCreateOpenPath();\n        setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });"
     ) &&
     dailyNotesShell.indexOf("setPeekInitialPage(optimisticNote);") <
       dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id);") &&
@@ -1486,7 +1486,8 @@ check(
     dailyNotesShell.includes("open_mode_full_page: dailyCreateOpenMode === \"full-page\" ? 1 : 0") &&
     dailyNotesShell.includes("updateDailyCreateOpenMode") &&
     dailyNotesShell.includes("upsertWorkspaceSetting(") &&
-    dailyNotesShell.includes("setOpeningDraft({ pageId: optimisticNote.id, dateKey })") &&
+    dailyNotesShell.includes("setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey })") &&
+    dailyNotesShell.includes("openingDraftRef.current = resolved;") &&
     dailyNotesShell.includes("DAILY_CREATE_FEEDBACK_FRAME_TIMEOUT_MS") &&
     dailyNotesShell.includes("waitForDailyCreateFeedbackFrame") &&
     dailyNotesShell.indexOf("await waitForDailyCreateFeedbackFrame();") <

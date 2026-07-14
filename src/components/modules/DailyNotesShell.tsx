@@ -10,6 +10,7 @@ import {
   useState,
   type MouseEvent,
   type PointerEvent,
+  type SetStateAction,
 } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -427,6 +428,20 @@ export default function DailyNotesShell() {
   useEffect(() => {
     openingDraftRef.current = openingDraft;
   }, [openingDraft]);
+
+  const setOpeningDraftAndRef = useCallback(
+    (next: SetStateAction<OpeningDailyDraft | null>) => {
+      const resolved =
+        typeof next === "function"
+          ? (next as (value: OpeningDailyDraft | null) => OpeningDailyDraft | null)(
+              openingDraftRef.current
+            )
+          : next;
+      openingDraftRef.current = resolved;
+      setOpeningDraft(resolved);
+    },
+    []
+  );
 
   useEffect(() => {
     cloudLoadingRef.current = cloudLoading;
@@ -1686,7 +1701,7 @@ export default function DailyNotesShell() {
       const handleCreateFailure = (error: unknown) => {
         const message =
           error instanceof Error ? error.message : "本机草稿创建失败";
-        setOpeningDraft((current) =>
+        setOpeningDraftAndRef((current) =>
           current?.dateKey === dateKey ? null : current
         );
         setNotes((current) =>
@@ -1717,7 +1732,7 @@ export default function DailyNotesShell() {
       };
       try {
         warmDailyCreateOpenPath();
-        setOpeningDraft({ pageId: optimisticNote.id, dateKey });
+        setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });
         rememberPendingPageDraft(optimisticNote);
         rememberPageRouteHandoff(optimisticNote, "daily-create");
         setNotes((current) => [
@@ -1857,6 +1872,7 @@ export default function DailyNotesShell() {
       scheduleOptimisticDailyHotCacheWrite,
       scheduleDailyCreatePeekReadyFallback,
       scheduleDailyCreateFullPageNavigationRetry,
+      setOpeningDraftAndRef,
       warmDailyCreateOpenPath,
       markDailyForegroundInteraction,
     ]
@@ -1959,10 +1975,10 @@ export default function DailyNotesShell() {
 
   const handlePeekReady = useCallback((pageId: string) => {
     setOpeningNoteId((current) => (current === pageId ? null : current));
-    setOpeningDraft((current) =>
+    setOpeningDraftAndRef((current) =>
       current?.pageId === pageId ? null : current
     );
-  }, []);
+  }, [setOpeningDraftAndRef]);
 
   const closeDailyPeekModal = useCallback(() => {
     const closingPageId = peekPageId;
@@ -1972,10 +1988,10 @@ export default function DailyNotesShell() {
     setOpeningNoteId((current) =>
       current === closingPageId ? null : current
     );
-    setOpeningDraft((current) =>
+    setOpeningDraftAndRef((current) =>
       current?.pageId === closingPageId ? null : current
     );
-  }, [peekPageId]);
+  }, [peekPageId, setOpeningDraftAndRef]);
 
   const cancelOpeningDailyNote = useCallback((pageId: string) => {
     setOpeningNoteId((current) => (current === pageId ? null : current));
@@ -1984,51 +2000,51 @@ export default function DailyNotesShell() {
   }, []);
 
   const cancelOpeningDailyDraft = useCallback((pageId: string) => {
-    setOpeningDraft((current) =>
+    setOpeningDraftAndRef((current) =>
       current?.pageId === pageId ? null : current
     );
     setOpeningNoteId((current) => (current === pageId ? null : current));
     setPeekPageId((current) => (current === pageId ? null : current));
     setPeekInitialPage((current) => (current?.id === pageId ? null : current));
-  }, []);
+  }, [setOpeningDraftAndRef]);
 
   const openOpeningDailyNoteFullPage = useCallback(
     (pageId: string) => {
       openDailyNoteFullPageById(pageId);
       setOpeningNoteId((current) => (current === pageId ? null : current));
-      setOpeningDraft((current) =>
+      setOpeningDraftAndRef((current) =>
         current?.pageId === pageId ? null : current
       );
       setPeekPageId((current) => (current === pageId ? null : current));
       setPeekInitialPage((current) => (current?.id === pageId ? null : current));
     },
-    [openDailyNoteFullPageById]
+    [openDailyNoteFullPageById, setOpeningDraftAndRef]
   );
 
   const openOpeningDailyDraftFullPage = useCallback(
     (pageId: string) => {
       openDailyNoteFullPageById(pageId);
-      setOpeningDraft((current) =>
+      setOpeningDraftAndRef((current) =>
         current?.pageId === pageId ? null : current
       );
       setOpeningNoteId((current) => (current === pageId ? null : current));
       setPeekPageId((current) => (current === pageId ? null : current));
       setPeekInitialPage((current) => (current?.id === pageId ? null : current));
     },
-    [openDailyNoteFullPageById]
+    [openDailyNoteFullPageById, setOpeningDraftAndRef]
   );
 
   const openDailyPeekFullPage = useCallback(
     (pageId: string) => {
       openDailyNoteFullPageById(pageId);
       setOpeningNoteId((current) => (current === pageId ? null : current));
-      setOpeningDraft((current) =>
+      setOpeningDraftAndRef((current) =>
         current?.pageId === pageId ? null : current
       );
       setPeekPageId((current) => (current === pageId ? null : current));
       setPeekInitialPage((current) => (current?.id === pageId ? null : current));
     },
-    [openDailyNoteFullPageById]
+    [openDailyNoteFullPageById, setOpeningDraftAndRef]
   );
 
   useEffect(() => {
