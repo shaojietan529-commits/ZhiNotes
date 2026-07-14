@@ -4096,20 +4096,27 @@ check(
 check(
   sidebar.includes("fetchAccountSession") &&
     sidebar.includes(
-      "async (options: { force?: boolean; preferStored?: boolean } = {})"
+      "fallbackReason?: string"
     ) &&
     sidebar.includes("fetchAccountSession({ force: options.force })") &&
     sidebar.includes("if (options.preferStored)") &&
     sidebar.includes("账号资料已在其他标签页更新，正在确认云端状态") &&
+    sidebar.includes("正在确认账号云端状态，已先显示最近用户名") &&
     sidebar.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
     sidebar.includes("formatClientAccountLabel") &&
     sidebar.includes("getLastAuthenticatedAccount") &&
     sidebar.includes("getLastKnownAccountLabel") &&
     sidebar.includes('window.addEventListener("storage", handleAccountStorage)') &&
+    sidebar.includes('window.addEventListener("focus", handleAccountForeground)') &&
     sidebar.includes(
-      "void refreshAccountLabel({ force: true, preferStored: true })"
+      'document.addEventListener("visibilitychange", handleAccountVisible)'
     ) &&
+    sidebar.includes("force: true") &&
+    sidebar.includes("preferStored: true") &&
     sidebar.includes("const handleAccountProfileUpdated = () =>") &&
+    sidebar.includes("const handleAccountForeground = () =>") &&
+    sidebar.includes("const handleAccountVisible = () =>") &&
+    sidebar.includes('document.visibilityState === "visible"') &&
     sidebar.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
     ) &&
@@ -4128,7 +4135,7 @@ check(
     sidebar.includes('data-account-session-fallback="stale"') &&
     sidebar.includes("账号云端确认中，本地可继续") &&
     sidebar.includes("本地输入可继续保存，同步会低频重试"),
-  "Sidebar 应通过共享账号状态 helper 读取当前账号资料，并在接口临时失败或跨标签页缓存变化时保留/刷新最近用户名和 stale fallback"
+  "Sidebar 应通过共享账号状态 helper 读取当前账号资料，并在接口临时失败、跨标签页缓存变化或标签页重新可见时保留/刷新最近用户名和 stale fallback"
 );
 check(
   sidebar.includes("accountLabel"),

@@ -10982,7 +10982,7 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
-    "async (options: { force?: boolean; preferStored?: boolean } = {})",
+    "fallbackReason?: string",
     "Sidebar account label refresh must support forced revalidation and an immediate stored-label fallback."
   );
   assertIncludes(
@@ -11006,13 +11006,31 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
+    "正在确认账号云端状态，已先显示最近用户名",
+    "Sidebar foreground refresh should show the local username before cloud confirmation finishes."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
     'window.addEventListener("storage", handleAccountStorage)',
     "Sidebar account label must refresh when another tab updates the last-authenticated fallback."
   );
   assertIncludes(
     files.sidebar,
     sidebar,
-    "void refreshAccountLabel({ force: true, preferStored: true })",
+    "const handleAccountForeground = () =>",
+    "Sidebar account label must refresh when the tab regains focus."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    'document.addEventListener("visibilitychange", handleAccountVisible)',
+    "Sidebar account label must refresh when the tab becomes visible again."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "preferStored: true",
     "Sidebar account label storage/profile handlers must force refresh and prefer the latest stored username immediately."
   );
   assertIncludes(

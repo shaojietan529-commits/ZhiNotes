@@ -26503,6 +26503,30 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "fallbackReason?: string",
+      "Sidebar account label refresh must support custom stale fallback reasons.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "正在确认账号云端状态，已先显示最近用户名",
+      "Sidebar foreground refresh should show the local username before cloud confirmation finishes.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "const handleAccountForeground = () =>",
+      "Sidebar account label must refresh when the tab regains focus.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'document.addEventListener("visibilitychange", handleAccountVisible)',
+      "Sidebar account label must refresh when the tab becomes visible again.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
       "Sidebar account label storage listener must ignore unrelated localStorage churn.",
     ],

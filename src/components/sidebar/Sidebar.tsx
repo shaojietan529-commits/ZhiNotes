@@ -892,14 +892,22 @@ export default function Sidebar() {
   ]);
 
   const refreshAccountLabel = useCallback(
-    async (options: { force?: boolean; preferStored?: boolean } = {}) => {
+    async (
+      options: {
+        force?: boolean;
+        preferStored?: boolean;
+        fallbackReason?: string;
+      } = {}
+    ) => {
       if (options.preferStored) {
         const lastKnownLabel = getLastKnownAccountLabel();
         if (lastKnownLabel !== "账号") {
           setAccountLabel(lastKnownLabel);
           setAccountSessionFallback({
             active: true,
-            reason: "账号资料已在其他标签页更新，正在确认云端状态",
+            reason:
+              options.fallbackReason ??
+              "账号资料已在其他标签页更新，正在确认云端状态",
           });
         }
       }
@@ -1018,23 +1026,46 @@ export default function Sidebar() {
     void refreshAccountLabel();
     const handleAccountStorage = (event: StorageEvent) => {
       if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
-        void refreshAccountLabel({ force: true, preferStored: true });
+        void refreshAccountLabel({
+          force: true,
+          preferStored: true,
+          fallbackReason: "账号资料已在其他标签页更新，正在确认云端状态",
+        });
       }
     };
     const handleAccountProfileUpdated = () => {
-      void refreshAccountLabel({ force: true, preferStored: true });
+      void refreshAccountLabel({
+        force: true,
+        preferStored: true,
+        fallbackReason: "账号资料已在其他标签页更新，正在确认云端状态",
+      });
+    };
+    const handleAccountForeground = () => {
+      void refreshAccountLabel({
+        preferStored: true,
+        fallbackReason: "正在确认账号云端状态，已先显示最近用户名",
+      });
+    };
+    const handleAccountVisible = () => {
+      if (document.visibilityState === "visible") {
+        handleAccountForeground();
+      }
     };
     window.addEventListener(
       ACCOUNT_PROFILE_UPDATED_EVENT,
       handleAccountProfileUpdated
     );
     window.addEventListener("storage", handleAccountStorage);
+    window.addEventListener("focus", handleAccountForeground);
+    document.addEventListener("visibilitychange", handleAccountVisible);
     return () => {
       window.removeEventListener(
         ACCOUNT_PROFILE_UPDATED_EVENT,
         handleAccountProfileUpdated
       );
       window.removeEventListener("storage", handleAccountStorage);
+      window.removeEventListener("focus", handleAccountForeground);
+      document.removeEventListener("visibilitychange", handleAccountVisible);
     };
   }, [refreshAccountLabel]);
 
