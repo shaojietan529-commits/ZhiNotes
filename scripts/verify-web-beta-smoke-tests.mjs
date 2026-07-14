@@ -18157,6 +18157,30 @@ function run() {
     "Shared page navigation must warm the page shell once for module, sidebar, and search opens."
   );
   assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    "LOCAL_FIRST_ROUTE_FALLBACK_MS = 1200",
+    "Shared page navigation must keep a bounded hard fallback when client routing does not start."
+  );
+  assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    "scheduleLocalFirstRouteFallback(href, Boolean(options.replace));",
+    "Shared page navigation must schedule the hard fallback before client router push/replace."
+  );
+  assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    "if (window.location.pathname !== startedPath) return;",
+    "Shared page navigation fallback must not override a different navigation that already started."
+  );
+  assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    "window.location.assign(href)",
+    "Shared page navigation must fall back to a normal browser page open if client routing stays on the old path."
+  );
+  assertIncludes(
     files.localFirstPageNavigationUtil,
     localFirstPageNavigationUtil,
     "pageShellWarmupPromise",

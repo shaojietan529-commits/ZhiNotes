@@ -10,6 +10,9 @@ import {
 } from "@/lib/pages/localFirstPageNavigation";
 import type { Page } from "@/lib/utils/types";
 
+const LOCAL_FIRST_ROUTE_FALLBACK_MS = 1200;
+let localFirstRouteAttempt = 0;
+
 export function useLocalFirstPageNavigation() {
   const router = useRouter();
 
@@ -33,6 +36,7 @@ export function useLocalFirstPageNavigation() {
       }
 
       const href = `/page/${pageId}`;
+      scheduleLocalFirstRouteFallback(href, Boolean(options.replace));
       if (options.replace) {
         router.replace(href);
       } else {
@@ -41,4 +45,20 @@ export function useLocalFirstPageNavigation() {
     },
     [router]
   );
+}
+
+function scheduleLocalFirstRouteFallback(href: string, replace: boolean): void {
+  if (typeof window === "undefined") return;
+  const attempt = ++localFirstRouteAttempt;
+  const startedPath = window.location.pathname;
+  window.setTimeout(() => {
+    if (attempt !== localFirstRouteAttempt) return;
+    if (window.location.pathname === href) return;
+    if (window.location.pathname !== startedPath) return;
+    if (replace) {
+      window.location.replace(href);
+    } else {
+      window.location.assign(href);
+    }
+  }, LOCAL_FIRST_ROUTE_FALLBACK_MS);
 }

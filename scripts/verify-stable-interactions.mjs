@@ -14,6 +14,7 @@ const files = {
   pageShell: "src/components/providers/PageShell.tsx",
   lazyPagePeekModal: "src/components/page/LazyPagePeekModal.tsx",
   localFirstPageNavigation: "src/lib/pages/localFirstPageNavigation.ts",
+  localFirstPageNavigationHook: "src/hooks/useLocalFirstPageNavigation.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
   pendingPageDrafts: "src/lib/pages/pendingPageDrafts.ts",
   dailyLoadingRoute: "src/app/(workspace)/daily/loading.tsx",
@@ -66,6 +67,9 @@ function run() {
   const lazyPagePeekModal = readProjectFile(files.lazyPagePeekModal);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
+  );
+  const localFirstPageNavigationHook = readProjectFile(
+    files.localFirstPageNavigationHook
   );
   const pageRouteHandoff = readProjectFile(files.pageRouteHandoff);
   const pendingPageDrafts = readProjectFile(files.pendingPageDrafts);
@@ -289,6 +293,24 @@ function run() {
       localFirstPageNavigation,
       "rememberPageRouteHandoff(page, source)",
       "Shared page navigation must provide metadata handoff for route first paint.",
+    ],
+    [
+      files.localFirstPageNavigationHook,
+      localFirstPageNavigationHook,
+      "scheduleLocalFirstRouteFallback(href, Boolean(options.replace));",
+      "Shared page navigation must schedule a hard browser fallback before client route push/replace can stall.",
+    ],
+    [
+      files.localFirstPageNavigationHook,
+      localFirstPageNavigationHook,
+      "if (window.location.pathname !== startedPath) return;",
+      "Shared page navigation hard fallback must not override a different user navigation.",
+    ],
+    [
+      files.localFirstPageNavigationHook,
+      localFirstPageNavigationHook,
+      "window.location.assign(href)",
+      "Shared page navigation must have a full-page fallback when client routing never starts.",
     ],
     [
       files.pageRouteHandoff,
