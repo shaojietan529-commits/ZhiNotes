@@ -2164,6 +2164,26 @@ function SyncDashboard() {
         .filter((value): value is string => Boolean(value))
         .sort()
         .at(-1) ?? null;
+    const authRetryStatusLabel = [
+      pagePendingStatus.authRetryStatus
+        ? `页面:${formatPageSyncStatus(pagePendingStatus.authRetryStatus)}`
+        : null,
+      databasePendingStatus.authRetryStatus
+        ? `数据库:${formatDatabaseSyncStatus(
+            databasePendingStatus.authRetryStatus
+          )}`
+        : null,
+      fileEmbedPendingStatus.authRetryStatus
+        ? `文件:${formatSyncAuthRetryStatus(
+            fileEmbedPendingStatus.authRetryStatus
+          )}`
+        : null,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join(" / ");
+    const authRetryDetail = authRetryDomainLabel
+      ? `${authRetryDomainLabel}同步保持待上传，本地输入可以继续；系统会重试，不会因为临时无法确认账号就自动登出。`
+      : "";
     return {
       pendingTotal,
       failedTotal,
@@ -2177,6 +2197,8 @@ function SyncDashboard() {
       fileFailedTotal: fileEmbedPendingStatus.failed,
       fileManualReviewTotal: fileEmbedPendingStatus.manualReviewCount,
       authRetryDomainLabel,
+      authRetryStatusLabel,
+      authRetryDetail,
       authRetryUntilLabel: authRetryUntil ? formatDate(authRetryUntil) : null,
     };
   }, [
@@ -6863,6 +6885,8 @@ function SyncDashboard() {
           failedTotal={syncLocalUseQueueSnapshot.failedTotal}
           manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
           authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}
+          authRetryStatusLabel={syncLocalUseQueueSnapshot.authRetryStatusLabel}
+          authRetryDetail={syncLocalUseQueueSnapshot.authRetryDetail}
           authRetryUntilLabel={syncLocalUseQueueSnapshot.authRetryUntilLabel}
           pendingDomainRows={pendingDomainRows}
           pendingDomainCoverage={pendingDomainCoverage}
@@ -20418,6 +20442,8 @@ function SyncOperationalStatusStrip({
   failedTotal,
   manualReviewTotal,
   authRetryDomainLabel,
+  authRetryStatusLabel,
+  authRetryDetail,
   authRetryUntilLabel,
   pendingDomainRows,
   pendingDomainCoverage,
@@ -20434,6 +20460,8 @@ function SyncOperationalStatusStrip({
   failedTotal: number;
   manualReviewTotal: number;
   authRetryDomainLabel: string;
+  authRetryStatusLabel: string;
+  authRetryDetail: string;
   authRetryUntilLabel: string | null;
   pendingDomainRows: PendingDomainRow[];
   pendingDomainCoverage: PendingDomainCoverageReport;
@@ -20496,6 +20524,10 @@ function SyncOperationalStatusStrip({
       data-file-manual-review-total={
         readiness.queueBreakdown.fileManualReviewTotal
       }
+      data-auth-retry-active={Boolean(authRetryDomainLabel)}
+      data-auth-retry-domains={authRetryDomainLabel}
+      data-auth-retry-statuses={authRetryStatusLabel}
+      data-auth-retry-until={authRetryUntilLabel ?? ""}
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -20529,6 +20561,20 @@ function SyncOperationalStatusStrip({
               {readiness.queueBreakdown.fileManualReviewTotal} 需确认。
             </p>
           ) : null}
+          {authRetryDomainLabel ? (
+            <p
+              data-testid="sync-auth-retry-local-use-note"
+              data-auth-retry-domains={authRetryDomainLabel}
+              data-auth-retry-statuses={authRetryStatusLabel}
+              data-auth-retry-until={authRetryUntilLabel ?? ""}
+              data-auth-retry-local-input-can-continue="true"
+              className="mt-2 max-w-3xl rounded-md bg-sky-50 px-3 py-2 text-[11px] leading-4 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+            >
+              账号会话暂时无法确认：{authRetryStatusLabel || authRetryDomainLabel}
+              。{authRetryDetail}
+              {authRetryUntilLabel ? ` 下次自动重试 ${authRetryUntilLabel}。` : ""}
+            </p>
+          ) : null}
           <div
             data-testid="sync-sidebar-readiness-mirror"
             data-local-use-status={readiness.status}
@@ -20541,6 +20587,7 @@ function SyncOperationalStatusStrip({
             )}
             data-auth-retry-active={Boolean(authRetryDomainLabel)}
             data-auth-retry-domains={authRetryDomainLabel}
+            data-auth-retry-statuses={authRetryStatusLabel}
             data-auth-retry-until={authRetryUntilLabel ?? ""}
             data-sidebar-readiness-label={sidebarReadinessMirrorLabel}
             data-sidebar-readiness-next-action={readiness.nextAction}
@@ -27702,6 +27749,15 @@ function formatDatabaseSyncStatus(status: string) {
   if (status === "unconfigured") return "云端未配置";
   if (status === "unconfirmed") return "账号临时不可确认";
   if (status === "disabled") return "数据库同步已关闭";
+  if (status === "error") return "云端同步错误";
+  return status;
+}
+
+function formatSyncAuthRetryStatus(status: string) {
+  if (status === "unauthenticated") return "账号未登录";
+  if (status === "unconfigured") return "云端未配置";
+  if (status === "unconfirmed") return "账号临时不可确认";
+  if (status === "disabled") return "同步已关闭";
   if (status === "error") return "云端同步错误";
   return status;
 }

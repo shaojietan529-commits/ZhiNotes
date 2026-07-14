@@ -3518,16 +3518,33 @@ check(
       "authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}"
     ) &&
     syncDashboardShell.includes(
+      "authRetryStatusLabel={syncLocalUseQueueSnapshot.authRetryStatusLabel}"
+    ) &&
+    syncDashboardShell.includes(
+      "authRetryDetail={syncLocalUseQueueSnapshot.authRetryDetail}"
+    ) &&
+    syncDashboardShell.includes(
       'if (status === "unconfirmed") return "账号临时不可确认";'
     ) &&
+    syncDashboardShell.includes("formatSyncAuthRetryStatus") &&
     syncDashboardShell.includes(
       "authRetryUntilLabel={syncLocalUseQueueSnapshot.authRetryUntilLabel}"
     ) &&
+    syncDashboardShell.includes('data-testid="sync-auth-retry-local-use-note"') &&
+    syncDashboardShell.includes(
+      'data-auth-retry-local-input-can-continue="true"'
+    ) &&
+    syncDashboardShell.includes("账号会话暂时无法确认") &&
+    syncDashboardShell.includes("本地输入可以继续") &&
+    syncDashboardShell.includes("不会因为临时无法确认账号就自动登出") &&
     syncDashboardShell.includes(
       "data-auth-retry-active={Boolean(authRetryDomainLabel)}"
     ) &&
     syncDashboardShell.includes(
       "data-auth-retry-domains={authRetryDomainLabel}"
+    ) &&
+    syncDashboardShell.includes(
+      "data-auth-retry-statuses={authRetryStatusLabel}"
     ) &&
     syncDashboardShell.includes(
       'data-auth-retry-until={authRetryUntilLabel ?? ""}'
