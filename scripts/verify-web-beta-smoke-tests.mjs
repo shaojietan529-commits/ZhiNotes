@@ -10112,16 +10112,34 @@ function run() {
     "Settings sync_log periodic status refresh must use the visible-tab lease."
   );
   assertIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "setStatusIfMounted",
+    "Settings sync_log status refresh must not write state after the panel unmounts."
+  );
+  assertIncludes(
     files.knowledgeCloudSyncStatusHook,
     knowledgeCloudSyncStatusHook,
     "claimVisibleRefreshLease",
     "Knowledge sync_log periodic status refresh must use the visible-tab lease."
   );
   assertIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "setStatusIfMounted",
+    "Knowledge sync_log status refresh must not write state after the panel unmounts."
+  );
+  assertIncludes(
     files.globalSyncLogStatusHook,
     globalSyncLogStatusHook,
     "claimVisibleRefreshLease",
     "Global sync_log periodic and burst refreshes must use the visible-tab lease."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "setStatusIfMounted",
+    "Global sync_log status refresh must not write state after the panel unmounts."
   );
   assertIncludes(
     files.accountCloudSyncCoordinator,

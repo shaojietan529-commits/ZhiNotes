@@ -22,12 +22,21 @@ export function useKnowledgeCloudSyncStatus() {
   const [status, setStatus] = useState<KnowledgeCloudSyncStatus>(
     buildEmptyKnowledgeCloudSyncStatus(false)
   );
+  const mountedRef = useRef(false);
   const runningRef = useRef(false);
   const rerunAfterCurrentRefreshRef = useRef(false);
 
+  const setStatusIfMounted = useCallback(
+    (nextStatus: KnowledgeCloudSyncStatus) => {
+      if (!mountedRef.current) return;
+      setStatus(nextStatus);
+    },
+    []
+  );
+
   const refresh = useCallback(async () => {
     if (!dbReady) {
-      setStatus(buildEmptyKnowledgeCloudSyncStatus(false));
+      setStatusIfMounted(buildEmptyKnowledgeCloudSyncStatus(false));
       return;
     }
     if (runningRef.current) {
@@ -37,7 +46,7 @@ export function useKnowledgeCloudSyncStatus() {
     runningRef.current = true;
     try {
       const entries = await getPendingKnowledgeSyncLogEntries();
-      setStatus(summarizeKnowledgeCloudSyncStatus(entries, true));
+      setStatusIfMounted(summarizeKnowledgeCloudSyncStatus(entries, true));
     } finally {
       runningRef.current = false;
       if (rerunAfterCurrentRefreshRef.current) {
@@ -45,12 +54,15 @@ export function useKnowledgeCloudSyncStatus() {
         void refresh();
       }
     }
-  }, [dbReady]);
+  }, [dbReady, setStatusIfMounted]);
 
   useEffect(() => {
+    mountedRef.current = true;
     if (!dbReady) {
       setStatus(buildEmptyKnowledgeCloudSyncStatus(false));
-      return;
+      return () => {
+        mountedRef.current = false;
+      };
     }
     void refresh();
     const interval = window.setInterval(() => {
@@ -72,7 +84,7 @@ export function useKnowledgeCloudSyncStatus() {
       const detail = (event as CustomEvent<KnowledgeCloudSyncStatus | undefined>)
         .detail;
       if (detail) {
-        setStatus(detail);
+        setStatusIfMounted(detail);
         return;
       }
       void refresh();
@@ -87,6 +99,7 @@ export function useKnowledgeCloudSyncStatus() {
     window.addEventListener("storage", handleStorage);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
+      mountedRef.current = false;
       window.clearInterval(interval);
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
@@ -94,7 +107,7 @@ export function useKnowledgeCloudSyncStatus() {
       window.removeEventListener("storage", handleStorage);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [dbReady, refresh]);
+  }, [dbReady, refresh, setStatusIfMounted]);
 
   return { status, refresh };
 }

@@ -25,12 +25,21 @@ export function useSettingsCloudSyncStatus() {
   const [status, setStatus] = useState<SettingsCloudSyncStatus>(
     buildEmptySettingsCloudSyncStatus(false)
   );
+  const mountedRef = useRef(false);
   const runningRef = useRef(false);
   const rerunAfterCurrentRefreshRef = useRef(false);
 
+  const setStatusIfMounted = useCallback(
+    (nextStatus: SettingsCloudSyncStatus) => {
+      if (!mountedRef.current) return;
+      setStatus(nextStatus);
+    },
+    []
+  );
+
   const refresh = useCallback(async () => {
     if (!dbReady) {
-      setStatus(buildEmptySettingsCloudSyncStatus(false));
+      setStatusIfMounted(buildEmptySettingsCloudSyncStatus(false));
       return;
     }
     if (runningRef.current) {
@@ -43,7 +52,7 @@ export function useSettingsCloudSyncStatus() {
         getPendingWorkspaceSettingSyncLogEntries(),
         getPendingAccountModuleSettingSyncLogEntries(),
       ]);
-      setStatus(
+      setStatusIfMounted(
         summarizeSettingsCloudSyncStatus(
           [...workspaceEntries, ...accountModuleEntries],
           true
@@ -56,12 +65,15 @@ export function useSettingsCloudSyncStatus() {
         void refresh();
       }
     }
-  }, [dbReady]);
+  }, [dbReady, setStatusIfMounted]);
 
   useEffect(() => {
+    mountedRef.current = true;
     if (!dbReady) {
       setStatus(buildEmptySettingsCloudSyncStatus(false));
-      return;
+      return () => {
+        mountedRef.current = false;
+      };
     }
     void refresh();
     const interval = window.setInterval(() => {
@@ -83,7 +95,7 @@ export function useSettingsCloudSyncStatus() {
       const detail = (event as CustomEvent<SettingsCloudSyncStatus | undefined>)
         .detail;
       if (detail) {
-        setStatus(detail);
+        setStatusIfMounted(detail);
         return;
       }
       void refresh();
@@ -98,6 +110,7 @@ export function useSettingsCloudSyncStatus() {
     window.addEventListener("storage", handleStorage);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
+      mountedRef.current = false;
       window.clearInterval(interval);
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
@@ -105,7 +118,7 @@ export function useSettingsCloudSyncStatus() {
       window.removeEventListener("storage", handleStorage);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [dbReady, refresh]);
+  }, [dbReady, refresh, setStatusIfMounted]);
 
   return { status, refresh };
 }

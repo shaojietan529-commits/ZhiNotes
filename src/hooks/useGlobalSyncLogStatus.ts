@@ -86,12 +86,18 @@ export function useGlobalSyncLogStatus() {
   const [status, setStatus] = useState<GlobalSyncLogStatus>(
     buildEmptyGlobalSyncLogStatus(false)
   );
+  const mountedRef = useRef(false);
   const runningRef = useRef(false);
   const rerunAfterCurrentRefreshRef = useRef(false);
 
+  const setStatusIfMounted = useCallback((nextStatus: GlobalSyncLogStatus) => {
+    if (!mountedRef.current) return;
+    setStatus(nextStatus);
+  }, []);
+
   const refresh = useCallback(async () => {
     if (!dbReady) {
-      setStatus(buildEmptyGlobalSyncLogStatus(false));
+      setStatusIfMounted(buildEmptyGlobalSyncLogStatus(false));
       return;
     }
     if (runningRef.current) {
@@ -101,7 +107,7 @@ export function useGlobalSyncLogStatus() {
     runningRef.current = true;
     try {
       const summary = await getSyncLogSummary();
-      setStatus(summarizeGlobalSyncLogStatus(summary, true));
+      setStatusIfMounted(summarizeGlobalSyncLogStatus(summary, true));
     } finally {
       runningRef.current = false;
       if (rerunAfterCurrentRefreshRef.current) {
@@ -109,12 +115,15 @@ export function useGlobalSyncLogStatus() {
         void refresh();
       }
     }
-  }, [dbReady]);
+  }, [dbReady, setStatusIfMounted]);
 
   useEffect(() => {
+    mountedRef.current = true;
     if (!dbReady) {
       setStatus(buildEmptyGlobalSyncLogStatus(false));
-      return;
+      return () => {
+        mountedRef.current = false;
+      };
     }
     let fastRefreshTimers: number[] = [];
     const clearFastRefreshBurst = () => {
@@ -172,6 +181,7 @@ export function useGlobalSyncLogStatus() {
     window.addEventListener("storage", handleStorage);
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
+      mountedRef.current = false;
       clearFastRefreshBurst();
       window.clearInterval(interval);
       window.removeEventListener("focus", handleForeground);
