@@ -15091,6 +15091,42 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "data-handoff-mode",
+    "Sync UI quick check must expose whether handoff is full cloud workspace or account bridge."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-account-bridge-ready",
+    "Sync UI quick check must expose account-level bridge readiness separately from full cloud workspace readiness."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-ready-for-cloud-cache-read",
+    "Sync UI quick check must expose that cloud cache reads remain gated by full cloud workspace readiness."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "formatSyncHandoffMode",
+    "Sync UI must translate handoff mode into user-facing language."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "账号同步桥",
+    "Sync UI must name the account-level bridge mode so users can distinguish it from full cloud workspace mode."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "云缓存读取",
+    "Sync UI must show that cache rebuild/read safety is a separate gate from account-level handoff."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "换设备前检查",
     "Sync UI quick check must use user-facing language, not only receipt jargon."
   );
@@ -15303,6 +15339,48 @@ function run() {
     syncHandoffReadinessReceipt,
     "ready_for_cross_device_handoff",
     "Handoff readiness receipt must explicitly mark cross-device handoff readiness."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "export type SyncHandoffMode",
+    "Handoff readiness receipt must classify full cloud workspace, account bridge, and local-only handoff modes."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "handoff_mode: SyncHandoffMode",
+    "Handoff readiness receipt must export the current handoff mode."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "account_bridge_ready",
+    "Handoff readiness receipt must expose account-level bridge readiness."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "cloud_master_ready",
+    "Handoff readiness receipt must keep full cloud master readiness separate from account bridge readiness."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "ready_for_cloud_cache_read: cloudMasterReady",
+    "Handoff readiness receipt must not allow cloud cache reads from account-bridge readiness alone."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    '"account-bridge"',
+    "Handoff readiness receipt must support account-level bridge mode."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    '"account-bridge-ready"',
+    "Handoff readiness receipt must include a visible account-bridge readiness gate."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,

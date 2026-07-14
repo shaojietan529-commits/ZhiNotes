@@ -17,6 +17,11 @@ export type SyncHandoffReadinessStatus =
 
 export type SyncHandoffReadinessGateStatus = "pass" | "warn" | "block";
 
+export type SyncHandoffMode =
+  | "cloud-workspace"
+  | "account-bridge"
+  | "local-only";
+
 export interface SyncHandoffReadinessReceiptInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
@@ -85,9 +90,13 @@ export interface SyncHandoffReadinessReceipt {
     includes_only_counts_booleans_hashes_timestamps_gates_and_steps: true;
   };
   summary: {
+    handoff_mode: SyncHandoffMode;
     ready_for_cross_device_handoff: boolean;
     safe_to_open_other_device: boolean;
     ready_for_cloud_cache_read: boolean;
+    account_bridge_ready: boolean;
+    account_bridge_sync_domains_ready: boolean;
+    cloud_master_ready: boolean;
     cloud_workspace_linked: boolean;
     page_sync_enabled: boolean;
     database_sync_enabled: boolean;
@@ -165,8 +174,23 @@ export function buildSyncHandoffReadinessReceipt(
   const pageSyncEnabled = input.pageStatus.enabled;
   const databaseSyncEnabled = input.databaseStatus.enabled;
   const fileSyncEnabled = input.fileStatus.enabled;
+  const accountBridgeSyncDomainsReady =
+    pageSyncEnabled && databaseSyncEnabled && fileSyncEnabled;
+  const accountBridgeReady =
+    accountBridgeSyncDomainsReady &&
+    !hasPending &&
+    failedRows === 0 &&
+    manualReviewRows === 0 &&
+    !hasStalePending;
+  const cloudMasterReady = cloudWorkspaceLinked && accountBridgeReady;
+  const handoffMode: SyncHandoffMode = cloudMasterReady
+    ? "cloud-workspace"
+    : accountBridgeReady
+      ? "account-bridge"
+      : "local-only";
   const status = getHandoffStatus({
     cloudWorkspaceLinked,
+    accountBridgeReady,
     pageSyncEnabled,
     databaseSyncEnabled,
     fileSyncEnabled,
@@ -191,6 +215,8 @@ export function buildSyncHandoffReadinessReceipt(
     : null;
   const gates = buildGates({
     cloudWorkspaceLinked,
+    accountBridgeReady,
+    accountBridgeSyncDomainsReady,
     pageSyncEnabled,
     databaseSyncEnabled,
     fileSyncEnabled,
@@ -212,6 +238,10 @@ export function buildSyncHandoffReadinessReceipt(
   const receiptHash = stableHash({
     generated_at: generatedAt,
     status,
+    handoff_mode: handoffMode,
+    account_bridge_ready: accountBridgeReady,
+    account_bridge_sync_domains_ready: accountBridgeSyncDomainsReady,
+    cloud_master_ready: cloudMasterReady,
     workspace_fingerprint: workspaceFingerprint,
     device_fingerprint: deviceFingerprint,
     cloud_workspace_fingerprint: cloudWorkspaceFingerprint,
@@ -238,7 +268,7 @@ export function buildSyncHandoffReadinessReceipt(
     generated_at: generatedAt,
     status,
     privacy_boundary:
-      "Generated locally to decide whether this browser can safely hand work to another device. It records only counts, sync flags, hashed workspace/device fingerprints, queue timestamps, gate statuses, and gate-derived owner next steps. It does not read or export page ids, database keys, page bodies, Yjs payloads, database values, comments, file names, file bytes, failure messages, secrets, tokens, credentials, raw workspace ids, or raw cache dumps; it does not send network requests, upload workspace data, clear local cache, mutate local cache records, or enable sync/AI.",
+      "Generated locally to decide whether this browser can safely hand work to another device through either the full cloud workspace or the account-level sync bridge. It records only counts, sync flags, hashed workspace/device fingerprints, queue timestamps, gate statuses, and gate-derived owner next steps. It does not read or export page ids, database keys, account emails, page bodies, Yjs payloads, database values, comments, file names, file bytes, failure messages, secrets, tokens, credentials, raw workspace ids, or raw cache dumps; it does not send network requests, upload workspace data, clear local cache, mutate local cache records, or enable sync/AI.",
     boundary: {
       local_receipt_only: true,
       reads_queue_counts: true,
@@ -269,9 +299,13 @@ export function buildSyncHandoffReadinessReceipt(
       includes_only_counts_booleans_hashes_timestamps_gates_and_steps: true,
     },
     summary: {
+      handoff_mode: handoffMode,
       ready_for_cross_device_handoff: status === "ready",
       safe_to_open_other_device: status === "ready",
-      ready_for_cloud_cache_read: status === "ready",
+      ready_for_cloud_cache_read: cloudMasterReady,
+      account_bridge_ready: accountBridgeReady,
+      account_bridge_sync_domains_ready: accountBridgeSyncDomainsReady,
+      cloud_master_ready: cloudMasterReady,
       cloud_workspace_linked: cloudWorkspaceLinked,
       page_sync_enabled: pageSyncEnabled,
       database_sync_enabled: databaseSyncEnabled,
@@ -297,13 +331,15 @@ export function buildSyncHandoffReadinessReceipt(
     },
     gates,
     next_action_steps: nextActionSteps,
-    owner_actions: buildOwnerActions(status),
-    next_action: getNextAction(status),
+    owner_actions: buildOwnerActions(status, handoffMode),
+    next_action: getNextAction(status, handoffMode),
   };
 }
 
 function buildGates(input: {
   cloudWorkspaceLinked: boolean;
+  accountBridgeReady: boolean;
+  accountBridgeSyncDomainsReady: boolean;
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
   fileSyncEnabled: boolean;
@@ -323,13 +359,30 @@ function buildGates(input: {
     {
       id: "cloud-workspace-linked",
       title: "云工作区已连接",
-      status: input.cloudWorkspaceLinked ? "pass" : "block",
+      status: input.cloudWorkspaceLinked ? "pass" : "warn",
       evidence: input.cloudWorkspaceLinked
         ? "本地 workspace 已有 linked-alpha 云工作区元数据。"
-        : "本地 workspace 仍是 local-only，没有云端主库接力目标。",
+        : input.accountBridgeReady
+          ? "未连接完整云工作区，但账号级同步桥接已就绪；可以短期跨设备接力，不能据此重建本地缓存。"
+          : "本地 workspace 仍未连接完整云工作区；账号级同步仍可作为当前阶段的接力桥，但不能据此重建本地缓存。",
       next_action: input.cloudWorkspaceLinked
         ? "继续检查同步域和 pending 队列。"
-        : "先登录并连接云工作区，再生成新的接力收据。",
+        : input.accountBridgeReady
+          ? "可以用同一 ZhiNotes 账号接力；后续仍需连接云工作区才能进入完整云主库和缓存重建。"
+          : "先处理下面的同步域和 pending 队列；完整云主库上线前不要重建本地缓存。",
+    },
+    {
+      id: "account-bridge-ready",
+      title: "账号级同步桥接可接力",
+      status: input.accountBridgeReady ? "pass" : "warn",
+      evidence: input.accountBridgeReady
+        ? "页面、数据库、文件和全域 sync_log 队列已清空，账号级同步桥可用于同账号跨设备接力。"
+        : input.accountBridgeSyncDomainsReady
+          ? "账号级同步域已开启，但仍需等待 pending、failed、manual review 清零。"
+          : "账号级同步域未全部开启，不能保证同账号设备看到同一份数据。",
+      next_action: input.accountBridgeReady
+        ? "可以作为当前阶段的跨设备接力路径。"
+        : "按下面的同步域和队列门禁逐项处理。",
     },
     {
       id: "page-sync-enabled",
@@ -360,7 +413,7 @@ function buildGates(input: {
     },
     {
       id: "page-pending-drained",
-      title: "页面 pending 队列已清空",
+      title: "页面 pending 队列无待上传",
       status: input.pagePendingRows > 0 ? "block" : "pass",
       evidence: `页面 pending + 内存批次 ${input.pagePendingRows} 条。`,
       next_action:
@@ -370,7 +423,7 @@ function buildGates(input: {
     },
     {
       id: "database-pending-drained",
-      title: "数据库 pending 队列已清空",
+      title: "数据库 pending 队列无待上传",
       status: input.databasePendingRows > 0 ? "block" : "pass",
       evidence: `数据库 pending + 内存批次 + sync_log ${input.databasePendingRows} 条。`,
       next_action:
@@ -380,7 +433,7 @@ function buildGates(input: {
     },
     {
       id: "file-pending-drained",
-      title: "文件 pending 队列已清空",
+      title: "文件 pending 队列无待上传",
       status: input.filePendingRows > 0 ? "block" : "pass",
       evidence: `文件 pending ${input.filePendingRows} 条。`,
       next_action:
@@ -390,7 +443,7 @@ function buildGates(input: {
     },
     {
       id: "full-domain-sync-log-drained",
-      title: "全域 sync_log 已清空",
+      title: "全域 sync_log 无待上传",
       status: input.totalSyncPending > 0 ? "block" : "pass",
       evidence: `全域 sync_log pending ${input.totalSyncPending} 条。`,
       next_action:
@@ -444,6 +497,7 @@ function buildGates(input: {
 
 function getHandoffStatus(input: {
   cloudWorkspaceLinked: boolean;
+  accountBridgeReady: boolean;
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
   fileSyncEnabled: boolean;
@@ -452,7 +506,6 @@ function getHandoffStatus(input: {
   failedRows: number;
   manualReviewRows: number;
 }): SyncHandoffReadinessStatus {
-  if (!input.cloudWorkspaceLinked) return "blocked-local-only";
   if (!input.pageSyncEnabled || !input.databaseSyncEnabled || !input.fileSyncEnabled) {
     return "blocked-sync-disabled";
   }
@@ -460,12 +513,20 @@ function getHandoffStatus(input: {
   if (input.failedRows > 0) return "blocked-failed";
   if (input.hasStalePending) return "blocked-stale-pending";
   if (input.hasPending) return "blocked-pending";
+  if (input.accountBridgeReady) return "ready";
+  if (!input.cloudWorkspaceLinked) return "blocked-local-only";
   return "ready";
 }
 
-function getNextAction(status: SyncHandoffReadinessStatus): string {
+function getNextAction(
+  status: SyncHandoffReadinessStatus,
+  handoffMode: SyncHandoffMode
+): string {
   switch (status) {
     case "ready":
+      if (handoffMode === "account-bridge") {
+        return "账号级接力 ready：可以用同一 ZhiNotes 账号在另一台设备继续；这不是完整云主库，重建本地缓存仍需先连接云工作区。";
+      }
       return "接力 ready：本机没有待上传、失败或人工处理队列，可以在其他设备读取云端并按热缓存策略复制常用内容。";
     case "blocked-local-only":
       return "先登录并连接云工作区；local-only 状态下没有云端接力目标。";
@@ -482,8 +543,17 @@ function getNextAction(status: SyncHandoffReadinessStatus): string {
   }
 }
 
-function buildOwnerActions(status: SyncHandoffReadinessStatus) {
+function buildOwnerActions(
+  status: SyncHandoffReadinessStatus,
+  handoffMode: SyncHandoffMode
+) {
   if (status === "ready") {
+    if (handoffMode === "account-bridge") {
+      return [
+        "Use the same ZhiNotes account on the other device for account-level handoff.",
+        "Do not rebuild local cache from cloud until a full cloud workspace is linked.",
+      ];
+    }
     return [
       "Other devices may read from cloud and warm only selected hot-cache content.",
       "Keep local-first editing active; new input should still write locally first, then enqueue cloud sync.",

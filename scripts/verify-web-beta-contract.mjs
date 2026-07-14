@@ -11692,6 +11692,30 @@ function run() {
       "Sync UI must show whether another device can safely open cloud data.",
     ],
     [
+      "data-handoff-mode",
+      "Sync UI quick check must expose whether handoff is full cloud workspace or account bridge.",
+    ],
+    [
+      "data-account-bridge-ready",
+      "Sync UI quick check must expose account-level bridge readiness separately from full cloud workspace readiness.",
+    ],
+    [
+      "data-ready-for-cloud-cache-read",
+      "Sync UI quick check must expose that cloud cache reads remain gated by full cloud workspace readiness.",
+    ],
+    [
+      "formatSyncHandoffMode",
+      "Sync UI must translate handoff mode into user-facing language.",
+    ],
+    [
+      "账号同步桥",
+      "Sync UI must name the account-level bridge mode so users can distinguish it from full cloud workspace mode.",
+    ],
+    [
+      "云缓存读取",
+      "Sync UI must show that cache rebuild/read safety is a separate gate from account-level handoff.",
+    ],
+    [
       "syncHandoffReadinessReceipt",
       "Sync UI must reuse the same handoff receipt for visible status and export.",
     ],
@@ -11864,6 +11888,34 @@ function run() {
     [
       "ready_for_cross_device_handoff",
       "Handoff readiness receipt must explicitly mark cross-device handoff readiness.",
+    ],
+    [
+      "export type SyncHandoffMode",
+      "Handoff readiness receipt must classify full cloud workspace, account bridge, and local-only handoff modes.",
+    ],
+    [
+      "handoff_mode: SyncHandoffMode",
+      "Handoff readiness receipt must export the current handoff mode.",
+    ],
+    [
+      "account_bridge_ready",
+      "Handoff readiness receipt must expose account-level bridge readiness.",
+    ],
+    [
+      "cloud_master_ready",
+      "Handoff readiness receipt must keep full cloud master readiness separate from account bridge readiness.",
+    ],
+    [
+      "ready_for_cloud_cache_read: cloudMasterReady",
+      "Handoff readiness receipt must not allow cloud cache reads from account-bridge readiness alone.",
+    ],
+    [
+      '"account-bridge"',
+      "Handoff readiness receipt must support account-level bridge mode.",
+    ],
+    [
+      '"account-bridge-ready"',
+      "Handoff readiness receipt must include a visible account-bridge readiness gate.",
     ],
     [
       "fileStatus: PendingFileEmbedSyncStatus",

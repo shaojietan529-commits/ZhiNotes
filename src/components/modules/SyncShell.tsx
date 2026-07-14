@@ -21718,7 +21718,16 @@ function SyncUploadSafetyPanel({
           </div>
         </div>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+          <CacheRebuildFact
+            label="接力模式"
+            value={formatSyncHandoffMode(handoffReceipt.summary.handoff_mode)}
+            detail={
+              handoffReceipt.summary.account_bridge_ready
+                ? "账号级同步桥已就绪"
+                : "账号级同步桥未就绪"
+            }
+          />
           <CacheRebuildFact
             label="ready_for_cross_device_handoff"
             value={
@@ -21745,6 +21754,19 @@ function SyncUploadSafetyPanel({
             detail={
               handoffReceipt.summary.cloud_workspace_fingerprint ??
               "暂无云 workspace 指纹"
+            }
+          />
+          <CacheRebuildFact
+            label="云缓存读取"
+            value={
+              handoffReceipt.summary.ready_for_cloud_cache_read
+                ? "允许"
+                : "禁止"
+            }
+            detail={
+              handoffReceipt.summary.cloud_master_ready
+                ? "完整云主库已就绪"
+                : "需完整云工作区后再重建本地缓存"
             }
           />
           <CacheRebuildFact
@@ -21976,7 +21998,9 @@ function SyncHandoffQuickCheckPanel({
           : "border-red-200 bg-red-50/70 dark:border-red-900 dark:bg-red-950/20";
   const primaryMessage =
     receipt.status === "ready"
-      ? "可以换设备继续。当前本机没有待上传、失败或人工处理队列。"
+      ? summary.handoff_mode === "account-bridge"
+        ? "可以用同一 ZhiNotes 账号在另一台设备继续。当前是账号级同步桥，不是完整云主库；不要据此重建本地缓存。"
+        : "可以换设备继续。当前本机没有待上传、失败或人工处理队列。"
       : receipt.status === "blocked-local-only"
         ? "还没有连接云工作区；这台设备的数据不能作为跨设备接力来源。"
         : receipt.status === "blocked-sync-disabled"
@@ -21994,10 +22018,15 @@ function SyncHandoffQuickCheckPanel({
       id="sync-handoff-quick-check"
       data-testid="sync-handoff-quick-check"
       data-handoff-status={receipt.status}
+      data-handoff-mode={summary.handoff_mode}
       data-ready-for-cross-device-handoff={String(
         summary.ready_for_cross_device_handoff
       )}
       data-safe-to-open-other-device={String(summary.safe_to_open_other_device)}
+      data-account-bridge-ready={String(summary.account_bridge_ready)}
+      data-ready-for-cloud-cache-read={String(
+        summary.ready_for_cloud_cache_read
+      )}
       data-handoff-pending-total={pendingTotal}
       data-handoff-failed-total={summary.failed_rows}
       data-handoff-manual-review-total={summary.manual_review_rows}
@@ -22073,7 +22102,18 @@ function SyncHandoffQuickCheckPanel({
         </div>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <SyncHandoffQuickFact
+          label="接力模式"
+          value={formatSyncHandoffMode(summary.handoff_mode)}
+          detail={
+            summary.handoff_mode === "account-bridge"
+              ? "同账号可接力；云缓存重建仍禁止"
+              : summary.handoff_mode === "cloud-workspace"
+                ? "完整云主库可接力"
+                : "先处理同步域或队列"
+          }
+        />
         <SyncHandoffQuickFact
           label="待上传"
           value={`${pendingTotal} 条`}
@@ -22151,6 +22191,14 @@ function syncUploadDrainStatusClass(status: SyncUploadDrainStatus) {
     return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
   }
   return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+}
+
+function formatSyncHandoffMode(
+  mode: SyncHandoffReadinessReceipt["summary"]["handoff_mode"]
+) {
+  if (mode === "cloud-workspace") return "云工作区";
+  if (mode === "account-bridge") return "账号同步桥";
+  return "本地未就绪";
 }
 
 function formatSyncHandoffReadinessStatus(
