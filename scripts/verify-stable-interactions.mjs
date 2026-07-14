@@ -236,10 +236,12 @@ function run() {
       "setOpeningMeetingId(optimisticPage.id);",
       "rememberPendingPageDraft(optimisticPage);",
       "rememberPageRouteHandoff(optimisticPage, \"meeting-create\");",
+      "upsertPages([optimisticPage]);",
+      "void seedMeetingPageForImmediateOpen(optimisticPage);",
       "setPeekInitialPage(optimisticPage);",
       "setPeekPageId(optimisticPage.id);",
     ],
-    "ZhiHui create must publish local feedback and route handoff before background persistence."
+    "ZhiHui create must publish local feedback, route handoff, and start non-blocking local persistence before background work."
   );
   assertOrdered(
     files.meetingShell,

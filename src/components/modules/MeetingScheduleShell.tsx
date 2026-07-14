@@ -2026,18 +2026,13 @@ export default function MeetingScheduleShell() {
         setOpeningMeetingId(optimisticPage.id);
         rememberPendingPageDraft(optimisticPage);
         rememberPageRouteHandoff(optimisticPage, "meeting-create");
+        upsertPages([optimisticPage]);
+        void seedMeetingPageForImmediateOpen(optimisticPage);
         setSelectedMeeting(null);
         setRunNowMessage("");
         setPeekInitialPage(optimisticPage);
         setPeekPageId(optimisticPage.id);
         warmMeetingPeekOpen();
-        scheduleMeetingIdleTask(() => {
-          try {
-            upsertPages([optimisticPage]);
-          } catch (error) {
-            console.warn("Meeting optimistic store seed failed", error);
-          }
-        }, 80);
       } catch (error) {
         clearFailedLocalMeetingCreate();
         const message =
@@ -2084,8 +2079,6 @@ export default function MeetingScheduleShell() {
           message: "会议页面已先加入日历，后台继续保存并排队同步。",
         });
       }
-      void seedMeetingPageForImmediateOpen(optimisticPage);
-
       scheduleMeetingIdleTask(() => {
         void (async () => {
           let finalPage = optimisticPage;
