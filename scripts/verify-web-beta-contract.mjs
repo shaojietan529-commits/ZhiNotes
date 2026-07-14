@@ -7970,10 +7970,6 @@ function run() {
       "Meeting peek modal must clear opening feedback through the real peek ready callback.",
     ],
     [
-      "readyOnLocalShell={false}",
-      "Meeting creation must keep opening feedback and the full-page fallback active until the real peek modal takes over.",
-    ],
-    [
       "const primeMeetingEntryPage = useCallback",
       "Meeting schedule must reuse a single meeting-entry open warmup helper.",
     ],
@@ -8206,6 +8202,12 @@ function run() {
       `${files.meetingScheduleShell} must not clear opening draft feedback from background persistence timing; wait for peek ready or the full-page fallback.`
     );
   }
+  assertSourceExcludes(
+    files.meetingScheduleShell,
+    meetingScheduleShell,
+    "readyOnLocalShell={false}",
+    "Meeting creation must allow the local-first peek shell to clear opening feedback as soon as the local draft is visible."
+  );
   assertSourceExcludes(
     files.meetingScheduleShell,
     meetingScheduleShell,

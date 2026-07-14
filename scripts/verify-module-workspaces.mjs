@@ -1513,7 +1513,7 @@ check(
     shells.schedule.includes("current?.pageId === pageId ? null : current") &&
     shells.schedule.includes("openingMeetingId === entry.page.id") &&
     shells.schedule.includes("onReady={handlePeekReady}") &&
-    shells.schedule.includes("readyOnLocalShell={false}") &&
+    !shells.schedule.includes("readyOnLocalShell={false}") &&
     lazyPagePeekModal.includes("readyOnLocalShell = true") &&
     lazyPagePeekModal.includes("if (readyOnLocalShell) {\n      onReady?.(pageId);\n    }") &&
     pagePeekModal.includes("readyOnLocalShell?: boolean;") &&

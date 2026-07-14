@@ -3678,7 +3678,6 @@ export default function MeetingScheduleShell() {
         <PagePeekModal
           pageId={peekPageId}
           initialPage={peekInitialPage}
-          readyOnLocalShell={false}
           onClose={closeMeetingPeekModal}
           onOpenFull={openMeetingPeekFullPage}
           onReady={handlePeekReady}

@@ -1792,7 +1792,7 @@ check(
     meetingScheduleShell.includes('data-testid="meeting-opening-draft-banner"') &&
     meetingScheduleShell.includes("openingMeetingId === entry.page.id") &&
     meetingScheduleShell.includes("onReady={handlePeekReady}") &&
-    meetingScheduleShell.includes("readyOnLocalShell={false}") &&
+    !meetingScheduleShell.includes("readyOnLocalShell={false}") &&
     !meetingScheduleShell.includes("const warmMeetingPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !meetingScheduleShell.includes("@/components/page/PagePeekModal") &&
     meetingScheduleShell.includes("creatingMeetingDateKey") &&
