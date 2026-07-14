@@ -137,7 +137,35 @@ export function useAccountCloudSyncCoordinator() {
     settingsSync.status.manualReviewCount +
     knowledgeSync.status.manualReviewCount +
     globalSyncLogExtraManualReviewTotal;
-  const retryableFailedTotal = Math.max(failedTotal - manualReviewTotal, 0);
+  const pageRetryableFailedTotal = Math.max(
+    pageSync.pendingStatus.failed - pageSync.pendingStatus.manualReviewCount,
+    0
+  );
+  const databaseRetryableFailedTotal = Math.max(
+    databaseSync.pendingStatus.failed -
+      databaseSync.pendingStatus.manualReviewCount,
+    0
+  );
+  const fileRetryableFailedTotal = fileSync.status.failed;
+  const settingsRetryableFailedTotal = Math.max(
+    settingsSync.status.failed - settingsSync.status.manualReviewCount,
+    0
+  );
+  const knowledgeRetryableFailedTotal = Math.max(
+    knowledgeSync.status.failed - knowledgeSync.status.manualReviewCount,
+    0
+  );
+  const globalSyncLogExtraRetryableFailedTotal = Math.max(
+    globalSyncLogExtraFailedTotal - globalSyncLogExtraManualReviewTotal,
+    0
+  );
+  const retryableFailedTotal =
+    pageRetryableFailedTotal +
+    databaseRetryableFailedTotal +
+    fileRetryableFailedTotal +
+    settingsRetryableFailedTotal +
+    knowledgeRetryableFailedTotal +
+    globalSyncLogExtraRetryableFailedTotal;
   const pageAutoRetryablePendingTotal =
     Math.max(
       pageSync.pendingStatus.pending -

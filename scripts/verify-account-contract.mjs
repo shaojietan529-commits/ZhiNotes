@@ -3530,6 +3530,19 @@ check(
     accountCloudSyncCoordinator.includes("globalSyncLogExtraPendingTotal") &&
     accountCloudSyncCoordinator.includes("globalSyncLogExtraManualReviewTotal") &&
     accountCloudSyncCoordinator.includes("manualReviewTotal") &&
+    accountCloudSyncCoordinator.includes("pageRetryableFailedTotal") &&
+    accountCloudSyncCoordinator.includes("databaseRetryableFailedTotal") &&
+    accountCloudSyncCoordinator.includes(
+      "const fileRetryableFailedTotal = fileSync.status.failed"
+    ) &&
+    accountCloudSyncCoordinator.includes("settingsRetryableFailedTotal") &&
+    accountCloudSyncCoordinator.includes("knowledgeRetryableFailedTotal") &&
+    accountCloudSyncCoordinator.includes(
+      "globalSyncLogExtraRetryableFailedTotal"
+    ) &&
+    !accountCloudSyncCoordinator.includes(
+      "const retryableFailedTotal = Math.max(failedTotal - manualReviewTotal, 0)"
+    ) &&
     accountCloudSyncCoordinator.includes("pageVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("databaseVisibleSyncWork") &&
     accountCloudSyncCoordinator.includes("settingsVisibleSyncWork") &&
@@ -3565,7 +3578,7 @@ check(
     accountCloudSyncCoordinator.includes("本地输入已保留，会低频检查登录状态") &&
     accountCloudSyncCoordinator.includes("账号云同步暂不可确认，低频重试；本地输入已保留") &&
     accountCloudSyncCoordinator.includes("syncNow"),
-  "账号级云同步协调器应统一页面/数据库/设置/知识库附属/全域 sync_log 同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口"
+  "账号级云同步协调器应统一页面/数据库/设置/知识库附属/全域 sync_log 同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口；可重试失败必须按领域计算，文件 failed 不能被其他领域 manual review 抵消"
 );
 check(
   globalSyncLogStatusHook.includes("getSyncLogSummary") &&

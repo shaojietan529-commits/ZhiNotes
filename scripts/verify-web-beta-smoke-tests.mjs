@@ -9861,9 +9861,23 @@ function run() {
 	      "retryableFailedTotal",
 	      "Account cloud sync coordinator must separate retryable failures from rows that need manual review.",
 	    ],
+	    [
+	      "const fileRetryableFailedTotal = fileSync.status.failed",
+	      "Account cloud sync coordinator must count retryable file failures directly because file manual-review rows are a separate queue status.",
+	    ],
+	    [
+	      "globalSyncLogExtraRetryableFailedTotal",
+	      "Account cloud sync coordinator must calculate uncovered sync_log retryable failures separately from manual-review rows.",
+	    ],
 	  ]) {
 	    assertIncludes(files.accountCloudSyncCoordinator, accountCloudSyncCoordinator, snippet, message);
 	  }
+	  assertExcludes(
+	    files.accountCloudSyncCoordinator,
+	    accountCloudSyncCoordinator,
+	    "const retryableFailedTotal = Math.max(failedTotal - manualReviewTotal, 0)",
+	    "Account cloud sync coordinator must not subtract all manual-review rows from all failures because file failed/manual-review statuses are independent."
+	  );
 	  assertIncludes(
 	    files.accountCloudSyncCoordinator,
 	    accountCloudSyncCoordinator,
