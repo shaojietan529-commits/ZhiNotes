@@ -12266,8 +12266,32 @@ function run() {
       "Database cloud sync hook must define a short pending-status quick sync delay.",
     ],
     [
-      "scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS)",
-      "Database pending queue status events must trigger quick sync without waiting for the normal poll.",
+      "function shouldForceAccountGateForPendingStatus",
+      "Database pending queue status events must be able to decide whether pending auth retry should force an account gate refresh.",
+    ],
+    [
+      "status.pending + status.queued + status.syncLogPending <= 0",
+      "Database pending status account-gate refresh must include cloud key, memory, and sync_log queues.",
+    ],
+    [
+      "return Boolean(status.authRetryStatus)",
+      "Database pending status account-gate refresh must only bypass retry backoff when auth retry metadata is active.",
+    ],
+    [
+      "forceLease: Boolean(options.forceAccountGate)",
+      "Database pending status quick sync must let forced account rechecks take the visible-tab lease.",
+    ],
+    [
+      "forceAccountGate: Boolean(options.forceAccountGate)",
+      "Database pending queue status events must trigger a bounded account retry when pending writes are waiting behind auth retry.",
+    ],
+    [
+      "shouldForceAccountGateForPendingStatus(detail)",
+      "Database same-tab pending status events must force an account gate refresh when pending rows are stuck behind auth retry.",
+    ],
+    [
+      "shouldForceAccountGateForPendingStatus(nextStatus)",
+      "Database cross-tab pending storage changes must force an account gate refresh when pending rows are stuck behind auth retry.",
     ],
     [
       "detail.pending + detail.queued + detail.syncLogPending",

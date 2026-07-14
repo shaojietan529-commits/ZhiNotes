@@ -2290,7 +2290,7 @@ check(
     databaseCloudSyncHook.includes(
       "void runSync({ forceLease: true, forceAccountGate: true, quick: true });"
     ),
-  "数据库同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化才强制重新确认账号"
+  "数据库同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化/pending 队列在 auth retry 中时才强制重新确认账号"
 );
 check(
   databaseCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
@@ -2325,11 +2325,17 @@ check(
     databaseCloudSyncHook.includes('event.key?.startsWith("zhinote.databasesync.")') &&
     databaseCloudSyncHook.includes("CustomEvent<PendingCloudDatabaseSyncStatus>") &&
     databaseCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&
-    databaseCloudSyncHook.includes("scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS)") &&
+    databaseCloudSyncHook.includes("function shouldForceAccountGateForPendingStatus") &&
+    databaseCloudSyncHook.includes("status.pending + status.queued + status.syncLogPending <= 0") &&
+    databaseCloudSyncHook.includes("return Boolean(status.authRetryStatus)") &&
+    databaseCloudSyncHook.includes("forceLease: Boolean(options.forceAccountGate)") &&
+    databaseCloudSyncHook.includes("forceAccountGate: Boolean(options.forceAccountGate)") &&
+    databaseCloudSyncHook.includes("shouldForceAccountGateForPendingStatus(detail)") &&
+    databaseCloudSyncHook.includes("shouldForceAccountGateForPendingStatus(nextStatus)") &&
     databaseCloudSyncHook.includes("detail.pending + detail.queued + detail.syncLogPending") &&
     databaseCloudSyncHook.includes("DATABASE_PENDING_STORAGE_KEYS") &&
     databaseCloudSyncHook.includes('DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")'),
-  "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync"
+  "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync；若 pending 队列正处于账号重试状态，应有边界地重新确认账号，避免可登录状态下等完整个退避窗口"
 );
 check(
   databaseCloudSyncHook.includes("rerunAfterCurrentSyncRef") &&

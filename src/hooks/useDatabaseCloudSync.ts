@@ -84,6 +84,16 @@ interface DatabaseCloudSyncRunOptions {
   includeManualReview?: boolean;
 }
 
+function shouldForceAccountGateForPendingStatus(
+  status: PendingCloudDatabaseSyncStatus | null | undefined
+): boolean {
+  if (!status?.enabled) return false;
+  if (status.pending + status.queued + status.syncLogPending <= 0) {
+    return false;
+  }
+  return Boolean(status.authRetryStatus);
+}
+
 function getRetryStateFromAccountGate(
   status: AccountCloudSyncGateStatus
 ): DatabaseCloudSyncState {
@@ -339,10 +349,17 @@ export function useDatabaseCloudSync() {
   useEffect(() => {
     if (!dbReady) return;
     let quickSyncTimer: number | undefined;
-    const scheduleQuickSync = (delayMs: number) => {
+    const scheduleQuickSync = (
+      delayMs: number,
+      options: { forceAccountGate?: boolean } = {}
+    ) => {
       if (quickSyncTimer !== undefined) window.clearTimeout(quickSyncTimer);
       quickSyncTimer = window.setTimeout(() => {
-        void runSync({ quick: true });
+        void runSync({
+          quick: true,
+          forceLease: Boolean(options.forceAccountGate),
+          forceAccountGate: Boolean(options.forceAccountGate),
+        });
       }, delayMs);
     };
     void refreshPendingStatus();
@@ -385,10 +402,22 @@ export function useDatabaseCloudSync() {
         void recoverLocalCacheFromCloud();
       }
       if (event.key?.startsWith("zhinote.databasesync.")) {
-        void refreshPendingStatus();
-        if (DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
-          scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS);
-        }
+        void getPendingCloudDatabaseSyncStatus()
+          .then((nextStatus) => {
+            setPendingStatus(nextStatus);
+            if (DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
+              scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS, {
+                forceAccountGate:
+                  shouldForceAccountGateForPendingStatus(nextStatus),
+              });
+            }
+          })
+          .catch(() => {
+            void refreshPendingStatus();
+            if (DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
+              scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS);
+            }
+          });
       }
     };
     const handleLocalDatabaseUpdate = (event: Event) => {
@@ -404,7 +433,10 @@ export function useDatabaseCloudSync() {
         const totalPending =
           detail.pending + detail.queued + detail.syncLogPending;
         if (detail.enabled && totalPending > 0) {
-          scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS);
+          scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS, {
+            forceAccountGate:
+              shouldForceAccountGateForPendingStatus(detail),
+          });
         }
       } else {
         void refreshPendingStatus();
