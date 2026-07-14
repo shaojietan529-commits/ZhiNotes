@@ -77,9 +77,7 @@ export function useSettingsCloudSyncStatus() {
       void refresh();
     };
     const handleStorage = (event: StorageEvent) => {
-      if (event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY || !event.newValue) {
-        return;
-      }
+      if (event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY) return;
       void refresh();
     };
     window.addEventListener("focus", handleForeground);

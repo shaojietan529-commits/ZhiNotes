@@ -116,7 +116,7 @@ export function useGlobalSyncLogStatus() {
     };
     const handleStatus = () => void refresh();
     const handleStorage = (event: StorageEvent) => {
-      if (event.key !== SYNC_LOG_STATUS_STORAGE_KEY || !event.newValue) return;
+      if (event.key !== SYNC_LOG_STATUS_STORAGE_KEY) return;
       void refresh();
     };
     window.addEventListener("focus", handleForeground);

@@ -9960,6 +9960,12 @@ function run() {
     "event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY",
     "Settings cloud sync status hook must ignore unrelated localStorage churn."
   );
+  assertExcludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY || !event.newValue",
+    "Settings cloud sync status hook must refresh when another tab clears the content-free status key so cleared queues do not leave stale pending/failed UI."
+  );
   assertIncludes(
     files.settingsSyncStatus,
     settingsSyncStatus,
@@ -10020,6 +10026,12 @@ function run() {
     "event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY",
     "Knowledge sync status hook must ignore unrelated localStorage churn."
   );
+  assertExcludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY || !event.newValue",
+    "Knowledge sync status hook must refresh when another tab clears the content-free status key so cleared queues do not leave stale pending/failed UI."
+  );
   assertIncludes(
     files.knowledgeSyncStatus,
     knowledgeSyncStatus,
@@ -10061,6 +10073,12 @@ function run() {
     globalSyncLogStatusHook,
     "event.key !== SYNC_LOG_STATUS_STORAGE_KEY",
     "Global sync_log status hook must ignore unrelated localStorage churn."
+  );
+  assertExcludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "event.key !== SYNC_LOG_STATUS_STORAGE_KEY || !event.newValue",
+    "Global sync_log status hook must refresh when another tab clears the content-free status key so cleared queues do not leave stale pending/failed UI."
   );
   assertIncludes(
     files.globalSyncLogStatusHook,

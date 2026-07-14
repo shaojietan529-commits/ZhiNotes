@@ -3574,10 +3574,13 @@ check(
     globalSyncLogStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
     globalSyncLogStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
     globalSyncLogStatusHook.includes("event.key !== SYNC_LOG_STATUS_STORAGE_KEY") &&
+    !globalSyncLogStatusHook.includes(
+      "event.key !== SYNC_LOG_STATUS_STORAGE_KEY || !event.newValue"
+    ) &&
     globalSyncLogStatusHook.includes("reads_sync_log_payloads: false") &&
     globalSyncLogStatusHook.includes("uploads_workspace_data: false") &&
     globalSyncLogStatusHook.includes("mutates_sync_log: false"),
-  "全域 sync_log 状态 hook 必须只读本地队列元数据，并监听 content-free sync_log 状态事件和跨 tab 提醒"
+  "全域 sync_log 状态 hook 必须只读本地队列元数据，并监听 content-free sync_log 状态事件和跨 tab 提醒；状态 key 被清空时也要刷新，避免 pending/failed 清零后 UI 卡旧状态"
 );
 check(
   accountLocalUseReadiness.includes("localInputCanContinue: true") &&
@@ -3699,13 +3702,16 @@ check(
     settingsCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
     settingsCloudSyncStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
     settingsCloudSyncStatusHook.includes("event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
+    !settingsCloudSyncStatusHook.includes(
+      "event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY || !event.newValue"
+    ) &&
     settingsCloudSyncStatusHook.includes(
       "summarizeSettingsCloudSyncStatus"
     ) &&
     settingsCloudSyncStatusHook.includes(
       "SETTINGS_STATUS_REFRESH_INTERVAL_MS"
     ),
-  "设置类云同步状态 hook 应只读 settings sync_log 元数据，并用事件/轮询刷新全局 pending 状态"
+  "设置类云同步状态 hook 应只读 settings sync_log 元数据，并用事件/轮询刷新全局 pending 状态；状态 key 被清空时也要刷新，避免设置队列清零后 UI 卡旧状态"
 );
 check(
   settingsSyncStatus.includes("SETTINGS_SYNC_STATUS_EVENT") &&
@@ -3728,11 +3734,14 @@ check(
     knowledgeCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
     knowledgeCloudSyncStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
     knowledgeCloudSyncStatusHook.includes("event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
+    !knowledgeCloudSyncStatusHook.includes(
+      "event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY || !event.newValue"
+    ) &&
     knowledgeCloudSyncStatusHook.includes("summarizeKnowledgeCloudSyncStatus") &&
     knowledgeCloudSyncStatusHook.includes(
       "KNOWLEDGE_STATUS_REFRESH_INTERVAL_MS"
     ),
-  "知识库附属同步状态 hook 应只读评论/版本/双链 sync_log 元数据，并用事件/轮询刷新全局 pending 状态"
+  "知识库附属同步状态 hook 应只读评论/版本/双链 sync_log 元数据，并用事件/轮询刷新全局 pending 状态；状态 key 被清空时也要刷新，避免知识库附属队列清零后 UI 卡旧状态"
 );
 check(
   knowledgeSyncStatus.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
