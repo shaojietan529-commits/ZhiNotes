@@ -1825,12 +1825,7 @@ function SyncDashboard() {
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("cloud") === "connected" && session) {
-      setCloudMessage({
-        tone: "success",
-        title: "云端登录已连接",
-        detail:
-          "本地云 session 已保存。下一步可以检查 session 或创建一个空的云 workspace。",
-      });
+      setCloudMessage(getCloudCallbackHandoffMessage(params.get("handoff")));
       window.history.replaceState(null, "", "/modules/sync");
     }
   }, []);
@@ -27007,6 +27002,53 @@ async function readCloudApiBody(response: Response) {
       message: text,
     };
   }
+}
+
+function getCloudCallbackHandoffMessage(
+  status: string | null
+): CloudAlphaMessage {
+  if (status === "recovered") {
+    return {
+      tone: "success",
+      title: "云接力已恢复",
+      detail:
+        "本地云 session 已保存，并已把这台设备接回云 workspace。这里只恢复账号/workspace metadata，没有上传本地内容。",
+    };
+  }
+
+  if (status === "workspace-choice") {
+    return {
+      tone: "warning",
+      title: "请选择云工作区",
+      detail:
+        "本地云 session 已保存。账号下有多个 workspace，为避免接错研究空间，请先选择一个再恢复云接力；不会自动上传本地内容。",
+    };
+  }
+
+  if (status === "no-workspace") {
+    return {
+      tone: "info",
+      title: "云端登录已连接",
+      detail:
+        "本地云 session 已保存，但当前账号还没有可恢复的云 workspace。可以创建空 workspace；本地内容仍在本机。",
+    };
+  }
+
+  if (status === "metadata-unavailable" || status === "failed") {
+    return {
+      tone: "warning",
+      title: "云端登录已保存",
+      detail:
+        "登录没有丢失，但自动恢复云接力暂时没有完成。可以继续本地使用，稍后在同步中心点“恢复云接力”重试。",
+    };
+  }
+
+  return {
+    tone: "success",
+    title: "云端登录已连接",
+    detail:
+      "本地云 session 已保存。下一步可以恢复云接力或创建一个空的云 workspace。",
+  };
 }
 
 function getCloudApiDetail(

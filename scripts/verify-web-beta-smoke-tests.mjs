@@ -191,6 +191,7 @@ const files = {
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
+  authCallback: "src/app/auth/callback/page.tsx",
   syncPendingDomainRegistry: "src/lib/sync/syncPendingDomainRegistry.ts",
   developmentStabilityPlan: "src/lib/sync/developmentStabilityPlan.ts",
   developmentStabilityHandoffReceipt:
@@ -693,6 +694,7 @@ function run() {
   const quickSearch = readProjectFile(files.quickSearch);
   const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const syncShell = readProjectFile(files.syncShell);
+  const authCallback = readProjectFile(files.authCallback);
   const syncPendingDomainRegistry = readProjectFile(
     files.syncPendingDomainRegistry
   );
@@ -14512,6 +14514,54 @@ function run() {
     syncShell,
     "handoffReceipt.summary.file_pending_rows",
     "Sync UI handoff readiness summary must show file pending rows."
+  );
+  assertIncludes(
+    files.authCallback,
+    authCallback,
+    "recoverCloudHandoffFromSession",
+    "Auth callback must attempt cloud handoff recovery immediately after a successful login callback."
+  );
+  assertIncludes(
+    files.authCallback,
+    authCallback,
+    "/api/auth/session",
+    "Auth callback recovery must verify the saved token before linking local workspace metadata."
+  );
+  assertIncludes(
+    files.authCallback,
+    authCallback,
+    "/api/workspaces",
+    "Auth callback recovery must list existing workspaces instead of creating or uploading content."
+  );
+  assertIncludes(
+    files.authCallback,
+    authCallback,
+    "`/api/workspaces/${workspaceId}/bootstrap`",
+    "Auth callback recovery must require workspace bootstrap before local linking."
+  );
+  assertIncludes(
+    files.authCallback,
+    authCallback,
+    "readLocalWorkspaceIdentity",
+    "Auth callback recovery must prefer the previously linked workspace when one exists."
+  );
+  assertIncludes(
+    files.authCallback,
+    authCallback,
+    "linkLocalWorkspaceToCloud",
+    "Auth callback recovery must reuse the metadata-only local workspace link helper."
+  );
+  assertIncludes(
+    files.authCallback,
+    authCallback,
+    "不会自动登出",
+    "Auth callback recovery failures must preserve login state instead of behaving like logout."
+  );
+  assertIncludes(
+    files.authCallback,
+    authCallback,
+    "handoff=${recovery.status}",
+    "Auth callback must pass recovery status back to Sync UI for transparent handoff messaging."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,

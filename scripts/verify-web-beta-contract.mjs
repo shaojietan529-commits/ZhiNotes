@@ -308,6 +308,7 @@ const files = {
   pageDetailRouteLoading: "src/app/(workspace)/page/[pageId]/loading.tsx",
   scheduleRoute: "src/app/(workspace)/schedule/page.tsx",
   scheduleRouteLoading: "src/app/(workspace)/schedule/loading.tsx",
+  authCallback: "src/app/auth/callback/page.tsx",
   apiGuardPanel: "src/components/modules/sync/ApiGuardPanel.tsx",
   migration: "supabase/migrations/0001_zhinotes_cloud_foundation.sql",
 };
@@ -864,6 +865,7 @@ function run() {
   const quickSearch = readProjectFile(files.quickSearch);
   const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const syncShell = readProjectFile(files.syncShell);
+  const authCallback = readProjectFile(files.authCallback);
   const syncPendingDomainRegistry = readProjectFile(
     files.syncPendingDomainRegistry
   );
@@ -11224,6 +11226,42 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "recoverCloudHandoffFromSession",
+      "Auth callback must attempt cloud handoff recovery immediately after a successful login callback.",
+    ],
+    [
+      "/api/auth/session",
+      "Auth callback recovery must verify the saved token before linking local workspace metadata.",
+    ],
+    [
+      "/api/workspaces",
+      "Auth callback recovery must list existing workspaces instead of creating or uploading content.",
+    ],
+    [
+      "`/api/workspaces/${workspaceId}/bootstrap`",
+      "Auth callback recovery must require workspace bootstrap before local linking.",
+    ],
+    [
+      "readLocalWorkspaceIdentity",
+      "Auth callback recovery must prefer the previously linked workspace when one exists.",
+    ],
+    [
+      "linkLocalWorkspaceToCloud",
+      "Auth callback recovery must reuse the metadata-only local workspace link helper.",
+    ],
+    [
+      "不会自动登出",
+      "Auth callback recovery failures must preserve login state instead of behaving like logout.",
+    ],
+    [
+      "handoff=${recovery.status}",
+      "Auth callback must pass recovery status back to Sync UI for transparent handoff messaging.",
+    ],
+  ]) {
+    assertSourceIncludes(files.authCallback, authCallback, snippet, message);
   }
   for (const [snippet, message] of [
     [
