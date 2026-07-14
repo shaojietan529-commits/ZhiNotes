@@ -144,6 +144,7 @@ const MEETING_PEEK_CREATE_READY_RETRY_MS = 900;
 const MEETING_INTAKE_TIMEOUT_MS = 8000;
 const MEETING_AGENT_QUEUE_TIMEOUT_MS = 12000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
+const MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120;
 const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
 const MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS = 120;
@@ -1362,8 +1363,16 @@ export default function MeetingScheduleShell() {
       });
     });
 
+    const fallbackRecheckDelayMs =
+      meetingsRef.current.length === 0
+        ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS
+        : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;
     let cancelFallbackRecheck: (() => void) | null = null;
     const fallbackRecheckTimer = window.setTimeout(() => {
+      const fallbackIdleTimeoutMs =
+        meetingsRef.current.length === 0
+          ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS
+          : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;
       cancelFallbackRecheck = scheduleMeetingIdleTask(() => {
         void load({
           includeCloud: false,
@@ -1371,8 +1380,8 @@ export default function MeetingScheduleShell() {
           preserveVisibleMeetings: true,
           includeUnindexedFallback: true,
         });
-      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
-    }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
+      }, fallbackIdleTimeoutMs);
+    }, fallbackRecheckDelayMs);
 
     let cancelCloudRecheck: (() => void) | null = null;
     const cloudRecheckTimer = window.setTimeout(() => {

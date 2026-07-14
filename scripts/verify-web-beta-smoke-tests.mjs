@@ -7496,11 +7496,23 @@ function run() {
       "Meeting schedule initial cloud correction idle timeout must stay bounded for cloud-first users.",
     ],
     [
+      "const MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120",
+      "Meeting schedule empty first paint fallback must start quickly when no calendar metadata is visible.",
+    ],
+    [
+      "const fallbackRecheckDelayMs =\n      meetingsRef.current.length === 0\n        ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n        : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;",
+      "Meeting schedule initial fallback must use the fast path only while the calendar is still empty.",
+    ],
+    [
+      "const fallbackIdleTimeoutMs =\n        meetingsRef.current.length === 0\n          ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n          : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;",
+      "Meeting schedule fallback idle timeout must stay fast for empty first paint and conservative once entries are visible.",
+    ],
+    [
       "void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n        includeUnindexedFallback: false,\n      });",
       "Meeting schedule first dbReady load must render local/cache metadata before starting cloud correction.",
     ],
     [
-      "cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);",
+      "cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, fallbackIdleTimeoutMs);",
       "Meeting schedule initial fallback metadata fill must run as a delayed idle task.",
     ],
     [

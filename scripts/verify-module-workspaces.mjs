@@ -1630,8 +1630,11 @@ check(
     shells.schedule.includes("fingerprintRef.current === nextFingerprint") &&
     shells.schedule.includes("MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
     shells.schedule.includes("MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
+    shells.schedule.includes("MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120") &&
+    shells.schedule.includes("const fallbackRecheckDelayMs =\n      meetingsRef.current.length === 0\n        ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n        : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;") &&
+    shells.schedule.includes("const fallbackIdleTimeoutMs =\n        meetingsRef.current.length === 0\n          ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n          : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;") &&
     shells.schedule.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n        includeUnindexedFallback: false,\n      });") &&
-    shells.schedule.includes("cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);") &&
+    shells.schedule.includes("cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, fallbackIdleTimeoutMs);") &&
     shells.schedule.includes("cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
     !shells.schedule.includes("localPagesForMerge = await listPages(id)") &&
     !shells.schedule.includes("localPagesForMerge = await listPageMetadata(id)") &&
