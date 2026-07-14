@@ -2103,11 +2103,16 @@ function SyncDashboard() {
     const authRetryDomainLabel = [
       pagePendingStatus.authRetryStatus ? "页面" : null,
       databasePendingStatus.authRetryStatus ? "数据库" : null,
+      fileEmbedPendingStatus.authRetryStatus ? "文件" : null,
     ]
       .filter((value): value is string => Boolean(value))
       .join("/");
     const authRetryUntil =
-      [pagePendingStatus.authRetryUntil, databasePendingStatus.authRetryUntil]
+      [
+        pagePendingStatus.authRetryUntil,
+        databasePendingStatus.authRetryUntil,
+        fileEmbedPendingStatus.authRetryUntil,
+      ]
         .filter((value): value is string => Boolean(value))
         .sort()
         .at(-1) ?? null;
@@ -2139,6 +2144,8 @@ function SyncDashboard() {
         ? "attention"
         : syncLocalUseQueueSnapshot.pendingTotal > 0
           ? "queued"
+          : syncLocalUseQueueSnapshot.authRetryDomainLabel
+            ? "error"
           : syncLocalUseQueueSnapshot.enabledDomainCount === 0
             ? "disabled"
             : "synced";

@@ -9930,6 +9930,14 @@ function run() {
 	      "Account cloud sync coordinator must count retryable file failures directly because file manual-review rows are a separate queue status.",
 	    ],
 	    [
+	      'fileSync.status.authRetryStatus ? "文件" : null',
+	      "Account cloud sync coordinator must include file upload auth retry in the account-level retry domain label.",
+	    ],
+	    [
+	      "fileSync.status.authRetryUntil",
+	      "Account cloud sync coordinator must include file upload auth retry timing in the account-level retry label.",
+	    ],
+	    [
 	      "globalSyncLogExtraRetryableFailedTotal",
 	      "Account cloud sync coordinator must calculate uncovered sync_log retryable failures separately from manual-review rows.",
 	    ],
@@ -16532,6 +16540,9 @@ function run() {
         "data-upload-blocks-do-not-block-local-writing={String(",
         "pagePendingStatus.authRetryStatus",
         "databasePendingStatus.authRetryStatus",
+        "fileEmbedPendingStatus.authRetryStatus",
+        "fileEmbedPendingStatus.authRetryUntil",
+        'syncLocalUseQueueSnapshot.authRetryDomainLabel\n            ? "error"',
         "authRetryDomainLabel",
         "authRetryUntilLabel",
         "同步失败不登出",

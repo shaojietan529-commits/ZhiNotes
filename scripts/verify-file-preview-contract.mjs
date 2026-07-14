@@ -672,6 +672,18 @@ function run() {
       "Sync center must include file embed pending counts.",
     ],
     [
+      files.syncShell,
+      syncShell,
+      'fileEmbedPendingStatus.authRetryStatus ? "文件" : null',
+      "Sync center must include file embed account retry state in the visible auth retry domain label.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "fileEmbedPendingStatus.authRetryUntil",
+      "Sync center must include file embed account retry timing in the visible auth retry status.",
+    ],
+    [
       files.syncPendingDomainRegistry,
       syncPendingDomainRegistry,
       "file_embed_sync_queue",
