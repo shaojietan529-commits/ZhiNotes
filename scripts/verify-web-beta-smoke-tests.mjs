@@ -13816,6 +13816,18 @@ function run() {
       "claimVisibleRefreshLease",
       "File embed automatic retry must be coalesced across visible tabs.",
     ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
+      "File embed status must respond to cross-tab account fallback writes and removals.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "if (event.newValue) {\n          refreshAndMaybeRetry();\n        } else {\n          refreshAndMaybeForegroundRetry();\n        }",
+      "File embed account fallback removal must refresh status without forcing an auth-recovery upload.",
+    ],
   ]) {
     assertIncludes(sourceLabel, source, snippet, message);
   }

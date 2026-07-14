@@ -783,6 +783,12 @@ check(
     fileEmbedSyncStatusHook.includes(
       "claimVisibleRefreshLease(\n          FILE_EMBED_AUTO_RETRY_LEASE_KEY"
     ) &&
+    fileEmbedSyncStatusHook.includes(
+      "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {"
+    ) &&
+    fileEmbedSyncStatusHook.includes(
+      "if (event.newValue) {\n          refreshAndMaybeRetry();\n        } else {\n          refreshAndMaybeForegroundRetry();\n        }"
+    ) &&
     fileEmbedSyncStatusHook.includes("scheduleAutoRetry") &&
     fileEmbedSyncStatusHook.includes("FILE_EMBED_QUEUE_RETRY_DELAY_MS"),
   "文件云同步队列必须在账号恢复、前台恢复、联网恢复和队列变化后做有上限、低频、跨 tab 合并的小批量重试，避免用户登录恢复后仍长时间看不到补传进展，也避免多标签重复上传"

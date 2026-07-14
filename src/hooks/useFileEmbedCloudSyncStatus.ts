@@ -145,11 +145,12 @@ export function useFileEmbedCloudSyncStatus() {
       refreshAndMaybeForegroundRetry();
     };
     const handleStorage = (event: StorageEvent) => {
-      if (
-        event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&
-        event.newValue
-      ) {
-        refreshAndMaybeRetry();
+      if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
+        if (event.newValue) {
+          refreshAndMaybeRetry();
+        } else {
+          refreshAndMaybeForegroundRetry();
+        }
         return;
       }
       if (
