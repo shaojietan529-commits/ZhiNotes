@@ -366,6 +366,8 @@ check(
     accountClientSession.includes("window.localStorage.setItem") &&
     accountClientSession.includes("window.localStorage.removeItem") &&
     accountClientSession.includes("staleReason") &&
+    accountClientSession.includes("confirmedSignedOut?: boolean") &&
+    accountClientSession.includes("confirmedSignedOut: true") &&
     accountClientSession.includes("clearStoredAuthenticatedAccount") &&
     accountClientSession.includes("ACCOUNT_SESSION_REQUEST_TIMEOUT_MS = 8000") &&
     accountClientSession.includes("async function fetchAccountSessionStatus") &&
@@ -377,7 +379,9 @@ check(
     accountClientSession.includes(
       'result.status === "ok" && !result.authenticated'
     ) &&
-    accountClientSession.includes("explicit logout clears this fallback"),
+    accountClientSession.includes("confirmedSignedOut?: boolean") &&
+    accountClientSession.includes("getStoredAuthenticatedFallbackReason") &&
+    accountClientSession.includes("只有手动退出登录才会清除本机账号显示"),
   "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和跨标签页最近登录账号降级保护"
 );
 check(
@@ -403,7 +407,7 @@ check(
       'data.retryable || data.reason === "session-unconfirmed"'
     ) <
       accountClientSession.indexOf(
-        'return { status: "ok", authenticated: false, account: null };'
+        'confirmedSignedOut: true'
       ),
   "账号状态客户端必须把 /me 的可重试 session-unconfirmed 当成临时不可确认，而不是明确登出"
 );
@@ -418,7 +422,11 @@ check(
       'if (result.status === "unconfigured") {\n    storeUnconfiguredAccountSession(Date.now());'
     ) &&
     accountClientSession.includes(
-      '} else if (result.status === "ok" && !result.authenticated) {\n    clearStoredAuthenticatedAccount();\n  }'
+      '} else if (result.confirmedSignedOut && !result.authenticated) {\n    clearStoredAuthenticatedAccount();\n  }'
+    ) &&
+    accountClientSession.includes("getStoredAuthenticatedFallbackReason") &&
+    accountClientSession.includes(
+      "只有手动退出登录才会清除本机账号显示"
     ) &&
     !accountClientSession.includes(
       'result.status === "error" && !result.authenticated'

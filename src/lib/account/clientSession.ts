@@ -26,6 +26,7 @@ export interface AccountSessionResult {
   error?: string;
   stale?: boolean;
   staleReason?: string;
+  confirmedSignedOut?: boolean;
 }
 
 let accountSessionInFlight: Promise<AccountSessionResult> | null = null;
@@ -111,7 +112,7 @@ export async function fetchAccountSession(
       : 0;
   if (result.authenticated && result.account && !result.stale) {
     storeAuthenticatedAccount(result.account, Date.now());
-  } else if (result.status === "ok" && !result.authenticated) {
+  } else if (result.confirmedSignedOut && !result.authenticated) {
     clearStoredAuthenticatedAccount();
   }
   if (result.status === "unconfigured") {
@@ -169,7 +170,12 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
             : "account session temporarily unconfirmed",
       };
     }
-    return { status: "ok", authenticated: false, account: null };
+    return {
+      status: "ok",
+      authenticated: false,
+      account: null,
+      confirmedSignedOut: true,
+    };
   } catch (error) {
     return {
       status: "error",
@@ -295,15 +301,26 @@ function withStoredAuthenticatedFallback(
     authenticated: true,
     account,
     stale: true,
-    staleReason:
-      result.status === "ok"
-        ? "account session could not be confirmed; explicit logout clears this fallback"
-        : result.status === "unconfigured"
-          ? "account system temporarily unconfigured"
-          : result.status === "unconfirmed"
-            ? "account session temporarily unconfirmed"
-            : result.error ?? "account session check temporarily unavailable",
+    staleReason: getStoredAuthenticatedFallbackReason(result),
   };
+}
+
+function getStoredAuthenticatedFallbackReason(
+  result: AccountSessionResult
+): string {
+  if (result.status === "ok") {
+    return "账号云端暂不可确认；只有手动退出登录才会清除本机账号显示。";
+  }
+  if (result.status === "unconfigured") {
+    return "账号系统暂时不可用；已显示上次登录用户名。";
+  }
+  if (result.status === "unconfirmed") {
+    return "账号会话暂时无法确认；已显示上次登录用户名。";
+  }
+  if (result.error === "account session check timed out") {
+    return "账号检查超时；已显示上次登录用户名，稍后会自动重试。";
+  }
+  return "账号云端暂不可确认；已显示上次登录用户名，稍后会自动重试。";
 }
 
 function storeAuthenticatedAccount(

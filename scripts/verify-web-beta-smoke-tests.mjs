@@ -9216,8 +9216,12 @@ function run() {
       "Account session helper must clear the cross-tab stale authenticated fallback on explicit signed-out state.",
     ],
     [
-      "explicit logout clears this fallback",
+      "只有手动退出登录才会清除本机账号显示",
       "Account session helper must preserve the account label through transient missing-session checks without storing tokens.",
+    ],
+    [
+      "confirmedSignedOut?: boolean",
+      "Account session helper must mark explicit empty /me responses separately from retryable uncertainty.",
     ],
     [
       'data.retryable || data.reason === "session-unconfirmed"',
