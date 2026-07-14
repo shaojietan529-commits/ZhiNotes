@@ -755,6 +755,7 @@ type CloudAlphaAction =
   | "workspace"
   | "bootstrap"
   | "link-workspace"
+  | "recover-handoff"
   | "unlink-workspace"
   | "link-receipt"
   | "workspace-settings"
@@ -3560,6 +3561,228 @@ function SyncDashboard() {
         tone: "error",
         title: "启动检查失败",
         detail: err instanceof Error ? err.message : "未知云端错误",
+      });
+    } finally {
+      setBusyCloudAction(null);
+    }
+  };
+
+  const handleRecoverCloudHandoff = async () => {
+    if (!cloudSession || cloudSessionExpired) {
+      if (cloudSessionExpired) {
+        clearCloudSession();
+        setCloudSession(null);
+      }
+      setCloudMessage({
+        tone: "warning",
+        title: "需要先登录",
+        detail:
+          "恢复云接力需要一个有效的本地云 session；这个动作不会上传本地内容。",
+      });
+      return;
+    }
+
+    setBusyCloudAction("recover-handoff");
+    setCloudMessage(null);
+    try {
+      let activeSession: ZhiNotesCloudSession = cloudSession;
+
+      if (!activeSession.user?.id) {
+        const sessionResponse = await fetchSyncCloudApiWithTimeout(
+          "/api/auth/session",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${activeSession.accessToken}`,
+            },
+          }
+        );
+        const sessionBody = await readCloudApiBody(sessionResponse);
+
+        if (!sessionResponse.ok) {
+          setCloudMessage({
+            tone: sessionResponse.status === 501 ? "warning" : "error",
+            title:
+              sessionResponse.status === 501
+                ? "云端 session 尚未开启"
+                : "Session 检查失败",
+            detail: getCloudApiDetail(sessionBody, sessionResponse),
+          });
+          return;
+        }
+
+        if (!getRecordBoolean(sessionBody, "authenticated")) {
+          setCloudMessage({
+            tone: "warning",
+            title: "Session 未认证",
+            detail:
+              "当前本地 token 没有通过云端认证，请重新登录；不会清空你的本地笔记。",
+          });
+          return;
+        }
+
+        const user = getCloudSessionUser(sessionBody);
+        if (!user?.id) {
+          setCloudMessage({
+            tone: "warning",
+            title: "需要先检查会话",
+            detail:
+              "云端已响应，但没有返回可绑定的 user id。请重新检查 session。",
+          });
+          return;
+        }
+
+        activeSession = {
+          ...activeSession,
+          user,
+        };
+        writeCloudSession(activeSession);
+        setCloudSession(activeSession);
+      }
+
+      const listResponse = await fetchSyncCloudApiWithTimeout(
+        "/api/workspaces",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${activeSession.accessToken}`,
+          },
+        }
+      );
+      const listBody = await readCloudApiBody(listResponse);
+
+      if (!listResponse.ok) {
+        setCloudMessage({
+          tone: listResponse.status === 501 ? "warning" : "error",
+          title:
+            listResponse.status === 501
+              ? "云 workspace 列表尚未开启"
+              : "工作区列表读取失败",
+          detail: getCloudApiDetail(listBody, listResponse),
+        });
+        return;
+      }
+
+      const workspaces = getCloudWorkspaces(listBody);
+      setCloudWorkspaces(workspaces);
+
+      const preferredWorkspaceId =
+        workspaceIdentity?.cloud_workspace_id || selectedCloudWorkspaceId;
+      const targetWorkspace =
+        (preferredWorkspaceId
+          ? workspaces.find((workspace) => workspace.id === preferredWorkspaceId)
+          : null) ?? (workspaces.length === 1 ? workspaces[0] : null);
+
+      if (!targetWorkspace) {
+        if (workspaces[0]) {
+          setSelectedCloudWorkspaceId(workspaces[0].id);
+          setCloudWorkspace(workspaces[0]);
+        }
+        setCloudMessage({
+          tone: workspaces.length > 0 ? "warning" : "info",
+          title: workspaces.length > 0 ? "请选择云工作区" : "没有可恢复的云工作区",
+          detail:
+            workspaces.length > 0
+              ? `找到 ${workspaces.length} 个 workspace。请先选择一个，再点“恢复云接力”。这个动作不会上传本地内容。`
+              : "当前账号还没有可访问 workspace；恢复云接力不会自动创建 workspace，也不会上传本地内容。",
+        });
+        return;
+      }
+
+      setSelectedCloudWorkspaceId(targetWorkspace.id);
+      setCloudWorkspace(targetWorkspace);
+
+      const workspaceId = targetWorkspace.id;
+      const bootstrapResponse = await fetchSyncCloudApiWithTimeout(
+        `/api/workspaces/${workspaceId}/bootstrap`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${activeSession.accessToken}`,
+          },
+        }
+      );
+      const bootstrapBody = await readCloudApiBody(bootstrapResponse);
+
+      if (!bootstrapResponse.ok) {
+        setCloudMessage({
+          tone: bootstrapResponse.status === 501 ? "warning" : "error",
+          title:
+            bootstrapResponse.status === 501
+              ? "云工作区启动检查尚未开启"
+              : "启动检查失败",
+          detail: getCloudApiDetail(bootstrapBody, bootstrapResponse),
+        });
+        return;
+      }
+
+      const workspace = getCloudWorkspace(bootstrapBody) ?? targetWorkspace;
+      const membership = getCloudMembership(bootstrapBody);
+      const moduleCount = getCloudModuleCount(bootstrapBody);
+      const syncState = getCloudSyncState(bootstrapBody);
+      const role = membership?.role ?? targetWorkspace.role ?? "owner";
+      const cloudUserId = membership?.user_id || activeSession.user?.id;
+
+      if (!cloudUserId) {
+        setCloudMessage({
+          tone: "warning",
+          title: "缺少云端用户",
+          detail:
+            "启动检查没有返回 user id，暂时不能恢复云接力；本地内容没有被上传。",
+        });
+        return;
+      }
+
+      const proof = buildCloudWorkspaceBootstrapProof({
+        workspace: {
+          id: workspace.id,
+          name: workspace.name,
+        },
+        user: {
+          id: cloudUserId,
+        },
+        role,
+        moduleCount,
+        syncPushEnabled: syncState.push_enabled,
+        syncPullEnabled: syncState.pull_enabled,
+      });
+      const nextWorkspace: CloudAlphaWorkspace = {
+        ...workspace,
+        role,
+      };
+      setCloudWorkspace(nextWorkspace);
+      setCloudWorkspaces((current) =>
+        upsertCloudWorkspace(current, nextWorkspace)
+      );
+      setCloudBootstrapProof(proof);
+
+      const nextIdentity = linkLocalWorkspaceToCloud({
+        workspace: {
+          id: nextWorkspace.id,
+          name: nextWorkspace.name,
+        },
+        user: {
+          id: cloudUserId,
+        },
+        role,
+        bootstrapProof: proof,
+      });
+      setWorkspaceIdentity(nextIdentity);
+      setCloudMessage({
+        tone: "success",
+        title: "云接力已恢复",
+        detail:
+          `已把本机 workspace 重新连接到 ${nextWorkspace.name}。这个动作只恢复账号/workspace metadata，不上传页面、数据库、文件或同步队列；push/pull 仍保持关闭。`,
+      });
+    } catch (err) {
+      console.error("[Zhinote] Cloud handoff recovery failed:", err);
+      setCloudMessage({
+        tone: "error",
+        title: "云接力恢复失败",
+        detail:
+          err instanceof Error
+            ? err.message
+            : "未知云端错误；本地输入和待上传队列已保留。",
       });
     } finally {
       setBusyCloudAction(null);
@@ -6481,8 +6704,11 @@ function SyncDashboard() {
           receipt={syncHandoffReadinessReceipt}
           drainBusy={busyQueueAction === "drain-all-pending"}
           exportBusy={busyQueueAction === "handoff-readiness"}
+          recoverBusy={busyCloudAction === "recover-handoff"}
+          canRecover={Boolean(cloudSession && !cloudSessionExpired)}
           onDrainAll={() => void handleDrainAllPendingPush()}
           onExport={handleExportSyncHandoffReadinessReceipt}
+          onRecover={() => void handleRecoverCloudHandoff()}
           onOpenDetails={() =>
             document
               .getElementById("sync-handoff-readiness-summary")
@@ -6532,6 +6758,7 @@ function SyncDashboard() {
           onWorkspaceCreate={() => void handleCloudWorkspaceCreate()}
           onWorkspaceBootstrap={() => void handleCloudWorkspaceBootstrap()}
           onLinkWorkspace={handleLinkCloudWorkspace}
+          onRecoverHandoff={() => void handleRecoverCloudHandoff()}
           onUnlinkWorkspace={handleUnlinkCloudWorkspace}
           onExportLinkReceipt={handleExportCloudWorkspaceLinkReceipt}
           onClearSession={handleClearCloudSession}
@@ -11253,6 +11480,7 @@ function CloudAlphaPanel({
   onWorkspaceCreate,
   onWorkspaceBootstrap,
   onLinkWorkspace,
+  onRecoverHandoff,
   onUnlinkWorkspace,
   onExportLinkReceipt,
   onClearSession,
@@ -11277,6 +11505,7 @@ function CloudAlphaPanel({
   onWorkspaceCreate: () => void;
   onWorkspaceBootstrap: () => void;
   onLinkWorkspace: () => void;
+  onRecoverHandoff: () => void;
   onUnlinkWorkspace: () => void;
   onExportLinkReceipt: () => void;
   onClearSession: () => void;
@@ -11325,6 +11554,12 @@ function CloudAlphaPanel({
             busy={busyAction === "session"}
             disabled={!hasUsableSession || Boolean(busyAction)}
             onClick={onSessionCheck}
+          />
+          <CloudAlphaButton
+            label="恢复云接力"
+            busy={busyAction === "recover-handoff"}
+            disabled={!hasUsableSession || Boolean(busyAction)}
+            onClick={onRecoverHandoff}
           />
           <CloudAlphaButton
             label="清除本地会话"
@@ -21384,16 +21619,22 @@ function SyncHandoffQuickCheckPanel({
   receipt,
   drainBusy,
   exportBusy,
+  recoverBusy,
+  canRecover,
   onDrainAll,
   onExport,
+  onRecover,
   onOpenDetails,
   onOpenAccount,
 }: {
   receipt: SyncHandoffReadinessReceipt;
   drainBusy: boolean;
   exportBusy: boolean;
+  recoverBusy: boolean;
+  canRecover: boolean;
   onDrainAll: () => void;
   onExport: () => void;
+  onRecover: () => void;
   onOpenDetails: () => void;
   onOpenAccount: () => void;
 }) {
@@ -21473,6 +21714,16 @@ function SyncHandoffQuickCheckPanel({
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          {needsAccount && canRecover ? (
+            <button
+              type="button"
+              onClick={onRecover}
+              disabled={recoverBusy}
+              className="rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-400"
+            >
+              {recoverBusy ? "恢复中..." : "恢复云接力"}
+            </button>
+          ) : null}
           {needsAccount ? (
             <button
               type="button"

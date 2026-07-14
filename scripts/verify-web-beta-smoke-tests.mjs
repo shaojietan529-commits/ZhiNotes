@@ -14432,6 +14432,48 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "恢复云接力",
+    "Sync UI must offer a direct recovery action when a logged-in device is not linked to cloud handoff."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handleRecoverCloudHandoff",
+    "Sync UI must implement cloud handoff recovery as a dedicated handler."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "recover-handoff",
+    "Sync UI must track cloud handoff recovery as its own busy state."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "/api/workspaces",
+    "Cloud handoff recovery must first list accessible workspaces instead of creating or uploading content."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "`/api/workspaces/${workspaceId}/bootstrap`",
+    "Cloud handoff recovery must require a bootstrap membership check before linking locally."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "linkLocalWorkspaceToCloud",
+    "Cloud handoff recovery must reuse the local metadata-only workspace link path."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "这个动作只恢复账号/workspace metadata",
+    "Cloud handoff recovery must clearly state that it restores metadata only."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "当前门禁",
     "Sync UI quick check must show the current blocking or warning gate."
   );
