@@ -176,6 +176,7 @@ const files = {
   fileEmbedNode: "src/components/editor/extensions/FileEmbedNode.tsx",
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
   fileEmbedSyncClient: "src/lib/files/fileEmbedSyncClient.ts",
+  fileEmbedSyncStatusHook: "src/hooks/useFileEmbedCloudSyncStatus.ts",
   breadcrumbBlockNode:
     "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
   compareShell: "src/components/comparison/CompareShell.tsx",
@@ -684,6 +685,9 @@ function run() {
   const fileEmbedNode = readProjectFile(files.fileEmbedNode);
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
   const fileEmbedSyncClient = readProjectFile(files.fileEmbedSyncClient);
+  const fileEmbedSyncStatusHook = readProjectFile(
+    files.fileEmbedSyncStatusHook
+  );
   const breadcrumbBlockNode = readProjectFile(files.breadcrumbBlockNode);
   const compareShell = readProjectFile(files.compareShell);
   const pageProperties = readProjectFile(files.pageProperties);
@@ -13757,6 +13761,24 @@ function run() {
       fileEmbedNode,
       "文件云端加载超时；本地页面保持可用，可稍后重试。",
       "File embed pull timeout copy must keep the page usable.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "FILE_EMBED_AUTO_RETRY_LEASE_KEY",
+      "File embed background retry must use a cross-tab lease key.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "FILE_EMBED_AUTO_RETRY_LEASE_TTL_MS",
+      "File embed background retry must keep a bounded cross-tab lease.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "claimVisibleRefreshLease",
+      "File embed automatic retry must be coalesced across visible tabs.",
     ],
   ]) {
     assertIncludes(sourceLabel, source, snippet, message);

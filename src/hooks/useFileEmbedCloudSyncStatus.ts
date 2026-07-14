@@ -12,12 +12,16 @@ import {
   type DrainFileEmbedSyncQueueResult,
   type PendingFileEmbedSyncStatus,
 } from "@/lib/files/fileEmbedSyncQueue";
+import { claimVisibleRefreshLease } from "@/lib/sync/visibleRefreshLease";
 
 const FILE_EMBED_STATUS_REFRESH_INTERVAL_MS = 10 * 1000;
 const FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT = 5;
 const FILE_EMBED_FOREGROUND_RETRY_LIMIT = 2;
 const FILE_EMBED_QUEUE_RETRY_DELAY_MS = 1200;
 const FILE_EMBED_AUTO_RETRY_MIN_INTERVAL_MS = 8000;
+const FILE_EMBED_AUTO_RETRY_LEASE_KEY =
+  "zhinote.fileembedsync.autoRetryLeaderLease.v1";
+const FILE_EMBED_AUTO_RETRY_LEASE_TTL_MS = 20 * 1000;
 
 function hasRetryableFileEmbedWork(status: PendingFileEmbedSyncStatus) {
   return status.pending + status.failed > 0;
@@ -55,6 +59,14 @@ export function useFileEmbedCloudSyncStatus() {
       if (!hasRetryableFileEmbedWork(inputStatus)) return;
       if (inputStatus.authRetryStatus && !options.forceAuthRetry) return;
       if (autoRetryRunningRef.current) return;
+      if (
+        !claimVisibleRefreshLease(
+          FILE_EMBED_AUTO_RETRY_LEASE_KEY,
+          FILE_EMBED_AUTO_RETRY_LEASE_TTL_MS
+        )
+      ) {
+        return;
+      }
       if (autoRetryTimerRef.current !== null) {
         window.clearTimeout(autoRetryTimerRef.current);
       }
@@ -70,6 +82,14 @@ export function useFileEmbedCloudSyncStatus() {
         setStatus(currentStatus);
         if (!hasRetryableFileEmbedWork(currentStatus)) return;
         if (currentStatus.authRetryStatus && !options.forceAuthRetry) return;
+        if (
+          !claimVisibleRefreshLease(
+            FILE_EMBED_AUTO_RETRY_LEASE_KEY,
+            FILE_EMBED_AUTO_RETRY_LEASE_TTL_MS
+          )
+        ) {
+          return;
+        }
         autoRetryRunningRef.current = true;
         lastAutoRetryAtRef.current = Date.now();
         void syncNow({
