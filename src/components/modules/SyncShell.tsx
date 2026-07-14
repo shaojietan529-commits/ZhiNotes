@@ -10921,7 +10921,6 @@ function SyncDashboard() {
                 pendingTotal={syncLocalUseQueueSnapshot.pendingTotal}
                 failedTotal={syncLocalUseQueueSnapshot.failedTotal}
                 manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
-                enabledDomainCount={syncLocalUseQueueSnapshot.enabledDomainCount}
                 pendingDomainRows={pendingDomainRows}
                 onDrainAll={() => void handleDrainAllPendingPush()}
                 onOpenAccount={() => router.push("/account")}
@@ -20631,7 +20630,6 @@ function SyncLocalUseReadinessPanel({
   pendingTotal,
   failedTotal,
   manualReviewTotal,
-  enabledDomainCount,
   pendingDomainRows,
   onDrainAll,
   onOpenAccount,
@@ -20640,7 +20638,6 @@ function SyncLocalUseReadinessPanel({
   pendingTotal: number;
   failedTotal: number;
   manualReviewTotal: number;
-  enabledDomainCount: number;
   pendingDomainRows: PendingDomainRow[];
   onDrainAll: () => void;
   onOpenAccount: () => void;
@@ -20653,7 +20650,11 @@ function SyncLocalUseReadinessPanel({
       row.manualReview > 0 ||
       row.inFlight > 0
   );
+  const monitoredDomainRows = pendingDomainRows.filter(
+    (row) => row.id !== "other"
+  );
   const activeDomainLabels = activeDomainRows.map((row) => row.label);
+  const monitoredDomainLabels = monitoredDomainRows.map((row) => row.label);
   const fileQueueTotal = readiness.queueBreakdown.fileQueueTotal;
   const fileQueueDetail =
     fileQueueTotal > 0
@@ -20663,9 +20664,14 @@ function SyncLocalUseReadinessPanel({
     activeDomainLabels.length > 0
       ? activeDomainLabels.slice(0, 4).join(" / ")
       : "暂无全域 pending";
+  const monitoredDomainSummary = monitoredDomainLabels
+    .slice(0, 4)
+    .join(" / ");
   const monitoredDomainDetail =
-    enabledDomainCount > 0
-      ? "页面 / 数据库 / 设置 / 知识库 / 文件"
+    monitoredDomainLabels.length > 0
+      ? monitoredDomainLabels.length > 4
+        ? `${monitoredDomainSummary} / +${monitoredDomainLabels.length - 4}`
+        : monitoredDomainSummary
       : "云同步未开启，仍可本地写入";
   const facts = [
     {
@@ -20690,7 +20696,7 @@ function SyncLocalUseReadinessPanel({
     },
     {
       label: "监控同步域",
-      value: `${enabledDomainCount} 域`,
+      value: `${monitoredDomainRows.length} 域`,
       detail: monitoredDomainDetail,
     },
     {
@@ -20716,7 +20722,8 @@ function SyncLocalUseReadinessPanel({
       data-local-input-can-continue={String(readiness.localInputCanContinue)}
       data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
-      data-monitored-sync-domain-count={enabledDomainCount}
+      data-monitored-sync-domain-count={monitoredDomainRows.length}
+      data-monitored-sync-domain-labels={monitoredDomainLabels.join(",")}
       data-active-sync-domain-count={activeDomainRows.length}
       data-active-sync-domain-labels={activeDomainLabels.join(",")}
       data-file-queue-total={fileQueueTotal}

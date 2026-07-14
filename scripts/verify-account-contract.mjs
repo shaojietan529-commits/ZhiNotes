@@ -3154,7 +3154,10 @@ check(
     syncPendingDomainRegistry.includes("file_embed_sync_queue") &&
     syncDashboardShell.includes("file-embed-pending-upload-queue") &&
     syncDashboardShell.includes(
-      "data-monitored-sync-domain-count={enabledDomainCount}"
+      "data-monitored-sync-domain-count={monitoredDomainRows.length}"
+    ) &&
+    syncDashboardShell.includes(
+      'data-monitored-sync-domain-labels={monitoredDomainLabels.join(",")}'
     ) &&
     syncDashboardShell.includes(
       "data-active-sync-domain-count={activeDomainRows.length}"
@@ -3166,7 +3169,8 @@ check(
     syncDashboardShell.includes("云端交接") &&
     syncDashboardShell.includes("缓存重建") &&
     syncDashboardShell.includes("监控同步域") &&
-    syncDashboardShell.includes("页面 / 数据库 / 设置 / 知识库 / 文件") &&
+    syncDashboardShell.includes("monitoredDomainRows") &&
+    syncDashboardShell.includes('row.id !== "other"') &&
     syncDashboardShell.includes("全域队列") &&
     syncDashboardShell.includes("暂无全域 pending") &&
     syncDashboardShell.includes("下一步：{row.nextAction}") &&

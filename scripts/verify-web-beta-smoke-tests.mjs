@@ -10676,8 +10676,14 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "data-monitored-sync-domain-count={enabledDomainCount}",
+    "data-monitored-sync-domain-count={monitoredDomainRows.length}",
     "Sync UI local-use panel must expose the monitored sync-domain count for smoke checks."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-monitored-sync-domain-labels={monitoredDomainLabels.join(",")}',
+    "Sync UI local-use panel must expose monitored sync-domain labels for smoke checks."
   );
   assertIncludes(
     files.syncShell,
@@ -10694,8 +10700,14 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "页面 / 数据库 / 设置 / 知识库 / 文件",
-    "Sync UI local-use panel must describe every sync domain included in the local-use count."
+    "monitoredDomainRows",
+    "Sync UI local-use panel must derive monitored sync domains from the shared full-domain rows."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'row.id !== "other"',
+    "Sync UI local-use panel must separate registered monitored domains from unmatched local tables."
   );
   assertIncludes(
     files.syncShell,
