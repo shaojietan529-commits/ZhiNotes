@@ -9691,6 +9691,18 @@ function run() {
   assertIncludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
+    "shouldRecoverDatabaseMetadataCoverageBeforeIncrementalPull",
+    "Database quick sync must verify local metadata coverage before trusting a stored cloud cursor."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "compareDatabaseChangeCursorStrings(localSummary.cursor, remoteCursor) < 0",
+    "Database quick sync must recover cloud metadata when the local hot cache cursor is older than the stored cloud cursor."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
     "账号云端暂时无法确认，本地输入已保留，会稍后重试。",
     "Database account-sync client must show shared account-gate uncertainty as a retryable local-preserved state."
   );
@@ -14544,6 +14556,18 @@ function run() {
     accountPageSync,
     "export function recordPageSyncAuthRetryStatus",
     "Page sync hook must be able to publish account auth retry state into pending metadata."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "shouldRecoverPageMetadataCoverageBeforeIncrementalPull",
+    "Page quick sync must verify local metadata coverage before trusting a stored cloud cursor."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "comparePageChangeCursorStrings(localSummary.cursor, remoteCursor) < 0",
+    "Page quick sync must recover cloud metadata when the local hot cache cursor is older than the stored cloud cursor."
   );
   assertIncludes(
     files.accountPageSync,

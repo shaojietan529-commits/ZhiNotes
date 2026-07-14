@@ -443,6 +443,18 @@ function compareDatabaseChangeCursorStrings(left: string, right: string): number
   );
 }
 
+async function shouldRecoverDatabaseMetadataCoverageBeforeIncrementalPull(
+  remoteCursor: string
+): Promise<boolean> {
+  try {
+    const localSummary = await getLocalDatabaseSyncSummary();
+    if (localSummary.count === 0 || !localSummary.cursor) return true;
+    return compareDatabaseChangeCursorStrings(localSummary.cursor, remoteCursor) < 0;
+  } catch {
+    return true;
+  }
+}
+
 function getPendingCloudDatabasePushKeys(): string[] {
   try {
     const parsed = JSON.parse(
@@ -1839,6 +1851,29 @@ export async function reconcileDatabaseSync(
   let cursor = getRemoteCursor();
   let prePullPulled = 0;
   const prePullRecords: CloudDatabaseRecord[] = [];
+  if (
+    cursor &&
+    (await shouldRecoverDatabaseMetadataCoverageBeforeIncrementalPull(cursor))
+  ) {
+    const metadata = await syncCloudDatabaseMetadataDelta({
+      force: true,
+      requireLocalCacheCoverage: true,
+    });
+    if (metadata.status !== "ok") {
+      return {
+        status: metadata.status,
+        pulled: metadata.pulled,
+        pushed: initialPushed,
+        skipped: initialSkipped,
+        bootstrapped,
+        records: metadata.records,
+        message: metadata.message,
+      };
+    }
+    cursor = getRemoteCursor();
+    prePullPulled = metadata.pulled;
+    prePullRecords.push(...metadata.records);
+  }
   if (!cursor) {
     const summaryRes = await call({ action: "summary" });
     if (!summaryRes.ok) {

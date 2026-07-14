@@ -1708,6 +1708,18 @@ function comparePageChangeCursorStrings(left: string, right: string): number {
   );
 }
 
+async function shouldRecoverPageMetadataCoverageBeforeIncrementalPull(
+  remoteCursor: string
+): Promise<boolean> {
+  try {
+    const localSummary = await getLocalPageSyncSummary();
+    if (localSummary.count === 0 || !localSummary.cursor) return true;
+    return comparePageChangeCursorStrings(localSummary.cursor, remoteCursor) < 0;
+  } catch {
+    return true;
+  }
+}
+
 function getPendingCloudPushIds(): string[] {
   try {
     const parsed = JSON.parse(readSyncStorage(PENDING_PUSH_IDS_KEY) ?? "[]");
@@ -2525,6 +2537,20 @@ export async function reconcilePageSync(
     if (options.quick) {
       const cursor = getRemoteCursor();
       if (cursor) {
+        if (await shouldRecoverPageMetadataCoverageBeforeIncrementalPull(cursor)) {
+          const metadata = await syncCloudPageMetadataDelta({
+            force: true,
+            requireLocalCacheCoverage: true,
+          });
+          return {
+            status: metadata.status,
+            pulled: metadata.pulled,
+            pushed: initialPushed,
+            bootstrapped,
+            skipped: metadata.pulled === 0 && initialPushed === 0,
+            message: metadata.message,
+          };
+        }
         let pulled = 0;
         const pushed = initialPushed;
         let nextCursor = cursor;

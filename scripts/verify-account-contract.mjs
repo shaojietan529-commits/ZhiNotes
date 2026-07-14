@@ -1161,6 +1161,18 @@ check(
   "quick 页面同步冷启动必须先走 metadata 增量预热，不能直接退回拉完整页面正文"
 );
 check(
+  pageSyncClient.includes(
+    "shouldRecoverPageMetadataCoverageBeforeIncrementalPull"
+  ) &&
+    pageSyncClient.includes("const localSummary = await getLocalPageSyncSummary()") &&
+    pageSyncClient.includes("localSummary.count === 0 || !localSummary.cursor") &&
+    pageSyncClient.includes(
+      "comparePageChangeCursorStrings(localSummary.cursor, remoteCursor) < 0"
+    ) &&
+    reconcilePageSyncBody.includes("requireLocalCacheCoverage: true"),
+  "quick 页面同步已有远端游标时也必须确认本地 metadata 覆盖该游标，避免冷缓存设备只拉增量导致旧页面缺失"
+);
+check(
   pageSyncClient.includes("cache failures should not block cloud-backed page lists"),
   "页面 metadata 增量同步应允许本机缓存写入失败时继续用云端列表渲染"
 );
