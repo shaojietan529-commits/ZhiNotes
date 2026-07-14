@@ -347,6 +347,7 @@ import {
 import {
   buildSyncHandoffReadinessReceipt,
   type SyncHandoffReadinessGateStatus,
+  type SyncHandoffReadinessNextStepStatus,
   type SyncHandoffReadinessReceipt,
   type SyncHandoffReadinessStatus,
 } from "@/lib/sync/syncHandoffReadinessReceipt";
@@ -21609,9 +21610,53 @@ function SyncUploadSafetyPanel({
           </div>
         ) : null}
 
+        <div
+          data-testid="sync-handoff-next-action-steps"
+          className="mt-3 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/70"
+        >
+          <div className="font-medium text-zinc-900 dark:text-zinc-100">
+            接力前操作顺序
+          </div>
+          <ol className="mt-2 space-y-2">
+            {handoffReceipt.next_action_steps.map((step, index) => (
+              <li
+                key={step.id}
+                data-testid="sync-handoff-next-action-step"
+                data-step-status={step.status}
+                className="flex gap-2 rounded-md bg-white px-2 py-2 dark:bg-zinc-950"
+              >
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${syncHandoffNextStepClass(
+                    step.status
+                  )}`}
+                >
+                  {index + 1}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-zinc-800 dark:text-zinc-100">
+                      {step.label}
+                    </span>
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-[10px] ${syncHandoffNextStepClass(
+                        step.status
+                      )}`}
+                    >
+                      {formatSyncHandoffNextStepStatus(step.status)}
+                    </span>
+                  </div>
+                  <p className="mt-1 break-words leading-5 text-zinc-500 dark:text-zinc-400">
+                    {step.action}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+
         <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
           边界：接力 readiness 只展示 counts、flags、hash、timestamps 和
-          gates；不读取页面正文、数据库行值、评论、文件字节、失败消息或原始 workspace id。
+          gates 派生的操作步骤；不读取页面正文、数据库行值、评论、文件字节、失败消息或原始 workspace id。
         </p>
       </div>
 
@@ -21976,6 +22021,26 @@ function syncHandoffReadinessGateClass(
     return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
   }
   return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+}
+
+function formatSyncHandoffNextStepStatus(
+  status: SyncHandoffReadinessNextStepStatus
+) {
+  if (status === "done") return "已完成";
+  if (status === "current") return "先处理";
+  return "稍后";
+}
+
+function syncHandoffNextStepClass(
+  status: SyncHandoffReadinessNextStepStatus
+) {
+  if (status === "done") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  if (status === "current") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  return "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300";
 }
 
 function PagePendingQueueDetails({

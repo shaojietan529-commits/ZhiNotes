@@ -15173,6 +15173,36 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    'data-testid="sync-handoff-next-action-steps"',
+    "Sync UI must render ordered handoff next-action steps."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="sync-handoff-next-action-step"',
+    "Sync UI must expose each handoff next-action step as a stable smoke-test target."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handoffReceipt.next_action_steps.map",
+    "Sync UI must render next-action steps from the same handoff receipt used for export."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "formatSyncHandoffNextStepStatus",
+    "Sync UI must translate machine step statuses into user-facing labels."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-step-status={step.status}",
+    "Sync UI must expose each handoff step status for read-only browser checks."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "ready_for_cross_device_handoff",
     "Sync UI must show the live cross-device handoff readiness boolean."
   );
@@ -15293,6 +15323,36 @@ function run() {
   assertIncludes(
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
+    "export interface SyncHandoffReadinessNextStep",
+    "Handoff readiness receipt must expose ordered owner-facing next steps."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "next_action_steps: SyncHandoffReadinessNextStep[]",
+    "Handoff readiness receipt must include next-action steps in the exported metadata-only receipt."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "function buildNextActionSteps",
+    "Handoff readiness receipt must derive ordered steps from gates."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "gate_id: gate.id",
+    "Handoff readiness steps must remain traceable to their source gate."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    'gate.id !== "metadata-only-boundary"',
+    "Handoff readiness steps must keep the privacy boundary separate from actionable owner steps."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
     "reads_page_ids: false",
     "Handoff readiness receipt must not export page ids."
   );
@@ -15319,6 +15379,12 @@ function run() {
     syncHandoffReadinessReceipt,
     "includes_only_counts_booleans_hashes_timestamps_and_gates: true",
     "Handoff readiness receipt must only include counts, booleans, hashes, timestamps, and gates."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "includes_only_counts_booleans_hashes_timestamps_gates_and_steps: true",
+    "Handoff readiness receipt must treat owner-facing steps as gate-derived metadata only."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,

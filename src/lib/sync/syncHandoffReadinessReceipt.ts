@@ -36,6 +36,16 @@ export interface SyncHandoffReadinessGate {
   next_action: string;
 }
 
+export type SyncHandoffReadinessNextStepStatus = "done" | "current" | "later";
+
+export interface SyncHandoffReadinessNextStep {
+  id: string;
+  gate_id: string;
+  label: string;
+  status: SyncHandoffReadinessNextStepStatus;
+  action: string;
+}
+
 export interface SyncHandoffReadinessReceipt {
   format: "zhinote-sync-handoff-readiness-receipt";
   format_version: 1;
@@ -72,6 +82,7 @@ export interface SyncHandoffReadinessReceipt {
     exports_raw_workspace_ids: false;
     includes_raw_workspace_content: false;
     includes_only_counts_booleans_hashes_timestamps_and_gates: true;
+    includes_only_counts_booleans_hashes_timestamps_gates_and_steps: true;
   };
   summary: {
     ready_for_cross_device_handoff: boolean;
@@ -101,6 +112,7 @@ export interface SyncHandoffReadinessReceipt {
     receipt_hash: string;
   };
   gates: SyncHandoffReadinessGate[];
+  next_action_steps: SyncHandoffReadinessNextStep[];
   owner_actions: string[];
   next_action: string;
 }
@@ -193,6 +205,7 @@ export function buildSyncHandoffReadinessReceipt(
   });
   const blockers = gates.filter((gate) => gate.status === "block").length;
   const warnings = gates.filter((gate) => gate.status === "warn").length;
+  const nextActionSteps = buildNextActionSteps(gates);
   const receiptHash = stableHash({
     generated_at: generatedAt,
     status,
@@ -207,6 +220,10 @@ export function buildSyncHandoffReadinessReceipt(
     manual_review_rows: manualReviewRows,
     oldest_pending_queued_at: oldestPendingQueuedAt,
     gates: gates.map((gate) => ({ id: gate.id, status: gate.status })),
+    next_action_steps: nextActionSteps.map((step) => ({
+      gate_id: step.gate_id,
+      status: step.status,
+    })),
   });
 
   return {
@@ -218,7 +235,7 @@ export function buildSyncHandoffReadinessReceipt(
     generated_at: generatedAt,
     status,
     privacy_boundary:
-      "Generated locally to decide whether this browser can safely hand work to another device. It records only counts, sync flags, hashed workspace/device fingerprints, queue timestamps, and gate statuses. It does not read or export page ids, database keys, page bodies, Yjs payloads, database values, comments, file names, file bytes, failure messages, secrets, tokens, credentials, raw workspace ids, or raw cache dumps; it does not send network requests, upload workspace data, clear local cache, mutate local cache records, or enable sync/AI.",
+      "Generated locally to decide whether this browser can safely hand work to another device. It records only counts, sync flags, hashed workspace/device fingerprints, queue timestamps, gate statuses, and gate-derived owner next steps. It does not read or export page ids, database keys, page bodies, Yjs payloads, database values, comments, file names, file bytes, failure messages, secrets, tokens, credentials, raw workspace ids, or raw cache dumps; it does not send network requests, upload workspace data, clear local cache, mutate local cache records, or enable sync/AI.",
     boundary: {
       local_receipt_only: true,
       reads_queue_counts: true,
@@ -246,6 +263,7 @@ export function buildSyncHandoffReadinessReceipt(
       exports_raw_workspace_ids: false,
       includes_raw_workspace_content: false,
       includes_only_counts_booleans_hashes_timestamps_and_gates: true,
+      includes_only_counts_booleans_hashes_timestamps_gates_and_steps: true,
     },
     summary: {
       ready_for_cross_device_handoff: status === "ready",
@@ -275,6 +293,7 @@ export function buildSyncHandoffReadinessReceipt(
       receipt_hash: receiptHash,
     },
     gates,
+    next_action_steps: nextActionSteps,
     owner_actions: buildOwnerActions(status),
     next_action: getNextAction(status),
   };
@@ -485,6 +504,41 @@ function buildOwnerActions(status: SyncHandoffReadinessStatus) {
     "Let pending queues drain or trigger manual retry.",
     "Do not rebuild local cache or switch primary device until this receipt is ready.",
   ];
+}
+
+function buildNextActionSteps(
+  gates: SyncHandoffReadinessGate[]
+): SyncHandoffReadinessNextStep[] {
+  const actionableGates = gates.filter(
+    (gate) => gate.id !== "metadata-only-boundary"
+  );
+  const firstBlockingGateIndex = actionableGates.findIndex(
+    (gate) => gate.status === "block"
+  );
+  const firstWarningGateIndex = actionableGates.findIndex(
+    (gate) => gate.status === "warn"
+  );
+  const currentGateIndex =
+    firstBlockingGateIndex >= 0 ? firstBlockingGateIndex : firstWarningGateIndex;
+
+  return actionableGates.map((gate, index) => {
+    const status: SyncHandoffReadinessNextStepStatus =
+      gate.status === "pass"
+        ? "done"
+        : index === currentGateIndex
+          ? "current"
+          : "later";
+    return {
+      id: `handoff-step-${gate.id}`,
+      gate_id: gate.id,
+      label: gate.title,
+      status,
+      action:
+        status === "done"
+          ? "已完成，继续检查下一项。"
+          : gate.next_action,
+    };
+  });
 }
 
 function getOldestTimestamp(values: Array<string | null>) {
