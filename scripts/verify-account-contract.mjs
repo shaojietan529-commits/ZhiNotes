@@ -3520,6 +3520,13 @@ check(
     accountCloudSyncCoordinator.includes("useGlobalSyncLogStatus") &&
     accountCloudSyncCoordinator.includes("refreshGlobalSyncLogStatus") &&
     accountCloudSyncCoordinator.includes("await refreshGlobalSyncLogStatus();") &&
+    accountCloudSyncCoordinator.includes("forceAccountGate?: boolean") &&
+    accountCloudSyncCoordinator.includes(
+      "forceAccountGate: options.forceAccountGate"
+    ) &&
+    accountCloudSyncCoordinator.includes(
+      'forceAccountGate: state === "error" || syncBlockedBySignedOut'
+    ) &&
     accountCloudSyncCoordinator.includes("COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
     accountCloudSyncCoordinator.includes(
       "COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS"
@@ -3581,6 +3588,12 @@ check(
     accountCloudSyncCoordinator.includes("账号云同步暂不可确认，低频重试；本地输入已保留") &&
     accountCloudSyncCoordinator.includes("syncNow"),
   "账号级云同步协调器应统一页面/数据库/设置/知识库附属/全域 sync_log 同步状态，区分初始化检查和已同步，并提供合并 quick sync 入口；可重试失败必须按领域计算，文件 failed 不能被其他领域 manual review 抵消"
+);
+check(
+  sidebar.includes(
+    "accountSync.syncNow({ forceLease: true, forceAccountGate: true });"
+  ),
+  "侧边栏手动快速同步必须强制重新确认账号状态，不能被页面/数据库同步的认证退避挡住"
 );
 check(
   globalSyncLogStatusHook.includes("getSyncLogSummary") &&

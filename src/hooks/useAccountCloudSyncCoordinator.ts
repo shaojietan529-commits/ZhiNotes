@@ -30,6 +30,7 @@ export type AccountCloudSyncCoordinatorState =
 
 export interface AccountCloudSyncCoordinatorOptions {
   forceLease?: boolean;
+  forceAccountGate?: boolean;
   includeManualReview?: boolean;
 }
 
@@ -62,11 +63,13 @@ export function useAccountCloudSyncCoordinator() {
         pageSyncNow({
           quick: true,
           forceLease: options.forceLease,
+          forceAccountGate: options.forceAccountGate,
           includeManualReview: options.includeManualReview,
         }),
         databaseSyncNow({
           quick: true,
           forceLease: options.forceLease,
+          forceAccountGate: options.forceAccountGate,
           includeManualReview: options.includeManualReview,
         }),
         refreshSettingsSyncStatus(),
@@ -422,7 +425,9 @@ export function useAccountCloudSyncCoordinator() {
           ? COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS
           : COORDINATOR_PENDING_DRAIN_DELAY_MS;
     const timer = window.setTimeout(() => {
-      void syncNow();
+      void syncNow({
+        forceAccountGate: state === "error" || syncBlockedBySignedOut,
+      });
     }, retryDelayMs);
     return () => window.clearTimeout(timer);
   }, [

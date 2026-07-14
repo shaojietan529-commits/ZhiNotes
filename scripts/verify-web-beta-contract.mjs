@@ -5719,6 +5719,24 @@ function run() {
   assertSourceIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
+    "forceAccountGate?: boolean",
+    "Account cloud sync coordinator quick-sync options must expose forceAccountGate for manual account rechecks."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "forceAccountGate: options.forceAccountGate",
+    "Account cloud sync coordinator must pass forceAccountGate through to page and database sync hooks."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    'forceAccountGate: state === "error" || syncBlockedBySignedOut',
+    "Account cloud sync coordinator low-frequency retries must bypass stale auth backoff when account state is uncertain."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
     "COORDINATOR_PENDING_DRAIN_DELAY_MS",
     "Account cloud sync coordinator must coalesce pending queue drain triggers instead of adding immediate duplicate loops."
   );
@@ -26048,6 +26066,12 @@ function run() {
       sidebar,
       '? "查看队列"',
       "Sidebar cloud-sync control must keep queue-review states labeled as queue review.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "accountSync.syncNow({ forceLease: true, forceAccountGate: true });",
+      "Sidebar manual quick sync must force an account recheck instead of waiting for auth retry backoff.",
     ],
     [
       files.sidebar,

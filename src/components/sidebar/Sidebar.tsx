@@ -860,7 +860,7 @@ export default function Sidebar() {
       openModuleRoute(accountSyncCenterTarget);
       return;
     }
-    void accountSync.syncNow({ forceLease: true });
+    void accountSync.syncNow({ forceLease: true, forceAccountGate: true });
   }, [
     accountSync,
     accountSyncCenterTarget,
