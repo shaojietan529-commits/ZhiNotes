@@ -98,6 +98,13 @@ const verificationCommands = [
       "Request public local route shells only, without reading browser storage or private content.",
   },
   {
+    id: "verify-stable-interactions",
+    command: "npm run verify:stable-interactions",
+    args: ["run", "verify:stable-interactions"],
+    purpose:
+      "Check P0 local-first interaction guardrails for Daily, ZhiHui, page opens, and page peek.",
+  },
+  {
     id: "verify-stable-use-health",
     command: "npm run verify:stable-use-health",
     args: ["run", "verify:stable-use-health"],
