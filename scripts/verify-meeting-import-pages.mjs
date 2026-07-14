@@ -19,6 +19,11 @@ const importRoutePath = "src/app/api/meetings/import/route.ts";
 const requestBodyPath = "src/lib/meetings/requestBody.ts";
 const accountSyncRoutePath = "src/app/api/pages/account-sync/route.ts";
 const accountSyncClientPath = "src/lib/pages/accountPageSync.ts";
+const meetingRefreshEventsPath =
+  "src/lib/meetings/meetingCalendarRefreshEvents.ts";
+const meetingScheduleShellPath =
+  "src/components/modules/MeetingScheduleShell.tsx";
+const dailyNotesShellPath = "src/components/modules/DailyNotesShell.tsx";
 const kvStore = new Map();
 let idCounter = 0;
 let failChangeLogWrite = false;
@@ -33,6 +38,18 @@ const accountSyncRouteSource = readFileSync(
 );
 const accountSyncClientSource = readFileSync(
   path.join(root, accountSyncClientPath),
+  "utf8"
+);
+const meetingRefreshEventsSource = readFileSync(
+  path.join(root, meetingRefreshEventsPath),
+  "utf8"
+);
+const meetingScheduleShellSource = readFileSync(
+  path.join(root, meetingScheduleShellPath),
+  "utf8"
+);
+const dailyNotesShellSource = readFileSync(
+  path.join(root, dailyNotesShellPath),
   "utf8"
 );
 
@@ -562,6 +579,72 @@ expect(
   ),
   "meeting metadata change-log refresh should read changed ids, update cache records, and persist the cache"
 );
+expect(
+  meetingRefreshEventsSource.includes("MEETING_CALENDAR_REFRESH_EVENT") &&
+    meetingRefreshEventsSource.includes("MEETING_CALENDAR_REFRESH_STORAGE_KEY") &&
+    meetingRefreshEventsSource.includes(
+      "zhinote.meeting.calendar-refresh.v1"
+    ) &&
+    meetingRefreshEventsSource.includes("metadataOnly: true") &&
+    meetingRefreshEventsSource.includes("readsPageBodyText: false") &&
+    meetingRefreshEventsSource.includes("readsMeetingContent: false") &&
+    meetingRefreshEventsSource.includes("readsMeetingCredentials: false") &&
+    meetingRefreshEventsSource.includes("window.dispatchEvent") &&
+    meetingRefreshEventsSource.includes("window.localStorage.setItem") &&
+    meetingRefreshEventsSource.includes(
+      "export function parseMeetingCalendarRefreshPayload"
+    ) &&
+    meetingRefreshEventsSource.includes(
+      "export function isFreshMeetingCalendarRefreshPayload"
+    ) &&
+    !meetingRefreshEventsSource.includes("content_text") &&
+    !meetingRefreshEventsSource.includes("passcode") &&
+    !meetingRefreshEventsSource.includes("joinUrl"),
+  "meeting calendar refresh events should be metadata-only, cross-tab capable, fresh/stale aware, and must not carry page bodies or meeting credentials"
+);
+expect(
+  meetingScheduleShellSource.includes(
+    "@/lib/meetings/meetingCalendarRefreshEvents"
+  ) &&
+    meetingScheduleShellSource.includes("dispatchMeetingCalendarRefresh({") &&
+    meetingScheduleShellSource.includes('source: "meeting-local-draft"') &&
+    meetingScheduleShellSource.includes('affectedCalendars: ["meeting"]') &&
+    meetingScheduleShellSource.includes(
+      'metadataRefreshMode: "local-page-update"'
+    ) &&
+    meetingScheduleShellSource.includes(
+      "window.addEventListener(MEETING_CALENDAR_REFRESH_EVENT"
+    ) &&
+    meetingScheduleShellSource.includes(
+      'payload.affectedCalendars.includes("meeting")'
+    ) &&
+    meetingScheduleShellSource.includes("focusCalendarDate(payload.dateKey)") &&
+    meetingScheduleShellSource.includes(
+      "parseMeetingCalendarRefreshPayload(event.newValue)"
+    ) &&
+    meetingScheduleShellSource.includes("includeUnindexedFallback:") &&
+    meetingScheduleShellSource.includes("MEETING_CLOUD_METADATA_RECHECK_DELAY_MS"),
+  "ZhiHui schedule should dispatch local meeting refresh events and listen for same-tab or cross-tab calendar refresh receipts"
+);
+expect(
+  dailyNotesShellSource.includes(
+    "@/lib/meetings/meetingCalendarRefreshEvents"
+  ) &&
+    dailyNotesShellSource.includes(
+      "window.addEventListener(MEETING_CALENDAR_REFRESH_EVENT"
+    ) &&
+    dailyNotesShellSource.includes(
+      'payload.affectedCalendars.includes("daily")'
+    ) &&
+    dailyNotesShellSource.includes(
+      "focusDailyCalendarDate(payload.dateKey)"
+    ) &&
+    dailyNotesShellSource.includes(
+      "parseMeetingCalendarRefreshPayload(event.newValue)"
+    ) &&
+    dailyNotesShellSource.includes("DAILY_CLOUD_METADATA_RECHECK_DELAY_MS"),
+  "Daily notes should listen for meeting-import calendar refresh receipts that affect the daily calendar"
+);
 
 const corruptIndexManualReview = await verifyCorruptIndexManualReview();
 const corruptPageRecordManualReview = await verifyPageRecordManualReview({
@@ -592,6 +675,9 @@ console.log(
       route: importRoutePath,
       metadata_route: accountSyncRoutePath,
       metadata_client: accountSyncClientPath,
+      refresh_events: meetingRefreshEventsPath,
+      schedule_shell: meetingScheduleShellPath,
+      daily_shell: dailyNotesShellPath,
       synthetic_imports: 1,
       index_records: Object.keys(index ?? {}).length,
       change_log_entries: changeLog?.length ?? 0,
@@ -617,6 +703,7 @@ console.log(
       oversized_daily_page_manual_review: oversizedDailyPageManualReview,
       change_log_failure_fallback: changeLogFailureFallback,
       downstream_cache_refresh_contract: true,
+      browser_calendar_refresh_event_contract: true,
       privacy_boundary:
         "Synthetic in-memory KV verification only. It does not connect real cloud storage, read browser storage, page bodies, real meeting content, transcripts, join URLs, passcodes, cookies, credentials, or file bytes.",
     },

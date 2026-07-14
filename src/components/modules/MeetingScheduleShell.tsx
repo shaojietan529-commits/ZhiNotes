@@ -59,6 +59,14 @@ import {
   writeMeetingHotCacheSnapshot,
 } from "@/lib/sync/meetingHotCacheSnapshot";
 import {
+  MEETING_CALENDAR_REFRESH_EVENT,
+  MEETING_CALENDAR_REFRESH_STORAGE_KEY,
+  dispatchMeetingCalendarRefresh,
+  isFreshMeetingCalendarRefreshPayload,
+  parseMeetingCalendarRefreshPayload,
+  type MeetingCalendarRefreshPayload,
+} from "@/lib/meetings/meetingCalendarRefreshEvents";
+import {
   buildMeetingCalendarLoadStatusView,
   createMeetingCalendarLoadStatus,
   type MeetingCalendarLoadPhase,
@@ -1441,6 +1449,81 @@ export default function MeetingScheduleShell() {
     let cancelFallbackReload: (() => void) | null = null;
     let cancelCloudRecheck: (() => void) | null = null;
 
+    const scheduleRefreshFromPayload = (
+      payload: MeetingCalendarRefreshPayload | null
+    ) => {
+      if (!payload || !isFreshMeetingCalendarRefreshPayload(payload)) return;
+      if (!payload.affectedCalendars.includes("meeting")) return;
+
+      focusCalendarDate(payload.dateKey);
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
+      cancelCloudRecheck?.();
+      cancelLocalReload = scheduleMeetingForegroundAwareRefresh(() => {
+        void load({
+          includeCloud: false,
+          interruptCloud: false,
+          preserveVisibleMeetings: true,
+          includeUnindexedFallback: false,
+        });
+      }, MEETING_LOCAL_METADATA_REFRESH_DELAY_MS);
+      cancelFallbackReload = scheduleMeetingForegroundAwareRefresh(() => {
+        void load({
+          includeCloud: false,
+          interruptCloud: false,
+          preserveVisibleMeetings: true,
+          includeUnindexedFallback:
+            payload.fullCacheRebuildRequired ||
+            payload.metadataRefreshMode !== "local-page-update",
+        });
+      }, MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS);
+      cancelCloudRecheck = scheduleMeetingForegroundAwareRefresh(() => {
+        void load({
+          includeCloud: true,
+          preserveVisibleMeetings: true,
+          includeUnindexedFallback: payload.fullCacheRebuildRequired,
+        });
+      }, MEETING_CLOUD_METADATA_RECHECK_DELAY_MS);
+    };
+
+    const handleRefreshEvent = (event: Event) => {
+      scheduleRefreshFromPayload(
+        (event as CustomEvent<MeetingCalendarRefreshPayload>).detail ?? null
+      );
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== MEETING_CALENDAR_REFRESH_STORAGE_KEY) return;
+      scheduleRefreshFromPayload(
+        parseMeetingCalendarRefreshPayload(event.newValue)
+      );
+    };
+
+    window.addEventListener(MEETING_CALENDAR_REFRESH_EVENT, handleRefreshEvent);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
+      cancelCloudRecheck?.();
+      window.removeEventListener(
+        MEETING_CALENDAR_REFRESH_EVENT,
+        handleRefreshEvent
+      );
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [
+    dbReady,
+    focusCalendarDate,
+    load,
+    scheduleMeetingForegroundAwareRefresh,
+  ]);
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let cancelLocalReload: (() => void) | null = null;
+    let cancelFallbackReload: (() => void) | null = null;
+    let cancelCloudRecheck: (() => void) | null = null;
+
     const scheduleLocalMetadataRefresh = () => {
       cancelLocalReload?.();
       cancelFallbackReload?.();
@@ -2082,6 +2165,15 @@ export default function MeetingScheduleShell() {
           local_handoff_seeded: 1,
           queued_recording_requested: options.enqueueRecording ? 1 : 0,
         },
+      });
+      dispatchMeetingCalendarRefresh({
+        source: "meeting-local-draft",
+        dateKey: toMeetingEntry(optimisticPage).dateKey || draft.date,
+        affectedCalendars: ["meeting"],
+        changedPageIds: [optimisticPage.id],
+        metadataRefreshReason: "meeting-local-draft",
+        metadataRefreshMode: "local-page-update",
+        fullCacheRebuildRequired: false,
       });
       revealMeetingOnCalendar(optimisticPage);
       scheduleOptimisticMeetingHotCacheWrite(

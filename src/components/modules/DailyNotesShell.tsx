@@ -65,6 +65,13 @@ import {
   type DailyHotCacheSnapshot,
 } from "@/lib/sync/dailyHotCacheSnapshot";
 import {
+  MEETING_CALENDAR_REFRESH_EVENT,
+  MEETING_CALENDAR_REFRESH_STORAGE_KEY,
+  isFreshMeetingCalendarRefreshPayload,
+  parseMeetingCalendarRefreshPayload,
+  type MeetingCalendarRefreshPayload,
+} from "@/lib/meetings/meetingCalendarRefreshEvents";
+import {
   buildCalendarFirstPaintRange,
   buildCalendarMonthGrid as buildMonthGrid,
   type CalendarMonthCell as MonthCell,
@@ -1461,6 +1468,76 @@ export default function DailyNotesShell() {
     },
     [hydrateDailyDateKey, setViewMonth]
   );
+
+  useEffect(() => {
+    if (!dbReady) return;
+    let cancelLocalReload: (() => void) | null = null;
+    let cancelFallbackReload: (() => void) | null = null;
+    let cancelCloudRecheck: (() => void) | null = null;
+
+    const scheduleRefreshFromPayload = (
+      payload: MeetingCalendarRefreshPayload | null
+    ) => {
+      if (!payload || !isFreshMeetingCalendarRefreshPayload(payload)) return;
+      if (!payload.affectedCalendars.includes("daily")) return;
+
+      focusDailyCalendarDate(payload.dateKey);
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
+      cancelCloudRecheck?.();
+      cancelLocalReload = scheduleDailyForegroundAwareRefresh(() => {
+        void load({
+          includeCloud: false,
+          interruptCloud: false,
+          preserveVisibleNotes: true,
+        });
+      }, DAILY_LOCAL_METADATA_REFRESH_DELAY_MS);
+      cancelFallbackReload = scheduleDailyForegroundAwareRefresh(() => {
+        void load({
+          includeCloud: false,
+          interruptCloud: false,
+          preserveVisibleNotes: true,
+        });
+      }, DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS);
+      cancelCloudRecheck = scheduleDailyForegroundAwareRefresh(() => {
+        void load({
+          includeCloud: true,
+          preserveVisibleNotes: true,
+        });
+      }, DAILY_CLOUD_METADATA_RECHECK_DELAY_MS);
+    };
+
+    const handleRefreshEvent = (event: Event) => {
+      scheduleRefreshFromPayload(
+        (event as CustomEvent<MeetingCalendarRefreshPayload>).detail ?? null
+      );
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== MEETING_CALENDAR_REFRESH_STORAGE_KEY) return;
+      scheduleRefreshFromPayload(
+        parseMeetingCalendarRefreshPayload(event.newValue)
+      );
+    };
+
+    window.addEventListener(MEETING_CALENDAR_REFRESH_EVENT, handleRefreshEvent);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      cancelLocalReload?.();
+      cancelFallbackReload?.();
+      cancelCloudRecheck?.();
+      window.removeEventListener(
+        MEETING_CALENDAR_REFRESH_EVENT,
+        handleRefreshEvent
+      );
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [
+    dbReady,
+    focusDailyCalendarDate,
+    load,
+    scheduleDailyForegroundAwareRefresh,
+  ]);
 
   useEffect(() => {
     const dateKey = pendingDailyCalendarFocusDateKeyRef.current;
