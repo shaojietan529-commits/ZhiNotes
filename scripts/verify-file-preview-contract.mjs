@@ -28,6 +28,7 @@ const files = {
   accountSyncCoordinator: "src/hooks/useAccountCloudSyncCoordinator.ts",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
+  syncPendingDomainRegistry: "src/lib/sync/syncPendingDomainRegistry.ts",
   upload: "src/components/editor/filePreviewUpload.ts",
   editor: "src/components/editor/Editor.tsx",
   codeHighlight: "src/lib/codeHighlight.ts",
@@ -244,6 +245,9 @@ function run() {
   );
   const sidebar = readProjectFile(files.sidebar);
   const syncShell = readProjectFile(files.syncShell);
+  const syncPendingDomainRegistry = readProjectFile(
+    files.syncPendingDomainRegistry
+  );
   const upload = readProjectFile(files.upload);
   const editor = readProjectFile(files.editor);
   const codeHighlight = readProjectFile(files.codeHighlight);
@@ -584,8 +588,8 @@ function run() {
       "Sync center must include file embed pending counts.",
     ],
     [
-      files.syncShell,
-      syncShell,
+      files.syncPendingDomainRegistry,
+      syncPendingDomainRegistry,
       "file_embed_sync_queue",
       "Sync center pending-domain rows must identify the file embed queue table.",
     ],

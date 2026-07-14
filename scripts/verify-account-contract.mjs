@@ -681,6 +681,9 @@ const pageIngestRoute = read("src/app/api/pages/ingest/route.ts");
 const meetingAgentJobsRoute = read("src/app/api/meetings/agent/jobs/route.ts");
 const databaseSyncClient = read("src/lib/database/accountDatabaseSync.ts");
 const syncDashboardShell = read("src/components/modules/SyncShell.tsx");
+const syncPendingDomainRegistry = read(
+  "src/lib/sync/syncPendingDomainRegistry.ts"
+);
 check(
   databaseSyncRoute.includes("accountSessionUnconfirmedResponse") &&
     databaseSyncRoute.includes("数据库同步暂时无法确认账号；本地修改已保留，请稍后重试。") &&
@@ -3121,6 +3124,7 @@ check(
     syncDashboardShell.includes('"page_comments"') &&
     syncDashboardShell.includes("settingsPendingTotal: settingsWaiting") &&
     syncDashboardShell.includes("knowledgePendingTotal: knowledgeWaiting") &&
+    syncDashboardShell.includes("@/lib/sync/syncPendingDomainRegistry") &&
     syncDashboardShell.includes('id="sync-local-use-readiness-panel"') &&
     syncDashboardShell.includes('data-testid="sync-local-use-readiness-panel"') &&
     syncDashboardShell.includes("data-local-use-status={readiness.status}") &&
@@ -3140,13 +3144,14 @@ check(
       syncDashboardShell.includes(
         "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus,\n        fileEmbedPendingStatus\n      )"
       )) &&
-    syncDashboardShell.includes("mergeCorePendingDomainRows") &&
-    syncDashboardShell.includes("pageStatus.pending + pageStatus.queued") &&
-    syncDashboardShell.includes(
+    syncPendingDomainRegistry.includes("PENDING_DOMAIN_DEFINITIONS") &&
+    syncPendingDomainRegistry.includes("mergeCorePendingDomainRows") &&
+    syncPendingDomainRegistry.includes("pageStatus.pending + pageStatus.queued") &&
+    syncPendingDomainRegistry.includes(
       "databaseStatus.pending +\n          databaseStatus.queued +\n          databaseStatus.syncLogPending"
     ) &&
-    syncDashboardShell.includes("fileStatus.pending") &&
-    syncDashboardShell.includes("file_embed_sync_queue") &&
+    syncPendingDomainRegistry.includes("fileStatus.pending") &&
+    syncPendingDomainRegistry.includes("file_embed_sync_queue") &&
     syncDashboardShell.includes("file-embed-pending-upload-queue") &&
     syncDashboardShell.includes(
       "data-monitored-sync-domain-count={enabledDomainCount}"
@@ -3165,8 +3170,8 @@ check(
     syncDashboardShell.includes("全域队列") &&
     syncDashboardShell.includes("暂无全域 pending") &&
     syncDashboardShell.includes("下一步：{row.nextAction}") &&
-    syncDashboardShell.includes("先补传页面输入；本地写作可以继续。") &&
-    syncDashboardShell.includes("先补传数据库变更；本地编辑可以继续。") &&
+    syncPendingDomainRegistry.includes("先补传页面输入；本地写作可以继续。") &&
+    syncPendingDomainRegistry.includes("先补传数据库变更；本地编辑可以继续。") &&
     syncDashboardShell.includes("补传全部本地输入") &&
     syncDashboardShell.includes("不读取页面正文、数据库行值、文件 bytes"),
   "同步中心应在上传安全总览前展示本地可继续使用、云端交接、缓存重建阻断、监控同步域、核心兜底队列和全域 pending 域分布，并保持 metadata-only 边界"

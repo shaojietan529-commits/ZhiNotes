@@ -191,6 +191,7 @@ const files = {
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
+  syncPendingDomainRegistry: "src/lib/sync/syncPendingDomainRegistry.ts",
   developmentStabilityPlan: "src/lib/sync/developmentStabilityPlan.ts",
   developmentStabilityHandoffReceipt:
     "src/lib/sync/developmentStabilityHandoffReceipt.ts",
@@ -692,6 +693,9 @@ function run() {
   const quickSearch = readProjectFile(files.quickSearch);
   const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const syncShell = readProjectFile(files.syncShell);
+  const syncPendingDomainRegistry = readProjectFile(
+    files.syncPendingDomainRegistry
+  );
   const developmentStabilityPlan = readProjectFile(
     files.developmentStabilityPlan
   );
@@ -10648,18 +10652,24 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "@/lib/sync/syncPendingDomainRegistry",
+    "Sync UI must use the shared pending-domain registry instead of owning domain aggregation logic."
+  );
+  assertIncludes(
+    files.syncPendingDomainRegistry,
+    syncPendingDomainRegistry,
     "mergeCorePendingDomainRows",
     "Sync UI pending domain rows must include core page/database queues, not only global sync_log rows."
   );
   assertIncludes(
-    files.syncShell,
-    syncShell,
+    files.syncPendingDomainRegistry,
+    syncPendingDomainRegistry,
     "pageStatus.pending + pageStatus.queued",
     "Sync UI pending domain rows must include page pending and in-memory page queues."
   );
   assertIncludes(
-    files.syncShell,
-    syncShell,
+    files.syncPendingDomainRegistry,
+    syncPendingDomainRegistry,
     "databaseStatus.pending +\n          databaseStatus.queued +\n          databaseStatus.syncLogPending",
     "Sync UI pending domain rows must include database cloud-key, in-memory, and sync_log queues."
   );
@@ -10706,14 +10716,14 @@ function run() {
     "Sync UI pending domain cards must give the owner a concrete next action."
   );
   assertIncludes(
-    files.syncShell,
-    syncShell,
+    files.syncPendingDomainRegistry,
+    syncPendingDomainRegistry,
     "先补传页面输入；本地写作可以继续。",
     "Sync UI pending domain cards must explicitly say page pending uploads do not block local writing."
   );
   assertIncludes(
-    files.syncShell,
-    syncShell,
+    files.syncPendingDomainRegistry,
+    syncPendingDomainRegistry,
     "先补传数据库变更；本地编辑可以继续。",
     "Sync UI pending domain cards must explicitly say database pending uploads do not block local editing."
   );

@@ -272,6 +272,7 @@ const files = {
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
+  syncPendingDomainRegistry: "src/lib/sync/syncPendingDomainRegistry.ts",
   dailyNotesShell: "src/components/modules/DailyNotesShell.tsx",
   meetingScheduleShell: "src/components/modules/MeetingScheduleShell.tsx",
   notesShell: "src/components/modules/NotesShell.tsx",
@@ -863,6 +864,9 @@ function run() {
   const quickSearch = readProjectFile(files.quickSearch);
   const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const syncShell = readProjectFile(files.syncShell);
+  const syncPendingDomainRegistry = readProjectFile(
+    files.syncPendingDomainRegistry
+  );
   const dailyNotesShell = readProjectFile(files.dailyNotesShell);
   const meetingScheduleShell = readProjectFile(files.meetingScheduleShell);
   const notesShell = readProjectFile(files.notesShell);
@@ -10975,14 +10979,6 @@ function run() {
       "Sync UI must aggregate pending sync rows by full cloud-master data domain.",
     ],
     [
-      'manualReview: sumPendingTables(matchingTables, "manualReview")',
-      "Full-domain pending distribution must aggregate manual-review rows by domain.",
-    ],
-    [
-      'key: "pending" | "failed" | "inFlight" | "manualReview" | "total"',
-      "Full-domain pending distribution must preserve manual-review totals in table aggregation.",
-    ],
-    [
       "全域 pending 变更分布",
       "Sync UI must render a full-domain pending distribution panel.",
     ],
@@ -11156,6 +11152,55 @@ function run() {
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "@/lib/sync/syncPendingDomainRegistry",
+      "Sync UI must import the shared pending-domain registry instead of owning domain aggregation logic.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "PENDING_DOMAIN_DEFINITIONS",
+      "Pending-domain aggregation must live in the shared sync pending domain registry.",
+    ],
+    [
+      'manualReview: sumPendingTables(matchingTables, "manualReview")',
+      "Full-domain pending distribution must aggregate manual-review rows by domain.",
+    ],
+    [
+      'key: "pending" | "failed" | "inFlight" | "manualReview" | "total"',
+      "Full-domain pending distribution must preserve manual-review totals in table aggregation.",
+    ],
+    [
+      "mergeCorePendingDomainRows",
+      "Full-domain pending distribution must merge core page/database/file queues even when sync_log is catching up.",
+    ],
+    [
+      "pageStatus.pending + pageStatus.queued",
+      "Full-domain pending distribution must include page pending and in-memory page queues.",
+    ],
+    [
+      "databaseStatus.pending +\n          databaseStatus.queued +\n          databaseStatus.syncLogPending",
+      "Full-domain pending distribution must include database cloud-key, in-memory, and sync_log queues.",
+    ],
+    [
+      "fileStatus.pending",
+      "Full-domain pending distribution must include file embed pending rows.",
+    ],
+    [
+      "file_embed_sync_queue",
+      "Full-domain pending distribution must expose the file embed queue table name.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.syncPendingDomainRegistry,
+      syncPendingDomainRegistry,
+      snippet,
+      message
+    );
   }
   for (const [snippet, message] of [
     [
