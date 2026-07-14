@@ -164,6 +164,7 @@ const DAILY_CALENDAR_HYDRATION_BATCH = 7;
 const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
 const DAILY_PEEK_EDITOR_WARMUP_DELAY_MS = 1400;
 const DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 1800;
+const DAILY_PEEK_CREATE_READY_RETRY_MS = 900;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120;
@@ -661,6 +662,30 @@ export default function DailyNotesShell() {
           `${dateKey} 的每日纪要页面跳转较慢，已自动重试打开完整页面。`
         );
       }, DAILY_FULL_PAGE_CREATE_NAVIGATION_RETRY_MS);
+    },
+    [dailyCreateOpenMode, openPage, upsertPages]
+  );
+
+  const scheduleDailyCreatePeekReadyFallback = useCallback(
+    (note: DailyNote, dateKey: string) => {
+      if (dailyCreateOpenMode !== "peek") return;
+      window.setTimeout(() => {
+        if (!window.location.pathname.startsWith("/daily")) return;
+        const currentOpeningDraft = openingDraftRef.current;
+        if (
+          currentOpeningDraft?.pageId !== note.id ||
+          currentOpeningDraft.dateKey !== dateKey
+        ) {
+          return;
+        }
+        upsertPages([note]);
+        rememberPendingPageDraft(note);
+        rememberPageRouteHandoff(note, "daily-create");
+        openPage(note, { source: "daily-create" });
+        setCloudNotice(
+          `${dateKey} 的每日纪要弹窗准备较慢，已自动打开完整页面。`
+        );
+      }, DAILY_PEEK_CREATE_READY_RETRY_MS);
     },
     [dailyCreateOpenMode, openPage, upsertPages]
   );
@@ -1704,6 +1729,7 @@ export default function DailyNotesShell() {
           setPeekInitialPage(optimisticNote);
           setOpeningNoteId(optimisticNote.id);
           setPeekPageId(optimisticNote.id);
+          scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);
         } else {
           setPeekInitialPage(null);
           setOpeningNoteId(null);
@@ -1831,6 +1857,7 @@ export default function DailyNotesShell() {
       dailyCreateOpenMode,
       openPage,
       scheduleOptimisticDailyHotCacheWrite,
+      scheduleDailyCreatePeekReadyFallback,
       scheduleDailyCreateFullPageNavigationRetry,
       warmDailyCreateOpenPath,
       markDailyForegroundInteraction,

@@ -134,6 +134,18 @@ function run() {
       "scheduleDailyCreateFullPageNavigationRetry",
       "Daily full-page mode must retry navigation if the visible route transition stalls.",
     ],
+    [
+      "scheduleDailyCreatePeekReadyFallback",
+      "Daily peek mode must open the full page automatically if the create modal stalls.",
+    ],
+    [
+      "DAILY_PEEK_CREATE_READY_RETRY_MS",
+      "Daily peek-mode create fallback must be bounded so + never looks like a dead click.",
+    ],
+    [
+      "每日纪要弹窗准备较慢，已自动打开完整页面。",
+      "Daily peek-mode create fallback must explain why the full page opened.",
+    ],
   ]) {
     assertIncludes(files.dailyShell, dailyShell, snippet, message);
   }
@@ -148,6 +160,7 @@ function run() {
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
       "setNotes((current) => [",
       "upsertPages([optimisticNote]);",
+      "scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);",
     ],
     "Daily + must publish local feedback and route handoff before background persistence."
   );

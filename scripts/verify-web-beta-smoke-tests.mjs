@@ -1422,6 +1422,18 @@ function run() {
       "Daily note creation must keep same-page peek opening available as an explicit mode.",
     ],
     [
+      "scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);",
+      "Daily note creation must fall back to the full page if the same-page peek shell stalls.",
+    ],
+    [
+      "DAILY_PEEK_CREATE_READY_RETRY_MS",
+      "Daily note creation peek fallback must be bounded so + never feels dead.",
+    ],
+    [
+      "每日纪要弹窗准备较慢，已自动打开完整页面。",
+      "Daily note creation peek fallback must tell users why a full page opened.",
+    ],
+    [
       "daily-create-local-shell-requested",
       "Daily note creation must record a metadata-only local performance snapshot when the local draft shell is requested.",
     ],
@@ -11266,6 +11278,9 @@ function run() {
     "handleCreateFailure(error);\n        return;",
     "setPeekInitialPage(optimisticNote);",
     "setPeekPageId(optimisticNote.id);",
+    "scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);",
+    "DAILY_PEEK_CREATE_READY_RETRY_MS",
+    "每日纪要弹窗准备较慢，已自动打开完整页面。",
     "const localShellRequestedMs =\n        getLocalPerformanceNow() - createStartedAt;",
     "status: \"daily-create-local-shell-requested\"",
     "const openOpeningDailyDraftFullPage = useCallback",
@@ -11295,6 +11310,7 @@ function run() {
       "setPeekInitialPage(optimisticNote);",
       "setOpeningNoteId(optimisticNote.id);",
       "setPeekPageId(optimisticNote.id);",
+      "scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);",
       "recordLocalPerformanceSnapshot({",
       "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
       "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
