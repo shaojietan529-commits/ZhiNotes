@@ -69,7 +69,7 @@ export function useDatabases() {
       try {
         const cloud = await syncCloudDatabaseMetadataDelta({
           restoreLocalCursor: true,
-          requireLocalCacheCoverage: false,
+          requireLocalCacheCoverage: true,
         });
         if (cloud.status === "ok") {
           if (cloud.fullRefresh) {

@@ -772,7 +772,9 @@ export async function syncCloudPageMetadataDelta(
       throttled: true,
     };
   }
-  if (!options.force) {
+  const requiresFreshCoverage =
+    Boolean(options.fullRefresh) || Boolean(options.requireLocalCacheCoverage);
+  if (!options.force && !requiresFreshCoverage) {
     if (metadataDeltaInFlight) return metadataDeltaInFlight;
     if (
       lastMetadataDeltaResult &&

@@ -1131,6 +1131,8 @@ check(
     pageSyncClient.includes('action: "metadata-changes-since"') &&
     pageSyncClient.includes("METADATA_DELTA_THROTTLE_MS") &&
     pageSyncClient.includes("metadataDeltaInFlight") &&
+    pageSyncClient.includes("const requiresFreshCoverage =") &&
+    pageSyncClient.includes("!options.force && !requiresFreshCoverage") &&
     pageSyncClient.includes("fullRefresh?: boolean") &&
     pageSyncClient.includes("requireLocalCacheCoverage?: boolean") &&
     pageSyncClient.includes("options.requireLocalCacheCoverage") &&
@@ -1204,7 +1206,7 @@ check(
     usePagesHook.includes("metadataFirstContent ? false : includeContent") &&
     usePagesHook.includes("setPages(all);") &&
     usePagesHook.includes("force: false") &&
-    usePagesHook.includes("requireLocalCacheCoverage: false") &&
+    usePagesHook.includes("requireLocalCacheCoverage: true") &&
     usePagesHook.includes("mergeMetadataForCount(all, cloudPages)") &&
     usePagesHook.includes("const needsCloudCoverageRecovery =") &&
     usePagesHook.includes("!cloudSnapshotAuthoritative") &&

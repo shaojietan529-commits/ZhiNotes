@@ -5991,6 +5991,10 @@ function run() {
       "writeDatabaseListHotCacheSnapshot",
       "useDatabases must refresh the database-list hot cache after metadata loads.",
     ],
+    [
+      "requireLocalCacheCoverage: true",
+      "useDatabases must require cloud metadata coverage when correcting local database-list hot cache.",
+    ],
   ]) {
     assertIncludes(files.useDatabases, useDatabases, snippet, message);
   }
@@ -9693,6 +9697,12 @@ function run() {
     accountDatabaseSync,
     "shouldRecoverDatabaseMetadataCoverageBeforeIncrementalPull",
     "Database quick sync must verify local metadata coverage before trusting a stored cloud cursor."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "!options.force && !requiresFreshCoverage",
+    "Database metadata coverage checks must bypass stale throttled delta results."
   );
   assertIncludes(
     files.accountDatabaseSync,
@@ -14562,6 +14572,12 @@ function run() {
     accountPageSync,
     "shouldRecoverPageMetadataCoverageBeforeIncrementalPull",
     "Page quick sync must verify local metadata coverage before trusting a stored cloud cursor."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "!options.force && !requiresFreshCoverage",
+    "Page metadata coverage checks must bypass stale throttled delta results."
   );
   assertIncludes(
     files.accountPageSync,

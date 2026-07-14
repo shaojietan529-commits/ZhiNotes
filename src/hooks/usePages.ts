@@ -575,13 +575,13 @@ export function usePages(options: UsePagesOptions = {}) {
       scheduleIdleTask(() => {
         void applyCloudMetadataDelta({
           force: false,
-          requireLocalCacheCoverage: false,
+          requireLocalCacheCoverage: true,
         });
       }, 700);
     } else {
       await applyCloudMetadataDelta({
         force: false,
-        requireLocalCacheCoverage: false,
+        requireLocalCacheCoverage: true,
       });
     }
 

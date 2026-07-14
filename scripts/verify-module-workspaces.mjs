@@ -945,7 +945,7 @@ check(
     usePagesHook.includes("mergeMetadataForCount(all, cloudPages)") &&
     usePagesHook.includes("setPages(cloudPages)") &&
     usePagesHook.includes("force: false") &&
-    usePagesHook.includes("requireLocalCacheCoverage: false") &&
+    usePagesHook.includes("requireLocalCacheCoverage: true") &&
     usePagesHook.includes("const needsCloudCoverageRecovery =") &&
     usePagesHook.includes("!cloudSnapshotAuthoritative") &&
     usePagesHook.includes("(!localSnapshotLoaded || all.length === 0)") &&

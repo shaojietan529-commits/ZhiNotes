@@ -1005,7 +1005,9 @@ export async function syncCloudDatabaseMetadataDelta(
     };
   }
 
-  if (!options.force) {
+  const requiresFreshCoverage =
+    Boolean(options.fullRefresh) || Boolean(options.requireLocalCacheCoverage);
+  if (!options.force && !requiresFreshCoverage) {
     if (databaseMetadataDeltaInFlight) return databaseMetadataDeltaInFlight;
     if (
       lastDatabaseMetadataDeltaResult &&

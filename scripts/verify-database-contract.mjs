@@ -355,6 +355,8 @@ function run() {
     "databaseMetadataDeltaGeneration += 1",
     "lastDatabaseMetadataDeltaResult = null",
     "generation === databaseMetadataDeltaGeneration",
+    "const requiresFreshCoverage =",
+    "!options.force && !requiresFreshCoverage",
     "getDatabaseRecordsForSyncByKeys",
     "getPendingDatabaseSyncRecords",
     "getRemoteDatabaseRecordKey",
@@ -685,7 +687,6 @@ function run() {
     "restoreLocalCursor: true",
     "force: true",
     "const needsCloudCoverageRecovery =",
-    "requireLocalCacheCoverage: false",
     "requireLocalCacheCoverage: true",
   ]) {
     assertIncludes(
