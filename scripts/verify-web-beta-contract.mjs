@@ -6907,8 +6907,8 @@ function run() {
   assertSourceIncludes(
     files.dailyCreateOpenModeWorkspaceSettings,
     dailyCreateOpenModeWorkspaceSettings,
-    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "full-page";',
-    "Daily + creation must default to full-page opening so + follows the Notion-style create-then-enter workflow."
+    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "peek";',
+    "Daily + creation must default to same-page peek opening so + gives immediate local-first feedback before any full-page route load."
   );
   for (const [snippet, message] of [
     [

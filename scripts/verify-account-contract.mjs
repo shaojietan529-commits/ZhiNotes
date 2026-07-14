@@ -1414,10 +1414,10 @@ check(
     dailyNotesShell.includes("handleCreateFailure(error);\n        return;") &&
     dailyNotesShell.includes("DEFAULT_DAILY_CREATE_OPEN_MODE") &&
     dailyCreateOpenModeSettings.includes(
-      'DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "full-page"'
+      'DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "peek"'
     ) &&
-    dailyNotesShell.includes('"zhinote.daily.createOpenMode.v3"') &&
-    dailyNotesShell.includes("点 + 即可进入一篇新纪要") &&
+    dailyNotesShell.includes('"zhinote.daily.createOpenMode.v4"') &&
+    dailyNotesShell.includes("点 + 即可弹出一篇新纪要") &&
     dailyNotesShell.includes('data-testid="daily-create-open-mode"') &&
     dailyNotesShell.includes("open_mode_full_page: dailyCreateOpenMode === \"full-page\" ? 1 : 0") &&
     dailyNotesShell.includes("updateDailyCreateOpenMode") &&

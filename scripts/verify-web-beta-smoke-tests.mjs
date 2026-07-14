@@ -1501,8 +1501,8 @@ function run() {
   assertIncludes(
     files.dailyCreateOpenModeWorkspaceSettings,
     dailyCreateOpenModeWorkspaceSettings,
-    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "full-page";',
-    "Daily note creation must default to full-page opening so + follows the Notion-style create-then-enter workflow."
+    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "peek";',
+    "Daily note creation must default to same-page peek opening so + gives immediate local-first feedback before any full-page route load."
   );
   for (const [snippet, message] of [
     [
@@ -11251,7 +11251,7 @@ function run() {
       files.dailyNotesShell,
       dailyNotesShell,
       snippet,
-      "Daily + creation must seed local state first, default to full-page opening, and keep explicit peek mode available."
+      "Daily + creation must seed local state first, default to same-page peek opening, and keep explicit full-page mode available."
     );
   }
   assertOrderedSnippets(
