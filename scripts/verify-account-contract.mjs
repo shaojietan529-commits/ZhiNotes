@@ -163,6 +163,7 @@ const knowledgeCloudSyncStatusHook = read(
   "src/hooks/useKnowledgeCloudSyncStatus.ts"
 );
 const knowledgeSyncStatus = read("src/lib/sync/knowledgeSyncStatus.ts");
+const visibleRefreshLease = read("src/lib/sync/visibleRefreshLease.ts");
 check(shell.includes("unconfigured"), "AccountShell 缺少未配置状态");
 const effectBodies = shell.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[/g) ?? [];
 check(effectBodies.length > 0, "AccountShell 缺少会话检查 useEffect");
@@ -3793,9 +3794,49 @@ check(
   "侧边栏手动快速同步必须强制重新确认账号状态，不能被页面/数据库同步的认证退避挡住"
 );
 check(
+  visibleRefreshLease.includes("export function claimVisibleRefreshLease") &&
+    visibleRefreshLease.includes("localOwners") &&
+    visibleRefreshLease.includes("window.localStorage.getItem(storageKey)") &&
+    visibleRefreshLease.includes("lease.owner !== owner") &&
+    visibleRefreshLease.includes("lease.until > now") &&
+    visibleRefreshLease.includes("JSON.stringify({ owner, until: now + ttlMs })") &&
+    visibleRefreshLease.includes("return true;"),
+  "可见 tab 状态刷新租约必须使用本地 lease 合并重复轮询；localStorage 不可用时保持当前 tab 可刷新"
+);
+check(
+  settingsCloudSyncStatusHook.includes("claimVisibleRefreshLease") &&
+    settingsCloudSyncStatusHook.includes(
+      "SETTINGS_STATUS_REFRESH_LEASE_KEY"
+    ) &&
+    settingsCloudSyncStatusHook.includes(
+      "SETTINGS_STATUS_REFRESH_LEASE_TTL_MS"
+    ) &&
+    settingsCloudSyncStatusHook.includes(
+      "claimVisibleRefreshLease(\n          SETTINGS_STATUS_REFRESH_LEASE_KEY"
+    ) &&
+    knowledgeCloudSyncStatusHook.includes("claimVisibleRefreshLease") &&
+    knowledgeCloudSyncStatusHook.includes(
+      "KNOWLEDGE_STATUS_REFRESH_LEASE_KEY"
+    ) &&
+    knowledgeCloudSyncStatusHook.includes(
+      "KNOWLEDGE_STATUS_REFRESH_LEASE_TTL_MS"
+    ) &&
+    knowledgeCloudSyncStatusHook.includes(
+      "claimVisibleRefreshLease(\n          KNOWLEDGE_STATUS_REFRESH_LEASE_KEY"
+    ),
+  "设置和知识库 sync_log 状态周期刷新必须由一个可见 tab 持有租约，避免多 tab 重复扫本地队列"
+);
+check(
   globalSyncLogStatusHook.includes("getSyncLogSummary") &&
     globalSyncLogStatusHook.includes(
       "GLOBAL_SYNC_LOG_STATUS_FAST_REFRESH_DELAYS_MS"
+    ) &&
+    globalSyncLogStatusHook.includes("claimVisibleRefreshLease") &&
+    globalSyncLogStatusHook.includes(
+      "GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_KEY"
+    ) &&
+    globalSyncLogStatusHook.includes(
+      "GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_TTL_MS"
     ) &&
     globalSyncLogStatusHook.includes("scheduleFastRefreshBurst") &&
     globalSyncLogStatusHook.includes("clearFastRefreshBurst") &&
@@ -3805,13 +3846,19 @@ check(
     globalSyncLogStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
     globalSyncLogStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
     globalSyncLogStatusHook.includes("event.key !== SYNC_LOG_STATUS_STORAGE_KEY") &&
+    globalSyncLogStatusHook.includes(
+      "claimVisibleRefreshLease(\n                GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_KEY"
+    ) &&
+    globalSyncLogStatusHook.includes(
+      "claimVisibleRefreshLease(\n          GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_KEY"
+    ) &&
     !globalSyncLogStatusHook.includes(
       "event.key !== SYNC_LOG_STATUS_STORAGE_KEY || !event.newValue"
     ) &&
     globalSyncLogStatusHook.includes("reads_sync_log_payloads: false") &&
     globalSyncLogStatusHook.includes("uploads_workspace_data: false") &&
     globalSyncLogStatusHook.includes("mutates_sync_log: false"),
-  "全域 sync_log 状态 hook 必须只读本地队列元数据，并监听 content-free sync_log 状态事件和跨 tab 提醒；状态 key 被清空时也要刷新，避免 pending/failed 清零后 UI 卡旧状态"
+  "全域 sync_log 状态 hook 必须只读本地队列元数据，并监听 content-free sync_log 状态事件和跨 tab 提醒；状态 key 被清空时也要刷新，避免 pending/failed 清零后 UI 卡旧状态；周期刷新和快速 burst 必须由可见 tab 租约合并"
 );
 check(
   accountLocalUseReadiness.includes("localInputCanContinue: true") &&

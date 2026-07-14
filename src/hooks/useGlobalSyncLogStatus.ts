@@ -7,9 +7,13 @@ import {
   SYNC_LOG_STATUS_STORAGE_KEY,
   type SyncLogSummary,
 } from "@/lib/db/local/queries";
+import { claimVisibleRefreshLease } from "@/lib/sync/visibleRefreshLease";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 const GLOBAL_SYNC_LOG_STATUS_REFRESH_INTERVAL_MS = 6 * 1000;
+const GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_KEY =
+  "zhinote.synclog.statusLeaderLease.v1";
+const GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_TTL_MS = 14 * 1000;
 const GLOBAL_SYNC_LOG_STATUS_FAST_REFRESH_DELAYS_MS = [
   250,
   900,
@@ -124,7 +128,15 @@ export function useGlobalSyncLogStatus() {
       fastRefreshTimers = GLOBAL_SYNC_LOG_STATUS_FAST_REFRESH_DELAYS_MS.map(
         (delay) =>
           window.setTimeout(() => {
-            if (document.visibilityState === "visible") void refresh();
+            if (
+              document.visibilityState === "visible" &&
+              claimVisibleRefreshLease(
+                GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_KEY,
+                GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_TTL_MS
+              )
+            ) {
+              void refresh();
+            }
           }, delay)
       );
     };
@@ -135,7 +147,15 @@ export function useGlobalSyncLogStatus() {
     void refresh();
     scheduleFastRefreshBurst();
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
+      if (
+        document.visibilityState === "visible" &&
+        claimVisibleRefreshLease(
+          GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_KEY,
+          GLOBAL_SYNC_LOG_STATUS_REFRESH_LEASE_TTL_MS
+        )
+      ) {
+        void refresh();
+      }
     }, GLOBAL_SYNC_LOG_STATUS_REFRESH_INTERVAL_MS);
     const handleForeground = () => refreshNowAndThen();
     const handleVisible = () => {

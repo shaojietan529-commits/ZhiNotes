@@ -12,9 +12,13 @@ import {
   summarizeSettingsCloudSyncStatus,
   type SettingsCloudSyncStatus,
 } from "@/lib/sync/settingsSyncStatus";
+import { claimVisibleRefreshLease } from "@/lib/sync/visibleRefreshLease";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 const SETTINGS_STATUS_REFRESH_INTERVAL_MS = 6 * 1000;
+const SETTINGS_STATUS_REFRESH_LEASE_KEY =
+  "zhinote.settingssync.statusLeaderLease.v1";
+const SETTINGS_STATUS_REFRESH_LEASE_TTL_MS = 14 * 1000;
 
 export function useSettingsCloudSyncStatus() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -61,7 +65,15 @@ export function useSettingsCloudSyncStatus() {
     }
     void refresh();
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
+      if (
+        document.visibilityState === "visible" &&
+        claimVisibleRefreshLease(
+          SETTINGS_STATUS_REFRESH_LEASE_KEY,
+          SETTINGS_STATUS_REFRESH_LEASE_TTL_MS
+        )
+      ) {
+        void refresh();
+      }
     }, SETTINGS_STATUS_REFRESH_INTERVAL_MS);
     const handleForeground = () => void refresh();
     const handleVisible = () => {

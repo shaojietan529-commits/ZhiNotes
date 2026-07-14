@@ -9,9 +9,13 @@ import {
   summarizeKnowledgeCloudSyncStatus,
   type KnowledgeCloudSyncStatus,
 } from "@/lib/sync/knowledgeSyncStatus";
+import { claimVisibleRefreshLease } from "@/lib/sync/visibleRefreshLease";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 const KNOWLEDGE_STATUS_REFRESH_INTERVAL_MS = 6 * 1000;
+const KNOWLEDGE_STATUS_REFRESH_LEASE_KEY =
+  "zhinote.knowledgesync.statusLeaderLease.v1";
+const KNOWLEDGE_STATUS_REFRESH_LEASE_TTL_MS = 14 * 1000;
 
 export function useKnowledgeCloudSyncStatus() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -50,7 +54,15 @@ export function useKnowledgeCloudSyncStatus() {
     }
     void refresh();
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
+      if (
+        document.visibilityState === "visible" &&
+        claimVisibleRefreshLease(
+          KNOWLEDGE_STATUS_REFRESH_LEASE_KEY,
+          KNOWLEDGE_STATUS_REFRESH_LEASE_TTL_MS
+        )
+      ) {
+        void refresh();
+      }
     }, KNOWLEDGE_STATUS_REFRESH_INTERVAL_MS);
     const handleForeground = () => void refresh();
     const handleVisible = () => {

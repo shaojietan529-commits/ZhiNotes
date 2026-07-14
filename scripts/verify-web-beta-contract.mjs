@@ -212,6 +212,7 @@ const files = {
   settingsSyncStatus: "src/lib/sync/settingsSyncStatus.ts",
   knowledgeCloudSyncStatusHook: "src/hooks/useKnowledgeCloudSyncStatus.ts",
   knowledgeSyncStatus: "src/lib/sync/knowledgeSyncStatus.ts",
+  visibleRefreshLease: "src/lib/sync/visibleRefreshLease.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
   localFirstDatabaseNavigation:
@@ -799,6 +800,7 @@ function run() {
     files.knowledgeCloudSyncStatusHook
   );
   const knowledgeSyncStatus = readProjectFile(files.knowledgeSyncStatus);
+  const visibleRefreshLease = readProjectFile(files.visibleRefreshLease);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
@@ -5946,6 +5948,42 @@ function run() {
     accountCloudSyncCoordinator,
     "COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS",
     "Account cloud sync coordinator must back off when account/cloud state is temporarily uncertain instead of retrying every foreground drain tick."
+  );
+  assertSourceIncludes(
+    files.visibleRefreshLease,
+    visibleRefreshLease,
+    "export function claimVisibleRefreshLease",
+    "Lightweight sync status polling must share a local visible-tab lease helper."
+  );
+  assertSourceIncludes(
+    files.visibleRefreshLease,
+    visibleRefreshLease,
+    "lease.owner !== owner",
+    "Visible refresh leases must avoid duplicate recurring local queue scans across tabs."
+  );
+  assertSourceIncludes(
+    files.visibleRefreshLease,
+    visibleRefreshLease,
+    "return true;",
+    "Visible refresh lease fallback must keep the active tab responsive when localStorage is blocked."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "claimVisibleRefreshLease",
+    "Settings sync_log periodic status refresh must use the visible-tab lease."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "claimVisibleRefreshLease",
+    "Knowledge sync_log periodic status refresh must use the visible-tab lease."
+  );
+  assertSourceIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "claimVisibleRefreshLease",
+    "Global sync_log periodic and burst refreshes must use the visible-tab lease."
   );
   assertSourceIncludes(
     files.accountCloudSyncCoordinator,
