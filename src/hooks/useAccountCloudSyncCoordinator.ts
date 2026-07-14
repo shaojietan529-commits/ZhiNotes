@@ -5,7 +5,7 @@
 // layer gives the shell a single "is my work safely synced?" status and a
 // coalesced quick-sync trigger for future modules to join.
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useDatabaseCloudSync } from "@/hooks/useDatabaseCloudSync";
 import { useFileEmbedCloudSyncStatus } from "@/hooks/useFileEmbedCloudSyncStatus";
 import { useGlobalSyncLogStatus } from "@/hooks/useGlobalSyncLogStatus";
@@ -45,6 +45,7 @@ function formatLastSyncTime(value: string | null) {
 }
 
 export function useAccountCloudSyncCoordinator() {
+  const mountedRef = useRef(true);
   const pageSync = usePageCloudSync();
   const databaseSync = useDatabaseCloudSync();
   const globalSyncLog = useGlobalSyncLogStatus();
@@ -58,8 +59,10 @@ export function useAccountCloudSyncCoordinator() {
   const refreshKnowledgeSyncStatus = knowledgeSync.refresh;
   const refreshGlobalSyncLogStatus = globalSyncLog.refresh;
   const retryFileEmbedSync = fileSync.syncNow;
+
   const syncNow = useCallback(
     async (options: AccountCloudSyncCoordinatorOptions = {}) => {
+      if (!mountedRef.current) return;
       const syncJobs: Array<Promise<unknown>> = [
         pageSyncNow({
           quick: true,
@@ -85,6 +88,7 @@ export function useAccountCloudSyncCoordinator() {
         );
       }
       await Promise.allSettled(syncJobs);
+      if (!mountedRef.current) return;
       await refreshGlobalSyncLogStatus();
     },
     [
@@ -444,6 +448,7 @@ export function useAccountCloudSyncCoordinator() {
           ? COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS
           : COORDINATOR_PENDING_DRAIN_DELAY_MS;
     const timer = window.setTimeout(() => {
+      if (!mountedRef.current) return;
       void syncNow({
         forceAccountGate: state === "error" || syncBlockedBySignedOut,
         includeFileSync: false,
@@ -457,6 +462,13 @@ export function useAccountCloudSyncCoordinator() {
     syncBlockedBySignedOut,
     syncNow,
   ]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   return {
     state,
