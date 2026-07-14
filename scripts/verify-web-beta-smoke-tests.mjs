@@ -9055,6 +9055,26 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      "local_input_can_continue: true",
+      "Account cloud sync gate failures must still allow local writing.",
+    ],
+    [
+      "sync_failure_can_clear_session: false",
+      "Account cloud sync gate failures must not clear account sessions.",
+    ],
+    [
+      "explicit_logout_required_to_clear_session: true",
+      "Account cloud sync gate must reserve session clearing for explicit logout.",
+    ],
+    [
+      "upload_block_does_not_block_writing: true",
+      "Account cloud sync gate upload blocks must not block local edits.",
+    ],
+  ]) {
+    assertIncludes(files.accountCloudSyncGate, accountCloudSyncGate, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY",
       "Account session checks must persist a short unconfigured-backend cache per browser tab.",
     ],

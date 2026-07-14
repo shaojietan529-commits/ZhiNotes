@@ -19,6 +19,12 @@ export interface AccountCloudSyncGateResult {
   authenticated: boolean;
   reason: AccountCloudSyncGateReason;
   retryable: boolean;
+  local_use_policy: {
+    local_input_can_continue: true;
+    sync_failure_can_clear_session: false;
+    explicit_logout_required_to_clear_session: true;
+    upload_block_does_not_block_writing: true;
+  };
   boundary: {
     reads_page_body_text: false;
     reads_database_row_values: false;
@@ -36,6 +42,14 @@ const ACCOUNT_SYNC_GATE_BOUNDARY: AccountCloudSyncGateResult["boundary"] = {
   stores_account_email: false,
 };
 
+const ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY: AccountCloudSyncGateResult["local_use_policy"] =
+  {
+    local_input_can_continue: true,
+    sync_failure_can_clear_session: false,
+    explicit_logout_required_to_clear_session: true,
+    upload_block_does_not_block_writing: true,
+  };
+
 export async function checkAccountCloudSyncGate(
   options: { force?: boolean } = {}
 ): Promise<AccountCloudSyncGateResult> {
@@ -46,6 +60,7 @@ export async function checkAccountCloudSyncGate(
       authenticated: true,
       reason: "account-check-failed",
       retryable: true,
+      local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }
@@ -55,6 +70,7 @@ export async function checkAccountCloudSyncGate(
       authenticated: true,
       reason: "account-check-failed",
       retryable: true,
+      local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }
@@ -64,6 +80,7 @@ export async function checkAccountCloudSyncGate(
       authenticated: false,
       reason: "account-unconfigured",
       retryable: false,
+      local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }
@@ -73,6 +90,7 @@ export async function checkAccountCloudSyncGate(
       authenticated: false,
       reason: "account-check-failed",
       retryable: true,
+      local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }
@@ -82,6 +100,7 @@ export async function checkAccountCloudSyncGate(
       authenticated: session.authenticated,
       reason: "account-check-failed",
       retryable: true,
+      local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }
@@ -91,6 +110,7 @@ export async function checkAccountCloudSyncGate(
       authenticated: true,
       reason: "account-check-failed",
       retryable: true,
+      local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }
@@ -100,6 +120,7 @@ export async function checkAccountCloudSyncGate(
       authenticated: false,
       reason: "signed-out",
       retryable: true,
+      local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
     };
   }
@@ -108,6 +129,7 @@ export async function checkAccountCloudSyncGate(
     authenticated: true,
     reason: "authenticated",
     retryable: false,
+    local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
     boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
   };
 }

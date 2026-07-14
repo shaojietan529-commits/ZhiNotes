@@ -458,8 +458,12 @@ check(
     accountCloudSyncGate.includes("reads_database_row_values: false") &&
     accountCloudSyncGate.includes("uploads_workspace_data: false") &&
     accountCloudSyncGate.includes("mutates_workspace_data: false") &&
-    accountCloudSyncGate.includes("stores_account_email: false"),
-  "账号云同步 gate 必须复用账号会话检查，临时错误时保持身份可见但同步保持可重试错误，并声明不读取/上传/修改 workspace 数据"
+    accountCloudSyncGate.includes("stores_account_email: false") &&
+    accountCloudSyncGate.includes("local_input_can_continue: true") &&
+    accountCloudSyncGate.includes("sync_failure_can_clear_session: false") &&
+    accountCloudSyncGate.includes("explicit_logout_required_to_clear_session: true") &&
+    accountCloudSyncGate.includes("upload_block_does_not_block_writing: true"),
+  "账号云同步 gate 必须复用账号会话检查，临时错误时保持身份可见但同步保持可重试错误，并声明不读取/上传/修改 workspace 数据；同步门禁失败只能阻止上传，不能阻止本地写作或清除登录"
 );
 check(
   accountCloudSyncGate.indexOf(
