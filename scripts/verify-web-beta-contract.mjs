@@ -6155,11 +6155,11 @@ function run() {
       "Daily calendar follow-up cloud metadata correction must start quickly after local updates.",
     ],
     [
-      "const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 450",
+      "const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 120",
       "Daily calendar initial cloud correction must start shortly after local first paint.",
     ],
     [
-      "const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 1400",
+      "const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 900",
       "Daily calendar initial cloud correction idle timeout must stay bounded for cloud-first users.",
     ],
     [
@@ -6225,6 +6225,14 @@ function run() {
     [
       "MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS",
       "Meeting calendar initial cloud correction must have a bounded idle timeout.",
+    ],
+    [
+      "const MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS = 120",
+      "Meeting calendar initial cloud correction must start shortly after local first paint.",
+    ],
+    [
+      "const MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 900",
+      "Meeting calendar initial cloud correction idle timeout must stay bounded for cloud-first users.",
     ],
     [
       "void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n        includeUnindexedFallback: false,\n      });",
