@@ -7390,10 +7390,10 @@ function run() {
   assertOrderedSnippets(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    [
-      "upsertMeetingInView(optimisticPage);",
-      "setOpeningDraft({",
-      "setOpeningMeetingId(optimisticPage.id);",
+	    [
+	      "upsertMeetingInView(optimisticPage);",
+	      "setOpeningDraftAndRef({",
+	      "setOpeningMeetingId(optimisticPage.id);",
       "rememberPendingPageDraft(optimisticPage);",
       "rememberPageRouteHandoff(optimisticPage, \"meeting-create\");",
       "upsertPages([optimisticPage]);",
@@ -11886,17 +11886,25 @@ function run() {
     "Meeting schedule must cancel delayed peek-editor warmup on unmount."
   );
   for (const [snippet, message] of [
-    [
-      "const [openingDraft, setOpeningDraft]",
-      "Meeting schedule must keep an opening draft marker so the calendar shows immediate feedback after + is clicked.",
-    ],
-    [
-      "const [openingMeetingId, setOpeningMeetingId]",
+	    [
+	      "const [openingDraft, setOpeningDraft]",
+	      "Meeting schedule must keep an opening draft marker so the calendar shows immediate feedback after + is clicked.",
+	    ],
+	    [
+	      "const setOpeningDraftAndRef = useCallback",
+	      "Meeting opening draft feedback must keep React state and retry refs aligned.",
+	    ],
+	    [
+	      "openingDraftRef.current = resolved;",
+	      "Meeting opening draft ref must update synchronously with visible state.",
+	    ],
+	    [
+	      "const [openingMeetingId, setOpeningMeetingId]",
       "Meeting schedule must track the meeting page currently opening until the peek modal is ready.",
     ],
-    [
-      "setOpeningDraft({",
-      "Meeting creation must publish the opening draft before background persistence starts.",
+	    [
+	      "setOpeningDraftAndRef({",
+	      "Meeting creation must publish the opening draft before background persistence starts.",
     ],
     [
       "setOpeningMeetingId(optimisticPage.id);",
@@ -11982,11 +11990,14 @@ function run() {
       message
     );
   }
-  if (
-    meetingScheduleShell.includes(
-      "} finally {\n            setOpeningDraft((current) =>\n              current?.pageId === optimisticPage.id ? null : current"
-    )
-  ) {
+	if (
+	  meetingScheduleShell.includes(
+	    "} finally {\n            setOpeningDraft((current) =>\n              current?.pageId === optimisticPage.id ? null : current"
+	  )
+	  || meetingScheduleShell.includes(
+	    "} finally {\n            setOpeningDraftAndRef((current) =>\n              current?.pageId === optimisticPage.id ? null : current"
+	  )
+	) {
     failures.push(
       `${files.meetingScheduleShell} must not clear opening draft feedback from background persistence timing; wait for peek ready or the full-page fallback.`
     );

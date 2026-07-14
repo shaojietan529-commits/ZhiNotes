@@ -1498,12 +1498,14 @@ check(
     shells.schedule.includes("data-create-state={newMeetingButtonState}") &&
     shells.schedule.includes("data-create-state={formCreateButtonState}") &&
     shells.schedule.includes("data-create-state={createButtonState}") &&
-    shells.schedule.includes("data-local-draft-created={") &&
-    shells.schedule.includes("onFocus={warmMeetingPeekOpen}") &&
-    shells.schedule.includes("const [openingDraft, setOpeningDraft]") &&
-    shells.schedule.includes("const [openingMeetingId, setOpeningMeetingId]") &&
-    shells.schedule.includes("setOpeningDraft({") &&
-    shells.schedule.includes("setOpeningMeetingId(optimisticPage.id);") &&
+	    shells.schedule.includes("data-local-draft-created={") &&
+	    shells.schedule.includes("onFocus={warmMeetingPeekOpen}") &&
+	    shells.schedule.includes("const [openingDraft, setOpeningDraft]") &&
+	    shells.schedule.includes("const setOpeningDraftAndRef = useCallback") &&
+	    shells.schedule.includes("openingDraftRef.current = resolved;") &&
+	    shells.schedule.includes("const [openingMeetingId, setOpeningMeetingId]") &&
+	    shells.schedule.includes("setOpeningDraftAndRef({") &&
+	    shells.schedule.includes("setOpeningMeetingId(optimisticPage.id);") &&
     shells.schedule.includes("const clearFailedLocalMeetingCreate = () =>") &&
     shells.schedule.includes("current.filter((item) => item.id !== optimisticPage.id)") &&
     shells.schedule.includes("新建会议时本地草稿准备失败，会议日历仍保留现有内容。") &&
@@ -1518,10 +1520,11 @@ check(
     shells.schedule.includes("onReady={handlePeekReady}") &&
     !shells.schedule.includes("readyOnLocalShell={false}") &&
     lazyPagePeekModal.includes("readyOnLocalShell = true") &&
-    lazyPagePeekModal.includes("if (readyOnLocalShell) {\n      onReady?.(pageId);\n    }") &&
-    pagePeekModal.includes("readyOnLocalShell?: boolean;") &&
-    !shells.schedule.includes("} finally {\n            setOpeningDraft((current) =>\n              current?.pageId === optimisticPage.id ? null : current") &&
-    shells.schedule.includes("upsertMeetingPageInList(") &&
+	    lazyPagePeekModal.includes("if (readyOnLocalShell) {\n      onReady?.(pageId);\n    }") &&
+	    pagePeekModal.includes("readyOnLocalShell?: boolean;") &&
+	    !shells.schedule.includes("} finally {\n            setOpeningDraft((current) =>\n              current?.pageId === optimisticPage.id ? null : current") &&
+	    !shells.schedule.includes("} finally {\n            setOpeningDraftAndRef((current) =>\n              current?.pageId === optimisticPage.id ? null : current") &&
+	    shells.schedule.includes("upsertMeetingPageInList(") &&
     shells.schedule.includes("mergeMeetingDateCountsForLocalUpsert(") &&
     shells.schedule.includes("setMeetingCountByDate((current) =>") &&
     shells.schedule.includes("meetingsRef.current = nextMeetings;") &&

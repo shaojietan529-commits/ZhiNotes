@@ -1814,12 +1814,14 @@ check(
     meetingScheduleShell.includes("const warmMeetingPeekOpen = useCallback") &&
     meetingScheduleShell.includes("warmMeetingPeekOpen();") &&
     meetingScheduleShell.includes("onPointerEnter={warmMeetingPeekOpen}") &&
-    meetingScheduleShell.includes("onPointerDown={warmMeetingPeekOpen}") &&
-    meetingScheduleShell.includes("onFocus={warmMeetingPeekOpen}") &&
-    meetingScheduleShell.includes("const [openingDraft, setOpeningDraft]") &&
-    meetingScheduleShell.includes("const [openingMeetingId, setOpeningMeetingId]") &&
-    meetingScheduleShell.includes("setOpeningDraft({") &&
-    meetingScheduleShell.includes("setOpeningMeetingId(optimisticPage.id);") &&
+	    meetingScheduleShell.includes("onPointerDown={warmMeetingPeekOpen}") &&
+	    meetingScheduleShell.includes("onFocus={warmMeetingPeekOpen}") &&
+	    meetingScheduleShell.includes("const [openingDraft, setOpeningDraft]") &&
+	    meetingScheduleShell.includes("const setOpeningDraftAndRef = useCallback") &&
+	    meetingScheduleShell.includes("openingDraftRef.current = resolved;") &&
+	    meetingScheduleShell.includes("const [openingMeetingId, setOpeningMeetingId]") &&
+	    meetingScheduleShell.includes("setOpeningDraftAndRef({") &&
+	    meetingScheduleShell.includes("setOpeningMeetingId(optimisticPage.id);") &&
     meetingScheduleShell.includes("const clearFailedLocalMeetingCreate = () =>") &&
     meetingScheduleShell.includes("current.filter((item) => item.id !== optimisticPage.id)") &&
     meetingScheduleShell.includes("新建会议时本地草稿准备失败，会议日历仍保留现有内容。") &&

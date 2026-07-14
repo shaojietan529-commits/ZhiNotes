@@ -215,13 +215,21 @@ function run() {
       "data-create-state={createButtonState}",
       "ZhiHui calendar cells must expose visible create/open state.",
     ],
-    [
-      "data-testid={`meeting-opening-page-${key}`}",
-      "ZhiHui calendar must show an immediate opening chip after + is clicked.",
-    ],
-    [
-      "status: \"meeting-create-local-shell-requested\"",
-      "ZhiHui create must record local-shell latency instead of only cloud latency.",
+	    [
+	      "data-testid={`meeting-opening-page-${key}`}",
+	      "ZhiHui calendar must show an immediate opening chip after + is clicked.",
+	    ],
+	    [
+	      "const setOpeningDraftAndRef = useCallback",
+	      "ZhiHui opening draft feedback must keep React state and the retry ref aligned.",
+	    ],
+	    [
+	      "openingDraftRef.current = resolved;",
+	      "ZhiHui opening draft ref must update synchronously with visible state.",
+	    ],
+	    [
+	      "status: \"meeting-create-local-shell-requested\"",
+	      "ZhiHui create must record local-shell latency instead of only cloud latency.",
     ],
     [
       "scheduleMeetingCreatePeekReadyFallback",
@@ -238,10 +246,10 @@ function run() {
   assertOrdered(
     files.meetingShell,
     meetingShell,
-    [
-      "upsertMeetingInView(optimisticPage);",
-      "setOpeningDraft({",
-      "setOpeningMeetingId(optimisticPage.id);",
+	    [
+	      "upsertMeetingInView(optimisticPage);",
+	      "setOpeningDraftAndRef({",
+	      "setOpeningMeetingId(optimisticPage.id);",
       "rememberPendingPageDraft(optimisticPage);",
       "rememberPageRouteHandoff(optimisticPage, \"meeting-create\");",
       "upsertPages([optimisticPage]);",

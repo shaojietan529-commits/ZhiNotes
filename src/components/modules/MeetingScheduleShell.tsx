@@ -529,6 +529,21 @@ export default function MeetingScheduleShell() {
     openingDraftRef.current = openingDraft;
   }, [openingDraft]);
 
+  const setOpeningDraftAndRef = useCallback(
+    (
+      action:
+        | OpeningMeetingDraft
+        | null
+        | ((current: OpeningMeetingDraft | null) => OpeningMeetingDraft | null)
+    ) => {
+      const resolved =
+        typeof action === "function" ? action(openingDraftRef.current) : action;
+      openingDraftRef.current = resolved;
+      setOpeningDraft(resolved);
+    },
+    []
+  );
+
   const markMeetingForegroundInteraction = useCallback(
     (durationMs = MEETING_FOREGROUND_QUIET_WINDOW_MS) => {
       foregroundQuietUntilRef.current = Math.max(
@@ -2010,7 +2025,7 @@ export default function MeetingScheduleShell() {
         setMeetings((current) =>
           current.filter((item) => item.id !== optimisticPage.id)
         );
-        setOpeningDraft((current) =>
+        setOpeningDraftAndRef((current) =>
           current?.pageId === optimisticPage.id ? null : current
         );
         setOpeningMeetingId((current) =>
@@ -2028,7 +2043,7 @@ export default function MeetingScheduleShell() {
       };
       try {
         upsertMeetingInView(optimisticPage);
-        setOpeningDraft({
+        setOpeningDraftAndRef({
           pageId: optimisticPage.id,
           dateKey: toMeetingEntry(optimisticPage).dateKey || draft.date,
         });
@@ -2196,6 +2211,7 @@ export default function MeetingScheduleShell() {
       warmMeetingPeekOpen,
       revealMeetingOnCalendar,
       scheduleOptimisticMeetingHotCacheWrite,
+      setOpeningDraftAndRef,
     ]
   );
 
@@ -2274,10 +2290,10 @@ export default function MeetingScheduleShell() {
 
   const handlePeekReady = useCallback((pageId: string) => {
     setOpeningMeetingId((current) => (current === pageId ? null : current));
-    setOpeningDraft((current) =>
+    setOpeningDraftAndRef((current) =>
       current?.pageId === pageId ? null : current
     );
-  }, []);
+  }, [setOpeningDraftAndRef]);
 
   const closeMeetingPeekModal = useCallback(() => {
     const closingPageId = peekPageId;
@@ -2287,10 +2303,10 @@ export default function MeetingScheduleShell() {
     setOpeningMeetingId((current) =>
       current === closingPageId ? null : current
     );
-    setOpeningDraft((current) =>
+    setOpeningDraftAndRef((current) =>
       current?.pageId === closingPageId ? null : current
     );
-  }, [peekPageId]);
+  }, [peekPageId, setOpeningDraftAndRef]);
 
   useEffect(() => {
     if (peekPageId) return;
@@ -2762,38 +2778,38 @@ export default function MeetingScheduleShell() {
   );
 
   const cancelOpeningMeetingDraft = useCallback((pageId: string) => {
-    setOpeningDraft((current) =>
+    setOpeningDraftAndRef((current) =>
       current?.pageId === pageId ? null : current
     );
     setOpeningMeetingId((current) => (current === pageId ? null : current));
     setPeekPageId((current) => (current === pageId ? null : current));
     setPeekInitialPage((current) => (current?.id === pageId ? null : current));
-  }, []);
+  }, [setOpeningDraftAndRef]);
 
   const openOpeningMeetingDraftFullPage = useCallback(
     (pageId: string) => {
       openMeetingFullPageById(pageId);
-      setOpeningDraft((current) =>
+      setOpeningDraftAndRef((current) =>
         current?.pageId === pageId ? null : current
       );
       setOpeningMeetingId((current) => (current === pageId ? null : current));
       setPeekPageId((current) => (current === pageId ? null : current));
       setPeekInitialPage((current) => (current?.id === pageId ? null : current));
     },
-    [openMeetingFullPageById]
+    [openMeetingFullPageById, setOpeningDraftAndRef]
   );
 
   const openMeetingPeekFullPage = useCallback(
     (pageId: string) => {
       openMeetingFullPageById(pageId);
       setOpeningMeetingId((current) => (current === pageId ? null : current));
-      setOpeningDraft((current) =>
+      setOpeningDraftAndRef((current) =>
         current?.pageId === pageId ? null : current
       );
       setPeekPageId((current) => (current === pageId ? null : current));
       setPeekInitialPage((current) => (current?.id === pageId ? null : current));
     },
-    [openMeetingFullPageById]
+    [openMeetingFullPageById, setOpeningDraftAndRef]
   );
 
   const quickCreateMeetingForDate = useCallback(
