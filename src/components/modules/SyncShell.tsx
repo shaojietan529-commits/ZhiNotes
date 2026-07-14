@@ -4956,6 +4956,7 @@ function SyncDashboard() {
       const pageResult: SyncUploadDrainResultSnapshot = await reconcilePageSync({
         quick: true,
         includeManualReview: true,
+        forceAccountGate: true,
       })
         .then((result) => ({
           status: result.status,
@@ -4976,6 +4977,7 @@ function SyncDashboard() {
         await reconcileDatabaseSync({
           quick: true,
           includeManualReview: true,
+          forceAccountGate: true,
         })
           .then((result) => ({
             status: result.status,
@@ -5076,6 +5078,7 @@ function SyncDashboard() {
       const result = await reconcilePageSync({
         quick: true,
         includeManualReview: true,
+        forceAccountGate: true,
       });
       const nextStatus = getPendingCloudPageSyncStatus();
       setPagePendingStatus(nextStatus);
@@ -5110,6 +5113,7 @@ function SyncDashboard() {
       const result = await reconcileDatabaseSync({
         quick: true,
         includeManualReview: true,
+        forceAccountGate: true,
       });
       const nextStatus = await getPendingCloudDatabaseSyncStatus();
       setDatabasePendingStatus(nextStatus);

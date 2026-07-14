@@ -40,7 +40,10 @@ import {
   emitPagesUpdated,
   type PageUpdatePayload,
 } from "@/lib/pages/pageUpdateBus";
-import { checkAccountCloudSyncGate } from "@/lib/account/accountCloudSyncGate";
+import {
+  checkAccountCloudSyncGate,
+  type AccountCloudSyncGateStatus,
+} from "@/lib/account/accountCloudSyncGate";
 import type { Page } from "@/lib/utils/types";
 
 const ENABLED_KEY = "zhinote.pagesync.enabled";
@@ -190,6 +193,30 @@ type AuthRetryProbeWindow = Window & {
   [AUTH_RETRY_PROBE_WINDOW_KEY]?: Promise<AuthRetryProbeStatus>;
 };
 
+function getAuthRetryStatusFromAccountGate(
+  status: AccountCloudSyncGateStatus
+): PageSyncStatus {
+  if (status === "signed-out") return "unauthenticated";
+  if (status === "unconfigured") return "unconfigured";
+  if (status === "unconfirmed") return "unconfirmed";
+  return "error";
+}
+
+function getAccountGatePageSyncMessage(
+  status: AccountCloudSyncGateStatus
+): string {
+  if (status === "signed-out") {
+    return "当前未登录，请登录后再同步页面；本地输入已保留。";
+  }
+  if (status === "unconfigured") {
+    return "页面云同步账号系统未配置；本地输入已保留。";
+  }
+  if (status === "unconfirmed") {
+    return "账号登录状态暂时无法确认，本地输入已保留，会稍后重试。";
+  }
+  return "账号云端暂时无法确认，本地输入已保留，会稍后重试。";
+}
+
 export interface PullCloudPageResult {
   status: PageSyncStatus;
   pulled: number;
@@ -336,6 +363,7 @@ export interface CloudPageDomainManifestSummaryResult {
 interface ReconcileOptions {
   quick?: boolean;
   includeManualReview?: boolean;
+  forceAccountGate?: boolean;
 }
 
 interface FlushPendingCloudPushOptions {
@@ -2562,6 +2590,20 @@ export async function reconcilePageSync(
   }
   reconcileRunning = true;
   try {
+    if (options.forceAccountGate) {
+      const accountGate = await checkAccountCloudSyncGate({ force: true });
+      if (accountGate.status !== "ready") {
+        const status = getAuthRetryStatusFromAccountGate(accountGate.status);
+        rememberAuthRetryStatus(status);
+        return {
+          status,
+          pulled: 0,
+          pushed: 0,
+          message: getAccountGatePageSyncMessage(accountGate.status),
+        };
+      }
+      rememberAuthRetryStatus("ok");
+    }
     const pendingPush = await flushPendingCloudPushes({
       includeManualReview: options.includeManualReview,
     });

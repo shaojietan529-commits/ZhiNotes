@@ -590,7 +590,10 @@ export default function AccountShell() {
     setPageSyncBusy(true);
     setPageSyncNotice(null);
     try {
-      const result = await reconcilePageSync({ includeManualReview: true });
+      const result = await reconcilePageSync({
+        includeManualReview: true,
+        forceAccountGate: true,
+      });
       if (result.status === "ok") {
         setPageSyncLastAt(getLastPageSyncAt());
         const bootstrapText =
@@ -758,7 +761,10 @@ export default function AccountShell() {
     setDatabaseSyncBusy(true);
     setDatabaseSyncNotice(null);
     try {
-      const result = await reconcileDatabaseSync({ includeManualReview: true });
+      const result = await reconcileDatabaseSync({
+        includeManualReview: true,
+        forceAccountGate: true,
+      });
       if (result.status === "ok") {
         setDatabaseSyncLastAt(getLastDatabaseSyncAt());
         const bootstrapText =

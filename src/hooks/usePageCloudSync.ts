@@ -229,6 +229,7 @@ export function usePageCloudSync() {
       const result = await reconcilePageSync({
         quick: options.quick,
         includeManualReview: options.includeManualReview,
+        forceAccountGate: options.forceAccountGate,
       });
       if (result.status === "ok") {
         authRetryAfterRef.current = 0;

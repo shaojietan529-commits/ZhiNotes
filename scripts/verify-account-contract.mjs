@@ -1010,6 +1010,10 @@ check(
 check(
   pageSyncClient.includes("const pendingPush = await flushPendingCloudPushes({") &&
     pageSyncClient.includes("includeManualReview: options.includeManualReview") &&
+    pageSyncClient.includes("forceAccountGate?: boolean") &&
+    pageSyncClient.includes("if (options.forceAccountGate)") &&
+    pageSyncClient.includes("checkAccountCloudSyncGate({ force: true })") &&
+    pageSyncClient.includes("getAccountGatePageSyncMessage") &&
     pageSyncClient.includes("const baselineUpload = await uploadLocalPageBaselineIfNeeded()") &&
     pageSyncClient.includes("const initialPushed = pendingPush.pushed + baselineUpload.pushed") &&
     pageSyncClient.includes("bootstrapped?: number") &&
@@ -1053,13 +1057,14 @@ check(
     syncDashboardShell.includes("只保存 page id 和排队时间，不保存页面正文") &&
     syncDashboardShell.includes("最早排队") &&
     syncDashboardShell.includes("认证退避") &&
-	    syncDashboardShell.includes("下次自动重试") &&
-	    syncDashboardShell.includes("样本 page id") &&
-	    syncDashboardShell.includes("补传页面队列") &&
-	    syncDashboardShell.includes("reconcilePageSync({") &&
-	    syncDashboardShell.includes("includeManualReview: true") &&
-	    syncDashboardShell.includes("首次账号同步会补种本机页面基线") &&
-	    syncDashboardShell.includes("之后普通同步只会补传 pending queue 里的页面"),
+    syncDashboardShell.includes("下次自动重试") &&
+    syncDashboardShell.includes("样本 page id") &&
+    syncDashboardShell.includes("补传页面队列") &&
+    syncDashboardShell.includes("reconcilePageSync({") &&
+    syncDashboardShell.includes("includeManualReview: true") &&
+    syncDashboardShell.includes("forceAccountGate: true") &&
+    syncDashboardShell.includes("首次账号同步会补种本机页面基线") &&
+    syncDashboardShell.includes("之后普通同步只会补传 pending queue 里的页面"),
   "同步页应展示页面 pending 上传队列并提供 quick 增量补传，同时说明首次基线补种和后续增量补传"
 );
 check(
@@ -1080,11 +1085,12 @@ check(
 );
 check(
   syncDashboardShell.includes("数据库 pending 上传队列") &&
-	    syncDashboardShell.includes("不展示或导出数据库行值") &&
-	    syncDashboardShell.includes("补传数据库队列") &&
-	    syncDashboardShell.includes("reconcileDatabaseSync({") &&
-	    syncDashboardShell.includes("includeManualReview: true") &&
-	    syncDashboardShell.includes("首次账号同步会补种本机数据库基线") &&
+    syncDashboardShell.includes("不展示或导出数据库行值") &&
+    syncDashboardShell.includes("补传数据库队列") &&
+    syncDashboardShell.includes("reconcileDatabaseSync({") &&
+    syncDashboardShell.includes("includeManualReview: true") &&
+    syncDashboardShell.includes("forceAccountGate: true") &&
+    syncDashboardShell.includes("首次账号同步会补种本机数据库基线") &&
     syncDashboardShell.includes("之后只补传 pending queue 里的数据库变更"),
   "同步页应展示数据库 pending 上传队列并提供 quick 增量补传，同时说明首次基线补种和后续增量补传"
 );
@@ -2258,6 +2264,7 @@ check(
     pageCloudSyncHook.includes(
       "getAuthRetryStatusFromAccountGate(accountGate.status)"
     ) &&
+    pageCloudSyncHook.includes("forceAccountGate: options.forceAccountGate") &&
     pageCloudSyncHook.includes('if (status === "unconfirmed") return "unconfirmed";') &&
     pageSyncClient.includes("export function recordPageSyncAuthRetryStatus") &&
     pageSyncClient.includes('status === "error"') &&
@@ -2351,6 +2358,7 @@ check(
     databaseCloudSyncHook.includes(
       "getAuthRetryStatusFromAccountGate(accountGate.status)"
     ) &&
+    databaseCloudSyncHook.includes("forceAccountGate: options.forceAccountGate") &&
     databaseCloudSyncHook.includes('if (status === "unconfirmed") return "unconfirmed";') &&
     databaseSyncClient.includes("export function recordDatabaseSyncAuthRetryStatus") &&
     databaseSyncClient.includes('status === "error"') &&

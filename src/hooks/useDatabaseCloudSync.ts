@@ -235,6 +235,7 @@ export function useDatabaseCloudSync() {
         const result = await reconcileDatabaseSync({
           quick: options.quick,
           includeManualReview: options.includeManualReview,
+          forceAccountGate: options.forceAccountGate,
         });
         if (result.status === "ok") {
           authRetryAfterRef.current = 0;
