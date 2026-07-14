@@ -6477,6 +6477,20 @@ function SyncDashboard() {
           </div>
         )}
 
+        <SyncHandoffQuickCheckPanel
+          receipt={syncHandoffReadinessReceipt}
+          drainBusy={busyQueueAction === "drain-all-pending"}
+          exportBusy={busyQueueAction === "handoff-readiness"}
+          onDrainAll={() => void handleDrainAllPendingPush()}
+          onExport={handleExportSyncHandoffReadinessReceipt}
+          onOpenDetails={() =>
+            document
+              .getElementById("sync-handoff-readiness-summary")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+          onOpenAccount={() => router.push("/account")}
+        />
+
         <SyncOperationalStatusStrip
           readiness={syncLocalUseReadiness}
           pendingTotal={syncLocalUseQueueSnapshot.pendingTotal}
@@ -21362,6 +21376,194 @@ function SyncUploadSafetyPanel({
       <p className="rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
         下一步：{nextAction}
       </p>
+    </div>
+  );
+}
+
+function SyncHandoffQuickCheckPanel({
+  receipt,
+  drainBusy,
+  exportBusy,
+  onDrainAll,
+  onExport,
+  onOpenDetails,
+  onOpenAccount,
+}: {
+  receipt: SyncHandoffReadinessReceipt;
+  drainBusy: boolean;
+  exportBusy: boolean;
+  onDrainAll: () => void;
+  onExport: () => void;
+  onOpenDetails: () => void;
+  onOpenAccount: () => void;
+}) {
+  const summary = receipt.summary;
+  const pendingTotal =
+    summary.page_pending_rows +
+    summary.database_pending_rows +
+    summary.file_pending_rows +
+    summary.total_sync_log_pending_rows;
+  const attentionTotal = summary.failed_rows + summary.manual_review_rows;
+  const primaryGate =
+    receipt.gates.find((gate) => gate.status === "block") ??
+    receipt.gates.find((gate) => gate.status === "warn") ??
+    null;
+  const needsAccount =
+    receipt.status === "blocked-local-only" ||
+    receipt.status === "blocked-sync-disabled";
+  const panelClass =
+    receipt.status === "ready"
+      ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20"
+      : receipt.status === "blocked-pending"
+        ? "border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/20"
+        : receipt.status === "blocked-stale-pending"
+          ? "border-orange-200 bg-orange-50/70 dark:border-orange-900 dark:bg-orange-950/20"
+          : "border-red-200 bg-red-50/70 dark:border-red-900 dark:bg-red-950/20";
+  const primaryMessage =
+    receipt.status === "ready"
+      ? "可以换设备继续。当前本机没有待上传、失败或人工处理队列。"
+      : receipt.status === "blocked-local-only"
+        ? "还没有连接云工作区；这台设备的数据不能作为跨设备接力来源。"
+        : receipt.status === "blocked-sync-disabled"
+          ? "页面、数据库或文件同步未全部开启；未开启的数据域不会自动上云。"
+          : receipt.status === "blocked-manual-review"
+            ? "存在需要人工处理的队列；先处理后再换设备。"
+            : receipt.status === "blocked-failed"
+              ? "存在同步失败；先补传失败队列，避免另一台设备看不到最新内容。"
+              : receipt.status === "blocked-stale-pending"
+                ? "有 pending 停留过久；先补传或导出处理包排查。"
+                : "还有本地输入等待上传；可以继续写，但先不要换设备接力。";
+
+  return (
+    <section
+      id="sync-handoff-quick-check"
+      data-testid="sync-handoff-quick-check"
+      data-handoff-status={receipt.status}
+      data-ready-for-cross-device-handoff={String(
+        summary.ready_for_cross_device_handoff
+      )}
+      data-safe-to-open-other-device={String(summary.safe_to_open_other_device)}
+      data-handoff-pending-total={pendingTotal}
+      data-handoff-failed-total={summary.failed_rows}
+      data-handoff-manual-review-total={summary.manual_review_rows}
+      className={`rounded-lg border px-4 py-3 ${panelClass}`}
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+              换设备前检查
+            </h2>
+            <span
+              className={`rounded-md px-2 py-1 text-[10px] ${syncHandoffReadinessStatusClass(
+                receipt.status
+              )}`}
+            >
+              {formatSyncHandoffReadinessStatus(receipt.status)}
+            </span>
+            <span className="rounded-md bg-white/70 px-2 py-1 font-mono text-[10px] text-zinc-500 dark:bg-zinc-950/60 dark:text-zinc-400">
+              {summary.receipt_hash.slice(0, 12)}
+            </span>
+          </div>
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-zinc-700 dark:text-zinc-300">
+            {primaryMessage}
+          </p>
+          <p className="mt-1 max-w-3xl text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+            判断依据只来自本地队列 counts、同步开关、workspace 指纹和时间戳；不读取正文、表格值、评论、文件名或文件字节。
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {needsAccount ? (
+            <button
+              type="button"
+              onClick={onOpenAccount}
+              className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+            >
+              去账号页
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onDrainAll}
+            disabled={drainBusy}
+            className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            {drainBusy ? "补传中..." : "补传全部"}
+          </button>
+          <button
+            type="button"
+            onClick={onOpenDetails}
+            className="rounded-md border border-zinc-300 bg-white/70 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white dark:border-zinc-700 dark:bg-zinc-950/70 dark:text-zinc-200 dark:hover:bg-zinc-900"
+          >
+            查看详情
+          </button>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exportBusy}
+            className="rounded-md border border-zinc-300 bg-white/70 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-white disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950/70 dark:text-zinc-200 dark:hover:bg-zinc-900"
+          >
+            {exportBusy ? "导出中..." : "导出接力收据"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <SyncHandoffQuickFact
+          label="待上传"
+          value={`${pendingTotal} 条`}
+          detail={`页面 ${summary.page_pending_rows} · 数据库 ${summary.database_pending_rows} · 文件 ${summary.file_pending_rows} · sync_log ${summary.total_sync_log_pending_rows}`}
+        />
+        <SyncHandoffQuickFact
+          label="失败 / 人工"
+          value={`${attentionTotal} 条`}
+          detail={`${summary.failed_rows} 失败 · ${summary.manual_review_rows} 人工处理`}
+        />
+        <SyncHandoffQuickFact
+          label="云工作区"
+          value={summary.cloud_workspace_linked ? "已连接" : "未连接"}
+          detail={
+            summary.cloud_workspace_fingerprint ?? "暂无云 workspace 指纹"
+          }
+        />
+        <SyncHandoffQuickFact
+          label="最早 pending"
+          value={summary.oldest_pending_age_label}
+          detail={summary.oldest_pending_queued_at ?? "暂无 pending 时间戳"}
+        />
+      </div>
+
+      {primaryGate ? (
+        <p className="mt-3 rounded-md bg-white/70 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-950/60 dark:text-zinc-300">
+          当前门禁（{formatSyncHandoffReadinessGateStatus(primaryGate.status)}
+          ）：{primaryGate.title}。{primaryGate.evidence} 下一步：
+          {primaryGate.next_action}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function SyncHandoffQuickFact({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-md border border-white/70 bg-white/70 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/60">
+      <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {value}
+      </div>
+      <div className="mt-1 break-words text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+        {detail}
+      </div>
     </div>
   );
 }

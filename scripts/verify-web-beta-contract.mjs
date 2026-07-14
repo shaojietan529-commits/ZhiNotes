@@ -11119,6 +11119,30 @@ function run() {
       "Sync UI must render the cross-device handoff readiness export action.",
     ],
     [
+      "SyncHandoffQuickCheckPanel",
+      "Sync UI must render a top-level human-readable cross-device handoff check.",
+    ],
+    [
+      'data-testid="sync-handoff-quick-check"',
+      "Sync UI must expose the handoff quick check as a stable smoke-test target.",
+    ],
+    [
+      'data-ready-for-cross-device-handoff',
+      "Sync UI quick check must expose the same cross-device readiness boolean as the receipt.",
+    ],
+    [
+      'data-safe-to-open-other-device',
+      "Sync UI quick check must expose whether another device can safely open cloud data.",
+    ],
+    [
+      "换设备前检查",
+      "Sync UI quick check must use user-facing language, not only receipt jargon.",
+    ],
+    [
+      "当前门禁",
+      "Sync UI quick check must show the current blocking or warning gate.",
+    ],
+    [
       'data-testid="sync-handoff-readiness-summary"',
       "Sync UI must render a visible cross-device handoff readiness summary.",
     ],

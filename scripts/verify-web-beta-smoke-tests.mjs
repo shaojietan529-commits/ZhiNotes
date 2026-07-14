@@ -14402,6 +14402,42 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "SyncHandoffQuickCheckPanel",
+    "Sync UI must render a top-level human-readable cross-device handoff check."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="sync-handoff-quick-check"',
+    "Sync UI must expose the handoff quick check as a stable smoke-test target."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-ready-for-cross-device-handoff",
+    "Sync UI quick check must expose the same cross-device readiness boolean as the receipt."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-safe-to-open-other-device",
+    "Sync UI quick check must expose whether another device can safely open cloud data."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "换设备前检查",
+    "Sync UI quick check must use user-facing language, not only receipt jargon."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "当前门禁",
+    "Sync UI quick check must show the current blocking or warning gate."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     'data-testid="sync-handoff-readiness-summary"',
     "Sync UI must render a visible cross-device handoff readiness summary."
   );
