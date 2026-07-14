@@ -11158,6 +11158,18 @@ function run() {
       "@/lib/sync/syncPendingDomainRegistry",
       "Sync UI must import the shared pending-domain registry instead of owning domain aggregation logic.",
     ],
+    [
+      "pendingDomainCoverage={pendingDomainCoverage}",
+      "Sync UI must pass pending-domain coverage into readiness panels so missing domains stay visible.",
+    ],
+    [
+      "data-sync-domain-coverage-complete={String(",
+      "Sync UI must expose pending-domain coverage completeness as a testable data attribute.",
+    ],
+    [
+      "sync-domain-coverage-warning",
+      "Sync UI must warn when a registered pending domain is missing from rendered rows.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
@@ -11165,6 +11177,10 @@ function run() {
     [
       "PENDING_DOMAIN_DEFINITIONS",
       "Pending-domain aggregation must live in the shared sync pending domain registry.",
+    ],
+    [
+      "buildPendingDomainCoverageReport",
+      "Pending-domain registry must expose a coverage report for UI and release checks.",
     ],
     [
       'manualReview: sumPendingTables(matchingTables, "manualReview")',

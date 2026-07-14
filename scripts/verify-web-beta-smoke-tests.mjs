@@ -10658,6 +10658,12 @@ function run() {
   assertIncludes(
     files.syncPendingDomainRegistry,
     syncPendingDomainRegistry,
+    "buildPendingDomainCoverageReport",
+    "Sync UI pending domain rows must expose a coverage report so missing registered domains cannot silently disappear."
+  );
+  assertIncludes(
+    files.syncPendingDomainRegistry,
+    syncPendingDomainRegistry,
     "mergeCorePendingDomainRows",
     "Sync UI pending domain rows must include core page/database queues, not only global sync_log rows."
   );
@@ -10678,6 +10684,30 @@ function run() {
     syncShell,
     "data-monitored-sync-domain-count={monitoredDomainRows.length}",
     "Sync UI local-use panel must expose the monitored sync-domain count for smoke checks."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "pendingDomainCoverage={pendingDomainCoverage}",
+    "Sync UI must pass the pending-domain coverage report into visible readiness panels."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-sync-domain-coverage-complete={String(",
+    "Sync UI local-use panel must expose whether registered sync-domain coverage is complete."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "sync-domain-coverage-warning",
+    "Sync UI must show a warning when registered sync domains are missing from the rendered rows."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "覆盖：",
+    "Sync UI operational matrix must summarize registered-domain coverage for users."
   );
   assertIncludes(
     files.syncShell,

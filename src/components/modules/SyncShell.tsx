@@ -221,8 +221,10 @@ import {
   type WebBetaStageGate,
 } from "@/lib/sync/webBetaStageGate";
 import {
+  buildPendingDomainCoverageReport,
   buildPendingDomainRows,
   summarizeSyncSummaryTables,
+  type PendingDomainCoverageReport,
   type PendingDomainRow,
 } from "@/lib/sync/syncPendingDomainRegistry";
 import {
@@ -2202,6 +2204,10 @@ function SyncDashboard() {
         fileEmbedPendingStatus
       ),
     [databasePendingStatus, fileEmbedPendingStatus, pagePendingStatus, syncSummary]
+  );
+  const pendingDomainCoverage = useMemo(
+    () => buildPendingDomainCoverageReport(pendingDomainRows),
+    [pendingDomainRows]
   );
   const syncConflictReview = useMemo(
     () =>
@@ -6477,6 +6483,7 @@ function SyncDashboard() {
           failedTotal={syncLocalUseQueueSnapshot.failedTotal}
           manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
           pendingDomainRows={pendingDomainRows}
+          pendingDomainCoverage={pendingDomainCoverage}
           performanceDiagnosis={localPerformanceDiagnosis}
           onDrainAll={() => void handleDrainAllPendingPush()}
           onRetryPage={() => void handleRetryPagePendingPush()}
@@ -10922,6 +10929,7 @@ function SyncDashboard() {
                 failedTotal={syncLocalUseQueueSnapshot.failedTotal}
                 manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
                 pendingDomainRows={pendingDomainRows}
+                pendingDomainCoverage={pendingDomainCoverage}
                 onDrainAll={() => void handleDrainAllPendingPush()}
                 onOpenAccount={() => router.push("/account")}
               />
@@ -19875,6 +19883,7 @@ function SyncOperationalStatusStrip({
   failedTotal,
   manualReviewTotal,
   pendingDomainRows,
+  pendingDomainCoverage,
   performanceDiagnosis,
   onDrainAll,
   onRetryPage,
@@ -19888,6 +19897,7 @@ function SyncOperationalStatusStrip({
   failedTotal: number;
   manualReviewTotal: number;
   pendingDomainRows: PendingDomainRow[];
+  pendingDomainCoverage: PendingDomainCoverageReport;
   performanceDiagnosis: LocalPerformanceDiagnosis;
   onDrainAll: () => void;
   onRetryPage: () => void;
@@ -20093,6 +20103,19 @@ function SyncOperationalStatusStrip({
       <div
         data-testid="sync-operational-domain-matrix"
         data-visible-domain-count={pendingDomainRows.length}
+        data-registered-domain-count={pendingDomainCoverage.registeredDomainCount}
+        data-visible-registered-domain-count={
+          pendingDomainCoverage.visibleRegisteredDomainCount
+        }
+        data-active-registered-domain-count={
+          pendingDomainCoverage.activeRegisteredDomainCount
+        }
+        data-missing-registered-domain-count={
+          pendingDomainCoverage.missingRegisteredDomainIds.length
+        }
+        data-unmatched-table-domain-count={
+          pendingDomainCoverage.unmatchedTableDomainCount
+        }
         data-pending-domain-count={
           pendingDomainRows.filter((row) => row.pending > 0).length
         }
@@ -20114,9 +20137,21 @@ function SyncOperationalStatusStrip({
             </p>
           </div>
           <p className="text-[11px] leading-4 text-zinc-400">
-            本地输入：{readiness.localInputCanContinue ? "可继续" : "先暂停"}
+            覆盖：
+            {pendingDomainCoverage.visibleRegisteredDomainCount}/
+            {pendingDomainCoverage.registeredDomainCount} · 本地输入：
+            {readiness.localInputCanContinue ? "可继续" : "先暂停"}
           </p>
         </div>
+        {!pendingDomainCoverage.coverageComplete ? (
+          <p
+            data-testid="sync-domain-coverage-warning"
+            className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
+            同步域覆盖不完整：缺少{" "}
+            {pendingDomainCoverage.missingRegisteredDomainIds.join(" / ")}
+          </p>
+        ) : null}
         <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           {pendingDomainRows.map((row) => {
             const status = getPendingDomainStatus(row);
@@ -20631,6 +20666,7 @@ function SyncLocalUseReadinessPanel({
   failedTotal,
   manualReviewTotal,
   pendingDomainRows,
+  pendingDomainCoverage,
   onDrainAll,
   onOpenAccount,
 }: {
@@ -20639,6 +20675,7 @@ function SyncLocalUseReadinessPanel({
   failedTotal: number;
   manualReviewTotal: number;
   pendingDomainRows: PendingDomainRow[];
+  pendingDomainCoverage: PendingDomainCoverageReport;
   onDrainAll: () => void;
   onOpenAccount: () => void;
 }) {
@@ -20673,6 +20710,9 @@ function SyncLocalUseReadinessPanel({
         ? `${monitoredDomainSummary} / +${monitoredDomainLabels.length - 4}`
         : monitoredDomainSummary
       : "云同步未开启，仍可本地写入";
+  const monitoredDomainCoverageDetail = pendingDomainCoverage.coverageComplete
+    ? monitoredDomainDetail
+    : `缺少 ${pendingDomainCoverage.missingRegisteredDomainIds.join(" / ")}`;
   const facts = [
     {
       label: "本地可继续使用",
@@ -20696,8 +20736,8 @@ function SyncLocalUseReadinessPanel({
     },
     {
       label: "监控同步域",
-      value: `${monitoredDomainRows.length} 域`,
-      detail: monitoredDomainDetail,
+      value: `${pendingDomainCoverage.visibleRegisteredDomainCount}/${pendingDomainCoverage.registeredDomainCount}`,
+      detail: monitoredDomainCoverageDetail,
     },
     {
       label: "全域队列",
@@ -20724,6 +20764,21 @@ function SyncLocalUseReadinessPanel({
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
       data-monitored-sync-domain-count={monitoredDomainRows.length}
       data-monitored-sync-domain-labels={monitoredDomainLabels.join(",")}
+      data-sync-domain-coverage-complete={String(
+        pendingDomainCoverage.coverageComplete
+      )}
+      data-visible-registered-sync-domain-count={
+        pendingDomainCoverage.visibleRegisteredDomainCount
+      }
+      data-registered-sync-domain-count={
+        pendingDomainCoverage.registeredDomainCount
+      }
+      data-missing-registered-sync-domain-count={
+        pendingDomainCoverage.missingRegisteredDomainIds.length
+      }
+      data-unmatched-table-domain-count={
+        pendingDomainCoverage.unmatchedTableDomainCount
+      }
       data-active-sync-domain-count={activeDomainRows.length}
       data-active-sync-domain-labels={activeDomainLabels.join(",")}
       data-file-queue-total={fileQueueTotal}

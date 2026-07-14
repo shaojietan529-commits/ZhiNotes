@@ -44,6 +44,15 @@ export type PendingDomainCatalogItem = {
   tablePrefixes: string[];
 };
 
+export type PendingDomainCoverageReport = {
+  registeredDomainCount: number;
+  visibleRegisteredDomainCount: number;
+  activeRegisteredDomainCount: number;
+  unmatchedTableDomainCount: number;
+  missingRegisteredDomainIds: Exclude<PendingDomainId, "other">[];
+  coverageComplete: boolean;
+};
+
 export const PENDING_DOMAIN_DEFINITIONS: PendingDomainDefinition[] = [
   {
     id: "pages",
@@ -131,6 +140,49 @@ export function getPendingDomainCatalog(): PendingDomainCatalogItem[] {
     tableNames: [...definition.tableNames],
     tablePrefixes: [...(definition.tablePrefixes ?? [])],
   }));
+}
+
+export function buildPendingDomainCoverageReport(
+  rows: PendingDomainRow[]
+): PendingDomainCoverageReport {
+  const registeredIds = new Set(
+    PENDING_DOMAIN_DEFINITIONS.map((definition) => definition.id)
+  );
+  const visibleRegisteredIds = new Set<Exclude<PendingDomainId, "other">>();
+  let activeRegisteredDomainCount = 0;
+  let unmatchedTableDomainCount = 0;
+
+  rows.forEach((row) => {
+    if (row.id === "other") {
+      unmatchedTableDomainCount += 1;
+      return;
+    }
+
+    if (!registeredIds.has(row.id)) return;
+
+    visibleRegisteredIds.add(row.id);
+    if (
+      row.pending > 0 ||
+      row.failed > 0 ||
+      row.manualReview > 0 ||
+      row.inFlight > 0
+    ) {
+      activeRegisteredDomainCount += 1;
+    }
+  });
+
+  const missingRegisteredDomainIds = PENDING_DOMAIN_DEFINITIONS.map(
+    (definition) => definition.id
+  ).filter((id) => !visibleRegisteredIds.has(id));
+
+  return {
+    registeredDomainCount: PENDING_DOMAIN_DEFINITIONS.length,
+    visibleRegisteredDomainCount: visibleRegisteredIds.size,
+    activeRegisteredDomainCount,
+    unmatchedTableDomainCount,
+    missingRegisteredDomainIds,
+    coverageComplete: missingRegisteredDomainIds.length === 0,
+  };
 }
 
 export function buildPendingDomainRows(

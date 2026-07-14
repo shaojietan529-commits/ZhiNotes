@@ -35,6 +35,7 @@ vm.runInNewContext(output, sandbox, { filename: sourcePath });
 
 const {
   PENDING_DOMAIN_DEFINITIONS,
+  buildPendingDomainCoverageReport,
   buildPendingDomainRows,
   getPendingDomainCatalog,
   summarizeSyncSummaryTables,
@@ -162,6 +163,10 @@ const fileRow = rowById.get("files");
 const settingsRow = rowById.get("settings");
 const versionsRow = rowById.get("versions");
 const otherRow = rowById.get("other");
+const coverageReport = buildPendingDomainCoverageReport(rows);
+const missingCoverageReport = buildPendingDomainCoverageReport(
+  rows.filter((row) => row.id !== "settings")
+);
 
 check(rows[0]?.id === "databases", "largest pending core queue should sort first");
 check(pageRow?.pending === 5, "page row should merge page pending + queued");
@@ -216,6 +221,19 @@ check(
   versionsRow?.total === 0 && versionsRow?.nextAction === "当前无需处理。",
   "inactive domains should remain visible with a no-op next action"
 );
+check(
+  coverageReport.registeredDomainCount === 8 &&
+    coverageReport.visibleRegisteredDomainCount === 8 &&
+    coverageReport.activeRegisteredDomainCount === 5 &&
+    coverageReport.unmatchedTableDomainCount === 1 &&
+    coverageReport.coverageComplete === true,
+  "coverage report should confirm all registered sync domains are visible and count unmatched tables separately"
+);
+check(
+  missingCoverageReport.coverageComplete === false &&
+    missingCoverageReport.missingRegisteredDomainIds.includes("settings"),
+  "coverage report should reveal registered domains missing from rendered rows"
+);
 
 const settingsSummary = summarizeSyncSummaryTables(syncSummary, [
   "workspace_settings",
@@ -243,6 +261,12 @@ console.log(
       catalog_domains: catalog.length,
       rows: rows.length,
       active_rows: rows.filter((row) => row.total > 0).length,
+      coverage_complete: coverageReport.coverageComplete,
+      registered_domain_count: coverageReport.registeredDomainCount,
+      visible_registered_domain_count:
+        coverageReport.visibleRegisteredDomainCount,
+      missing_domain_guard_checked:
+        missingCoverageReport.missingRegisteredDomainIds.includes("settings"),
       core_fallbacks_checked: 3,
       unmatched_tables_visible: Boolean(otherRow),
       local_only: true,

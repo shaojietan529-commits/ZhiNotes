@@ -3138,6 +3138,7 @@ check(
       "data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}"
     ) &&
     syncDashboardShell.includes("pendingDomainRows={pendingDomainRows}") &&
+    syncDashboardShell.includes("pendingDomainCoverage={pendingDomainCoverage}") &&
     (syncDashboardShell.includes(
       "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus\n      )"
     ) ||
@@ -3145,6 +3146,7 @@ check(
         "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus,\n        fileEmbedPendingStatus\n      )"
       )) &&
     syncPendingDomainRegistry.includes("PENDING_DOMAIN_DEFINITIONS") &&
+    syncPendingDomainRegistry.includes("buildPendingDomainCoverageReport") &&
     syncPendingDomainRegistry.includes("mergeCorePendingDomainRows") &&
     syncPendingDomainRegistry.includes("pageStatus.pending + pageStatus.queued") &&
     syncPendingDomainRegistry.includes(
@@ -3159,6 +3161,14 @@ check(
     syncDashboardShell.includes(
       'data-monitored-sync-domain-labels={monitoredDomainLabels.join(",")}'
     ) &&
+    syncDashboardShell.includes(
+      "data-sync-domain-coverage-complete={String("
+    ) &&
+    syncDashboardShell.includes(
+      "data-missing-registered-sync-domain-count={"
+    ) &&
+    syncDashboardShell.includes("sync-domain-coverage-warning") &&
+    syncDashboardShell.includes("同步域覆盖不完整") &&
     syncDashboardShell.includes(
       "data-active-sync-domain-count={activeDomainRows.length}"
     ) &&
