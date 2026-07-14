@@ -377,10 +377,7 @@ export function usePageCloudSync() {
     };
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
-      if (
-        event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&
-        event.newValue
-      ) {
+      if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
         void runSync({
           quick: true,
           forceLease: true,

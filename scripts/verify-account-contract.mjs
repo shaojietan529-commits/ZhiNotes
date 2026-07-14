@@ -2137,6 +2137,12 @@ check(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
     ) &&
     pageCloudSyncHook.includes(
+      "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {"
+    ) &&
+    !pageCloudSyncHook.includes(
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue"
+    ) &&
+    pageCloudSyncHook.includes(
       'window.addEventListener(\n      ACCOUNT_PROFILE_UPDATED_EVENT,\n      handleAccountProfileUpdated\n    )'
     ) &&
     pageCloudSyncHook.includes(
@@ -2148,7 +2154,7 @@ check(
     pageCloudSyncHook.includes(
       "forceAccountGate: true,\n        });\n        return;"
     ),
-  "页面同步应监听跨标签账号登录缓存变化和当前标签账号资料事件，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
+  "页面同步应监听跨标签账号登录/退出缓存变化和当前标签账号资料事件，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
 );
 check(
   pageCloudSyncHook.includes("localStorage is only a cross-tab coordination cache") &&
@@ -2282,6 +2288,12 @@ check(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
     ) &&
     databaseCloudSyncHook.includes(
+      "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {"
+    ) &&
+    !databaseCloudSyncHook.includes(
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue"
+    ) &&
+    databaseCloudSyncHook.includes(
       'window.addEventListener(\n      ACCOUNT_PROFILE_UPDATED_EVENT,\n      handleAccountProfileUpdated\n    )'
     ) &&
     databaseCloudSyncHook.includes(
@@ -2293,7 +2305,7 @@ check(
     databaseCloudSyncHook.includes(
       "forceAccountGate: true,\n          quick: true,\n        });\n        return;"
     ),
-  "数据库同步应监听跨标签账号登录缓存变化和当前标签账号资料事件，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
+  "数据库同步应监听跨标签账号登录/退出缓存变化和当前标签账号资料事件，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
 );
 check(
   databaseCloudSyncHook.includes("DATABASE_SYNC_STATUS_EVENT") &&

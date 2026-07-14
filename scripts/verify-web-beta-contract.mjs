@@ -5213,6 +5213,18 @@ function run() {
     "Page cloud sync must clean up same-tab account profile update listeners."
   );
   assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
+    "Page cloud sync must wake for cross-tab account fallback removal as well as writes."
+  );
+  assertSourceExcludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue",
+    "Page cloud sync must not ignore cross-tab logout just because the account fallback storage value was removed."
+  );
+  assertSourceIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
     "checkAccountCloudSyncGate",
@@ -5649,6 +5661,18 @@ function run() {
     databaseCloudSync,
     'window.removeEventListener(\n        ACCOUNT_PROFILE_UPDATED_EVENT,\n        handleAccountProfileUpdated\n      )',
     "Database cloud sync must clean up same-tab account profile update listeners."
+  );
+  assertSourceIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
+    "Database cloud sync must wake for cross-tab account fallback removal as well as writes."
+  );
+  assertSourceExcludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue",
+    "Database cloud sync must not ignore cross-tab logout just because the account fallback storage value was removed."
   );
   assertSourceIncludes(
     files.accountCloudSyncCoordinator,

@@ -9637,6 +9637,18 @@ function run() {
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
+    "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
+    "Page cloud sync must wake for cross-tab account fallback removal as well as writes."
+  );
+  assertExcludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue",
+    "Page cloud sync must not ignore cross-tab logout just because the account fallback storage value was removed."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
     "function getRetryStateFromAccountGate(",
     "Page cloud sync must distinguish true shared-gate sign-out from retryable account uncertainty."
   );
@@ -9711,6 +9723,18 @@ function run() {
     databaseCloudSync,
     'window.removeEventListener(\n        ACCOUNT_PROFILE_UPDATED_EVENT,\n        handleAccountProfileUpdated\n      )',
     "Database cloud sync must clean up same-tab account profile update listeners."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
+    "Database cloud sync must wake for cross-tab account fallback removal as well as writes."
+  );
+  assertExcludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue",
+    "Database cloud sync must not ignore cross-tab logout just because the account fallback storage value was removed."
   );
   assertIncludes(
     files.databaseCloudSync,
