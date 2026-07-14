@@ -162,9 +162,15 @@ export function useDatabaseCloudSync() {
   const authRetryStateRef = useRef<DatabaseCloudSyncState>("signed-out");
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
   const recoveringLocalCacheSignalRef = useRef<string | null>(null);
+  const pendingStatusRefreshGenerationRef = useRef(0);
 
-  const refreshPendingStatus = useCallback(async () => {
-    setPendingStatus(await getPendingCloudDatabaseSyncStatus());
+  const refreshPendingStatus = useCallback(() => {
+    const generation = pendingStatusRefreshGenerationRef.current + 1;
+    pendingStatusRefreshGenerationRef.current = generation;
+    void getPendingCloudDatabaseSyncStatus().then((status) => {
+      if (pendingStatusRefreshGenerationRef.current !== generation) return;
+      setPendingStatus(status);
+    });
   }, []);
 
   const gateAccountSync = useCallback(async (force = false) => {

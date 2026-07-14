@@ -15943,6 +15943,18 @@ function run() {
   assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
+    "pendingStatusRefreshGenerationRef",
+    "Database cloud sync hook must ignore stale pending-status refresh responses."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "pendingStatusRefreshGenerationRef.current !== generation",
+    "Database pending status refresh must only apply the newest async response."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
     "scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS)",
     "Database pending queue status must trigger quick sync without waiting for the normal poll."
   );

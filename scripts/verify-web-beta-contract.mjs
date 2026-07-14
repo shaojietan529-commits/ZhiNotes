@@ -5402,6 +5402,18 @@ function run() {
     "Database cloud sync must pass the shared account gate before hitting databases account-sync."
   );
   assertSourceIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "pendingStatusRefreshGenerationRef",
+    "Database cloud sync must guard pending-status refreshes against stale async responses."
+  );
+  assertSourceIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "pendingStatusRefreshGenerationRef.current !== generation",
+    "Database pending status refresh must only apply the newest response."
+  );
+  assertSourceIncludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
     'accountGate.status === "unconfirmed"',

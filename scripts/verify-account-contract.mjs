@@ -2384,6 +2384,16 @@ check(
   "数据库云同步 hook 应把 cloud key 队列和 sync_log pending 计数暴露给侧边栏"
 );
 check(
+  databaseCloudSyncHook.includes("pendingStatusRefreshGenerationRef") &&
+    databaseCloudSyncHook.includes(
+      "const generation = pendingStatusRefreshGenerationRef.current + 1"
+    ) &&
+    databaseCloudSyncHook.includes(
+      "pendingStatusRefreshGenerationRef.current !== generation"
+    ),
+  "数据库云同步 pending 状态刷新应带 generation guard，避免较慢的旧查询覆盖新的队列状态"
+);
+check(
   databaseCloudSyncHook.includes("AUTH_RETRY_BACKOFF_MS") &&
     databaseCloudSyncHook.includes("authRetryAfterRef") &&
     databaseCloudSyncHook.includes("authRetryStateRef") &&
