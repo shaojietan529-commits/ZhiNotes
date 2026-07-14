@@ -19824,6 +19824,34 @@ function run() {
       "Stable-use health response must preserve retry-visible-not-signout policy.",
     ],
     [
+      "ACCOUNT_SESSION_UNCONFIRMED_REASON",
+      "Stable-use health response must use the shared account session uncertainty reason.",
+    ],
+    [
+      "account_session_policy",
+      "Stable-use health response must expose account session uncertainty policy.",
+    ],
+    [
+      "retryable_session_uncertainty: true",
+      "Stable-use account session uncertainty must be retryable.",
+    ],
+    [
+      "keeps_session_cookie_on_uncertainty: true",
+      "Stable-use account session uncertainty must keep the session cookie.",
+    ],
+    [
+      "explicit_logout_required_to_clear_session: true",
+      "Stable-use account session policy must require explicit logout before clearing the session.",
+    ],
+    [
+      "sync_failure_can_clear_session: false",
+      "Stable-use account session policy must prevent sync failures from clearing the session.",
+    ],
+    [
+      "local_input_can_continue_during_uncertainty: true",
+      "Stable-use account session policy must keep local input available during uncertainty.",
+    ],
+    [
       "cloud_sync_can_be_enabled_by_health_check: false",
       "Stable-use health response must not enable cloud sync.",
     ],
@@ -19958,6 +19986,18 @@ function run() {
     [
       "sync_domain_coverage",
       "Stable-use health verifier must assert sync-domain coverage metadata.",
+    ],
+    [
+      "account_session_policy",
+      "Stable-use health verifier must assert account session uncertainty policy.",
+    ],
+    [
+      "session-unconfirmed",
+      "Stable-use health verifier must assert the shared account session uncertainty reason.",
+    ],
+    [
+      "retryable_session_uncertainty",
+      "Stable-use health verifier must assert retryable account session uncertainty.",
     ],
     [
       "coverage_complete",

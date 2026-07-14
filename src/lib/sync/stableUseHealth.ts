@@ -1,3 +1,4 @@
+import { ACCOUNT_SESSION_UNCONFIRMED_REASON } from "@/lib/account/sessionResponses";
 import {
   getDevelopmentOwnerGatedActions,
   getDevelopmentStableUseRoutes,
@@ -26,6 +27,16 @@ export interface StableUseSyncDomainCoverage {
   coverage_complete: boolean;
 }
 
+export interface StableUseAccountSessionPolicy {
+  session_uncertainty_reason: typeof ACCOUNT_SESSION_UNCONFIRMED_REASON;
+  retryable_session_uncertainty: true;
+  keeps_session_cookie_on_uncertainty: true;
+  explicit_logout_required_to_clear_session: true;
+  sync_failure_can_clear_session: false;
+  local_input_can_continue_during_uncertainty: true;
+  user_facing_copy: string;
+}
+
 export interface StableUseHealthResponse {
   format: "zhinote-stable-use-health";
   format_version: 1;
@@ -43,6 +54,7 @@ export interface StableUseHealthResponse {
   owner_gated_actions: string[];
   monitored_sync_domains: StableUseMonitoredSyncDomain[];
   sync_domain_coverage: StableUseSyncDomainCoverage;
+  account_session_policy: StableUseAccountSessionPolicy;
   required_before_shipping_changes: string[];
   boundary: {
     deployment_health_metadata_only: true;
@@ -82,6 +94,17 @@ const STABLE_USE_HEALTH_BOUNDARY: StableUseHealthResponse["boundary"] = {
   clears_local_cache: false,
   enables_sync: false,
   enables_ai: false,
+};
+
+const STABLE_USE_ACCOUNT_SESSION_POLICY: StableUseAccountSessionPolicy = {
+  session_uncertainty_reason: ACCOUNT_SESSION_UNCONFIRMED_REASON,
+  retryable_session_uncertainty: true,
+  keeps_session_cookie_on_uncertainty: true,
+  explicit_logout_required_to_clear_session: true,
+  sync_failure_can_clear_session: false,
+  local_input_can_continue_during_uncertainty: true,
+  user_facing_copy:
+    "登录状态暂时无法确认时保持本地可用；只有明确退出登录才清除会话。",
 };
 
 export function buildStableUseHealthResponse(input: {
@@ -140,6 +163,7 @@ export function buildStableUseHealthResponse(input: {
         syncDomainCoverage.missingRegisteredDomainIds,
       coverage_complete: syncDomainCoverage.coverageComplete,
     },
+    account_session_policy: STABLE_USE_ACCOUNT_SESSION_POLICY,
     required_before_shipping_changes: [
       "Run the focused verifier for the changed surface.",
       "Run npm run verify:route-smoke for stable route, sidebar, module, account, Daily, ZhiHui, or sync-center changes.",
@@ -149,6 +173,6 @@ export function buildStableUseHealthResponse(input: {
     ],
     boundary: STABLE_USE_HEALTH_BOUNDARY,
     privacy_note:
-      "This health response is deployment metadata plus the static sync-domain taxonomy and static coverage report only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
+      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, and static account-session uncertainty policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
   };
 }

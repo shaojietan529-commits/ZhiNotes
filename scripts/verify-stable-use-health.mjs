@@ -99,12 +99,19 @@ function verifySourceContracts() {
   assertIncludes(healthSource, 'health_status: "stable-use-active"', "health response must identify stable-use mode");
   assertIncludes(healthSource, 'local_input_policy: "local-first-then-pending-queue"', "health response must preserve local-first input policy");
   assertIncludes(healthSource, 'sync_failure_policy: "retry-visible-not-sign-out"', "health response must preserve retry-not-signout policy");
+  assertIncludes(healthSource, "ACCOUNT_SESSION_UNCONFIRMED_REASON", "health response must use the shared account session uncertainty reason");
   assertIncludes(healthSource, "getDevelopmentStableUseRoutes()", "health response must use shared stable-use route catalog");
   assertIncludes(healthSource, "getDevelopmentOwnerGatedActions()", "health response must use shared owner-gated action catalog");
   assertIncludes(healthSource, "getPendingDomainCatalog()", "health response must use the shared pending-domain catalog");
   assertIncludes(healthSource, "buildPendingDomainCoverageReport", "health response must use the shared pending-domain coverage report");
   assertIncludes(healthSource, "monitored_sync_domains", "health response must expose monitored sync domains");
   assertIncludes(healthSource, "sync_domain_coverage", "health response must expose sync-domain coverage");
+  assertIncludes(healthSource, "account_session_policy", "health response must expose account session uncertainty policy");
+  assertIncludes(healthSource, "retryable_session_uncertainty: true", "account session uncertainty must be retryable");
+  assertIncludes(healthSource, "keeps_session_cookie_on_uncertainty: true", "account session uncertainty must keep the session cookie");
+  assertIncludes(healthSource, "explicit_logout_required_to_clear_session: true", "account session policy must require explicit logout before clearing session");
+  assertIncludes(healthSource, "sync_failure_can_clear_session: false", "sync failure must not be allowed to clear session state");
+  assertIncludes(healthSource, "local_input_can_continue_during_uncertainty: true", "local input must remain available during session uncertainty");
   assertIncludes(healthSource, 'coverage_source: "static-pending-domain-catalog"', "health response must mark coverage as static metadata");
   assertIncludes(healthSource, "git pull --rebase before git push; never force push.", "health response must preserve safe push guidance");
   for (const flag of requiredTopLevelFalseFlags) {
@@ -236,6 +243,42 @@ function verifyRouteResult(result) {
     coverage.missing_registered_domain_ids.length !== 0
   ) {
     failures.push("sync_domain_coverage must report no missing registered domains");
+  }
+  const accountPolicy = body?.account_session_policy ?? {};
+  assertEqual(
+    accountPolicy.session_uncertainty_reason,
+    "session-unconfirmed",
+    "account_session_policy.session_uncertainty_reason"
+  );
+  assertEqual(
+    accountPolicy.retryable_session_uncertainty,
+    true,
+    "account_session_policy.retryable_session_uncertainty"
+  );
+  assertEqual(
+    accountPolicy.keeps_session_cookie_on_uncertainty,
+    true,
+    "account_session_policy.keeps_session_cookie_on_uncertainty"
+  );
+  assertEqual(
+    accountPolicy.explicit_logout_required_to_clear_session,
+    true,
+    "account_session_policy.explicit_logout_required_to_clear_session"
+  );
+  assertEqual(
+    accountPolicy.sync_failure_can_clear_session,
+    false,
+    "account_session_policy.sync_failure_can_clear_session"
+  );
+  assertEqual(
+    accountPolicy.local_input_can_continue_during_uncertainty,
+    true,
+    "account_session_policy.local_input_can_continue_during_uncertainty"
+  );
+  if (!String(accountPolicy.user_facing_copy ?? "").includes("明确退出登录")) {
+    failures.push(
+      "account_session_policy.user_facing_copy must explain that only explicit logout clears the session"
+    );
   }
   if (
     !Array.isArray(body?.required_before_shipping_changes) ||
@@ -478,6 +521,15 @@ function printReceipt(result, status, port, devServer) {
       : 0,
     sync_domain_coverage_complete:
       result?.body?.sync_domain_coverage?.coverage_complete ?? null,
+    account_session_uncertainty_retryable:
+      result?.body?.account_session_policy?.retryable_session_uncertainty ??
+      null,
+    account_session_uncertainty_keeps_cookie:
+      result?.body?.account_session_policy?.keeps_session_cookie_on_uncertainty ??
+      null,
+    sync_failure_can_clear_session:
+      result?.body?.account_session_policy?.sync_failure_can_clear_session ??
+      null,
     registered_sync_domains:
       result?.body?.sync_domain_coverage?.registered_domain_count ?? null,
     visible_registered_sync_domains:
