@@ -19852,6 +19852,58 @@ function run() {
       "Stable-use account session policy must keep local input available during uncertainty.",
     ],
     [
+      "hot_cache_safety_policy",
+      "Stable-use health response must expose hot cache safety policy.",
+    ],
+    [
+      'architecture_target: "cloud-master-local-hot-cache"',
+      "Stable-use hot cache policy must preserve the cloud-master/local-hot-cache architecture target.",
+    ],
+    [
+      'local_hot_cache_role: "rebuildable-speed-layer"',
+      "Stable-use hot cache policy must keep local cache as a rebuildable speed layer.",
+    ],
+    [
+      'source_of_truth: "cloud-master"',
+      "Stable-use hot cache policy must keep cloud as the source of truth.",
+    ],
+    [
+      'first_paint_strategy: "local-metadata-first-then-background-cloud-refresh"',
+      "Stable-use hot cache policy must preserve metadata-first paint.",
+    ],
+    [
+      "cache_rebuild_requires_pending_clear: true",
+      "Stable-use hot cache policy must require pending queues to clear before cache rebuild.",
+    ],
+    [
+      "cache_rebuild_requires_failed_clear: true",
+      "Stable-use hot cache policy must require failed queues to clear before cache rebuild.",
+    ],
+    [
+      "cache_rebuild_requires_manual_review_clear: true",
+      "Stable-use hot cache policy must require manual-review queues to clear before cache rebuild.",
+    ],
+    [
+      "cache_rebuild_requires_owner_confirmation: true",
+      "Stable-use hot cache policy must require owner confirmation before cache rebuild.",
+    ],
+    [
+      "pending_rows_never_evicted: true",
+      "Stable-use hot cache policy must never evict pending rows.",
+    ],
+    [
+      "local_hot_cache_can_be_only_source_of_truth: false",
+      "Stable-use hot cache policy must not allow local cache to become the only source of truth.",
+    ],
+    [
+      "stores_private_payload_by_default: false",
+      "Stable-use hot cache policy must not store private payload by default.",
+    ],
+    [
+      "warmup_can_upload_data: false",
+      "Stable-use hot cache warmup must not upload data.",
+    ],
+    [
       "cloud_sync_can_be_enabled_by_health_check: false",
       "Stable-use health response must not enable cloud sync.",
     ],
@@ -19998,6 +20050,22 @@ function run() {
     [
       "retryable_session_uncertainty",
       "Stable-use health verifier must assert retryable account session uncertainty.",
+    ],
+    [
+      "hot_cache_safety_policy",
+      "Stable-use health verifier must assert hot cache safety policy.",
+    ],
+    [
+      "cloud-master-local-hot-cache",
+      "Stable-use health verifier must assert the cloud-master/local-hot-cache target.",
+    ],
+    [
+      "cache_rebuild_requires_pending_clear",
+      "Stable-use health verifier must assert pending queues block cache rebuild.",
+    ],
+    [
+      "local_hot_cache_can_be_only_source_of_truth",
+      "Stable-use health verifier must assert local hot cache cannot become the only source of truth.",
     ],
     [
       "coverage_complete",

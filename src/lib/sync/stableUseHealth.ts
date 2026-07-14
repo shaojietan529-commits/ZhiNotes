@@ -37,6 +37,22 @@ export interface StableUseAccountSessionPolicy {
   user_facing_copy: string;
 }
 
+export interface StableUseHotCacheSafetyPolicy {
+  architecture_target: "cloud-master-local-hot-cache";
+  local_hot_cache_role: "rebuildable-speed-layer";
+  source_of_truth: "cloud-master";
+  first_paint_strategy: "local-metadata-first-then-background-cloud-refresh";
+  cache_rebuild_requires_pending_clear: true;
+  cache_rebuild_requires_failed_clear: true;
+  cache_rebuild_requires_manual_review_clear: true;
+  cache_rebuild_requires_owner_confirmation: true;
+  pending_rows_never_evicted: true;
+  local_hot_cache_can_be_only_source_of_truth: false;
+  stores_private_payload_by_default: false;
+  warmup_can_upload_data: false;
+  user_facing_copy: string;
+}
+
 export interface StableUseHealthResponse {
   format: "zhinote-stable-use-health";
   format_version: 1;
@@ -55,6 +71,7 @@ export interface StableUseHealthResponse {
   monitored_sync_domains: StableUseMonitoredSyncDomain[];
   sync_domain_coverage: StableUseSyncDomainCoverage;
   account_session_policy: StableUseAccountSessionPolicy;
+  hot_cache_safety_policy: StableUseHotCacheSafetyPolicy;
   required_before_shipping_changes: string[];
   boundary: {
     deployment_health_metadata_only: true;
@@ -105,6 +122,23 @@ const STABLE_USE_ACCOUNT_SESSION_POLICY: StableUseAccountSessionPolicy = {
   local_input_can_continue_during_uncertainty: true,
   user_facing_copy:
     "登录状态暂时无法确认时保持本地可用；只有明确退出登录才清除会话。",
+};
+
+const STABLE_USE_HOT_CACHE_SAFETY_POLICY: StableUseHotCacheSafetyPolicy = {
+  architecture_target: "cloud-master-local-hot-cache",
+  local_hot_cache_role: "rebuildable-speed-layer",
+  source_of_truth: "cloud-master",
+  first_paint_strategy: "local-metadata-first-then-background-cloud-refresh",
+  cache_rebuild_requires_pending_clear: true,
+  cache_rebuild_requires_failed_clear: true,
+  cache_rebuild_requires_manual_review_clear: true,
+  cache_rebuild_requires_owner_confirmation: true,
+  pending_rows_never_evicted: true,
+  local_hot_cache_can_be_only_source_of_truth: false,
+  stores_private_payload_by_default: false,
+  warmup_can_upload_data: false,
+  user_facing_copy:
+    "本地热缓存只负责加速首屏；pending、failed 或 manual review 清零并确认前，不能重建或清理缓存。",
 };
 
 export function buildStableUseHealthResponse(input: {
@@ -164,6 +198,7 @@ export function buildStableUseHealthResponse(input: {
       coverage_complete: syncDomainCoverage.coverageComplete,
     },
     account_session_policy: STABLE_USE_ACCOUNT_SESSION_POLICY,
+    hot_cache_safety_policy: STABLE_USE_HOT_CACHE_SAFETY_POLICY,
     required_before_shipping_changes: [
       "Run the focused verifier for the changed surface.",
       "Run npm run verify:route-smoke for stable route, sidebar, module, account, Daily, ZhiHui, or sync-center changes.",
@@ -173,6 +208,6 @@ export function buildStableUseHealthResponse(input: {
     ],
     boundary: STABLE_USE_HEALTH_BOUNDARY,
     privacy_note:
-      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, and static account-session uncertainty policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
+      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, static account-session uncertainty policy, and static hot-cache safety policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
   };
 }

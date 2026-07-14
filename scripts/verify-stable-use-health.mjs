@@ -112,6 +112,19 @@ function verifySourceContracts() {
   assertIncludes(healthSource, "explicit_logout_required_to_clear_session: true", "account session policy must require explicit logout before clearing session");
   assertIncludes(healthSource, "sync_failure_can_clear_session: false", "sync failure must not be allowed to clear session state");
   assertIncludes(healthSource, "local_input_can_continue_during_uncertainty: true", "local input must remain available during session uncertainty");
+  assertIncludes(healthSource, "hot_cache_safety_policy", "health response must expose hot cache safety policy");
+  assertIncludes(healthSource, 'architecture_target: "cloud-master-local-hot-cache"', "hot cache policy must preserve the cloud-master/local-hot-cache target");
+  assertIncludes(healthSource, 'local_hot_cache_role: "rebuildable-speed-layer"', "hot cache policy must keep local cache as a rebuildable speed layer");
+  assertIncludes(healthSource, 'source_of_truth: "cloud-master"', "hot cache policy must keep cloud as source of truth");
+  assertIncludes(healthSource, 'first_paint_strategy: "local-metadata-first-then-background-cloud-refresh"', "hot cache policy must preserve metadata-first paint");
+  assertIncludes(healthSource, "cache_rebuild_requires_pending_clear: true", "hot cache rebuild must require pending queue clearance");
+  assertIncludes(healthSource, "cache_rebuild_requires_failed_clear: true", "hot cache rebuild must require failed queue clearance");
+  assertIncludes(healthSource, "cache_rebuild_requires_manual_review_clear: true", "hot cache rebuild must require manual-review clearance");
+  assertIncludes(healthSource, "cache_rebuild_requires_owner_confirmation: true", "hot cache rebuild must require owner confirmation");
+  assertIncludes(healthSource, "pending_rows_never_evicted: true", "pending rows must never be evicted by hot cache policy");
+  assertIncludes(healthSource, "local_hot_cache_can_be_only_source_of_truth: false", "local hot cache must never be the only source of truth");
+  assertIncludes(healthSource, "stores_private_payload_by_default: false", "hot cache policy must not store private payload by default");
+  assertIncludes(healthSource, "warmup_can_upload_data: false", "hot cache warmup must not upload data");
   assertIncludes(healthSource, 'coverage_source: "static-pending-domain-catalog"', "health response must mark coverage as static metadata");
   assertIncludes(healthSource, "git pull --rebase before git push; never force push.", "health response must preserve safe push guidance");
   for (const flag of requiredTopLevelFalseFlags) {
@@ -278,6 +291,72 @@ function verifyRouteResult(result) {
   if (!String(accountPolicy.user_facing_copy ?? "").includes("明确退出登录")) {
     failures.push(
       "account_session_policy.user_facing_copy must explain that only explicit logout clears the session"
+    );
+  }
+  const hotCachePolicy = body?.hot_cache_safety_policy ?? {};
+  assertEqual(
+    hotCachePolicy.architecture_target,
+    "cloud-master-local-hot-cache",
+    "hot_cache_safety_policy.architecture_target"
+  );
+  assertEqual(
+    hotCachePolicy.local_hot_cache_role,
+    "rebuildable-speed-layer",
+    "hot_cache_safety_policy.local_hot_cache_role"
+  );
+  assertEqual(
+    hotCachePolicy.source_of_truth,
+    "cloud-master",
+    "hot_cache_safety_policy.source_of_truth"
+  );
+  assertEqual(
+    hotCachePolicy.first_paint_strategy,
+    "local-metadata-first-then-background-cloud-refresh",
+    "hot_cache_safety_policy.first_paint_strategy"
+  );
+  assertEqual(
+    hotCachePolicy.cache_rebuild_requires_pending_clear,
+    true,
+    "hot_cache_safety_policy.cache_rebuild_requires_pending_clear"
+  );
+  assertEqual(
+    hotCachePolicy.cache_rebuild_requires_failed_clear,
+    true,
+    "hot_cache_safety_policy.cache_rebuild_requires_failed_clear"
+  );
+  assertEqual(
+    hotCachePolicy.cache_rebuild_requires_manual_review_clear,
+    true,
+    "hot_cache_safety_policy.cache_rebuild_requires_manual_review_clear"
+  );
+  assertEqual(
+    hotCachePolicy.cache_rebuild_requires_owner_confirmation,
+    true,
+    "hot_cache_safety_policy.cache_rebuild_requires_owner_confirmation"
+  );
+  assertEqual(
+    hotCachePolicy.pending_rows_never_evicted,
+    true,
+    "hot_cache_safety_policy.pending_rows_never_evicted"
+  );
+  assertEqual(
+    hotCachePolicy.local_hot_cache_can_be_only_source_of_truth,
+    false,
+    "hot_cache_safety_policy.local_hot_cache_can_be_only_source_of_truth"
+  );
+  assertEqual(
+    hotCachePolicy.stores_private_payload_by_default,
+    false,
+    "hot_cache_safety_policy.stores_private_payload_by_default"
+  );
+  assertEqual(
+    hotCachePolicy.warmup_can_upload_data,
+    false,
+    "hot_cache_safety_policy.warmup_can_upload_data"
+  );
+  if (!String(hotCachePolicy.user_facing_copy ?? "").includes("pending")) {
+    failures.push(
+      "hot_cache_safety_policy.user_facing_copy must explain pending queue protection"
     );
   }
   if (
@@ -530,6 +609,14 @@ function printReceipt(result, status, port, devServer) {
     sync_failure_can_clear_session:
       result?.body?.account_session_policy?.sync_failure_can_clear_session ??
       null,
+    hot_cache_source_of_truth:
+      result?.body?.hot_cache_safety_policy?.source_of_truth ?? null,
+    hot_cache_rebuild_requires_pending_clear:
+      result?.body?.hot_cache_safety_policy
+        ?.cache_rebuild_requires_pending_clear ?? null,
+    hot_cache_can_be_only_source_of_truth:
+      result?.body?.hot_cache_safety_policy
+        ?.local_hot_cache_can_be_only_source_of_truth ?? null,
     registered_sync_domains:
       result?.body?.sync_domain_coverage?.registered_domain_count ?? null,
     visible_registered_sync_domains:
