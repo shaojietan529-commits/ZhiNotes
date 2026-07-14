@@ -9459,6 +9459,30 @@ function run() {
     "rememberLastAuthenticatedAccount(nextAccount)",
     "Account shell must refresh the stale account fallback whenever it accepts a signed-in account."
   );
+  assertIncludes(
+    files.accountShell,
+    accountShell,
+    "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+    "Account shell must subscribe to cross-tab last-authenticated account changes."
+  );
+  assertIncludes(
+    files.accountShell,
+    accountShell,
+    "handleAccountSessionStorage",
+    "Account shell must keep an explicit storage handler for cross-tab account state refresh."
+  );
+  assertIncludes(
+    files.accountShell,
+    accountShell,
+    "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+    "Account shell storage listener must only refresh for account-session fallback changes."
+  );
+  assertIncludes(
+    files.accountShell,
+    accountShell,
+    'window.addEventListener("storage", handleAccountSessionStorage)',
+    "Account shell must refresh its session when another tab logs in, logs out, or updates the profile fallback."
+  );
   for (const [snippet, message] of [
     [
       "ACCOUNT_ACTION_REQUEST_TIMEOUT_MS = 12000",

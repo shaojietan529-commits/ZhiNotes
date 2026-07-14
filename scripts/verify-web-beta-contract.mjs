@@ -5071,6 +5071,30 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+      "Account shell must subscribe to cross-tab last-authenticated account changes.",
+    ],
+    [
+      "handleAccountSessionStorage",
+      "Account shell must keep an explicit storage handler for cross-tab account state refresh.",
+    ],
+    [
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+      "Account shell storage listener must only refresh for account-session fallback changes.",
+    ],
+    [
+      'window.addEventListener("storage", handleAccountSessionStorage)',
+      "Account shell must refresh its session when another tab logs in, logs out, or updates the profile fallback.",
+    ],
+    [
+      'window.removeEventListener("storage", handleAccountSessionStorage)',
+      "Account shell must remove the cross-tab account storage listener on unmount.",
+    ],
+  ]) {
+    assertSourceIncludes(files.accountShell, accountShell, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "ACCOUNT_ACTION_REQUEST_TIMEOUT_MS = 12000",
       "Account shell user actions must have a bounded request timeout so login/profile/API-key controls cannot hang indefinitely.",
     ],

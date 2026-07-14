@@ -434,6 +434,19 @@ check(
   "AccountShell 设置登录账号时必须先重写最近登录账号兜底，再通知侧栏刷新"
 );
 check(
+  shell.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    shell.includes("handleAccountSessionStorage") &&
+    shell.includes(
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
+    ) &&
+    shell.includes('window.addEventListener("storage", handleAccountSessionStorage)') &&
+    shell.includes(
+      'window.removeEventListener("storage", handleAccountSessionStorage)'
+    ) &&
+    shell.includes("void refreshSession();"),
+  "AccountShell 应监听跨标签最近登录账号缓存变化，另一个标签登录/退出/改名后自动刷新账号页状态"
+);
+check(
   shell.includes("session.authenticated && session.account") &&
     shell.includes("session.stale") &&
     shell.includes('session.status === "unconfirmed" || session.status === "error"') &&

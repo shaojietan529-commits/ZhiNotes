@@ -31,6 +31,7 @@ import {
   type ClientAccountInfo,
 } from "@/lib/account/clientProfile";
 import {
+  ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
   clearAccountSessionCache,
   clearAccountSessionRuntimeCache,
   fetchAccountSession,
@@ -485,6 +486,18 @@ export default function AccountShell() {
 
   useEffect(() => {
     void refreshSession();
+  }, [refreshSession]);
+
+  useEffect(() => {
+    const handleAccountSessionStorage = (event: StorageEvent) => {
+      if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
+        void refreshSession();
+      }
+    };
+    window.addEventListener("storage", handleAccountSessionStorage);
+    return () => {
+      window.removeEventListener("storage", handleAccountSessionStorage);
+    };
   }, [refreshSession]);
 
   // Load sharing lists once signed in.
