@@ -10048,6 +10048,18 @@ function run() {
   assertIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
+    "includeFileSync?: boolean",
+    "Account cloud sync coordinator quick-sync options must explicitly separate manual file retry from automatic account drains."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "options.includeFileSync ?? true",
+    "Manual account quick sync must keep file uploads included by default."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
     "forceAccountGate: options.forceAccountGate",
     "Account cloud sync coordinator must pass forceAccountGate through to page and database sync hooks."
   );
@@ -10056,6 +10068,12 @@ function run() {
     accountCloudSyncCoordinator,
     'forceAccountGate: state === "error" || syncBlockedBySignedOut',
     "Account cloud sync coordinator low-frequency retries must bypass stale auth backoff when account state is uncertain."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "includeFileSync: false",
+    "Account cloud sync coordinator automatic drains must not start file uploads."
   );
   assertIncludes(
     files.accountCloudSyncCoordinator,

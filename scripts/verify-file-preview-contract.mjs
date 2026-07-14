@@ -656,6 +656,18 @@ function run() {
     [
       files.accountSyncCoordinator,
       accountSyncCoordinator,
+      "includeFileSync: false",
+      "Account-level automatic drains must not start file uploads.",
+    ],
+    [
+      files.accountSyncCoordinator,
+      accountSyncCoordinator,
+      "options.includeFileSync ?? true",
+      "Manual account quick sync must still include file uploads by default.",
+    ],
+    [
+      files.accountSyncCoordinator,
+      accountSyncCoordinator,
       "const accountUncertainByAuthRetry = Boolean(authRetryDomainLabel)",
       "Global account sync status must treat file auth retry markers as cloud uncertainty before reporting synced.",
     ],

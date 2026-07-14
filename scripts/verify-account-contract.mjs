@@ -3721,12 +3721,15 @@ check(
     accountCloudSyncCoordinator.includes("refreshGlobalSyncLogStatus") &&
     accountCloudSyncCoordinator.includes("await refreshGlobalSyncLogStatus();") &&
     accountCloudSyncCoordinator.includes("forceAccountGate?: boolean") &&
+    accountCloudSyncCoordinator.includes("includeFileSync?: boolean") &&
+    accountCloudSyncCoordinator.includes("options.includeFileSync ?? true") &&
     accountCloudSyncCoordinator.includes(
       "forceAccountGate: options.forceAccountGate"
     ) &&
     accountCloudSyncCoordinator.includes(
       'forceAccountGate: state === "error" || syncBlockedBySignedOut'
     ) &&
+    accountCloudSyncCoordinator.includes("includeFileSync: false") &&
     accountCloudSyncCoordinator.includes("COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
     accountCloudSyncCoordinator.includes(
       "COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS"
@@ -3941,8 +3944,9 @@ check(
       "state === \"error\"\n          ? COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS"
     ) &&
     accountCoordinatorAutoRetryEffect.includes(": COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
+    accountCoordinatorAutoRetryEffect.includes("includeFileSync: false") &&
     accountCoordinatorAutoRetryEffect.includes("}, retryDelayMs)"),
-  "账号级云同步协调器不能把 signed-out 当成有待上传队列时的终止态；有可自动重试内容时应优先显示 queued，同时对未登录/账号不确定状态低频检查，避免本地 pending 队列卡死或高频扰动前台"
+  "账号级云同步协调器不能把 signed-out 当成有待上传队列时的终止态；有可自动重试内容时应优先显示 queued，同时对未登录/账号不确定状态低频检查，避免本地 pending 队列卡死或高频扰动前台；文件上传不能被该后台循环带跑"
 );
 const accountAutoRetryableSyncWorkBlock =
   accountCloudSyncCoordinator.match(

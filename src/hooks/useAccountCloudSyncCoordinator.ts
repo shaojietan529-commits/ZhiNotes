@@ -32,6 +32,7 @@ export interface AccountCloudSyncCoordinatorOptions {
   forceLease?: boolean;
   forceAccountGate?: boolean;
   includeManualReview?: boolean;
+  includeFileSync?: boolean;
 }
 
 export type { AccountLocalUseReadiness } from "@/lib/sync/accountLocalUseReadiness";
@@ -59,7 +60,7 @@ export function useAccountCloudSyncCoordinator() {
   const retryFileEmbedSync = fileSync.syncNow;
   const syncNow = useCallback(
     async (options: AccountCloudSyncCoordinatorOptions = {}) => {
-      await Promise.allSettled([
+      const syncJobs: Array<Promise<unknown>> = [
         pageSyncNow({
           quick: true,
           forceLease: options.forceLease,
@@ -74,11 +75,16 @@ export function useAccountCloudSyncCoordinator() {
         }),
         refreshSettingsSyncStatus(),
         refreshKnowledgeSyncStatus(),
-        retryFileEmbedSync({
-          includeManualReview: options.includeManualReview,
-          limit: 5,
-        }),
-      ]);
+      ];
+      if (options.includeFileSync ?? true) {
+        syncJobs.push(
+          retryFileEmbedSync({
+            includeManualReview: options.includeManualReview,
+            limit: 5,
+          })
+        );
+      }
+      await Promise.allSettled(syncJobs);
       await refreshGlobalSyncLogStatus();
     },
     [
@@ -199,8 +205,8 @@ export function useAccountCloudSyncCoordinator() {
     0
   );
   // File bytes can be much larger than page/database deltas. Keep them visible
-  // and available to explicit quick-sync, but do not run them in the 900ms
-  // account-level auto-retry loop.
+  // and available to explicit quick-sync, but do not run them in account-level
+  // auto-retry loops.
   const fileAutoRetryablePendingTotal = 0;
   const syncCenterVisibleOnlyPendingTotal =
     settingsAutoRetryablePendingTotal +
@@ -440,6 +446,7 @@ export function useAccountCloudSyncCoordinator() {
     const timer = window.setTimeout(() => {
       void syncNow({
         forceAccountGate: state === "error" || syncBlockedBySignedOut,
+        includeFileSync: false,
       });
     }, retryDelayMs);
     return () => window.clearTimeout(timer);
