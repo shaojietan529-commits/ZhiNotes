@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useMemo,
   useRef,
   useState,
   useEffect,
@@ -52,6 +53,8 @@ const SIDEBAR_PRIMARY_CUSTOMIZATION_KEY =
 const SIDEBAR_PRIMARY_ORDER_LOCAL_CACHE_KEY = "zhinote.sidebar.primaryOrder.v1";
 const SIDEBAR_PRIMARY_CUSTOMIZATION_LOCAL_CACHE_KEY =
   "zhinote.sidebar.primaryCustomization.v1";
+const SIDEBAR_DATABASE_INITIAL_VISIBLE_LIMIT = 24;
+const SIDEBAR_DATABASE_VISIBLE_LIMIT_STEP = 48;
 
 interface SidebarPrimaryItem {
   id: string;
@@ -745,6 +748,9 @@ export default function Sidebar() {
   const [primaryCustomizations, setPrimaryCustomizations] = useState<
     Record<string, SidebarPrimaryCustomization>
   >({});
+  const [databaseVisibleLimit, setDatabaseVisibleLimit] = useState(
+    SIDEBAR_DATABASE_INITIAL_VISIBLE_LIMIT
+  );
   const [editingPrimaryItem, setEditingPrimaryItem] = useState<{
     id: string;
     icon: string;
@@ -841,6 +847,14 @@ export default function Sidebar() {
   const accountSyncShouldRecheckBeforeStatusOpen =
     !accountSyncNeedsSyncCenter &&
     (accountSync.state === "signed-out" || accountSync.state === "error");
+  const visibleDatabases = useMemo(
+    () => databases.slice(0, databaseVisibleLimit),
+    [databases, databaseVisibleLimit]
+  );
+  const hiddenDatabaseCount = Math.max(
+    0,
+    databases.length - visibleDatabases.length
+  );
   const accountSyncActionLabel = accountSyncShouldOpenSyncCenter
     ? accountSyncNeedsSyncCenter
       ? "查看队列"
@@ -1468,7 +1482,7 @@ export default function Sidebar() {
               数据库
             </p>
             <ul className="space-y-0.5">
-              {databases.map((db) => (
+              {visibleDatabases.map((db) => (
                 <li key={db.id}>
                   <button
                     onClick={() => openDatabase(db.id)}
@@ -1479,6 +1493,34 @@ export default function Sidebar() {
                   </button>
                 </li>
               ))}
+              {hiddenDatabaseCount > 0 && (
+                <li
+                  data-testid="sidebar-database-windowing-status"
+                  data-visible-databases={visibleDatabases.length}
+                  data-database-count={databases.length}
+                  data-hidden-database-count={hiddenDatabaseCount}
+                  data-local-first-windowing="true"
+                  className="flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500"
+                >
+                  <span className="min-w-0 truncate">
+                    先显示 {visibleDatabases.length}/{databases.length} 个数据库
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDatabaseVisibleLimit((limit) =>
+                        Math.min(
+                          databases.length,
+                          limit + SIDEBAR_DATABASE_VISIBLE_LIMIT_STEP
+                        )
+                      )
+                    }
+                    className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  >
+                    显示更多
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
         )}

@@ -18220,6 +18220,26 @@ function run() {
       "Sidebar page tree must cap child rendering while keeping the current path visible."
     );
   }
+  for (const snippet of [
+    "SIDEBAR_DATABASE_INITIAL_VISIBLE_LIMIT",
+    "SIDEBAR_DATABASE_VISIBLE_LIMIT_STEP",
+    "databaseVisibleLimit",
+    "databases.slice(0, databaseVisibleLimit)",
+    "visibleDatabases.map((db)",
+    "hiddenDatabaseCount",
+    'data-testid="sidebar-database-windowing-status"',
+    "data-visible-databases={visibleDatabases.length}",
+    "data-database-count={databases.length}",
+    "data-hidden-database-count={hiddenDatabaseCount}",
+    "先显示 {visibleDatabases.length}/{databases.length} 个数据库",
+  ]) {
+    assertIncludes(
+      files.sidebar,
+      sidebar,
+      snippet,
+      "Sidebar database list must be windowed so large workspaces do not block first paint."
+    );
+  }
   if (pageTree.includes("{children.map((child)")) {
     failures.push(
       `${files.pageTree} must not render every child page in a large expanded parent.`

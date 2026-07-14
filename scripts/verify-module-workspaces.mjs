@@ -735,6 +735,21 @@ check(
   "Sidebar PageTree 必须用 parent 索引、根/子页面渲染上限、按需显示更多、当前路径保留/自动展开和局部 upsert，避免 Notion 批量导入后拖慢全站"
 );
 check(
+  sidebarSource.includes("SIDEBAR_DATABASE_INITIAL_VISIBLE_LIMIT") &&
+    sidebarSource.includes("SIDEBAR_DATABASE_VISIBLE_LIMIT_STEP") &&
+    sidebarSource.includes("databaseVisibleLimit") &&
+    sidebarSource.includes("databases.slice(0, databaseVisibleLimit)") &&
+    sidebarSource.includes("visibleDatabases.map((db)") &&
+    sidebarSource.includes("hiddenDatabaseCount") &&
+    sidebarSource.includes('data-testid="sidebar-database-windowing-status"') &&
+    sidebarSource.includes("data-visible-databases={visibleDatabases.length}") &&
+    sidebarSource.includes("data-database-count={databases.length}") &&
+    sidebarSource.includes("data-hidden-database-count={hiddenDatabaseCount}") &&
+    sidebarSource.includes("setDatabaseVisibleLimit((limit)") &&
+    sidebarSource.includes("先显示 {visibleDatabases.length}/{databases.length} 个数据库"),
+  "Sidebar 数据库列表必须分批渲染并暴露 windowing 状态，避免大量数据库拖慢侧栏首屏"
+);
+check(
   pageContextMenuSource.includes("usePages({ autoLoad: false })") &&
     pageContextMenuSource.includes("upsertPages([duplicate])") &&
     pageContextMenuSource.includes("upsertPages(collectMovedPageSnapshots(pages, moved))") &&
