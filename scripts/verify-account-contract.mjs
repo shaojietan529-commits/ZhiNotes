@@ -3918,6 +3918,7 @@ check(
     sidebar.includes("账号或网络暂不可确认，已保留本地输入，后台低频重试") &&
     sidebar.includes("accountSyncNeedsSyncCenter") &&
     sidebar.includes("accountSyncShouldOpenSyncCenter") &&
+    sidebar.includes("accountSyncShouldRecheckBeforeStatusOpen") &&
     sidebar.includes('accountSync.state === "disabled"') &&
     sidebar.includes('accountSync.state === "signed-out"') &&
     sidebar.includes('accountSync.state === "error"') &&
@@ -3926,6 +3927,9 @@ check(
     sidebar.includes("accountSync.databasePendingTotal > 0") &&
     sidebar.includes("getAccountSyncCenterTarget") &&
     sidebar.includes('data-sync-action=') &&
+    sidebar.includes(
+      "data-sync-preopen-recheck={accountSyncShouldRecheckBeforeStatusOpen}"
+    ) &&
     sidebar.includes("data-sync-visible-label={accountSyncButtonLabel}") &&
     sidebar.includes('data-sync-target={accountSyncCenterTarget}') &&
     sidebar.includes('data-testid="collapsed-sidebar-sync-status"') &&
@@ -3949,6 +3953,9 @@ check(
       "const accountSyncActionLabel = accountSyncShouldOpenSyncCenter"
     ) &&
     sidebar.includes("openModuleRoute(accountSyncCenterTarget)") &&
+    sidebar.includes(
+      "if (accountSyncShouldRecheckBeforeStatusOpen)"
+    ) &&
     sidebar.includes("warmModuleRoute(accountSyncCenterTarget)") &&
     sidebar.includes("data-sync-state={accountSync.state}") &&
     sidebar.includes("data-sync-pending={accountSync.pendingTotal}") &&

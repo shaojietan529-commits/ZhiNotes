@@ -10859,6 +10859,18 @@ function run() {
     "Sidebar manual quick sync must force an account recheck instead of waiting for auth retry backoff."
   );
   assertIncludes(
+    files.sidebar,
+    sidebar,
+    "accountSyncShouldRecheckBeforeStatusOpen",
+    "Sidebar sync status click must explicitly recheck account state before opening Sync status from signed-out/error states without upload queues."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "data-sync-preopen-recheck={accountSyncShouldRecheckBeforeStatusOpen}",
+    "Sidebar sync status must expose whether a click will recheck account state before opening Sync status."
+  );
+  assertIncludes(
     files.syncShell,
     syncShell,
     "sync-upload-safety-panel",

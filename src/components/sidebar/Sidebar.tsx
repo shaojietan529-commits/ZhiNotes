@@ -838,6 +838,9 @@ export default function Sidebar() {
     accountSync.state === "disabled" ||
     accountSync.state === "signed-out" ||
     accountSync.state === "error";
+  const accountSyncShouldRecheckBeforeStatusOpen =
+    !accountSyncNeedsSyncCenter &&
+    (accountSync.state === "signed-out" || accountSync.state === "error");
   const accountSyncActionLabel = accountSyncShouldOpenSyncCenter
     ? accountSyncNeedsSyncCenter
       ? "查看队列"
@@ -857,6 +860,9 @@ export default function Sidebar() {
     : "";
   const handleAccountSyncButtonClick = useCallback(() => {
     if (accountSyncShouldOpenSyncCenter) {
+      if (accountSyncShouldRecheckBeforeStatusOpen) {
+        void accountSync.syncNow({ forceLease: true, forceAccountGate: true });
+      }
       openModuleRoute(accountSyncCenterTarget);
       return;
     }
@@ -865,6 +871,7 @@ export default function Sidebar() {
     accountSync,
     accountSyncCenterTarget,
     accountSyncShouldOpenSyncCenter,
+    accountSyncShouldRecheckBeforeStatusOpen,
     openModuleRoute,
   ]);
 
@@ -1532,6 +1539,7 @@ export default function Sidebar() {
             data-sync-action={
               accountSyncShouldOpenSyncCenter ? "open-sync-center" : "quick-sync"
             }
+            data-sync-preopen-recheck={accountSyncShouldRecheckBeforeStatusOpen}
             data-sync-visible-label={accountSyncButtonLabel}
             data-sync-target={accountSyncCenterTarget}
             data-sync-domain-breakdown={accountSyncDomainBreakdown}
@@ -1576,6 +1584,9 @@ export default function Sidebar() {
               }
               data-sync-action={
                 accountSyncShouldOpenSyncCenter ? "open-sync-center" : "quick-sync"
+              }
+              data-sync-preopen-recheck={
+                accountSyncShouldRecheckBeforeStatusOpen
               }
               data-sync-visible-label={accountSyncButtonLabel}
               data-sync-target={accountSyncCenterTarget}

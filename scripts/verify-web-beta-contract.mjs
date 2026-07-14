@@ -26076,6 +26076,18 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "accountSyncShouldRecheckBeforeStatusOpen",
+      "Sidebar sync status click must explicitly recheck account state before opening Sync status from signed-out/error states without upload queues.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "data-sync-preopen-recheck={accountSyncShouldRecheckBeforeStatusOpen}",
+      "Sidebar sync status must expose whether a click will recheck account state before opening Sync status.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "/modules/sync#knowledge-replay-batch-plan",
       "Sidebar cloud-sync control must deep-link knowledge-domain pending rows to knowledge replay.",
     ],
