@@ -54,6 +54,7 @@ export function useAccountCloudSyncCoordinator() {
   const databaseSyncNow = databaseSync.syncNow;
   const refreshSettingsSyncStatus = settingsSync.refresh;
   const refreshKnowledgeSyncStatus = knowledgeSync.refresh;
+  const refreshGlobalSyncLogStatus = globalSyncLog.refresh;
   const retryFileEmbedSync = fileSync.syncNow;
   const syncNow = useCallback(
     async (options: AccountCloudSyncCoordinatorOptions = {}) => {
@@ -75,10 +76,12 @@ export function useAccountCloudSyncCoordinator() {
           limit: 5,
         }),
       ]);
+      await refreshGlobalSyncLogStatus();
     },
     [
       databaseSyncNow,
       pageSyncNow,
+      refreshGlobalSyncLogStatus,
       retryFileEmbedSync,
       refreshKnowledgeSyncStatus,
       refreshSettingsSyncStatus,

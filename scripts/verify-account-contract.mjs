@@ -3518,6 +3518,8 @@ check(
     accountCloudSyncCoordinator.includes("useSettingsCloudSyncStatus") &&
     accountCloudSyncCoordinator.includes("useKnowledgeCloudSyncStatus") &&
     accountCloudSyncCoordinator.includes("useGlobalSyncLogStatus") &&
+    accountCloudSyncCoordinator.includes("refreshGlobalSyncLogStatus") &&
+    accountCloudSyncCoordinator.includes("await refreshGlobalSyncLogStatus();") &&
     accountCloudSyncCoordinator.includes("COORDINATOR_PENDING_DRAIN_DELAY_MS") &&
     accountCloudSyncCoordinator.includes(
       "COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS"

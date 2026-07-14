@@ -9787,6 +9787,18 @@ function run() {
   assertIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
+    "refreshGlobalSyncLogStatus",
+    "Account cloud sync coordinator must keep an explicit global sync_log refresh handle for quick-sync status reconciliation."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "await refreshGlobalSyncLogStatus();",
+    "Account cloud sync coordinator must refresh the global sync_log summary immediately after a manual quick sync."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
     "COORDINATOR_PENDING_DRAIN_DELAY_MS",
     "Account cloud sync coordinator must coalesce pending queue drain triggers instead of adding immediate duplicate loops."
   );
