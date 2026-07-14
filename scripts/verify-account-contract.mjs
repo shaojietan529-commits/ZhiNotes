@@ -2632,7 +2632,13 @@ check(
   "PageShell 粘贴/移动/删除/创建子页面/复制页面必须局部 upsert；创建子页面应先打开乐观页面壳并后台保存父页面链接；复制页面应先打开乐观副本，再后台写正文链接，不能在大批量页面后触发全量 metadata 刷新"
 );
 check(
-  cloudPageMutations.includes("export function createOptimisticPageWithCloud") &&
+  cloudPageMutations.includes("export async function createPageWithCloud") &&
+    cloudPageMutations.includes("page = await createLocalPage(opts);") &&
+    cloudPageMutations.includes('publishCreatedPageSnapshot(page, "local-metadata")') &&
+    cloudPageMutations.includes(`page = createCloudDraftFallbackPage(opts);
+    rememberPendingPageDraft(page);
+    publishCreatedPageSnapshot(page, "optimistic-local");`) &&
+    cloudPageMutations.includes("export function createOptimisticPageWithCloud") &&
     cloudPageMutations.includes("const page = createCloudDraftFallbackPage(opts);") &&
     cloudPageMutations.includes("rememberPendingPageDraft(page)") &&
     cloudPageMutations.includes("publishCreatedPageSnapshot(page, \"optimistic-local\")") &&

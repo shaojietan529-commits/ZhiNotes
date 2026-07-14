@@ -30,10 +30,12 @@ export async function createPageWithCloud(
   let page: Page;
   try {
     page = await createLocalPage(opts);
+    publishCreatedPageSnapshot(page, "local-metadata");
   } catch (error) {
     console.warn("Local page create failed; using cloud draft fallback", error);
     page = createCloudDraftFallbackPage(opts);
     rememberPendingPageDraft(page);
+    publishCreatedPageSnapshot(page, "optimistic-local");
   }
   void queuePageCloudPush(page).catch(() => undefined);
   return page;

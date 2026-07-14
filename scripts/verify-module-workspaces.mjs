@@ -767,6 +767,12 @@ check(
     cloudPageMutationsSource.includes(
       "Local page create failed; using cloud draft fallback"
     ) &&
+    cloudPageMutationsSource.includes(
+      'publishCreatedPageSnapshot(page, "local-metadata")'
+    ) &&
+    cloudPageMutationsSource.includes(`page = createCloudDraftFallbackPage(opts);
+    rememberPendingPageDraft(page);
+    publishCreatedPageSnapshot(page, "optimistic-local");`) &&
     cloudPageMutationsSource.includes("createCloudDraftFallbackPage") &&
     cloudPageMutationsSource.includes('} from "@/lib/pages/pendingPageDrafts"') &&
     cloudPageMutationsSource.includes("rememberPendingPageDraft,") &&

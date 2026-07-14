@@ -18132,6 +18132,24 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      "export async function createPageWithCloud",
+      "Page mutations must keep the async local create path visible to the UI before cloud sync.",
+    ],
+    [
+      "page = await createLocalPage(opts);",
+      "Async page creation must finish local persistence before queuing cloud sync.",
+    ],
+    [
+      'publishCreatedPageSnapshot(page, "local-metadata")',
+      "Async page creation must publish the local page snapshot immediately after local persistence.",
+    ],
+    [
+      `page = createCloudDraftFallbackPage(opts);
+    rememberPendingPageDraft(page);
+    publishCreatedPageSnapshot(page, "optimistic-local");`,
+      "Async page creation fallback must still publish an optimistic local page snapshot.",
+    ],
+    [
       "export function createOptimisticPageWithCloud",
       "Page mutations must expose a synchronous optimistic page create for click-to-open flows.",
     ],
