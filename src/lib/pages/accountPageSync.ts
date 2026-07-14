@@ -6,7 +6,9 @@
 // /account (stored in localStorage). When enabled and signed in, reconcile
 // treats the account cloud as the source of truth and:
 //   - pulls remote pages that are newer or missing locally
-//   - pushes only explicit local edits/deletes recorded in the pending queue
+//   - uploads the local browser's first signed-in baseline once, so existing
+//     notes from the first device can appear on other signed-in devices
+//   - pushes later explicit local edits/deletes recorded in the pending queue
 // Conflicts resolve through explicit writes; the browser page table is only a
 // rebuildable cache, so a stale local row must not auto-promote itself to cloud.
 //
@@ -48,6 +50,8 @@ const REMOTE_CURSOR_KEY = "zhinote.pagesync.remoteCursor";
 const PENDING_PUSH_IDS_KEY = "zhinote.pagesync.pendingPushIds";
 const PENDING_PUSH_META_KEY = "zhinote.pagesync.pendingPushMeta";
 const AUTH_RETRY_KEY = "zhinote.pagesync.authRetry.v1";
+const LOCAL_BASELINE_UPLOAD_SIGNATURE_KEY =
+  "zhinote.pagesync.localBaselineUploadSignature.v1";
 export const PAGE_SYNC_STORAGE_KEY_PREFIX = "zhinote.pagesync.";
 const DAILY_IMPORT_REPAIR_SIGNATURE_KEY =
   "zhinote.pagesync.dailyImportRepairSignature.v1";
@@ -120,6 +124,7 @@ export interface ReconcileResult {
   status: PageSyncStatus;
   pulled: number;
   pushed: number;
+  bootstrapped?: number;
   repaired?: number;
   message?: string;
   skipped?: boolean;
@@ -2057,6 +2062,66 @@ function clearAllPendingCloudPushesForCacheRebuild(): void {
   emitPageSyncStatusChanged();
 }
 
+async function uploadLocalPageBaselineIfNeeded(): Promise<{
+  status: PageSyncStatus;
+  pushed: number;
+  skipped: number;
+  total: number;
+  message?: string;
+}> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
+  }
+
+  const summary = await getLocalPageSyncSummary();
+  const signature = `${summary.count}:${summary.deleted}:${summary.cursor}:${summary.watermark}`;
+  if (
+    summary.count === 0 ||
+    readSyncStorage(LOCAL_BASELINE_UPLOAD_SIGNATURE_KEY) === signature
+  ) {
+    return { status: "ok", pushed: 0, skipped: 0, total: 0 };
+  }
+
+  let pages: Page[];
+  try {
+    pages = await getAllPagesForSync();
+  } catch (error) {
+    return {
+      status: "error",
+      pushed: 0,
+      skipped: 0,
+      total: 0,
+      message: error instanceof Error ? error.message : "本地页面基线读取失败",
+    };
+  }
+
+  const records = pages.filter((page) => !isLocalCacheEvictionTombstone(page)).map(toRecord);
+  if (records.length === 0) {
+    writeSyncStorage(LOCAL_BASELINE_UPLOAD_SIGNATURE_KEY, signature);
+    return { status: "ok", pushed: 0, skipped: 0, total: 0 };
+  }
+
+  const result = await pushCloudRecordsInBatches(records);
+  if (result.status !== "ok") {
+    return {
+      status: result.status,
+      pushed: result.accepted,
+      skipped: result.skipped,
+      total: records.length,
+      message: result.message,
+    };
+  }
+
+  writeSyncStorage(LOCAL_BASELINE_UPLOAD_SIGNATURE_KEY, signature);
+  setLastPageSyncAtNow();
+  return {
+    status: "ok",
+    pushed: result.accepted,
+    skipped: result.skipped,
+    total: records.length,
+  };
+}
+
 function clearPageSyncRuntimeCachesForCacheRebuild(): void {
   metadataDeltaGeneration += 1;
   metadataDeltaInFlight = null;
@@ -2433,7 +2498,8 @@ export async function reconcilePageSync(
     if (
       pendingPush.status === "unauthenticated" ||
       pendingPush.status === "unconfigured" ||
-      pendingPush.status === "disabled"
+      pendingPush.status === "disabled" ||
+      pendingPush.status === "error"
     ) {
       return {
         status: pendingPush.status,
@@ -2442,12 +2508,25 @@ export async function reconcilePageSync(
         message: pendingPush.message,
       };
     }
+    const baselineUpload = await uploadLocalPageBaselineIfNeeded();
+    const initialPushed = pendingPush.pushed + baselineUpload.pushed;
+    const bootstrapped =
+      baselineUpload.total > 0 ? baselineUpload.total : undefined;
+    if (baselineUpload.status !== "ok") {
+      return {
+        status: baselineUpload.status,
+        pulled: 0,
+        pushed: initialPushed,
+        bootstrapped,
+        message: baselineUpload.message,
+      };
+    }
 
     if (options.quick) {
       const cursor = getRemoteCursor();
       if (cursor) {
         let pulled = 0;
-        const pushed = pendingPush.pushed;
+        const pushed = initialPushed;
         let nextCursor = cursor;
         let hasMore = false;
         let batches = 0;
@@ -2471,6 +2550,7 @@ export async function reconcilePageSync(
           status: "ok",
           pulled,
           pushed,
+          bootstrapped,
           skipped: pulled === 0 && pushed === 0,
         };
       } else {
@@ -2479,7 +2559,8 @@ export async function reconcilePageSync(
           return {
             status: summaryRes.status,
             pulled: 0,
-            pushed: pendingPush.pushed,
+            pushed: initialPushed,
+            bootstrapped,
             message: summaryRes.message,
           };
         }
@@ -2490,24 +2571,27 @@ export async function reconcilePageSync(
           return {
             status: "ok",
             pulled: 0,
-            pushed: pendingPush.pushed,
-            skipped: pendingPush.pushed === 0,
+            pushed: initialPushed,
+            bootstrapped,
+            skipped: initialPushed === 0,
           };
         }
         if (summary && (await restoreCursorFromLocalMetadata(summary))) {
           return {
             status: "ok",
             pulled: 0,
-            pushed: pendingPush.pushed,
-            skipped: pendingPush.pushed === 0,
+            pushed: initialPushed,
+            bootstrapped,
+            skipped: initialPushed === 0,
           };
         }
         const metadata = await syncCloudPageMetadataDelta({ force: true });
         return {
           status: metadata.status,
           pulled: metadata.pulled,
-          pushed: pendingPush.pushed,
-          skipped: metadata.pulled === 0 && pendingPush.pushed === 0,
+          pushed: initialPushed,
+          bootstrapped,
+          skipped: metadata.pulled === 0 && initialPushed === 0,
           message: metadata.message,
         };
       }
@@ -2518,7 +2602,8 @@ export async function reconcilePageSync(
       return {
         status: manifestRes.status,
         pulled: 0,
-        pushed: 0,
+        pushed: initialPushed,
+        bootstrapped,
         message: manifestRes.message,
       };
     }
@@ -2546,7 +2631,8 @@ export async function reconcilePageSync(
         return {
           status: res.status,
           pulled,
-          pushed: 0,
+          pushed: initialPushed,
+          bootstrapped,
           repaired: 0,
           message: res.message,
         };
@@ -2566,19 +2652,7 @@ export async function reconcilePageSync(
     }
     const repaired = await repairDailyImportPlacement({ force: pulled > 0 });
 
-    // Cloud is the source of truth. Do not scan the rebuildable browser cache
-    // and promote every "newer" local row; only flushPendingCloudPushes may
-    // upload explicit local edits/deletes that were queued at mutation time.
-    const pushed = pendingPush.pushed;
-    if (pendingPush.status !== "ok") {
-      return {
-        status: pendingPush.status,
-        pulled,
-        pushed,
-        repaired,
-        message: pendingPush.message,
-      };
-    }
+    const pushed = initialPushed;
 
     setLastPageSyncAtNow();
     if (pulled > 0 || repaired > 0) {
@@ -2588,7 +2662,7 @@ export async function reconcilePageSync(
         pulledPages.length > 0 ? toPageUpdatePayloads(pulledPages) : undefined
       );
     }
-    return { status: "ok", pulled, pushed, repaired };
+    return { status: "ok", pulled, pushed, bootstrapped, repaired };
   } finally {
     reconcileRunning = false;
   }

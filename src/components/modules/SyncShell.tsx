@@ -11104,8 +11104,8 @@ function SyncDashboard() {
                 ))}
               </div>
               <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                普通同步仍只上传这些 pending 行指向的明确变更，不会全量上传本地缓存；
-                后续全域上云迁移会用这张分布表做缺口对账。
+                首次账号同步会补种本机页面和数据库基线；之后普通同步只上传这些
+                pending 行指向的明确变更，避免重复上传整份本地缓存。
               </p>
             </div>
             {syncSummary && syncSummary.tables.length > 0 ? (
@@ -21639,7 +21639,7 @@ function PagePendingQueueDetails({
 
       <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
         页面同步当前{status.enabled ? "已开启" : "已关闭"}。
-        普通同步只会补传 pending queue 里的页面，不会把本地缓存全量上传。
+        首次账号同步会补种本机页面基线；之后普通同步只会补传 pending queue 里的页面。
       </p>
     </div>
   );
@@ -21852,7 +21852,7 @@ function DatabasePendingQueueDetails({
           </div>
         ) : null}
         <p className="mt-3 rounded bg-zinc-50 px-2 py-1 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-300">
-          普通同步只会补传 pending queue 里的数据库变更，不会把本地数据库缓存全量上传。
+          首次账号同步会补种本机数据库基线；之后只补传 pending queue 里的数据库变更。
         </p>
       </div>
 
@@ -21985,8 +21985,9 @@ function CacheRebuildSafetyPanel({
             安全边界
           </p>
           <p className="mt-1">
-            不会把本地缓存全量上传；普通同步只能上传 pending queue 里明确记录的修改。
-            页面重建会保留本地数据库私有页面，数据库重建不会触碰页面、本地文件、评论或版本历史。
+            首次账号同步会补种本机页面和数据库基线；之后普通同步只上传
+            pending queue 里明确记录的修改。页面重建会保留本地数据库私有页面，
+            数据库重建不会触碰页面、本地文件、评论或版本历史。
           </p>
         </div>
         <div className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:bg-amber-950 dark:text-amber-300">

@@ -9,6 +9,7 @@
 import {
   applyRemoteDatabaseRecords,
   clearLocalDatabaseCacheExceptKeys,
+  getAllDatabaseRecordsForSync,
   getDatabaseRecordsForSyncByKeys,
   getLocalDatabaseSyncSummary,
   getPendingDatabaseSyncRecords,
@@ -31,6 +32,8 @@ const REMOTE_CURSOR_KEY = "zhinote.databasesync.remoteCursor";
 const PENDING_PUSH_KEYS_KEY = "zhinote.databasesync.pendingPushKeys";
 const PENDING_PUSH_META_KEY = "zhinote.databasesync.pendingPushMeta";
 const AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1";
+const LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY =
+  "zhinote.databasesync.localBaselineUploadSignature.v1";
 export const DATABASE_SYNC_STORAGE_KEY_PREFIX = "zhinote.databasesync.";
 const INCREMENTAL_PULL_LIMIT = 100;
 const QUICK_INCREMENTAL_BATCH_LIMIT = 3;
@@ -194,6 +197,7 @@ export interface DatabaseReconcileResult {
   pulled: number;
   pushed: number;
   skipped: number;
+  bootstrapped?: number;
   records?: CloudDatabaseRecord[];
   message?: string;
 }
@@ -1669,6 +1673,33 @@ async function pushCloudDatabaseRecordsInBatches(
   };
 }
 
+async function uploadLocalDatabaseBaselineIfNeeded(): Promise<PushLocalDatabasesResult> {
+  if (!isDatabaseSyncEnabled()) {
+    return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
+  }
+  const summary = await getLocalDatabaseSyncSummary();
+  const signature = `${summary.count}:${summary.deleted}:${summary.cursor}:${summary.watermark}`;
+  if (
+    summary.count === 0 ||
+    readSyncStorage(LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY) === signature
+  ) {
+    return { status: "ok", pushed: 0, skipped: 0, total: 0 };
+  }
+  const records = await getAllDatabaseRecordsForSync();
+  if (records.length === 0) {
+    writeSyncStorage(LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY, signature);
+    return { status: "ok", pushed: 0, skipped: 0, total: 0 };
+  }
+
+  const result = await pushCloudDatabaseRecordsInBatches(records);
+  if (result.status !== "ok") {
+    return result;
+  }
+  writeSyncStorage(LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY, signature);
+  setLastDatabaseSyncAtNow();
+  return result;
+}
+
 export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLocalDatabasesResult> {
   if (!isDatabaseSyncEnabled()) {
     return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
@@ -1789,6 +1820,21 @@ export async function reconcileDatabaseSync(
       message: queuedPush.message,
     };
   }
+  const baselineUpload = await uploadLocalDatabaseBaselineIfNeeded();
+  const initialPushed = queuedPush.pushed + baselineUpload.pushed;
+  const initialSkipped = queuedPush.skipped + baselineUpload.skipped;
+  const bootstrapped =
+    baselineUpload.total > 0 ? baselineUpload.total : undefined;
+  if (baselineUpload.status !== "ok") {
+    return {
+      status: baselineUpload.status,
+      pulled: 0,
+      pushed: initialPushed,
+      skipped: initialSkipped,
+      bootstrapped,
+      message: baselineUpload.message,
+    };
+  }
 
   let cursor = getRemoteCursor();
   let prePullPulled = 0;
@@ -1799,8 +1845,9 @@ export async function reconcileDatabaseSync(
       return {
         status: summaryRes.status,
         pulled: 0,
-        pushed: queuedPush.pushed,
-        skipped: queuedPush.skipped,
+        pushed: initialPushed,
+        skipped: initialSkipped,
+        bootstrapped,
         message: summaryRes.message,
       };
     }
@@ -1813,16 +1860,18 @@ export async function reconcileDatabaseSync(
           return {
             status: push.status,
             pulled: 0,
-            pushed: push.pushed,
-            skipped: push.skipped,
+            pushed: initialPushed + push.pushed,
+            skipped: initialSkipped + push.skipped,
+            bootstrapped,
             message: push.message,
           };
         }
         return {
           status: "ok",
           pulled: 0,
-          pushed: queuedPush.pushed + push.pushed,
-          skipped: queuedPush.skipped + push.skipped,
+          pushed: initialPushed + push.pushed,
+          skipped: initialSkipped + push.skipped,
+          bootstrapped,
         };
       }
     } else {
@@ -1834,8 +1883,9 @@ export async function reconcileDatabaseSync(
           return {
             status: fastForward.status,
             pulled: fastForward.pulled,
-            pushed: queuedPush.pushed,
-            skipped: queuedPush.skipped,
+            pushed: initialPushed,
+            skipped: initialSkipped,
+            bootstrapped,
             records: fastForward.records,
             message: fastForward.message,
           };
@@ -1850,8 +1900,9 @@ export async function reconcileDatabaseSync(
           return {
             status: metadata.status,
             pulled: 0,
-            pushed: queuedPush.pushed,
-            skipped: queuedPush.skipped,
+            pushed: initialPushed,
+            skipped: initialSkipped,
+            bootstrapped,
             message: metadata.message,
           };
         }
@@ -1860,16 +1911,18 @@ export async function reconcileDatabaseSync(
           return {
             status: push.status,
             pulled: metadata.pulled,
-            pushed: push.pushed,
-            skipped: push.skipped,
+            pushed: initialPushed + push.pushed,
+            skipped: initialSkipped + push.skipped,
+            bootstrapped,
             message: push.message,
           };
         }
         return {
           status: "ok",
           pulled: metadata.pulled,
-          pushed: queuedPush.pushed + push.pushed,
-          skipped: queuedPush.skipped + push.skipped,
+          pushed: initialPushed + push.pushed,
+          skipped: initialSkipped + push.skipped,
+          bootstrapped,
           records: metadata.records,
         };
       }
@@ -1883,8 +1936,9 @@ export async function reconcileDatabaseSync(
     return {
       status: pull.status,
       pulled: prePullPulled + pull.pulled,
-      pushed: queuedPush.pushed,
-      skipped: queuedPush.skipped,
+      pushed: initialPushed,
+      skipped: initialSkipped,
+      bootstrapped,
       records: [...prePullRecords, ...(pull.records ?? [])],
       message: pull.message,
     };
@@ -1894,16 +1948,18 @@ export async function reconcileDatabaseSync(
     return {
       status: push.status,
       pulled: prePullPulled + pull.pulled,
-      pushed: push.pushed,
-      skipped: push.skipped,
+      pushed: initialPushed + push.pushed,
+      skipped: initialSkipped + push.skipped,
+      bootstrapped,
       message: push.message,
     };
   }
   return {
     status: "ok",
     pulled: prePullPulled + pull.pulled,
-    pushed: queuedPush.pushed + push.pushed,
-    skipped: queuedPush.skipped + push.skipped,
+    pushed: initialPushed + push.pushed,
+    skipped: initialSkipped + push.skipped,
+    bootstrapped,
     records: [...prePullRecords, ...(pull.records ?? [])],
   };
 }

@@ -408,12 +408,20 @@ function run() {
     "pushLocalDatabasesToCloud",
     "Database sync must treat cloud as source of truth; ordinary account sync can only upload explicit pending local changes."
   );
-  assertNotIncludes(
-    files.databaseAccountSyncClient,
-    databaseAccountSyncClient,
-    "getAllDatabaseRecordsForSync",
-    "Database sync client must not scan and upload the full local cache."
-  );
+  for (const snippet of [
+    "LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY",
+    "uploadLocalDatabaseBaselineIfNeeded",
+    "getAllDatabaseRecordsForSync()",
+    "const initialPushed = queuedPush.pushed + baselineUpload.pushed",
+    "bootstrapped?: number",
+  ]) {
+    assertIncludes(
+      files.databaseAccountSyncClient,
+      databaseAccountSyncClient,
+      snippet,
+      "Database sync client must support one-time local baseline upload before ordinary incremental queue sync."
+    );
+  }
   for (const [sourceLabel, source] of [
     [files.databaseDetailRoute, databaseDetailRoute],
     [files.databaseDetailRouteLoading, databaseDetailRouteLoading],

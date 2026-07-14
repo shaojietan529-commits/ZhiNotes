@@ -14042,6 +14042,60 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "LOCAL_BASELINE_UPLOAD_SIGNATURE_KEY",
+    "Smoke verifier must keep local baseline upload state available for cross-device account sync."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "uploadLocalPageBaselineIfNeeded",
+    "Smoke verifier must keep existing local pages eligible for first signed-in cloud baseline upload."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "getAllPagesForSync()",
+    "Smoke verifier must keep baseline upload from depending only on future pending edits."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "!isLocalCacheEvictionTombstone(page)",
+    "Smoke verifier must keep local cache eviction tombstones out of baseline upload."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "bootstrapped?: number",
+    "Smoke verifier must keep baseline upload counts visible in page sync results."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY",
+    "Smoke verifier must keep local database baseline upload state available for cross-device account sync."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "uploadLocalDatabaseBaselineIfNeeded",
+    "Smoke verifier must keep existing local database records eligible for first signed-in cloud baseline upload."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "getAllDatabaseRecordsForSync()",
+    "Smoke verifier must keep database baseline upload from depending only on future pending edits."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "bootstrapped?: number",
+    "Smoke verifier must keep baseline upload counts visible in database sync results."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "PENDING_PUSH_META_KEY",
     "Smoke verifier must keep metadata-only page pending queue timestamps available."
   );
@@ -15134,8 +15188,8 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "普通同步仍只上传这些 pending 行指向的明确变更",
-    "Sync UI full-domain pending distribution must preserve pending-only sync."
+    "之后普通同步只上传这些",
+    "Sync UI full-domain pending distribution must preserve incremental sync after first baseline upload."
   );
   assertIncludes(
     files.accountPageSync,

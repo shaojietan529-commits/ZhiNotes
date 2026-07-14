@@ -918,13 +918,15 @@ check(
 check(
   pageSyncClient.includes("const pendingPush = await flushPendingCloudPushes({") &&
     pageSyncClient.includes("includeManualReview: options.includeManualReview") &&
-    pageSyncClient.includes("const pushed = pendingPush.pushed") &&
+    pageSyncClient.includes("const baselineUpload = await uploadLocalPageBaselineIfNeeded()") &&
+    pageSyncClient.includes("const initialPushed = pendingPush.pushed + baselineUpload.pushed") &&
+    pageSyncClient.includes("bootstrapped?: number") &&
     pageSyncClient.includes("const local = await getAllPageMetadata()") &&
-    pageSyncClient.includes("only flushPendingCloudPushes may") &&
+    pageSyncClient.includes("readSyncStorage(LOCAL_BASELINE_UPLOAD_SIGNATURE_KEY)") &&
     !pageSyncClient.includes("const localAfter =") &&
     !pageSyncClient.includes("const toPush: Page[]") &&
     !pageSyncClient.includes("pendingPush.pushed + pushResult.accepted"),
-  "reconcile 每轮同步应先补发待上传页面；本地页面表只是缓存，不能全量扫描后按 updated_at 自动推上云"
+  "reconcile 每轮同步应先补发待上传页面，再做一次性本机基线补种；不能回到按 updated_at 猜测上传的旧路径"
 );
 check(
   pageSyncClient.includes("FlushPendingCloudPushOptions") &&
@@ -964,8 +966,9 @@ check(
 	    syncDashboardShell.includes("补传页面队列") &&
 	    syncDashboardShell.includes("reconcilePageSync({") &&
 	    syncDashboardShell.includes("includeManualReview: true") &&
-	    syncDashboardShell.includes("普通同步只会补传 pending queue 里的页面"),
-  "同步页应展示页面 pending 上传队列并提供 quick 增量补传，不能暗示全量上传本地缓存"
+	    syncDashboardShell.includes("首次账号同步会补种本机页面基线") &&
+	    syncDashboardShell.includes("之后普通同步只会补传 pending queue 里的页面"),
+  "同步页应展示页面 pending 上传队列并提供 quick 增量补传，同时说明首次基线补种和后续增量补传"
 );
 check(
   databaseSyncClient.includes("export interface PendingCloudDatabaseSyncStatus") &&
@@ -989,17 +992,18 @@ check(
 	    syncDashboardShell.includes("补传数据库队列") &&
 	    syncDashboardShell.includes("reconcileDatabaseSync({") &&
 	    syncDashboardShell.includes("includeManualReview: true") &&
-	    syncDashboardShell.includes("普通同步只会补传") &&
-    syncDashboardShell.includes("不会把本地数据库缓存全量上传"),
-  "同步页应展示数据库 pending 上传队列并提供 quick 增量补传，不能暗示全量上传本地数据库缓存"
+	    syncDashboardShell.includes("首次账号同步会补种本机数据库基线") &&
+    syncDashboardShell.includes("之后只补传 pending queue 里的数据库变更"),
+  "同步页应展示数据库 pending 上传队列并提供 quick 增量补传，同时说明首次基线补种和后续增量补传"
 );
 check(
   syncDashboardShell.includes("全域 pending 变更分布") &&
     syncDashboardShell.includes("buildPendingDomainRows") &&
     syncDashboardShell.includes("只读取 sync_log 的表名、计数和时间戳") &&
     syncDashboardShell.includes("不读取页面正文、评论正文、数据库值、文件") &&
-    syncDashboardShell.includes("普通同步仍只上传这些 pending 行指向的明确变更"),
-  "同步页应按全域数据面展示 pending 分布，并保持 metadata-only 与 pending-only 边界"
+    syncDashboardShell.includes("首次账号同步会补种本机页面和数据库基线") &&
+    syncDashboardShell.includes("之后普通同步只上传这些"),
+  "同步页应按全域数据面展示 pending 分布，并保持 metadata-only、首次基线补种与后续增量边界"
 );
 check(
   pageSyncClient.includes("export async function getCloudPageManifestSummary") &&
@@ -3093,7 +3097,7 @@ check(
 check(
   syncDashboardShell.includes("本机缓存重建入口") &&
     syncDashboardShell.includes("云端 manifest 是重建来源") &&
-    syncDashboardShell.includes("不会把本地缓存全量上传") &&
+    syncDashboardShell.includes("首次账号同步会补种本机页面和数据库基线") &&
     syncDashboardShell.includes("本地 pending 变更未清空前不建议重建") &&
     syncDashboardShell.includes("buildCacheRebuildPreflightReceipt") &&
     syncDashboardShell.includes("导出重建预检收据") &&

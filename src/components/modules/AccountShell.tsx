@@ -552,8 +552,12 @@ export default function AccountShell() {
       const result = await reconcilePageSync({ includeManualReview: true });
       if (result.status === "ok") {
         setPageSyncLastAt(getLastPageSyncAt());
+        const bootstrapText =
+          result.bootstrapped && result.bootstrapped > 0
+            ? `，补种本机基线 ${result.bootstrapped} 页`
+            : "";
         setPageSyncNotice(
-          `同步完成：拉取 ${result.pulled} 页，修复归档 ${result.repaired ?? 0} 页，推送 ${result.pushed} 页。`
+          `同步完成：拉取 ${result.pulled} 页，修复归档 ${result.repaired ?? 0} 页，推送 ${result.pushed} 页${bootstrapText}。`
         );
       } else if (result.status === "unauthenticated") {
         setPageSyncNotice("当前未登录，请登录后再同步。");
@@ -716,8 +720,12 @@ export default function AccountShell() {
       const result = await reconcileDatabaseSync({ includeManualReview: true });
       if (result.status === "ok") {
         setDatabaseSyncLastAt(getLastDatabaseSyncAt());
+        const bootstrapText =
+          result.bootstrapped && result.bootstrapped > 0
+            ? `，补种本机基线 ${result.bootstrapped} 条`
+            : "";
         setDatabaseSyncNotice(
-          `数据库同步完成：拉取 ${result.pulled} 条，推送 ${result.pushed} 条，远端跳过 ${result.skipped} 条。`
+          `数据库同步完成：拉取 ${result.pulled} 条，推送 ${result.pushed} 条，远端跳过 ${result.skipped} 条${bootstrapText}。`
         );
       } else if (result.status === "unauthenticated") {
         setDatabaseSyncNotice("当前未登录，请登录后再同步数据库。");

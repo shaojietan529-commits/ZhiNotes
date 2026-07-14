@@ -10991,8 +10991,8 @@ function run() {
       "Sync UI must preserve the privacy boundary for the database pending queue.",
     ],
     [
-      "不会把本地数据库缓存全量上传",
-      "Sync UI must explain database ordinary sync is pending-only.",
+      "首次账号同步会补种本机数据库基线",
+      "Sync UI must explain database baseline upload for first account sync.",
     ],
     [
       "buildPendingDomainRows",
@@ -11011,8 +11011,8 @@ function run() {
       "Full-domain pending distribution must preserve sensitive content boundaries.",
     ],
     [
-      "普通同步仍只上传这些 pending 行指向的明确变更",
-      "Full-domain pending distribution must preserve pending-only ordinary sync.",
+      "之后普通同步只上传这些",
+      "Full-domain pending distribution must preserve incremental ordinary sync after first baseline upload.",
     ],
     [
       "本机缓存重建入口",
@@ -11023,8 +11023,8 @@ function run() {
       "Cache rebuild entrypoint must explain the cloud manifest source of truth.",
     ],
     [
-      "不会把本地缓存全量上传",
-      "Cache rebuild entrypoint must preserve the no-full-cache-upload boundary.",
+      "首次账号同步会补种本机页面和数据库基线",
+      "Cache rebuild entrypoint must explain first account sync baseline upload.",
     ],
     [
       "本地 pending 变更未清空前不建议重建",
@@ -24264,6 +24264,60 @@ function run() {
       accountPageSync,
       "export function getPendingCloudPageSyncStatus",
       "Account page sync must expose page pending upload status for the sync dashboard.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "LOCAL_BASELINE_UPLOAD_SIGNATURE_KEY",
+      "Account page sync must remember when this browser's existing local page baseline has been uploaded for cross-device sync.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "uploadLocalPageBaselineIfNeeded",
+      "Account page sync must seed existing local pages into the account cloud so a second signed-in device can pull them.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "getAllPagesForSync()",
+      "Account page sync baseline upload must read the local page sync snapshot instead of waiting only for future edits.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "!isLocalCacheEvictionTombstone(page)",
+      "Account page sync baseline upload must not upload local cache eviction tombstones as real pages.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "bootstrapped?: number",
+      "Account page sync reconcile results must expose how many local baseline pages were processed.",
+    ],
+    [
+      files.accountDatabaseSync,
+      accountDatabaseSync,
+      "LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY",
+      "Account database sync must remember when this browser's existing local database baseline has been uploaded for cross-device sync.",
+    ],
+    [
+      files.accountDatabaseSync,
+      accountDatabaseSync,
+      "uploadLocalDatabaseBaselineIfNeeded",
+      "Account database sync must seed existing local database records into the account cloud so a second signed-in device can pull them.",
+    ],
+    [
+      files.accountDatabaseSync,
+      accountDatabaseSync,
+      "getAllDatabaseRecordsForSync()",
+      "Account database sync baseline upload must read the local database sync snapshot instead of waiting only for future edits.",
+    ],
+    [
+      files.accountDatabaseSync,
+      accountDatabaseSync,
+      "bootstrapped?: number",
+      "Account database sync reconcile results must expose how many local baseline records were processed.",
     ],
     [
       files.accountPageSync,
