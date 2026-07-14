@@ -202,9 +202,13 @@ export function useAccountCloudSyncCoordinator() {
     settingsAutoRetryablePendingTotal +
     knowledgeAutoRetryablePendingTotal +
     globalSyncLogExtraPendingTotal;
+  const pageAutoRetryableFailedTotal = pageRetryableFailedTotal;
+  const databaseAutoRetryableFailedTotal = databaseRetryableFailedTotal;
   const autoRetryableSyncWorkTotal =
     pageAutoRetryablePendingTotal +
     databaseAutoRetryablePendingTotal +
+    pageAutoRetryableFailedTotal +
+    databaseAutoRetryableFailedTotal +
     fileAutoRetryablePendingTotal;
   const pageVisibleSyncWork =
     pagePendingTotal > 0 ||
