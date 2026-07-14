@@ -9,6 +9,7 @@ import {
   checkAccountCloudSyncGate,
   type AccountCloudSyncGateStatus,
 } from "@/lib/account/accountCloudSyncGate";
+import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import { ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY } from "@/lib/account/clientSession";
 import {
   getLocalCacheRecoverySignal,
@@ -367,6 +368,9 @@ export function useDatabaseCloudSync() {
     const handleOnline = () => {
       void runSync({ forceLease: true, forceAccountGate: true, quick: true });
     };
+    const handleAccountProfileUpdated = () => {
+      void runSync({ forceLease: true, forceAccountGate: true, quick: true });
+    };
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
       if (
@@ -411,6 +415,10 @@ export function useDatabaseCloudSync() {
     };
     window.addEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
     window.addEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus);
+    window.addEventListener(
+      ACCOUNT_PROFILE_UPDATED_EVENT,
+      handleAccountProfileUpdated
+    );
     window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
     window.addEventListener("storage", handleLocalCacheRecoveryStorage);
     window.addEventListener(
@@ -426,6 +434,10 @@ export function useDatabaseCloudSync() {
       window.clearInterval(interval);
       window.removeEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
       window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus);
+      window.removeEventListener(
+        ACCOUNT_PROFILE_UPDATED_EVENT,
+        handleAccountProfileUpdated
+      );
       window.removeEventListener(
         LOCAL_CACHE_RECOVERY_EVENT,
         handleLocalCacheRecovery

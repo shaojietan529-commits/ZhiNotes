@@ -2132,13 +2132,23 @@ check(
 );
 check(
   pageCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    pageCloudSyncHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
     pageCloudSyncHook.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
     ) &&
     pageCloudSyncHook.includes(
+      'window.addEventListener(\n      ACCOUNT_PROFILE_UPDATED_EVENT,\n      handleAccountProfileUpdated\n    )'
+    ) &&
+    pageCloudSyncHook.includes(
+      'window.removeEventListener(\n        ACCOUNT_PROFILE_UPDATED_EVENT,\n        handleAccountProfileUpdated\n      )'
+    ) &&
+    pageCloudSyncHook.includes(
+      "const handleAccountProfileUpdated = () => {\n      void runSync({ quick: true, forceLease: true, forceAccountGate: true });\n    };"
+    ) &&
+    pageCloudSyncHook.includes(
       "forceAccountGate: true,\n        });\n        return;"
     ),
-  "页面同步应监听跨标签账号登录缓存变化，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
+  "页面同步应监听跨标签账号登录缓存变化和当前标签账号资料事件，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
 );
 check(
   pageCloudSyncHook.includes("localStorage is only a cross-tab coordination cache") &&
@@ -2267,13 +2277,23 @@ check(
 );
 check(
   databaseCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    databaseCloudSyncHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
     databaseCloudSyncHook.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
     ) &&
     databaseCloudSyncHook.includes(
+      'window.addEventListener(\n      ACCOUNT_PROFILE_UPDATED_EVENT,\n      handleAccountProfileUpdated\n    )'
+    ) &&
+    databaseCloudSyncHook.includes(
+      'window.removeEventListener(\n        ACCOUNT_PROFILE_UPDATED_EVENT,\n        handleAccountProfileUpdated\n      )'
+    ) &&
+    databaseCloudSyncHook.includes(
+      "const handleAccountProfileUpdated = () => {\n      void runSync({ forceLease: true, forceAccountGate: true, quick: true });\n    };"
+    ) &&
+    databaseCloudSyncHook.includes(
       "forceAccountGate: true,\n          quick: true,\n        });\n        return;"
     ),
-  "数据库同步应监听跨标签账号登录缓存变化，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
+  "数据库同步应监听跨标签账号登录缓存变化和当前标签账号资料事件，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
 );
 check(
   databaseCloudSyncHook.includes("DATABASE_SYNC_STATUS_EVENT") &&

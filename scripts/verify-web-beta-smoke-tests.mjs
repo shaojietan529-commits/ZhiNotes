@@ -9613,6 +9613,30 @@ function run() {
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
+    "ACCOUNT_PROFILE_UPDATED_EVENT",
+    "Page cloud sync must wake immediately for same-tab account login, logout, or profile changes."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "handleAccountProfileUpdated",
+    "Page cloud sync must keep an explicit same-tab account profile handler."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'window.addEventListener(\n      ACCOUNT_PROFILE_UPDATED_EVENT,\n      handleAccountProfileUpdated\n    )',
+    "Page cloud sync must subscribe to same-tab account profile updates, not only cross-tab storage."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'window.removeEventListener(\n        ACCOUNT_PROFILE_UPDATED_EVENT,\n        handleAccountProfileUpdated\n      )',
+    "Page cloud sync must clean up same-tab account profile update listeners."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
     "function getRetryStateFromAccountGate(",
     "Page cloud sync must distinguish true shared-gate sign-out from retryable account uncertainty."
   );
@@ -9663,6 +9687,30 @@ function run() {
     databaseCloudSync,
     "gateAccountSync",
     "Database cloud sync must centralize account gate handling for initial, foreground, and recovery syncs."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "ACCOUNT_PROFILE_UPDATED_EVENT",
+    "Database cloud sync must wake immediately for same-tab account login, logout, or profile changes."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "handleAccountProfileUpdated",
+    "Database cloud sync must keep an explicit same-tab account profile handler."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'window.addEventListener(\n      ACCOUNT_PROFILE_UPDATED_EVENT,\n      handleAccountProfileUpdated\n    )',
+    "Database cloud sync must subscribe to same-tab account profile updates, not only cross-tab storage."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'window.removeEventListener(\n        ACCOUNT_PROFILE_UPDATED_EVENT,\n        handleAccountProfileUpdated\n      )',
+    "Database cloud sync must clean up same-tab account profile update listeners."
   );
   assertIncludes(
     files.databaseCloudSync,

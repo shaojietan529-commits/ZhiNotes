@@ -12,6 +12,7 @@ import {
   checkAccountCloudSyncGate,
   type AccountCloudSyncGateStatus,
 } from "@/lib/account/accountCloudSyncGate";
+import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import { ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY } from "@/lib/account/clientSession";
 import {
   getLocalCacheRecoverySignal,
@@ -358,6 +359,9 @@ export function usePageCloudSync() {
     const handleOnline = () => {
       void runSync({ quick: true, forceLease: true, forceAccountGate: true });
     };
+    const handleAccountProfileUpdated = () => {
+      void runSync({ quick: true, forceLease: true, forceAccountGate: true });
+    };
     const handleLocalPageUpdate = (event: Event) => {
       const message = (event as CustomEvent<PageUpdateMessage>).detail;
       if (
@@ -409,6 +413,10 @@ export function usePageCloudSync() {
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus);
     window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate);
+    window.addEventListener(
+      ACCOUNT_PROFILE_UPDATED_EVENT,
+      handleAccountProfileUpdated
+    );
     window.addEventListener(LOCAL_CACHE_RECOVERY_EVENT, handleLocalCacheRecovery);
     window.addEventListener("storage", handleLocalCacheRecoveryStorage);
     window.addEventListener("focus", handleForeground);
@@ -424,6 +432,10 @@ export function usePageCloudSync() {
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
       window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus);
       window.removeEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate);
+      window.removeEventListener(
+        ACCOUNT_PROFILE_UPDATED_EVENT,
+        handleAccountProfileUpdated
+      );
       window.removeEventListener(
         LOCAL_CACHE_RECOVERY_EVENT,
         handleLocalCacheRecovery
