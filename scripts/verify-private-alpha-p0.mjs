@@ -97,6 +97,13 @@ const verificationCommands = [
     purpose:
       "Request local public route shells only for Daily, ZhiHui, account, sync center, module hub, database, report, file, company research, meeting, project, research graph, knowledge base, industry chain, portfolio, and page routes.",
   },
+  {
+    id: "verify-stable-use-health",
+    command: "npm run verify:stable-use-health",
+    args: ["run", "verify:stable-use-health"],
+    purpose:
+      "Request the read-only stable-use health endpoint from a temporary local server so deployment handoffs cannot enable sync, cache rebuild, or Web Beta by accident.",
+  },
 ];
 
 async function run() {
@@ -209,6 +216,7 @@ function printReceipt(startedAt, results, status) {
       "synthetic ZhiHui meeting imports write metadata-only change logs and calendar visibility receipts",
       "Daily and ZhiHui local-first smoke contracts stay intact",
       "core account, sync, module, database, report, file, company research, meeting, project, research graph, knowledge, industry, calendar, portfolio, and page route shells respond before deeper data hydration",
+      "stable-use health endpoint stays read-only and cannot enable cloud sync, cache rebuild, production cutover, or Web Beta launch",
     ],
     summary: {
       commands: results.length,

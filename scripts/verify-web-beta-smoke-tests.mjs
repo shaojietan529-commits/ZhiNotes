@@ -30,6 +30,9 @@ const files = {
     "scripts/verify-cloud-manifest-api-guard.mjs",
   cloudManifestRouteVerifier:
     "scripts/verify-cloud-manifest-route-disabled.mjs",
+  stableUseHealth: "src/lib/sync/stableUseHealth.ts",
+  stableUseHealthRoute: "src/app/api/stable-use/health/route.ts",
+  stableUseHealthVerifier: "scripts/verify-stable-use-health.mjs",
   hotDataPlan: "src/lib/sync/webBetaHotDataPlan.ts",
   cloudSourceOfTruthPlan: "src/lib/sync/cloudSourceOfTruthPlan.ts",
   cloudAckCacheSafetyReport:
@@ -455,6 +458,9 @@ function run() {
   const cloudManifestRouteVerifier = readProjectFile(
     files.cloudManifestRouteVerifier
   );
+  const stableUseHealth = readProjectFile(files.stableUseHealth);
+  const stableUseHealthRoute = readProjectFile(files.stableUseHealthRoute);
+  const stableUseHealthVerifier = readProjectFile(files.stableUseHealthVerifier);
   const hotDataPlan = readProjectFile(files.hotDataPlan);
   const cloudSourceOfTruthPlan = readProjectFile(
     files.cloudSourceOfTruthPlan
@@ -779,6 +785,7 @@ function run() {
     "verify:cloud-manifest-api",
     "verify:cloud-manifest-route",
     "verify:web-beta:full",
+    "verify:stable-use-health",
   ]) {
     if (typeof scripts[scriptName] !== "string") {
       failures.push(`package.json missing script ${scriptName}`);
@@ -15675,6 +15682,48 @@ function run() {
       ],
     ],
     [
+      files.stableUseHealth,
+      stableUseHealth,
+      [
+        'format: "zhinote-stable-use-health"',
+        'health_status: "stable-use-active"',
+        'local_input_policy: "local-first-then-pending-queue"',
+        'sync_failure_policy: "retry-visible-not-sign-out"',
+        "cloud_sync_can_be_enabled_by_health_check: false",
+        "web_beta_launch_approved_by_health_check: false",
+        "production_cutover_approved_by_health_check: false",
+        "cache_rebuild_approved_by_health_check: false",
+        "reads_browser_storage: false",
+        "reads_sync_queue_counts: false",
+        "reads_page_body_text: false",
+        "reads_database_row_values: false",
+        "reads_file_names: false",
+        "reads_file_bytes: false",
+        "reads_tokens_or_cookies: false",
+        "getDevelopmentStableUseRoutes()",
+        "getDevelopmentOwnerGatedActions()",
+      ],
+    ],
+    [
+      files.stableUseHealthRoute,
+      stableUseHealthRoute,
+      ["export async function GET()", "buildStableUseHealthResponse()"],
+    ],
+    [
+      files.stableUseHealthVerifier,
+      stableUseHealthVerifier,
+      [
+        'ROUTE_PATH = "/api/stable-use/health"',
+        "startNextDev(port)",
+        "parseActiveSameProjectDevServer",
+        'mode: "active-same-project-dev-server"',
+        "without stopping it",
+        "cloud_sync_can_be_enabled_by_health_check",
+        "web_beta_launch_approved_by_health_check",
+        "reads_tokens_or_cookies",
+      ],
+    ],
+    [
       files.syncShell,
       syncShell,
       [
@@ -15709,6 +15758,14 @@ function run() {
         "Sync center must keep the stable-use operating mode visible while development continues."
       );
     }
+  }
+  for (const forbiddenSnippet of ["cookies", "headers", "request:"]) {
+    assertExcludes(
+      files.stableUseHealthRoute,
+      stableUseHealthRoute,
+      forbiddenSnippet,
+      "Stable-use health route must stay metadata-only and avoid request state."
+    );
   }
   for (const [sourceLabel, source, snippets] of [
     [

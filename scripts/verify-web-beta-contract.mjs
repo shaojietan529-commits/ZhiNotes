@@ -33,6 +33,9 @@ const files = {
     "scripts/verify-cloud-manifest-api-guard.mjs",
   cloudManifestRouteVerifier:
     "scripts/verify-cloud-manifest-route-disabled.mjs",
+  stableUseHealth: "src/lib/sync/stableUseHealth.ts",
+  stableUseHealthRoute: "src/app/api/stable-use/health/route.ts",
+  stableUseHealthVerifier: "scripts/verify-stable-use-health.mjs",
   apiStubs: "src/lib/sync/webBetaApiStubs.ts",
   contract: "src/lib/sync/webBetaContract.ts",
   cloudSchemaMigrationPlan: "src/lib/sync/cloudSchemaMigrationPlan.ts",
@@ -508,6 +511,9 @@ function run() {
   const cloudManifestRouteVerifier = readProjectFile(
     files.cloudManifestRouteVerifier
   );
+  const stableUseHealth = readProjectFile(files.stableUseHealth);
+  const stableUseHealthRoute = readProjectFile(files.stableUseHealthRoute);
+  const stableUseHealthVerifier = readProjectFile(files.stableUseHealthVerifier);
   const apiStubs = readProjectFile(files.apiStubs);
   const contract = readProjectFile(files.contract);
   const cloudSchemaMigrationPlan = readProjectFile(
@@ -941,6 +947,9 @@ function run() {
     ],
     [files.cloudManifestApiGuardVerifier, cloudManifestApiGuardVerifier],
     [files.cloudManifestRouteVerifier, cloudManifestRouteVerifier],
+    [files.stableUseHealth, stableUseHealth],
+    [files.stableUseHealthRoute, stableUseHealthRoute],
+    [files.stableUseHealthVerifier, stableUseHealthVerifier],
     [files.environmentPreflight, environmentPreflight],
     [files.launchChecklist, launchChecklist],
     [files.routePreflight, routePreflight],
@@ -19724,6 +19733,155 @@ function run() {
     '"verify:cloud-manifest-route": "node scripts/verify-cloud-manifest-route-disabled.mjs"',
     "package.json must expose the cloud manifest compare route disabled verification command."
   );
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
+    '"verify:stable-use-health": "node scripts/verify-stable-use-health.mjs"',
+    "package.json must expose the stable-use health route verification command."
+  );
+  assertSourceIncludes(
+    files.webBetaFullVerifier,
+    webBetaFullVerifier,
+    "npm run verify:stable-use-health",
+    "Web Beta full verifier must request the read-only stable-use health endpoint."
+  );
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-stable-use-health"',
+      "Stable-use health response must expose a stable format.",
+    ],
+    [
+      'health_status: "stable-use-active"',
+      "Stable-use health response must report stable-use mode.",
+    ],
+    [
+      'local_input_policy: "local-first-then-pending-queue"',
+      "Stable-use health response must preserve the local-first input policy.",
+    ],
+    [
+      'sync_failure_policy: "retry-visible-not-sign-out"',
+      "Stable-use health response must preserve retry-visible-not-signout policy.",
+    ],
+    [
+      "cloud_sync_can_be_enabled_by_health_check: false",
+      "Stable-use health response must not enable cloud sync.",
+    ],
+    [
+      "web_beta_launch_approved_by_health_check: false",
+      "Stable-use health response must not approve Web Beta launch.",
+    ],
+    [
+      "production_cutover_approved_by_health_check: false",
+      "Stable-use health response must not approve production cutover.",
+    ],
+    [
+      "cache_rebuild_approved_by_health_check: false",
+      "Stable-use health response must not approve cache rebuild.",
+    ],
+    [
+      "reads_browser_storage: false",
+      "Stable-use health response must not read browser storage.",
+    ],
+    [
+      "reads_sync_queue_counts: false",
+      "Stable-use health response must not claim to read local queue counts.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Stable-use health response must not read page bodies.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Stable-use health response must not read database values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Stable-use health response must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Stable-use health response must not read file bytes.",
+    ],
+    [
+      "reads_tokens_or_cookies: false",
+      "Stable-use health response must not read tokens or cookies.",
+    ],
+    [
+      "getDevelopmentStableUseRoutes()",
+      "Stable-use health response must use the shared stable-use route catalog.",
+    ],
+    [
+      "getDevelopmentOwnerGatedActions()",
+      "Stable-use health response must use the shared owner-gated action catalog.",
+    ],
+  ]) {
+    assertSourceIncludes(files.stableUseHealth, stableUseHealth, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "export async function GET()",
+      "Stable-use health route GET handler must accept no request argument.",
+    ],
+    [
+      "buildStableUseHealthResponse()",
+      "Stable-use health route must return the shared health response.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.stableUseHealthRoute,
+      stableUseHealthRoute,
+      snippet,
+      message
+    );
+  }
+  for (const forbiddenSnippet of ["cookies", "headers", "request:"]) {
+    if (stableUseHealthRoute.includes(forbiddenSnippet)) {
+      fail(
+        `Stable-use health route must not inspect request state: found ${forbiddenSnippet}`
+      );
+    }
+  }
+  for (const [snippet, message] of [
+    [
+      "ROUTE_PATH = \"/api/stable-use/health\"",
+      "Stable-use health verifier must request the stable-use health route.",
+    ],
+    [
+      "startNextDev(port)",
+      "Stable-use health verifier must try a temporary dev server before any same-project active server fallback.",
+    ],
+    [
+      "parseActiveSameProjectDevServer",
+      "Stable-use health verifier must detect an already-running same-project Next dev server.",
+    ],
+    [
+      'mode: "active-same-project-dev-server"',
+      "Stable-use health verifier must disclose same-project dev server fallback in the receipt.",
+    ],
+    [
+      "without stopping it",
+      "Stable-use health verifier must not stop the user's already-running dev server.",
+    ],
+    [
+      "cloud_sync_can_be_enabled_by_health_check",
+      "Stable-use health verifier must assert cloud sync cannot be enabled by the health check.",
+    ],
+    [
+      "web_beta_launch_approved_by_health_check",
+      "Stable-use health verifier must assert Web Beta launch is not approved by the health check.",
+    ],
+    [
+      "reads_tokens_or_cookies",
+      "Stable-use health verifier must assert token/cookie reads stay disabled.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.stableUseHealthVerifier,
+      stableUseHealthVerifier,
+      snippet,
+      message
+    );
+  }
   for (const [snippet, message] of [
     [
       "nextBin",

@@ -91,6 +91,13 @@ const verificationCommands = [
       "Request public local route shells only, without reading browser storage or private content.",
   },
   {
+    id: "verify-stable-use-health",
+    command: "npm run verify:stable-use-health",
+    args: ["run", "verify:stable-use-health"],
+    purpose:
+      "Request the read-only stable-use health endpoint from a temporary local server before owner review.",
+  },
+  {
     id: "verify-replay-harness",
     command: "npm run verify:replay-harness",
     args: ["run", "verify:replay-harness"],
