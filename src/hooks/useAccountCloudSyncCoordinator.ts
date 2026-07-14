@@ -405,6 +405,9 @@ export function useAccountCloudSyncCoordinator() {
   return {
     state,
     title,
+    authRetryActive: Boolean(authRetryDomainLabel),
+    authRetryDomainLabel,
+    authRetryUntilLabel,
     pageSync,
     databaseSync,
     pagePendingTotal,

@@ -10476,6 +10476,42 @@ function run() {
     "Collapsed sidebar sync badge must expose pending upload count for smoke checks."
   );
   assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "authRetryActive: Boolean(authRetryDomainLabel)",
+    "Account cloud-sync coordinator must return a structured auth-retry flag."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "authRetryDomainLabel,",
+    "Account cloud-sync coordinator must return the auth-retry domain label for UI diagnostics."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "authRetryUntilLabel,",
+    "Account cloud-sync coordinator must return the auth-retry retry time label for UI diagnostics."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "data-auth-retry-active={accountSync.authRetryActive}",
+    "Sidebar sync status must expose whether account auth retry is active."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "data-auth-retry-domains={accountSync.authRetryDomainLabel}",
+    "Sidebar sync status must expose which sync domains are waiting for account auth retry."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    'data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}',
+    "Sidebar sync status must expose the next account auth retry time without reading private content."
+  );
+  assertIncludes(
     files.sidebar,
     sidebar,
     "getAccountSyncButtonLabel",

@@ -3448,6 +3448,9 @@ check(
     accountCloudSyncCoordinator.includes("authRetryDomainLabel") &&
     accountCloudSyncCoordinator.includes("authRetryUntilLabel") &&
     accountCloudSyncCoordinator.includes("账号重试 ") &&
+    accountCloudSyncCoordinator.includes("authRetryActive: Boolean(authRetryDomainLabel)") &&
+    accountCloudSyncCoordinator.includes("authRetryDomainLabel,") &&
+    accountCloudSyncCoordinator.includes("authRetryUntilLabel,") &&
     accountCloudSyncCoordinator.includes("buildAccountLocalUseReadiness") &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
@@ -3747,6 +3750,9 @@ check(
     sidebar.includes('data-testid="account-cloud-sync-domain-breakdown"') &&
     sidebar.includes("data-sync-inline-summary={accountSyncInlineSummary}") &&
     sidebar.includes("data-sync-domain-breakdown={accountSyncDomainBreakdown}") &&
+    sidebar.includes("data-auth-retry-active={accountSync.authRetryActive}") &&
+    sidebar.includes("data-auth-retry-domains={accountSync.authRetryDomainLabel}") &&
+    sidebar.includes("data-auth-retry-until={accountSync.authRetryUntilLabel ?? \"\"}") &&
     sidebar.includes(
       "data-local-use-next-action={accountSync.localUseReadiness.nextAction}"
     ) &&

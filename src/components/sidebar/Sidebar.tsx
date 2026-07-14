@@ -1212,9 +1212,12 @@ export default function Sidebar() {
           data-sync-target={accountSyncCenterTarget}
           data-sync-visible-label={accountSyncButtonLabel}
           data-local-use-status={accountSync.localUseReadiness.status}
-        data-cache-rebuild-blocked={
-          accountSync.localUseReadiness.cacheRebuildBlocked
-        }
+          data-auth-retry-active={accountSync.authRetryActive}
+          data-auth-retry-domains={accountSync.authRetryDomainLabel}
+          data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}
+          data-cache-rebuild-blocked={
+            accountSync.localUseReadiness.cacheRebuildBlocked
+          }
           className={`absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[8px] font-semibold leading-none shadow-sm ${collapsedSidebarSyncBadgeClass}`}
         >
           {collapsedSidebarSyncBadgeLabel}
@@ -1513,6 +1516,9 @@ export default function Sidebar() {
             data-global-sync-log-extra-manual-review-total={
               accountSync.globalSyncLogExtraManualReviewTotal
             }
+            data-auth-retry-active={accountSync.authRetryActive}
+            data-auth-retry-domains={accountSync.authRetryDomainLabel}
+            data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}
             data-local-use-status={accountSync.localUseReadiness.status}
             data-local-input-can-continue={
               accountSync.localUseReadiness.localInputCanContinue
@@ -1555,6 +1561,9 @@ export default function Sidebar() {
               data-global-sync-log-extra-manual-review-total={
                 accountSync.globalSyncLogExtraManualReviewTotal
               }
+              data-auth-retry-active={accountSync.authRetryActive}
+              data-auth-retry-domains={accountSync.authRetryDomainLabel}
+              data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}
               data-local-use-status={accountSync.localUseReadiness.status}
               data-local-input-can-continue={
                 accountSync.localUseReadiness.localInputCanContinue
@@ -1603,6 +1612,9 @@ export default function Sidebar() {
           <p
             data-testid="account-cloud-sync-inline-summary"
             data-sync-state={accountSync.state}
+            data-auth-retry-active={accountSync.authRetryActive}
+            data-auth-retry-domains={accountSync.authRetryDomainLabel}
+            data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}
             data-local-use-status={accountSync.localUseReadiness.status}
             data-local-input-can-continue={
               accountSync.localUseReadiness.localInputCanContinue
@@ -1624,6 +1636,9 @@ export default function Sidebar() {
         <div
           data-testid="account-local-use-readiness-badge"
           data-local-use-status={accountSync.localUseReadiness.status}
+          data-auth-retry-active={accountSync.authRetryActive}
+          data-auth-retry-domains={accountSync.authRetryDomainLabel}
+          data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}
           data-local-input-can-continue={
             accountSync.localUseReadiness.localInputCanContinue
           }

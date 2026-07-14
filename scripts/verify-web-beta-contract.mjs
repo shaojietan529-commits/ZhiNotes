@@ -25674,6 +25674,42 @@ function run() {
       "Collapsed sidebar sync badge must expose pending upload count for smoke checks.",
     ],
     [
+      files.accountCloudSyncCoordinator,
+      accountCloudSyncCoordinator,
+      "authRetryActive: Boolean(authRetryDomainLabel)",
+      "Account cloud-sync coordinator must return a structured auth-retry flag for sidebar diagnostics.",
+    ],
+    [
+      files.accountCloudSyncCoordinator,
+      accountCloudSyncCoordinator,
+      "authRetryDomainLabel,",
+      "Account cloud-sync coordinator must return the auth-retry domain label.",
+    ],
+    [
+      files.accountCloudSyncCoordinator,
+      accountCloudSyncCoordinator,
+      "authRetryUntilLabel,",
+      "Account cloud-sync coordinator must return the next auth-retry time label.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "data-auth-retry-active={accountSync.authRetryActive}",
+      "Sidebar cloud-sync control must expose whether account auth retry is active.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "data-auth-retry-domains={accountSync.authRetryDomainLabel}",
+      "Sidebar cloud-sync control must expose which domains are waiting for account auth retry.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}',
+      "Sidebar cloud-sync control must expose the next auth-retry time without reading private content.",
+    ],
+    [
       files.sidebar,
       sidebar,
       "accountSyncShortLabel",
