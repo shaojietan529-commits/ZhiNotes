@@ -2123,6 +2123,16 @@ check(
   "页面同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化才强制重新确认账号"
 );
 check(
+  pageCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    pageCloudSyncHook.includes(
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
+    ) &&
+    pageCloudSyncHook.includes(
+      "forceAccountGate: true,\n        });\n        return;"
+    ),
+  "页面同步应监听跨标签账号登录缓存变化，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
+);
+check(
   pageCloudSyncHook.includes("localStorage is only a cross-tab coordination cache") &&
     pageCloudSyncHook.includes("return true;"),
   "页面同步短轮询 lease 失败时不能阻止当前 tab 云端同步"
@@ -2246,6 +2256,16 @@ check(
       "void runSync({ forceLease: true, forceAccountGate: true, quick: true });"
     ),
   "数据库同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化才强制重新确认账号"
+);
+check(
+  databaseCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    databaseCloudSyncHook.includes(
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
+    ) &&
+    databaseCloudSyncHook.includes(
+      "forceAccountGate: true,\n          quick: true,\n        });\n        return;"
+    ),
+  "数据库同步应监听跨标签账号登录缓存变化，并立即强制重新确认账号和接管同步租约，避免登录后仍等 auth retry 冷却"
 );
 check(
   databaseCloudSyncHook.includes("DATABASE_SYNC_STATUS_EVENT") &&

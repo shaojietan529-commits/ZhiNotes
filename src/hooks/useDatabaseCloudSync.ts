@@ -9,6 +9,7 @@ import {
   checkAccountCloudSyncGate,
   type AccountCloudSyncGateStatus,
 } from "@/lib/account/accountCloudSyncGate";
+import { ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY } from "@/lib/account/clientSession";
 import {
   getLocalCacheRecoverySignal,
   LOCAL_CACHE_RECOVERY_EVENT,
@@ -368,6 +369,17 @@ export function useDatabaseCloudSync() {
     };
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
+      if (
+        event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&
+        event.newValue
+      ) {
+        void runSync({
+          forceLease: true,
+          forceAccountGate: true,
+          quick: true,
+        });
+        return;
+      }
       if (event.key === LOCAL_CACHE_RECOVERY_SIGNAL_KEY && event.newValue) {
         void recoverLocalCacheFromCloud();
       }
