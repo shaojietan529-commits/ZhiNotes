@@ -34,10 +34,19 @@ export function useFileEmbedCloudSyncStatus() {
   const autoRetryTimerRef = useRef<number | null>(null);
   const autoRetryRunningRef = useRef(false);
   const lastAutoRetryAtRef = useRef(0);
+  const mountedRef = useRef(false);
+
+  const setStatusIfMounted = useCallback(
+    (nextStatus: PendingFileEmbedSyncStatus) => {
+      if (!mountedRef.current) return;
+      setStatus(nextStatus);
+    },
+    []
+  );
 
   const refresh = useCallback(() => {
-    setStatus(getPendingFileEmbedSyncStatus());
-  }, []);
+    setStatusIfMounted(getPendingFileEmbedSyncStatus());
+  }, [setStatusIfMounted]);
 
   const syncNow = useCallback(
     async (options: {
@@ -78,8 +87,9 @@ export function useFileEmbedCloudSyncStatus() {
       const delayMs = Math.max(options.delayMs ?? 0, minDelayMs);
       autoRetryTimerRef.current = window.setTimeout(() => {
         autoRetryTimerRef.current = null;
+        if (!mountedRef.current) return;
         const currentStatus = getPendingFileEmbedSyncStatus();
-        setStatus(currentStatus);
+        setStatusIfMounted(currentStatus);
         if (!hasRetryableFileEmbedWork(currentStatus)) return;
         if (currentStatus.authRetryStatus && !options.forceAuthRetry) return;
         if (
@@ -97,17 +107,18 @@ export function useFileEmbedCloudSyncStatus() {
           limit: options.limit ?? FILE_EMBED_FOREGROUND_RETRY_LIMIT,
         }).finally(() => {
           autoRetryRunningRef.current = false;
-          setStatus(getPendingFileEmbedSyncStatus());
+          setStatusIfMounted(getPendingFileEmbedSyncStatus());
         });
       }, delayMs);
     },
-    [syncNow]
+    [setStatusIfMounted, syncNow]
   );
 
   useEffect(() => {
+    mountedRef.current = true;
     const refreshAndMaybeRetry = () => {
       const nextStatus = getPendingFileEmbedSyncStatus();
-      setStatus(nextStatus);
+      setStatusIfMounted(nextStatus);
       if (!hasRetryableFileEmbedWork(nextStatus)) return;
       scheduleAutoRetry(nextStatus, {
         forceAuthRetry: true,
@@ -116,7 +127,7 @@ export function useFileEmbedCloudSyncStatus() {
     };
     const refreshAndMaybeForegroundRetry = () => {
       const nextStatus = getPendingFileEmbedSyncStatus();
-      setStatus(nextStatus);
+      setStatusIfMounted(nextStatus);
       scheduleAutoRetry(nextStatus, {
         limit: FILE_EMBED_FOREGROUND_RETRY_LIMIT,
       });
@@ -135,7 +146,7 @@ export function useFileEmbedCloudSyncStatus() {
     const handleQueue = (event: Event) => {
       const detail = (event as CustomEvent<PendingFileEmbedSyncStatus>).detail;
       if (detail) {
-        setStatus(detail);
+        setStatusIfMounted(detail);
         scheduleAutoRetry(detail, {
           delayMs: FILE_EMBED_QUEUE_RETRY_DELAY_MS,
           limit: FILE_EMBED_FOREGROUND_RETRY_LIMIT,
@@ -174,6 +185,8 @@ export function useFileEmbedCloudSyncStatus() {
     );
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
+      mountedRef.current = false;
+      autoRetryRunningRef.current = false;
       window.clearInterval(interval);
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
@@ -189,7 +202,7 @@ export function useFileEmbedCloudSyncStatus() {
         autoRetryTimerRef.current = null;
       }
     };
-  }, [refresh, scheduleAutoRetry]);
+  }, [refresh, scheduleAutoRetry, setStatusIfMounted]);
 
   return { status, refresh, syncNow };
 }

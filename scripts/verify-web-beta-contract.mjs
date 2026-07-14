@@ -6038,6 +6038,24 @@ function run() {
     "Global sync_log status refresh must not write state after the panel unmounts."
   );
   assertSourceIncludes(
+    files.fileEmbedSyncStatusHook,
+    fileEmbedSyncStatusHook,
+    "const mountedRef = useRef(false)",
+    "File embed queue status refresh must track mounted state."
+  );
+  assertSourceIncludes(
+    files.fileEmbedSyncStatusHook,
+    fileEmbedSyncStatusHook,
+    "setStatusIfMounted",
+    "File embed queue status refresh must not write state after the panel unmounts."
+  );
+  assertSourceIncludes(
+    files.fileEmbedSyncStatusHook,
+    fileEmbedSyncStatusHook,
+    "mountedRef.current = false",
+    "File embed queue status refresh must disable UI writes during cleanup."
+  );
+  assertSourceIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
     "Promise.allSettled",
