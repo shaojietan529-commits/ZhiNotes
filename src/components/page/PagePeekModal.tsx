@@ -738,6 +738,7 @@ export default function PagePeekModal({
       onMouseDown={onClose}
       role="presentation"
       data-testid="page-peek-modal"
+      data-page-id={pageId}
       data-local-seed-state={hasEffectivePage ? "ready" : "loading"}
       data-optimistic-draft={isOptimisticDraft}
       data-editor-mounted={editorMounted}
@@ -894,6 +895,7 @@ function PeekMetadataRecoveryShell({
     <div
       className="mx-auto w-full max-w-4xl py-10"
       data-testid="page-peek-metadata-recovery-shell"
+      data-page-id={pageId}
       data-local-seed-state={seed ? "ready" : "loading"}
       data-optimistic-draft={isOptimisticDraft}
     >

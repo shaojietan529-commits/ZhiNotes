@@ -106,6 +106,7 @@ import { useCalendarViewMonthPreference } from "@/hooks/useCalendarViewMonthPref
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
 import PageContextMenu from "@/components/page/LazyPageContextMenu";
 import PagePeekModal, {
+  isPagePeekCreateShellStillPreparing,
   warmPagePeekModal,
 } from "@/components/page/LazyPagePeekModal";
 import type { Page } from "@/lib/utils/types";
@@ -670,9 +671,12 @@ export default function DailyNotesShell() {
       window.setTimeout(() => {
         if (!window.location.pathname.startsWith("/daily")) return;
         const currentOpeningDraft = openingDraftRef.current;
+        const createPeekStillPreparing =
+          isPagePeekCreateShellStillPreparing(note.id);
         if (
-          currentOpeningDraft?.pageId !== note.id ||
-          currentOpeningDraft.dateKey !== dateKey
+          !createPeekStillPreparing &&
+          (currentOpeningDraft?.pageId !== note.id ||
+            currentOpeningDraft.dateKey !== dateKey)
         ) {
           return;
         }

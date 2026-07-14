@@ -151,6 +151,10 @@ function run() {
       "Daily peek mode must open the full page automatically if the create modal stalls.",
     ],
     [
+      "isPagePeekCreateShellStillPreparing(note.id)",
+      "Daily peek fallback must still trigger if the local shell clears opening state before the editor is ready.",
+    ],
+    [
       "DAILY_PEEK_CREATE_READY_RETRY_MS",
       "Daily peek-mode create fallback must be bounded so + never looks like a dead click.",
     ],
@@ -238,6 +242,10 @@ function run() {
     [
       "scheduleMeetingCreatePeekReadyFallback",
       "ZhiHui create must fall back to a full page if the peek shell stalls.",
+    ],
+    [
+      "isPagePeekCreateShellStillPreparing(page.id)",
+      "ZhiHui create fallback must still trigger if the local shell clears opening state before the editor is ready.",
     ],
     [
       "openCreatedMeetingPage(result.page)",
@@ -369,6 +377,14 @@ function run() {
     [
       "data-testid=\"page-peek-loading-shell\"",
       "Lazy page peek loading shell must expose a stable diagnostic hook.",
+    ],
+    [
+      "data-page-id={pageId}",
+      "Lazy page peek loading shell must expose the page id so create fallbacks can detect stalled opens.",
+    ],
+    [
+      "isPagePeekCreateShellStillPreparing",
+      "Lazy page peek must expose a metadata-only create fallback readiness probe.",
     ],
     [
       "data-local-seed-state={localSeedState}",

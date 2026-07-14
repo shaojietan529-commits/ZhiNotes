@@ -60,6 +60,28 @@ export function warmPagePeekModal() {
   warmPagePeekEditor();
 }
 
+export function isPagePeekCreateShellStillPreparing(pageId: string): boolean {
+  if (typeof document === "undefined") return false;
+  const candidates = document.querySelectorAll<HTMLElement>(
+    [
+      '[data-testid="page-peek-loading-shell"]',
+      '[data-testid="page-peek-metadata-recovery-shell"]',
+      '[data-testid="page-peek-modal"]',
+    ].join(",")
+  );
+  for (const element of Array.from(candidates)) {
+    if (element.getAttribute("data-page-id") !== pageId) continue;
+    if (element.getAttribute("data-optimistic-draft") !== "true") continue;
+    if (element.getAttribute("data-testid") !== "page-peek-modal") {
+      return true;
+    }
+    if (element.getAttribute("data-editor-mounted") !== "true") {
+      return true;
+    }
+  }
+  return false;
+}
+
 const LazyPagePeekModalInner = dynamic(loadPagePeekModal, {
   ssr: false,
   loading: () => null,
@@ -205,6 +227,7 @@ function LocalFirstPeekLoadingShell({
     >
       <div
         data-testid="page-peek-loading-shell"
+        data-page-id={pageId}
         data-local-seed-state={localSeedState}
         data-local-first-stage={seed ? "metadata-visible" : "metadata-loading"}
         data-optimistic-draft={isOptimisticDraft}

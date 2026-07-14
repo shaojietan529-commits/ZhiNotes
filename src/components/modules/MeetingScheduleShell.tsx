@@ -97,6 +97,7 @@ import {
 } from "@/lib/pages/pageProperties";
 import PageContextMenu from "@/components/page/LazyPageContextMenu";
 import PagePeekModal, {
+  isPagePeekCreateShellStillPreparing,
   warmPagePeekModal,
 } from "@/components/page/LazyPagePeekModal";
 import { DEFAULT_OWNER_ID, generateId } from "@/lib/utils/id";
@@ -2343,9 +2344,12 @@ export default function MeetingScheduleShell() {
       window.setTimeout(() => {
         if (!window.location.pathname.startsWith("/schedule")) return;
         const currentOpeningDraft = openingDraftRef.current;
+        const createPeekStillPreparing =
+          isPagePeekCreateShellStillPreparing(page.id);
         if (
-          currentOpeningDraft?.pageId !== page.id ||
-          currentOpeningDraft.dateKey !== dateKey
+          !createPeekStillPreparing &&
+          (currentOpeningDraft?.pageId !== page.id ||
+            currentOpeningDraft.dateKey !== dateKey)
         ) {
           return;
         }
