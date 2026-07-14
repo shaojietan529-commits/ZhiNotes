@@ -10097,6 +10097,30 @@ function run() {
   assertIncludes(
     files.globalSyncLogStatusHook,
     globalSyncLogStatusHook,
+    "GLOBAL_SYNC_LOG_STATUS_FAST_REFRESH_DELAYS_MS",
+    "Global sync_log status hook must run a short metadata-only fast refresh burst after mount or status pings."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "scheduleFastRefreshBurst",
+    "Global sync_log status hook must schedule bounded fast refreshes instead of waiting for the next low-frequency poll."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "clearFastRefreshBurst",
+    "Global sync_log status hook must clear bounded fast refresh timers on cleanup or reschedule."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "refreshNowAndThen",
+    "Global sync_log status hook must refresh immediately and then recheck briefly after content-free sync status events."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
     "SYNC_LOG_STATUS_EVENT",
     "Global sync_log status hook must refresh promptly after any local sync_log metadata change."
   );

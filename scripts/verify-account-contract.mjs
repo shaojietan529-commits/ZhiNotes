@@ -3597,6 +3597,12 @@ check(
 );
 check(
   globalSyncLogStatusHook.includes("getSyncLogSummary") &&
+    globalSyncLogStatusHook.includes(
+      "GLOBAL_SYNC_LOG_STATUS_FAST_REFRESH_DELAYS_MS"
+    ) &&
+    globalSyncLogStatusHook.includes("scheduleFastRefreshBurst") &&
+    globalSyncLogStatusHook.includes("clearFastRefreshBurst") &&
+    globalSyncLogStatusHook.includes("refreshNowAndThen") &&
     globalSyncLogStatusHook.includes("SYNC_LOG_STATUS_EVENT") &&
     globalSyncLogStatusHook.includes("SYNC_LOG_STATUS_STORAGE_KEY") &&
     globalSyncLogStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
