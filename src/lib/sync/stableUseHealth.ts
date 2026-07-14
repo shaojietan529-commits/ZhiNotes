@@ -1,5 +1,6 @@
 import { ACCOUNT_SESSION_UNCONFIRMED_REASON } from "@/lib/account/sessionResponses";
 import {
+  getDevelopmentExperimentalRoutes,
   getDevelopmentOwnerGatedActions,
   getDevelopmentStableUseRoutes,
 } from "@/lib/sync/developmentStabilityPlan";
@@ -53,6 +54,25 @@ export interface StableUseHotCacheSafetyPolicy {
   user_facing_copy: string;
 }
 
+export interface StableUseDevelopmentLanePolicy {
+  development_channel: "private-alpha-stable-use";
+  stable_use_lane: "route-smoke-protected";
+  experimental_lane: "owner-gated-or-staging-first";
+  production_interruptions_should_be_batched: true;
+  experimental_changes_go_to_staging_first: true;
+  stable_use_routes_require_p0_gate: true;
+  high_risk_actions_require_owner_gate: true;
+  web_beta_launch_requires_owner_gate: true;
+  real_cloud_sync_requires_owner_gate: true;
+  ai_execution_requires_owner_gate: true;
+  bulk_import_apply_requires_owner_gate: true;
+  restore_writeback_requires_owner_gate: true;
+  stable_use_route_count: number;
+  experimental_route_count: number;
+  owner_gated_action_count: number;
+  user_facing_copy: string;
+}
+
 export interface StableUseHealthResponse {
   format: "zhinote-stable-use-health";
   format_version: 1;
@@ -67,11 +87,13 @@ export interface StableUseHealthResponse {
   production_cutover_approved_by_health_check: false;
   cache_rebuild_approved_by_health_check: false;
   stable_use_routes: string[];
+  experimental_routes: string[];
   owner_gated_actions: string[];
   monitored_sync_domains: StableUseMonitoredSyncDomain[];
   sync_domain_coverage: StableUseSyncDomainCoverage;
   account_session_policy: StableUseAccountSessionPolicy;
   hot_cache_safety_policy: StableUseHotCacheSafetyPolicy;
+  development_lane_policy: StableUseDevelopmentLanePolicy;
   required_before_shipping_changes: string[];
   boundary: {
     deployment_health_metadata_only: true;
@@ -141,9 +163,38 @@ const STABLE_USE_HOT_CACHE_SAFETY_POLICY: StableUseHotCacheSafetyPolicy = {
     "本地热缓存只负责加速首屏；pending、failed 或 manual review 清零并确认前，不能重建或清理缓存。",
 };
 
+function buildStableUseDevelopmentLanePolicy(input: {
+  stableUseRoutes: string[];
+  experimentalRoutes: string[];
+  ownerGatedActions: string[];
+}): StableUseDevelopmentLanePolicy {
+  return {
+    development_channel: "private-alpha-stable-use",
+    stable_use_lane: "route-smoke-protected",
+    experimental_lane: "owner-gated-or-staging-first",
+    production_interruptions_should_be_batched: true,
+    experimental_changes_go_to_staging_first: true,
+    stable_use_routes_require_p0_gate: true,
+    high_risk_actions_require_owner_gate: true,
+    web_beta_launch_requires_owner_gate: true,
+    real_cloud_sync_requires_owner_gate: true,
+    ai_execution_requires_owner_gate: true,
+    bulk_import_apply_requires_owner_gate: true,
+    restore_writeback_requires_owner_gate: true,
+    stable_use_route_count: input.stableUseRoutes.length,
+    experimental_route_count: input.experimentalRoutes.length,
+    owner_gated_action_count: input.ownerGatedActions.length,
+    user_facing_copy:
+      "稳定使用区可以继续写作和查看资料；实验功能必须先本地或 staging 验证，进入线上前需要 owner gate。",
+  };
+}
+
 export function buildStableUseHealthResponse(input: {
   checkedAt?: string;
 } = {}): StableUseHealthResponse {
+  const stableUseRoutes = getDevelopmentStableUseRoutes();
+  const experimentalRoutes = getDevelopmentExperimentalRoutes();
+  const ownerGatedActions = getDevelopmentOwnerGatedActions();
   const monitoredSyncDomains = getPendingDomainCatalog();
   const syncDomainCoverage = buildPendingDomainCoverageReport(
     monitoredSyncDomains.map(
@@ -176,8 +227,9 @@ export function buildStableUseHealthResponse(input: {
     web_beta_launch_approved_by_health_check: false,
     production_cutover_approved_by_health_check: false,
     cache_rebuild_approved_by_health_check: false,
-    stable_use_routes: getDevelopmentStableUseRoutes(),
-    owner_gated_actions: getDevelopmentOwnerGatedActions(),
+    stable_use_routes: stableUseRoutes,
+    experimental_routes: experimentalRoutes,
+    owner_gated_actions: ownerGatedActions,
     monitored_sync_domains: monitoredSyncDomains.map((domain) => ({
       id: domain.id,
       label: domain.label,
@@ -199,6 +251,11 @@ export function buildStableUseHealthResponse(input: {
     },
     account_session_policy: STABLE_USE_ACCOUNT_SESSION_POLICY,
     hot_cache_safety_policy: STABLE_USE_HOT_CACHE_SAFETY_POLICY,
+    development_lane_policy: buildStableUseDevelopmentLanePolicy({
+      stableUseRoutes,
+      experimentalRoutes,
+      ownerGatedActions,
+    }),
     required_before_shipping_changes: [
       "Run the focused verifier for the changed surface.",
       "Run npm run verify:route-smoke for stable route, sidebar, module, account, Daily, ZhiHui, or sync-center changes.",
@@ -208,6 +265,6 @@ export function buildStableUseHealthResponse(input: {
     ],
     boundary: STABLE_USE_HEALTH_BOUNDARY,
     privacy_note:
-      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, static account-session uncertainty policy, and static hot-cache safety policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
+      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, static account-session uncertainty policy, static hot-cache safety policy, and static development-lane policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
   };
 }

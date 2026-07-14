@@ -101,6 +101,7 @@ function verifySourceContracts() {
   assertIncludes(healthSource, 'sync_failure_policy: "retry-visible-not-sign-out"', "health response must preserve retry-not-signout policy");
   assertIncludes(healthSource, "ACCOUNT_SESSION_UNCONFIRMED_REASON", "health response must use the shared account session uncertainty reason");
   assertIncludes(healthSource, "getDevelopmentStableUseRoutes()", "health response must use shared stable-use route catalog");
+  assertIncludes(healthSource, "getDevelopmentExperimentalRoutes()", "health response must use shared experimental route catalog");
   assertIncludes(healthSource, "getDevelopmentOwnerGatedActions()", "health response must use shared owner-gated action catalog");
   assertIncludes(healthSource, "getPendingDomainCatalog()", "health response must use the shared pending-domain catalog");
   assertIncludes(healthSource, "buildPendingDomainCoverageReport", "health response must use the shared pending-domain coverage report");
@@ -125,6 +126,20 @@ function verifySourceContracts() {
   assertIncludes(healthSource, "local_hot_cache_can_be_only_source_of_truth: false", "local hot cache must never be the only source of truth");
   assertIncludes(healthSource, "stores_private_payload_by_default: false", "hot cache policy must not store private payload by default");
   assertIncludes(healthSource, "warmup_can_upload_data: false", "hot cache warmup must not upload data");
+  assertIncludes(healthSource, "experimental_routes", "health response must expose experimental route catalog");
+  assertIncludes(healthSource, "development_lane_policy", "health response must expose development lane policy");
+  assertIncludes(healthSource, 'development_channel: "private-alpha-stable-use"', "development lane policy must preserve the private alpha stable-use channel");
+  assertIncludes(healthSource, 'stable_use_lane: "route-smoke-protected"', "development lane policy must keep stable routes route-smoke protected");
+  assertIncludes(healthSource, 'experimental_lane: "owner-gated-or-staging-first"', "development lane policy must keep experiments owner-gated or staging-first");
+  assertIncludes(healthSource, "production_interruptions_should_be_batched: true", "development lane policy must batch production interruptions");
+  assertIncludes(healthSource, "experimental_changes_go_to_staging_first: true", "development lane policy must send experiments to staging first");
+  assertIncludes(healthSource, "stable_use_routes_require_p0_gate: true", "stable-use routes must require the P0 gate");
+  assertIncludes(healthSource, "high_risk_actions_require_owner_gate: true", "high-risk actions must require owner gate");
+  assertIncludes(healthSource, "web_beta_launch_requires_owner_gate: true", "Web Beta launch must require owner gate");
+  assertIncludes(healthSource, "real_cloud_sync_requires_owner_gate: true", "real cloud sync must require owner gate");
+  assertIncludes(healthSource, "ai_execution_requires_owner_gate: true", "AI execution must require owner gate");
+  assertIncludes(healthSource, "bulk_import_apply_requires_owner_gate: true", "bulk import apply must require owner gate");
+  assertIncludes(healthSource, "restore_writeback_requires_owner_gate: true", "restore writeback must require owner gate");
   assertIncludes(healthSource, 'coverage_source: "static-pending-domain-catalog"', "health response must mark coverage as static metadata");
   assertIncludes(healthSource, "git pull --rebase before git push; never force push.", "health response must preserve safe push guidance");
   for (const flag of requiredTopLevelFalseFlags) {
@@ -174,6 +189,13 @@ function verifyRouteResult(result) {
   }
   if (!Array.isArray(body?.stable_use_routes) || body.stable_use_routes.length < 10) {
     failures.push("stable_use_routes must list the stable-use route catalog");
+  }
+  if (
+    !Array.isArray(body?.experimental_routes) ||
+    body.experimental_routes.length < 3 ||
+    !body.experimental_routes.includes("/modules/ai")
+  ) {
+    failures.push("experimental_routes must list the experimental route catalog");
   }
   if (
     !Array.isArray(body?.owner_gated_actions) ||
@@ -357,6 +379,87 @@ function verifyRouteResult(result) {
   if (!String(hotCachePolicy.user_facing_copy ?? "").includes("pending")) {
     failures.push(
       "hot_cache_safety_policy.user_facing_copy must explain pending queue protection"
+    );
+  }
+  const developmentLanePolicy = body?.development_lane_policy ?? {};
+  assertEqual(
+    developmentLanePolicy.development_channel,
+    "private-alpha-stable-use",
+    "development_lane_policy.development_channel"
+  );
+  assertEqual(
+    developmentLanePolicy.stable_use_lane,
+    "route-smoke-protected",
+    "development_lane_policy.stable_use_lane"
+  );
+  assertEqual(
+    developmentLanePolicy.experimental_lane,
+    "owner-gated-or-staging-first",
+    "development_lane_policy.experimental_lane"
+  );
+  assertEqual(
+    developmentLanePolicy.production_interruptions_should_be_batched,
+    true,
+    "development_lane_policy.production_interruptions_should_be_batched"
+  );
+  assertEqual(
+    developmentLanePolicy.experimental_changes_go_to_staging_first,
+    true,
+    "development_lane_policy.experimental_changes_go_to_staging_first"
+  );
+  assertEqual(
+    developmentLanePolicy.stable_use_routes_require_p0_gate,
+    true,
+    "development_lane_policy.stable_use_routes_require_p0_gate"
+  );
+  assertEqual(
+    developmentLanePolicy.high_risk_actions_require_owner_gate,
+    true,
+    "development_lane_policy.high_risk_actions_require_owner_gate"
+  );
+  assertEqual(
+    developmentLanePolicy.web_beta_launch_requires_owner_gate,
+    true,
+    "development_lane_policy.web_beta_launch_requires_owner_gate"
+  );
+  assertEqual(
+    developmentLanePolicy.real_cloud_sync_requires_owner_gate,
+    true,
+    "development_lane_policy.real_cloud_sync_requires_owner_gate"
+  );
+  assertEqual(
+    developmentLanePolicy.ai_execution_requires_owner_gate,
+    true,
+    "development_lane_policy.ai_execution_requires_owner_gate"
+  );
+  assertEqual(
+    developmentLanePolicy.bulk_import_apply_requires_owner_gate,
+    true,
+    "development_lane_policy.bulk_import_apply_requires_owner_gate"
+  );
+  assertEqual(
+    developmentLanePolicy.restore_writeback_requires_owner_gate,
+    true,
+    "development_lane_policy.restore_writeback_requires_owner_gate"
+  );
+  assertEqual(
+    developmentLanePolicy.stable_use_route_count,
+    Array.isArray(body?.stable_use_routes) ? body.stable_use_routes.length : 0,
+    "development_lane_policy.stable_use_route_count"
+  );
+  assertEqual(
+    developmentLanePolicy.experimental_route_count,
+    Array.isArray(body?.experimental_routes) ? body.experimental_routes.length : 0,
+    "development_lane_policy.experimental_route_count"
+  );
+  assertEqual(
+    developmentLanePolicy.owner_gated_action_count,
+    Array.isArray(body?.owner_gated_actions) ? body.owner_gated_actions.length : 0,
+    "development_lane_policy.owner_gated_action_count"
+  );
+  if (!String(developmentLanePolicy.user_facing_copy ?? "").includes("实验")) {
+    failures.push(
+      "development_lane_policy.user_facing_copy must explain experimental feature gating"
     );
   }
   if (
@@ -592,6 +695,9 @@ function printReceipt(result, status, port, devServer) {
     stable_use_routes: Array.isArray(result?.body?.stable_use_routes)
       ? result.body.stable_use_routes.length
       : 0,
+    experimental_routes: Array.isArray(result?.body?.experimental_routes)
+      ? result.body.experimental_routes.length
+      : 0,
     owner_gated_actions: Array.isArray(result?.body?.owner_gated_actions)
       ? result.body.owner_gated_actions.length
       : 0,
@@ -617,6 +723,15 @@ function printReceipt(result, status, port, devServer) {
     hot_cache_can_be_only_source_of_truth:
       result?.body?.hot_cache_safety_policy
         ?.local_hot_cache_can_be_only_source_of_truth ?? null,
+    development_lane_stable_routes_require_p0_gate:
+      result?.body?.development_lane_policy?.stable_use_routes_require_p0_gate ??
+      null,
+    development_lane_experimental_staging_first:
+      result?.body?.development_lane_policy
+        ?.experimental_changes_go_to_staging_first ?? null,
+    development_lane_owner_gate_required:
+      result?.body?.development_lane_policy
+        ?.high_risk_actions_require_owner_gate ?? null,
     registered_sync_domains:
       result?.body?.sync_domain_coverage?.registered_domain_count ?? null,
     visible_registered_sync_domains:

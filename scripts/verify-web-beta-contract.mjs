@@ -19952,6 +19952,10 @@ function run() {
       "Stable-use health response must use the shared stable-use route catalog.",
     ],
     [
+      "getDevelopmentExperimentalRoutes()",
+      "Stable-use health response must use the shared experimental route catalog.",
+    ],
+    [
       "getDevelopmentOwnerGatedActions()",
       "Stable-use health response must use the shared owner-gated action catalog.",
     ],
@@ -19970,6 +19974,54 @@ function run() {
     [
       "sync_domain_coverage",
       "Stable-use health response must expose sync-domain coverage metadata.",
+    ],
+    [
+      "experimental_routes",
+      "Stable-use health response must expose experimental route metadata.",
+    ],
+    [
+      "development_lane_policy",
+      "Stable-use health response must expose the development lane policy.",
+    ],
+    [
+      'development_channel: "private-alpha-stable-use"',
+      "Stable-use health response must preserve the private alpha stable-use channel.",
+    ],
+    [
+      'stable_use_lane: "route-smoke-protected"',
+      "Stable-use health response must keep stable routes route-smoke protected.",
+    ],
+    [
+      'experimental_lane: "owner-gated-or-staging-first"',
+      "Stable-use health response must keep experiments owner-gated or staging-first.",
+    ],
+    [
+      "stable_use_routes_require_p0_gate: true",
+      "Stable-use health response must require P0 gate coverage for stable-use routes.",
+    ],
+    [
+      "high_risk_actions_require_owner_gate: true",
+      "Stable-use health response must require owner gates for high-risk actions.",
+    ],
+    [
+      "web_beta_launch_requires_owner_gate: true",
+      "Stable-use health response must require owner gate before Web Beta launch.",
+    ],
+    [
+      "real_cloud_sync_requires_owner_gate: true",
+      "Stable-use health response must require owner gate before real cloud sync.",
+    ],
+    [
+      "ai_execution_requires_owner_gate: true",
+      "Stable-use health response must require owner gate before AI execution.",
+    ],
+    [
+      "bulk_import_apply_requires_owner_gate: true",
+      "Stable-use health response must require owner gate before bulk import apply.",
+    ],
+    [
+      "restore_writeback_requires_owner_gate: true",
+      "Stable-use health response must require owner gate before restore writeback.",
     ],
     [
       'coverage_source: "static-pending-domain-catalog"',
@@ -20038,6 +20090,30 @@ function run() {
     [
       "sync_domain_coverage",
       "Stable-use health verifier must assert sync-domain coverage metadata.",
+    ],
+    [
+      "experimental_routes",
+      "Stable-use health verifier must assert experimental route metadata.",
+    ],
+    [
+      "development_lane_policy",
+      "Stable-use health verifier must assert development lane policy.",
+    ],
+    [
+      "private-alpha-stable-use",
+      "Stable-use health verifier must assert the private alpha development channel.",
+    ],
+    [
+      "stable_use_routes_require_p0_gate",
+      "Stable-use health verifier must assert stable-use P0 gate coverage.",
+    ],
+    [
+      "experimental_changes_go_to_staging_first",
+      "Stable-use health verifier must assert experiments go to staging first.",
+    ],
+    [
+      "high_risk_actions_require_owner_gate",
+      "Stable-use health verifier must assert high-risk owner gates.",
     ],
     [
       "account_session_policy",
