@@ -710,6 +710,11 @@ check(
 const pageSyncClient = read("src/lib/pages/accountPageSync.ts");
 const databaseSyncRoute = read("src/app/api/databases/account-sync/route.ts");
 const fileEmbedSyncRoute = read("src/app/api/files/embed-sync/route.ts");
+const fileEmbedSyncQueue = read("src/lib/files/fileEmbedSyncQueue.ts");
+const fileEmbedSyncStatusHook = read(
+  "src/hooks/useFileEmbedCloudSyncStatus.ts"
+);
+const filePreviewUpload = read("src/components/editor/filePreviewUpload.ts");
 const pageIngestRoute = read("src/app/api/pages/ingest/route.ts");
 const meetingAgentJobsRoute = read("src/app/api/meetings/agent/jobs/route.ts");
 const databaseSyncClient = read("src/lib/database/accountDatabaseSync.ts");
@@ -729,6 +734,26 @@ check(
     fileEmbedSyncRoute.includes('return NextResponse.json({ error: "auth-required" }, { status: 401 });') &&
     !fileEmbedSyncRoute.includes("登录已过期，请重新登录。"),
   "file embed-sync route 必须区分未登录和 session 暂时不可确认：未登录才 401，有 cookie 时返回可重试 session-unconfirmed"
+);
+check(
+  fileEmbedSyncQueue.includes("classifyFileEmbedCloudSyncAuthDeferral") &&
+    fileEmbedSyncQueue.includes("markFileEmbedCloudSyncDeferred") &&
+    fileEmbedSyncQueue.includes("authDeferred") &&
+    fileEmbedSyncQueue.includes('status: "pending"') &&
+    fileEmbedSyncQueue.includes("failureCount") &&
+    fileEmbedSyncQueue.includes("FILE_EMBED_SYNC_AUTH_RETRY_STORAGE_KEY") &&
+    filePreviewUpload.includes("classifyFileEmbedCloudSyncAuthDeferral") &&
+    filePreviewUpload.includes("markFileEmbedCloudSyncDeferred"),
+  "文件云同步遇到未登录、未配置或 session 暂不可确认时必须继续保留 pending，并单独记录账号重试，不能增加失败次数或推入人工处理"
+);
+check(
+  fileEmbedSyncStatusHook.includes(
+    "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
+  ) &&
+    fileEmbedSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
+    fileEmbedSyncStatusHook.includes("refreshAndMaybeRetry") &&
+    fileEmbedSyncStatusHook.includes("FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT"),
+  "文件云同步队列必须在账号恢复后做一次有上限的快速重试，避免用户登录恢复后仍长时间看不到补传进展"
 );
 check(
   pageIngestRoute.includes("accountSessionUnconfirmedPayload") &&
@@ -3588,6 +3613,8 @@ check(
     accountCloudSyncCoordinator.includes(
       "databaseSync.pendingStatus.authRetryStatus"
     ) &&
+    accountCloudSyncCoordinator.includes("fileSync.status.authRetryStatus") &&
+    accountCloudSyncCoordinator.includes("fileSync.status.authRetryUntil") &&
     accountCloudSyncCoordinator.includes("authRetryDomainLabel") &&
     accountCloudSyncCoordinator.includes("authRetryUntilLabel") &&
     accountCloudSyncCoordinator.includes("账号重试 ") &&

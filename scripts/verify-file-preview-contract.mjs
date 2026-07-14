@@ -500,6 +500,30 @@ function run() {
     [
       files.fileEmbedSyncQueue,
       fileEmbedSyncQueue,
+      "classifyFileEmbedCloudSyncAuthDeferral",
+      "Account/session temporary failures must be separated from ordinary file upload failures.",
+    ],
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
+      "markFileEmbedCloudSyncDeferred",
+      "Account/session temporary failures must keep file uploads pending instead of increasing failure counts.",
+    ],
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
+      "authDeferred",
+      "File retry results must expose account-deferred attempts separately from failed uploads.",
+    ],
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
+      "FILE_EMBED_SYNC_AUTH_RETRY_STORAGE_KEY",
+      "File queue auth retry state must be visible across tabs without storing file bytes.",
+    ],
+    [
+      files.fileEmbedSyncQueue,
+      fileEmbedSyncQueue,
       "status: \"manual_review\"",
       "Missing local file copies must be surfaced for manual review.",
     ],
@@ -522,6 +546,24 @@ function run() {
       "File embed queue status must refresh when connectivity returns.",
     ],
     [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+      "File embed queue must retry quickly when account recovery is observed in another tab.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "ACCOUNT_PROFILE_UPDATED_EVENT",
+      "File embed queue must retry quickly after same-tab account login/profile recovery.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT",
+      "File embed account-recovery retry must stay bounded instead of high-frequency uploading large files.",
+    ],
+    [
       files.upload,
       upload,
       "markFileEmbedCloudSyncAttempt",
@@ -538,6 +580,18 @@ function run() {
       upload,
       "markFileEmbedCloudSyncFailure",
       "File cloud failures must remain visible for retry or manual review.",
+    ],
+    [
+      files.upload,
+      upload,
+      "markFileEmbedCloudSyncDeferred",
+      "Editor file upload auth/session deferrals must stay pending without increasing failure counts.",
+    ],
+    [
+      files.upload,
+      upload,
+      "classifyFileEmbedCloudSyncAuthDeferral",
+      "Editor file upload must classify account/session responses before marking ordinary failure.",
     ],
     [
       files.upload,

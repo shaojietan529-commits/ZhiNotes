@@ -128,11 +128,13 @@ export function buildCloudUploadReliabilityReport(
   const authRetryDomains = [
     input.pageStatus.authRetryStatus ? "页面" : null,
     input.databaseStatus.authRetryStatus ? "数据库" : null,
+    input.fileStatus.authRetryStatus ? "文件" : null,
   ].filter(Boolean) as string[];
   const authRetryActive = authRetryDomains.length > 0;
   const authRetryUntil = getLatestTimestamp([
     input.pageStatus.authRetryUntil,
     input.databaseStatus.authRetryUntil,
+    input.fileStatus.authRetryUntil,
   ]);
   const authRetryStateLabel = authRetryActive
     ? `${authRetryDomains.join("、")}认证退避${

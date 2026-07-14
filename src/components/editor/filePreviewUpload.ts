@@ -11,7 +11,9 @@ import {
   FileEmbedSyncRequestTimeoutError,
 } from "@/lib/files/fileEmbedSyncClient";
 import {
+  classifyFileEmbedCloudSyncAuthDeferral,
   markFileEmbedCloudSyncAttempt,
+  markFileEmbedCloudSyncDeferred,
   markFileEmbedCloudSyncFailure,
   markFileEmbedCloudSyncSuccess,
 } from "@/lib/files/fileEmbedSyncQueue";
@@ -387,9 +389,20 @@ async function syncFileToCloud(stored: StoredPageFile) {
       const data = (await res.json().catch(() => ({}))) as {
         message?: string;
         error?: string;
+        reason?: string;
+        retryable?: boolean;
       };
       const message =
         data.message ?? data.error ?? "文件云同步失败；文件仍保存在本地。";
+      const authDeferral = classifyFileEmbedCloudSyncAuthDeferral(
+        res.status,
+        data
+      );
+      if (authDeferral) {
+        markFileEmbedCloudSyncDeferred(stored, message, authDeferral);
+        recordedFailure = true;
+        throw new Error(message);
+      }
       markFileEmbedCloudSyncFailure(stored, message, {
         retryable: res.status !== 413,
       });

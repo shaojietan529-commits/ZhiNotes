@@ -253,6 +253,7 @@ export function useAccountCloudSyncCoordinator() {
   const authRetryDomainLabel = [
     pageSync.pendingStatus.authRetryStatus ? "页面" : null,
     databaseSync.pendingStatus.authRetryStatus ? "数据库" : null,
+    fileSync.status.authRetryStatus ? "文件" : null,
   ]
     .filter((value): value is string => Boolean(value))
     .join("/");
@@ -260,6 +261,7 @@ export function useAccountCloudSyncCoordinator() {
     [
       pageSync.pendingStatus.authRetryUntil,
       databaseSync.pendingStatus.authRetryUntil,
+      fileSync.status.authRetryUntil,
     ]
       .filter((value): value is string => Boolean(value))
       .sort()
