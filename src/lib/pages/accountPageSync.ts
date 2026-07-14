@@ -67,6 +67,7 @@ const METADATA_DELTA_THROTTLE_MS = 2500;
 const PAGE_LOOKUP_CACHE_MS = 4000;
 const PAGE_LOOKUP_CACHE_LIMIT = 60;
 const ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS = 12000;
+const ACCOUNT_PAGE_SYNC_METADATA_REQUEST_TIMEOUT_MS = 3200;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const AUTH_RETRY_PROBE_WINDOW_KEY = "__zhinotePageSyncAuthRetryProbe";
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
@@ -296,6 +297,12 @@ interface MeetingCloudMetadataOptions {
   recentLimit?: number;
 }
 
+interface AccountPageSyncCallOptions {
+  timeoutMs?: number;
+  timeoutMessage?: string;
+  softTimeout?: boolean;
+}
+
 interface IndexEntry {
   u: string;
   d: 0 | 1;
@@ -337,7 +344,10 @@ interface FlushPendingCloudPushOptions {
 const CLOUD_DOMAIN_SUMMARY_START_DATE = "2000-01-01";
 const CLOUD_DOMAIN_SUMMARY_END_DATE = "2099-12-31";
 
-async function call(body: Record<string, unknown>): Promise<
+async function call(
+  body: Record<string, unknown>,
+  options: AccountPageSyncCallOptions = {}
+): Promise<
   | { ok: true; json: Record<string, unknown> }
   | { ok: false; status: PageSyncStatus; message?: string }
 > {
@@ -371,7 +381,7 @@ async function call(body: Record<string, unknown>): Promise<
   const finishAuthRetryProbe = startAuthRetryProbe();
   let probeStatus: AuthRetryProbeStatus = "ok";
   try {
-    const res = await fetchAccountPageSync(body);
+    const res = await fetchAccountPageSync(body, options.timeoutMs);
     if (res.status === 501) {
       probeStatus = "unconfigured";
       rememberAuthRetryStatus("unconfigured");
@@ -399,13 +409,17 @@ async function call(body: Record<string, unknown>): Promise<
     rememberAuthRetryStatus("ok");
     return { ok: true, json };
   } catch (error) {
-    probeStatus = "error";
-    rememberAuthRetryStatus("error");
+    const timedOut = isAbortError(error);
+    if (!timedOut || !options.softTimeout) {
+      probeStatus = "error";
+      rememberAuthRetryStatus("error");
+    }
     return {
       ok: false,
       status: "error",
-      message: isAbortError(error)
-        ? "页面同步请求超时；本地输入已保留，会稍后重试。"
+      message: timedOut
+        ? (options.timeoutMessage ??
+          "页面同步请求超时；本地输入已保留，会稍后重试。")
         : "网络错误",
     };
   } finally {
@@ -414,13 +428,11 @@ async function call(body: Record<string, unknown>): Promise<
 }
 
 async function fetchAccountPageSync(
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  timeoutMs = ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS
-  );
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch("/api/pages/account-sync", {
       method: "POST",
@@ -1242,16 +1254,25 @@ export async function fetchDailyCloudMetadata(
   if (!isPageSyncEnabled()) {
     return { status: "disabled", pages: [], total: 0 };
   }
-  const res = await call({
-    action: options.startDate || options.endDate
-      ? "daily-calendar-metadata"
-      : "daily-metadata",
-    ...(options.startDate ? { startDate: options.startDate } : {}),
-    ...(options.endDate ? { endDate: options.endDate } : {}),
-    ...(typeof options.recentLimit === "number"
-      ? { recentLimit: options.recentLimit }
-      : {}),
-  });
+  const res = await call(
+    {
+      action:
+        options.startDate || options.endDate
+          ? "daily-calendar-metadata"
+          : "daily-metadata",
+      ...(options.startDate ? { startDate: options.startDate } : {}),
+      ...(options.endDate ? { endDate: options.endDate } : {}),
+      ...(typeof options.recentLimit === "number"
+        ? { recentLimit: options.recentLimit }
+        : {}),
+    },
+    {
+      timeoutMs: ACCOUNT_PAGE_SYNC_METADATA_REQUEST_TIMEOUT_MS,
+      timeoutMessage:
+        "云端每日纪要索引读取较慢；已先使用本地缓存，稍后自动重试。",
+      softTimeout: true,
+    }
+  );
   if (!res.ok) {
     return {
       status: res.status,
@@ -1286,14 +1307,22 @@ export async function fetchMeetingCloudMetadata(
   if (!isPageSyncEnabled()) {
     return { status: "disabled", pages: [], total: 0 };
   }
-  const res = await call({
-    action: "meeting-calendar-metadata",
-    ...(options.startDate ? { startDate: options.startDate } : {}),
-    ...(options.endDate ? { endDate: options.endDate } : {}),
-    ...(typeof options.recentLimit === "number"
-      ? { recentLimit: options.recentLimit }
-      : {}),
-  });
+  const res = await call(
+    {
+      action: "meeting-calendar-metadata",
+      ...(options.startDate ? { startDate: options.startDate } : {}),
+      ...(options.endDate ? { endDate: options.endDate } : {}),
+      ...(typeof options.recentLimit === "number"
+        ? { recentLimit: options.recentLimit }
+        : {}),
+    },
+    {
+      timeoutMs: ACCOUNT_PAGE_SYNC_METADATA_REQUEST_TIMEOUT_MS,
+      timeoutMessage:
+        "云端会议日历索引读取较慢；已先使用本地缓存，稍后自动重试。",
+      softTimeout: true,
+    }
+  );
   if (!res.ok) {
     return {
       status: res.status,

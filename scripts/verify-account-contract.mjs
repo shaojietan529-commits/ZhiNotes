@@ -820,13 +820,24 @@ check(
 );
 check(
   pageSyncClient.includes("ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS = 12000") &&
+    pageSyncClient.includes("ACCOUNT_PAGE_SYNC_METADATA_REQUEST_TIMEOUT_MS = 3200") &&
     pageSyncClient.includes("async function fetchAccountPageSync") &&
+    pageSyncClient.includes("timeoutMs = ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS") &&
     pageSyncClient.includes("const controller = new AbortController();") &&
     pageSyncClient.includes("signal: controller.signal") &&
     pageSyncClient.includes("controller.abort()") &&
     pageSyncClient.includes("clearTimeout(timeout)") &&
     pageSyncClient.includes("页面同步请求超时；本地输入已保留，会稍后重试。"),
   "页面同步底层 fetch 必须可超时取消；超时只能进入可重试错误并明确本地输入已保留"
+);
+check(
+  pageSyncClient.includes("interface AccountPageSyncCallOptions") &&
+    pageSyncClient.includes("softTimeout?: boolean") &&
+    pageSyncClient.includes("if (!timedOut || !options.softTimeout)") &&
+    pageSyncClient.includes("timeoutMs: ACCOUNT_PAGE_SYNC_METADATA_REQUEST_TIMEOUT_MS") &&
+    pageSyncClient.includes("云端每日纪要索引读取较慢；已先使用本地缓存，稍后自动重试。") &&
+    pageSyncClient.includes("云端会议日历索引读取较慢；已先使用本地缓存，稍后自动重试。"),
+  "Daily/ZhiHui 日历 metadata 读取必须走短超时；短超时只降级到本地缓存，不能写入账号失败退避"
 );
 check(
   databaseSyncClient.includes("ACCOUNT_DATABASE_SYNC_REQUEST_TIMEOUT_MS = 12000") &&

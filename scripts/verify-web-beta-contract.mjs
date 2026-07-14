@@ -24874,6 +24874,24 @@ function run() {
     [
       files.accountPageSync,
       accountPageSync,
+      "ACCOUNT_PAGE_SYNC_METADATA_REQUEST_TIMEOUT_MS = 3200",
+      "Daily and meeting calendar metadata requests must use a short timeout so first paint can fall back to local cache.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "softTimeout?: boolean",
+      "Calendar metadata timeout handling must distinguish soft first-paint fallback from account auth retry failures.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "if (!timedOut || !options.softTimeout)",
+      "Soft calendar metadata timeouts must not mark the account auth retry state as failed.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
       "async function fetchAccountPageSync",
       "Account page sync must route every account-sync fetch through a shared timeout wrapper.",
     ],
@@ -24904,8 +24922,20 @@ function run() {
     [
       files.accountPageSync,
       accountPageSync,
+      "云端每日纪要索引读取较慢；已先使用本地缓存，稍后自动重试。",
+      "Daily calendar metadata timeout copy must tell the user local/cache data remains usable.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
       "export async function fetchMeetingCloudMetadata",
       "Account page sync must expose a shared meeting metadata helper.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "云端会议日历索引读取较慢；已先使用本地缓存，稍后自动重试。",
+      "Meeting calendar metadata timeout copy must tell the user local/cache data remains usable.",
     ],
     [
       files.accountPageSync,
