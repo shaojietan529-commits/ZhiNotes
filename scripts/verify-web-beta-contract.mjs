@@ -5513,6 +5513,30 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+      "Portfolio board must listen for cross-tab account login/logout/profile fallback changes.",
+    ],
+    [
+      "handleAccountSessionStorage",
+      "Portfolio board must keep an explicit storage handler for account sync takeover.",
+    ],
+    [
+      "fetchAccountSession({ force: true })",
+      "Portfolio board cross-tab account handler must force-refresh the shared account session.",
+    ],
+    [
+      'syncModeRef.current = "account"',
+      "Portfolio board must switch to account sync after another tab signs in.",
+    ],
+    [
+      "void runInitialSync(null, false)",
+      "Portfolio board must start account sync after cross-tab sign-in without requiring a refresh.",
+    ],
+    [
+      "A failed account probe should not disable local portfolio editing.",
+      "Portfolio board must not disable local editing when a cross-tab account probe fails.",
+    ],
+    [
       "PORTFOLIO_ACTION_REQUEST_TIMEOUT_MS = 12000",
       "Portfolio browser actions must have a bounded client-side timeout so buttons cannot hang on stalled requests.",
     ],

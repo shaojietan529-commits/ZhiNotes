@@ -47,7 +47,10 @@ import {
   accountPushCloud,
   fetchShares,
 } from "@/lib/portfolio/accountSync";
-import { fetchAccountSession } from "@/lib/account/clientSession";
+import {
+  ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+  fetchAccountSession,
+} from "@/lib/account/clientSession";
 
 type BoardTab = "positions" | "analysis" | "rebalance";
 type SyncStatus = "off" | "syncing" | "synced" | "error";
@@ -354,6 +357,41 @@ export default function PortfolioBoardShell() {
     },
     [showNotice]
   );
+
+  useEffect(() => {
+    const handleAccountSessionStorage = (event: StorageEvent) => {
+      if (event.key !== ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
+        return;
+      }
+      void (async () => {
+        try {
+          const session = await fetchAccountSession({ force: true });
+          if (session.authenticated) {
+            syncModeRef.current = "account";
+            setSyncMode("account");
+            void runInitialSync(null, false);
+            void fetchShares().then((shares) => {
+              if (shares.status === "ok") {
+                setSharedWithMe(shares.data.sharedWithMe);
+              }
+            });
+            return;
+          }
+          if (session.status === "ok" && syncModeRef.current === "account") {
+            syncModeRef.current = null;
+            setSyncMode(null);
+            setSyncStatus("off");
+          }
+        } catch {
+          // A failed account probe should not disable local portfolio editing.
+        }
+      })();
+    };
+    window.addEventListener("storage", handleAccountSessionStorage);
+    return () => {
+      window.removeEventListener("storage", handleAccountSessionStorage);
+    };
+  }, [runInitialSync]);
 
   const applyRemotePortfolio = useCallback(
     (cloud: CloudPortfolioData | null) => {

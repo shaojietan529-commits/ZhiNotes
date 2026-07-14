@@ -553,6 +553,22 @@ check(
   "PortfolioBoardShell 应复用共享账号状态 helper，避免重复检查会话"
 );
 check(
+  board.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    board.includes("handleAccountSessionStorage") &&
+    board.includes(
+      "event.key !== ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
+    ) &&
+    board.includes("fetchAccountSession({ force: true })") &&
+    board.includes('window.addEventListener("storage", handleAccountSessionStorage)') &&
+    board.includes(
+      'window.removeEventListener("storage", handleAccountSessionStorage)'
+    ) &&
+    board.includes('syncModeRef.current = "account"') &&
+    board.includes("void runInitialSync(null, false)") &&
+    board.includes("A failed account probe should not disable local portfolio editing."),
+  "PortfolioBoardShell 应监听跨标签账号状态变化：登录后自动接管账号同步，临时账号探测失败不能禁用本地组合编辑"
+);
+check(
   board.includes("if (viewingOwner) return;"),
   "查看共享持仓时不应触发云端 push"
 );
