@@ -140,6 +140,18 @@ function verifySourceContracts() {
   assertIncludes(healthSource, "ai_execution_requires_owner_gate: true", "AI execution must require owner gate");
   assertIncludes(healthSource, "bulk_import_apply_requires_owner_gate: true", "bulk import apply must require owner gate");
   assertIncludes(healthSource, "restore_writeback_requires_owner_gate: true", "restore writeback must require owner gate");
+  assertIncludes(healthSource, "bulk_import_first_paint_policy", "health response must expose bulk-import first-paint policy");
+  assertIncludes(healthSource, 'policy_status: "metadata-first-visible-shell"', "bulk-import first-paint policy must keep a visible metadata shell");
+  assertIncludes(healthSource, 'calendar_window_strategy: "six-week-current-month-range"', "bulk-import first-paint policy must keep a bounded calendar window");
+  assertIncludes(healthSource, "max_calendar_cells_first_paint: 42", "bulk-import first-paint policy must cap the first-paint calendar grid");
+  assertIncludes(healthSource, "daily_calendar_uses_metadata_status: true", "bulk-import first-paint policy must require Daily metadata status");
+  assertIncludes(healthSource, "meeting_calendar_uses_metadata_status: true", "bulk-import first-paint policy must require meeting metadata status");
+  assertIncludes(healthSource, "page_list_uses_metadata_status: true", "bulk-import first-paint policy must require page-list metadata status");
+  assertIncludes(healthSource, "page_body_hydration_deferred: true", "bulk-import first-paint policy must defer page body hydration");
+  assertIncludes(healthSource, "imported_content_backfill_batched: true", "bulk-import first-paint policy must batch imported content backfill");
+  assertIncludes(healthSource, "visible_shell_before_cloud_check: true", "bulk-import first-paint policy must show the shell before cloud checks");
+  assertIncludes(healthSource, "background_cloud_refresh_can_block_first_paint: false", "bulk-import first-paint policy must not let cloud refresh block first paint");
+  assertIncludes(healthSource, "route_smoke_budget_ms: 5000", "bulk-import first-paint policy must preserve the route smoke budget");
   assertIncludes(healthSource, 'coverage_source: "static-pending-domain-catalog"', "health response must mark coverage as static metadata");
   assertIncludes(healthSource, "git pull --rebase before git push; never force push.", "health response must preserve safe push guidance");
   for (const flag of requiredTopLevelFalseFlags) {
@@ -462,6 +474,87 @@ function verifyRouteResult(result) {
       "development_lane_policy.user_facing_copy must explain experimental feature gating"
     );
   }
+  const bulkImportFirstPaintPolicy = body?.bulk_import_first_paint_policy ?? {};
+  assertEqual(
+    bulkImportFirstPaintPolicy.policy_status,
+    "metadata-first-visible-shell",
+    "bulk_import_first_paint_policy.policy_status"
+  );
+  if (
+    !Array.isArray(bulkImportFirstPaintPolicy.applies_to_surfaces) ||
+    !bulkImportFirstPaintPolicy.applies_to_surfaces.includes("/daily") ||
+    !bulkImportFirstPaintPolicy.applies_to_surfaces.includes("/schedule") ||
+    !bulkImportFirstPaintPolicy.applies_to_surfaces.includes("sidebar-page-list")
+  ) {
+    failures.push(
+      "bulk_import_first_paint_policy.applies_to_surfaces must include Daily, ZhiHui, and sidebar page list"
+    );
+  }
+  assertEqual(
+    bulkImportFirstPaintPolicy.calendar_window_strategy,
+    "six-week-current-month-range",
+    "bulk_import_first_paint_policy.calendar_window_strategy"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.max_calendar_cells_first_paint,
+    42,
+    "bulk_import_first_paint_policy.max_calendar_cells_first_paint"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.daily_calendar_uses_metadata_status,
+    true,
+    "bulk_import_first_paint_policy.daily_calendar_uses_metadata_status"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.meeting_calendar_uses_metadata_status,
+    true,
+    "bulk_import_first_paint_policy.meeting_calendar_uses_metadata_status"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.page_list_uses_metadata_status,
+    true,
+    "bulk_import_first_paint_policy.page_list_uses_metadata_status"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.page_body_hydration_deferred,
+    true,
+    "bulk_import_first_paint_policy.page_body_hydration_deferred"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.imported_content_backfill_batched,
+    true,
+    "bulk_import_first_paint_policy.imported_content_backfill_batched"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.visible_shell_before_cloud_check,
+    true,
+    "bulk_import_first_paint_policy.visible_shell_before_cloud_check"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.background_cloud_refresh_can_block_first_paint,
+    false,
+    "bulk_import_first_paint_policy.background_cloud_refresh_can_block_first_paint"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.bulk_import_apply_requires_owner_gate,
+    true,
+    "bulk_import_first_paint_policy.bulk_import_apply_requires_owner_gate"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.cache_rebuild_requires_clear_queues,
+    true,
+    "bulk_import_first_paint_policy.cache_rebuild_requires_clear_queues"
+  );
+  assertEqual(
+    bulkImportFirstPaintPolicy.route_smoke_budget_ms,
+    5000,
+    "bulk_import_first_paint_policy.route_smoke_budget_ms"
+  );
+  if (!String(bulkImportFirstPaintPolicy.user_facing_copy ?? "").includes("首屏")) {
+    failures.push(
+      "bulk_import_first_paint_policy.user_facing_copy must explain first-paint protection"
+    );
+  }
   if (
     !Array.isArray(body?.required_before_shipping_changes) ||
     !body.required_before_shipping_changes.some((item) =>
@@ -732,6 +825,14 @@ function printReceipt(result, status, port, devServer) {
     development_lane_owner_gate_required:
       result?.body?.development_lane_policy
         ?.high_risk_actions_require_owner_gate ?? null,
+    bulk_import_first_paint_status:
+      result?.body?.bulk_import_first_paint_policy?.policy_status ?? null,
+    bulk_import_first_paint_calendar_cells:
+      result?.body?.bulk_import_first_paint_policy
+        ?.max_calendar_cells_first_paint ?? null,
+    bulk_import_background_can_block_first_paint:
+      result?.body?.bulk_import_first_paint_policy
+        ?.background_cloud_refresh_can_block_first_paint ?? null,
     registered_sync_domains:
       result?.body?.sync_domain_coverage?.registered_domain_count ?? null,
     visible_registered_sync_domains:

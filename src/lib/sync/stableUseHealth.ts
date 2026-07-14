@@ -73,6 +73,26 @@ export interface StableUseDevelopmentLanePolicy {
   user_facing_copy: string;
 }
 
+export interface StableUseBulkImportFirstPaintPolicy {
+  policy_status: "metadata-first-visible-shell";
+  applies_to_surfaces: Array<
+    "/daily" | "/schedule" | "sidebar-page-list" | "/page/[pageId]"
+  >;
+  calendar_window_strategy: "six-week-current-month-range";
+  max_calendar_cells_first_paint: 42;
+  daily_calendar_uses_metadata_status: true;
+  meeting_calendar_uses_metadata_status: true;
+  page_list_uses_metadata_status: true;
+  page_body_hydration_deferred: true;
+  imported_content_backfill_batched: true;
+  visible_shell_before_cloud_check: true;
+  background_cloud_refresh_can_block_first_paint: false;
+  bulk_import_apply_requires_owner_gate: true;
+  cache_rebuild_requires_clear_queues: true;
+  route_smoke_budget_ms: 5000;
+  user_facing_copy: string;
+}
+
 export interface StableUseHealthResponse {
   format: "zhinote-stable-use-health";
   format_version: 1;
@@ -94,6 +114,7 @@ export interface StableUseHealthResponse {
   account_session_policy: StableUseAccountSessionPolicy;
   hot_cache_safety_policy: StableUseHotCacheSafetyPolicy;
   development_lane_policy: StableUseDevelopmentLanePolicy;
+  bulk_import_first_paint_policy: StableUseBulkImportFirstPaintPolicy;
   required_before_shipping_changes: string[];
   boundary: {
     deployment_health_metadata_only: true;
@@ -162,6 +183,31 @@ const STABLE_USE_HOT_CACHE_SAFETY_POLICY: StableUseHotCacheSafetyPolicy = {
   user_facing_copy:
     "本地热缓存只负责加速首屏；pending、failed 或 manual review 清零并确认前，不能重建或清理缓存。",
 };
+
+const STABLE_USE_BULK_IMPORT_FIRST_PAINT_POLICY: StableUseBulkImportFirstPaintPolicy =
+  {
+    policy_status: "metadata-first-visible-shell",
+    applies_to_surfaces: [
+      "/daily",
+      "/schedule",
+      "sidebar-page-list",
+      "/page/[pageId]",
+    ],
+    calendar_window_strategy: "six-week-current-month-range",
+    max_calendar_cells_first_paint: 42,
+    daily_calendar_uses_metadata_status: true,
+    meeting_calendar_uses_metadata_status: true,
+    page_list_uses_metadata_status: true,
+    page_body_hydration_deferred: true,
+    imported_content_backfill_batched: true,
+    visible_shell_before_cloud_check: true,
+    background_cloud_refresh_can_block_first_paint: false,
+    bulk_import_apply_requires_owner_gate: true,
+    cache_rebuild_requires_clear_queues: true,
+    route_smoke_budget_ms: 5000,
+    user_facing_copy:
+      "大批量导入后，日历、侧边栏和页面列表必须先显示 metadata 壳；正文补齐、云端校正和索引回填只能后台分批进行，不能挡住首屏。",
+  };
 
 function buildStableUseDevelopmentLanePolicy(input: {
   stableUseRoutes: string[];
@@ -256,6 +302,8 @@ export function buildStableUseHealthResponse(input: {
       experimentalRoutes,
       ownerGatedActions,
     }),
+    bulk_import_first_paint_policy:
+      STABLE_USE_BULK_IMPORT_FIRST_PAINT_POLICY,
     required_before_shipping_changes: [
       "Run the focused verifier for the changed surface.",
       "Run npm run verify:route-smoke for stable route, sidebar, module, account, Daily, ZhiHui, or sync-center changes.",
@@ -265,6 +313,6 @@ export function buildStableUseHealthResponse(input: {
     ],
     boundary: STABLE_USE_HEALTH_BOUNDARY,
     privacy_note:
-      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, static account-session uncertainty policy, static hot-cache safety policy, and static development-lane policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
+      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, static account-session uncertainty policy, static hot-cache safety policy, static development-lane policy, and static bulk-import first-paint policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
   };
 }

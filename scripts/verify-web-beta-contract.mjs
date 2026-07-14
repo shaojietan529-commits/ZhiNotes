@@ -20024,6 +20024,54 @@ function run() {
       "Stable-use health response must require owner gate before restore writeback.",
     ],
     [
+      "bulk_import_first_paint_policy",
+      "Stable-use health response must expose the bulk-import first-paint policy.",
+    ],
+    [
+      'policy_status: "metadata-first-visible-shell"',
+      "Stable-use health response must require a metadata-first visible shell after bulk imports.",
+    ],
+    [
+      'calendar_window_strategy: "six-week-current-month-range"',
+      "Stable-use health response must keep calendar first paint bounded to a six-week window.",
+    ],
+    [
+      "max_calendar_cells_first_paint: 42",
+      "Stable-use health response must cap calendar first paint at 42 cells.",
+    ],
+    [
+      "daily_calendar_uses_metadata_status: true",
+      "Stable-use health response must require Daily metadata load status.",
+    ],
+    [
+      "meeting_calendar_uses_metadata_status: true",
+      "Stable-use health response must require meeting metadata load status.",
+    ],
+    [
+      "page_list_uses_metadata_status: true",
+      "Stable-use health response must require page-list metadata load status.",
+    ],
+    [
+      "page_body_hydration_deferred: true",
+      "Stable-use health response must defer page body hydration after bulk imports.",
+    ],
+    [
+      "imported_content_backfill_batched: true",
+      "Stable-use health response must batch imported content backfill.",
+    ],
+    [
+      "visible_shell_before_cloud_check: true",
+      "Stable-use health response must show the shell before cloud checks.",
+    ],
+    [
+      "background_cloud_refresh_can_block_first_paint: false",
+      "Stable-use health response must prevent cloud refresh from blocking first paint.",
+    ],
+    [
+      "route_smoke_budget_ms: 5000",
+      "Stable-use health response must preserve the stable route smoke budget.",
+    ],
+    [
       'coverage_source: "static-pending-domain-catalog"',
       "Stable-use health response must mark sync-domain coverage as static metadata.",
     ],
@@ -20114,6 +20162,22 @@ function run() {
     [
       "high_risk_actions_require_owner_gate",
       "Stable-use health verifier must assert high-risk owner gates.",
+    ],
+    [
+      "bulk_import_first_paint_policy",
+      "Stable-use health verifier must assert bulk-import first-paint policy.",
+    ],
+    [
+      "metadata-first-visible-shell",
+      "Stable-use health verifier must assert metadata-first visible shell policy.",
+    ],
+    [
+      "max_calendar_cells_first_paint",
+      "Stable-use health verifier must assert bounded calendar first paint.",
+    ],
+    [
+      "background_cloud_refresh_can_block_first_paint",
+      "Stable-use health verifier must assert background cloud refresh cannot block first paint.",
     ],
     [
       "account_session_policy",
