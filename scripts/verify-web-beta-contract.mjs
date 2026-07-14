@@ -10686,6 +10686,22 @@ function run() {
       "Sync UI must mirror the sidebar local-use/cloud-handoff/cache-rebuild status in the sync center.",
     ],
     [
+      "authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}",
+      "Sync UI must pass account auth-retry domains into the first-screen readiness mirror.",
+    ],
+    [
+      "data-auth-retry-active={Boolean(authRetryDomainLabel)}",
+      "Sync UI first-screen readiness mirror must expose whether account auth retry is active.",
+    ],
+    [
+      "data-auth-retry-domains={authRetryDomainLabel}",
+      "Sync UI first-screen readiness mirror must expose which domains are waiting for account auth retry.",
+    ],
+    [
+      'data-auth-retry-until={authRetryUntilLabel ?? ""}',
+      "Sync UI first-screen readiness mirror must expose the next account retry time without reading private content.",
+    ],
+    [
       "getSidebarReadinessMirrorLabel",
       "Sync UI must derive a single sidebar-compatible readiness label instead of duplicating ad hoc copy.",
     ],

@@ -3263,8 +3263,23 @@ check(
     ) &&
     syncDashboardShell.includes(
       "data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}"
+    ) &&
+    syncDashboardShell.includes(
+      "authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}"
+    ) &&
+    syncDashboardShell.includes(
+      "authRetryUntilLabel={syncLocalUseQueueSnapshot.authRetryUntilLabel}"
+    ) &&
+    syncDashboardShell.includes(
+      "data-auth-retry-active={Boolean(authRetryDomainLabel)}"
+    ) &&
+    syncDashboardShell.includes(
+      "data-auth-retry-domains={authRetryDomainLabel}"
+    ) &&
+    syncDashboardShell.includes(
+      'data-auth-retry-until={authRetryUntilLabel ?? ""}'
     ),
-  "同步中心顶部应提供 P0 使用安全状态条：一眼显示能否继续写、待上传/失败/人工处理、缓存重建阻断和详细队列入口"
+  "同步中心顶部应提供 P0 使用安全状态条：一眼显示能否继续写、待上传/失败/人工处理、账号重试、缓存重建阻断和详细队列入口"
 );
 check(
   syncDashboardShell.indexOf("<SyncOperationalStatusStrip") >= 0 &&

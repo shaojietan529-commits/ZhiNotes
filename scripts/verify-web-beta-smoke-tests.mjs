@@ -10676,6 +10676,30 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}",
+    "Sync UI must pass account auth-retry domains into the first-screen readiness mirror."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-auth-retry-active={Boolean(authRetryDomainLabel)}",
+    "Sync UI first-screen readiness mirror must expose whether account auth retry is active."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-auth-retry-domains={authRetryDomainLabel}",
+    "Sync UI first-screen readiness mirror must expose which domains are waiting for account auth retry."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-auth-retry-until={authRetryUntilLabel ?? ""}',
+    "Sync UI first-screen readiness mirror must expose the next account retry time without reading private content."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "getSidebarReadinessMirrorLabel",
     "Sync UI must derive a single sidebar-compatible readiness label."
   );

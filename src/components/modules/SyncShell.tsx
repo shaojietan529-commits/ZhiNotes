@@ -6762,6 +6762,8 @@ function SyncDashboard() {
           pendingTotal={syncLocalUseQueueSnapshot.pendingTotal}
           failedTotal={syncLocalUseQueueSnapshot.failedTotal}
           manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
+          authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}
+          authRetryUntilLabel={syncLocalUseQueueSnapshot.authRetryUntilLabel}
           pendingDomainRows={pendingDomainRows}
           pendingDomainCoverage={pendingDomainCoverage}
           performanceDiagnosis={localPerformanceDiagnosis}
@@ -20171,6 +20173,8 @@ function SyncOperationalStatusStrip({
   pendingTotal,
   failedTotal,
   manualReviewTotal,
+  authRetryDomainLabel,
+  authRetryUntilLabel,
   pendingDomainRows,
   pendingDomainCoverage,
   performanceDiagnosis,
@@ -20185,6 +20189,8 @@ function SyncOperationalStatusStrip({
   pendingTotal: number;
   failedTotal: number;
   manualReviewTotal: number;
+  authRetryDomainLabel: string;
+  authRetryUntilLabel: string | null;
   pendingDomainRows: PendingDomainRow[];
   pendingDomainCoverage: PendingDomainCoverageReport;
   performanceDiagnosis: LocalPerformanceDiagnosis;
@@ -20289,6 +20295,9 @@ function SyncOperationalStatusStrip({
             data-cache-rebuild-blocked={String(
               readiness.cacheRebuildBlocked
             )}
+            data-auth-retry-active={Boolean(authRetryDomainLabel)}
+            data-auth-retry-domains={authRetryDomainLabel}
+            data-auth-retry-until={authRetryUntilLabel ?? ""}
             data-sidebar-readiness-label={sidebarReadinessMirrorLabel}
             data-sidebar-readiness-next-action={readiness.nextAction}
             className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
