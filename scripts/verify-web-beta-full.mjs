@@ -35,6 +35,13 @@ const verificationCommands = [
       "Check preview smoke-plan coverage, hot-cache policy, and disabled cloud defaults.",
   },
   {
+    id: "verify-sync-pending-domains",
+    command: "npm run verify:sync-pending-domains",
+    args: ["run", "verify:sync-pending-domains"],
+    purpose:
+      "Evaluate shared sync pending-domain aggregation with synthetic metadata-only queues.",
+  },
+  {
     id: "verify-cloud-manifest",
     command: "npm run verify:cloud-manifest",
     args: ["run", "verify:cloud-manifest"],

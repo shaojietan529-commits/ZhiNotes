@@ -21,6 +21,13 @@ const verificationCommands = [
       "Check local input continuity, pending/failed/manual review visibility, and cache rebuild blockers.",
   },
   {
+    id: "verify-sync-pending-domains",
+    command: "npm run verify:sync-pending-domains",
+    args: ["run", "verify:sync-pending-domains"],
+    purpose:
+      "Check shared sync pending-domain aggregation, core fallback queues, and metadata-only next actions.",
+  },
+  {
     id: "verify-module-workspaces",
     command: "npm run verify:module-workspaces",
     args: ["run", "verify:module-workspaces"],
@@ -208,6 +215,7 @@ function printReceipt(startedAt, results, status) {
     p0_coverage: [
       "account session does not collapse on transient failures",
       "local input continuity, pending/failed/manual review visibility, and cache rebuild blockers stay mirrored in sidebar and sync center",
+      "shared sync pending-domain registry keeps page, database, file, settings, comments, and unknown-table queues classified",
       "module workspace roots stay routable and extensible",
       "module center stable-use status and registry-backed module contracts stay visible",
       "database views, import/export, and local-only button actions stay inside safe local boundaries",
