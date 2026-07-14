@@ -889,48 +889,61 @@ export default function Sidebar() {
     openModuleRoute,
   ]);
 
-  const refreshAccountLabel = useCallback(async () => {
-    try {
-      const session = await fetchAccountSession();
-      if (session.authenticated && session.account) {
-        setAccountLabel(formatClientAccountLabel(session.account));
-        setAccountSessionFallback(
-          session.stale
-            ? {
-                active: true,
-                reason: getAccountSessionFallbackReason(
-                  session.status,
-                  session.staleReason
-                ),
-              }
-            : { active: false, reason: "" }
+  const refreshAccountLabel = useCallback(
+    async (options: { force?: boolean; preferStored?: boolean } = {}) => {
+      if (options.preferStored) {
+        const lastKnownLabel = getLastKnownAccountLabel();
+        if (lastKnownLabel !== "账号") {
+          setAccountLabel(lastKnownLabel);
+          setAccountSessionFallback({
+            active: true,
+            reason: "账号资料已在其他标签页更新，正在确认云端状态",
+          });
+        }
+      }
+      try {
+        const session = await fetchAccountSession({ force: options.force });
+        if (session.authenticated && session.account) {
+          setAccountLabel(formatClientAccountLabel(session.account));
+          setAccountSessionFallback(
+            session.stale
+              ? {
+                  active: true,
+                  reason: getAccountSessionFallbackReason(
+                    session.status,
+                    session.staleReason
+                  ),
+                }
+              : { active: false, reason: "" }
+          );
+          return;
+        }
+        if (session.status === "ok") {
+          setAccountLabel("账号");
+          setAccountSessionFallback({ active: false, reason: "" });
+          return;
+        }
+        const lastKnownLabel = getLastKnownAccountLabel();
+        setAccountLabel((currentLabel) =>
+          currentLabel === "账号" ? lastKnownLabel : currentLabel
         );
-        return;
+        setAccountSessionFallback({
+          active: lastKnownLabel !== "账号",
+          reason: getAccountSessionFallbackReason(session.status),
+        });
+      } catch {
+        const lastKnownLabel = getLastKnownAccountLabel();
+        setAccountLabel((currentLabel) =>
+          currentLabel === "账号" ? lastKnownLabel : currentLabel
+        );
+        setAccountSessionFallback({
+          active: lastKnownLabel !== "账号",
+          reason: getAccountSessionFallbackReason("error"),
+        });
       }
-      if (session.status === "ok") {
-        setAccountLabel("账号");
-        setAccountSessionFallback({ active: false, reason: "" });
-        return;
-      }
-      const lastKnownLabel = getLastKnownAccountLabel();
-      setAccountLabel((currentLabel) =>
-        currentLabel === "账号" ? lastKnownLabel : currentLabel
-      );
-      setAccountSessionFallback({
-        active: lastKnownLabel !== "账号",
-        reason: getAccountSessionFallbackReason(session.status),
-      });
-    } catch {
-      const lastKnownLabel = getLastKnownAccountLabel();
-      setAccountLabel((currentLabel) =>
-        currentLabel === "账号" ? lastKnownLabel : currentLabel
-      );
-      setAccountSessionFallback({
-        active: lastKnownLabel !== "账号",
-        reason: getAccountSessionFallbackReason("error"),
-      });
-    }
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1003,18 +1016,21 @@ export default function Sidebar() {
     void refreshAccountLabel();
     const handleAccountStorage = (event: StorageEvent) => {
       if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
-        void refreshAccountLabel();
+        void refreshAccountLabel({ force: true, preferStored: true });
       }
+    };
+    const handleAccountProfileUpdated = () => {
+      void refreshAccountLabel({ force: true, preferStored: true });
     };
     window.addEventListener(
       ACCOUNT_PROFILE_UPDATED_EVENT,
-      refreshAccountLabel
+      handleAccountProfileUpdated
     );
     window.addEventListener("storage", handleAccountStorage);
     return () => {
       window.removeEventListener(
         ACCOUNT_PROFILE_UPDATED_EVENT,
-        refreshAccountLabel
+        handleAccountProfileUpdated
       );
       window.removeEventListener("storage", handleAccountStorage);
     };

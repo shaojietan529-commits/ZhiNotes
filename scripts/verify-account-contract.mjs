@@ -3917,11 +3917,21 @@ check(
 );
 check(
   sidebar.includes("fetchAccountSession") &&
+    sidebar.includes(
+      "async (options: { force?: boolean; preferStored?: boolean } = {})"
+    ) &&
+    sidebar.includes("fetchAccountSession({ force: options.force })") &&
+    sidebar.includes("if (options.preferStored)") &&
+    sidebar.includes("账号资料已在其他标签页更新，正在确认云端状态") &&
     sidebar.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
     sidebar.includes("formatClientAccountLabel") &&
     sidebar.includes("getLastAuthenticatedAccount") &&
     sidebar.includes("getLastKnownAccountLabel") &&
     sidebar.includes('window.addEventListener("storage", handleAccountStorage)') &&
+    sidebar.includes(
+      "void refreshAccountLabel({ force: true, preferStored: true })"
+    ) &&
+    sidebar.includes("const handleAccountProfileUpdated = () =>") &&
     sidebar.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
     ) &&
