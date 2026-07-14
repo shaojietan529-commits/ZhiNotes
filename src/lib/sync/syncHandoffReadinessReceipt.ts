@@ -413,22 +413,22 @@ function buildGates(input: {
     },
     {
       id: "page-pending-drained",
-      title: "页面 pending 队列无待上传",
+      title: "页面待上传队列无阻断",
       status: input.pagePendingRows > 0 ? "block" : "pass",
-      evidence: `页面 pending + 内存批次 ${input.pagePendingRows} 条。`,
+      evidence: `页面 pending + 内存批次 + sync_log ${input.pagePendingRows} 条。`,
       next_action:
         input.pagePendingRows > 0
-          ? "先补传页面队列；未上传页面不能在其他设备可靠出现。"
+          ? "先补传页面待上传队列；未上传页面不能在其他设备可靠出现。"
           : "页面待上传队列为空。",
     },
     {
       id: "database-pending-drained",
-      title: "数据库 pending 队列无待上传",
+      title: "数据库待上传队列无阻断",
       status: input.databasePendingRows > 0 ? "block" : "pass",
       evidence: `数据库 pending + 内存批次 + sync_log ${input.databasePendingRows} 条。`,
       next_action:
         input.databasePendingRows > 0
-          ? "先补传数据库队列；未上传数据库修改不能在其他设备可靠出现。"
+          ? "先补传数据库待上传队列；未上传数据库修改不能在其他设备可靠出现。"
           : "数据库待上传队列为空。",
     },
     {

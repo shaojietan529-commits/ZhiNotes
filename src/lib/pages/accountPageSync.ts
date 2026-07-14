@@ -23,6 +23,7 @@ import {
   getAllPageMetadata,
   getAllPagesForSync,
   getPagesForSyncByIds,
+  getPageSyncLogPendingCounts,
   getPendingPageSyncRecords,
   getLocalPageSyncSummary,
   getNextPosition,
@@ -144,6 +145,8 @@ export interface PendingCloudPageSyncStatus {
   pending: number;
   queued: number;
   syncLogPending: number;
+  syncLogRetryable: number;
+  syncLogDeferred: number;
   failed: number;
   failureCountTotal: number;
   maxFailureCount: number;
@@ -2173,6 +2176,8 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
     pending: pendingIds.length,
     queued: queuedCloudPush.size,
     syncLogPending: 0,
+    syncLogRetryable: 0,
+    syncLogDeferred: 0,
     failed: failedIds.length,
     failureCountTotal,
     maxFailureCount,
@@ -2199,10 +2204,17 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
 export async function getPendingCloudPageSyncStatusWithSyncLog(): Promise<PendingCloudPageSyncStatus> {
   const status = getPendingCloudPageSyncStatus();
   try {
-    const pending = await getPendingPageSyncRecords(1000);
+    const [pending, counts] = await Promise.all([
+      getPendingPageSyncRecords(1000),
+      getPageSyncLogPendingCounts(),
+    ]);
+    const retryable = pending.entries.length;
+    const total = Math.max(counts.total, retryable);
     return {
       ...status,
-      syncLogPending: pending.entries.length,
+      syncLogPending: total,
+      syncLogRetryable: retryable,
+      syncLogDeferred: Math.max(0, total - retryable),
     };
   } catch {
     return status;

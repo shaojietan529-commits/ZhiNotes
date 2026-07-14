@@ -71,6 +71,15 @@ export interface PendingPageSyncRecords {
   records: Page[];
 }
 
+export interface PendingSyncLogRetryCounts {
+  total: number;
+  retryable: number;
+  deferred: number;
+  failed: number;
+  inFlight: number;
+  manualReview: number;
+}
+
 export interface WorkspaceSettingRecord {
   key: string;
   valueJson: string;
@@ -4086,6 +4095,79 @@ export async function getPendingDatabaseSyncRecords(
     entries.map((entry) => entry.key)
   );
   return { entries, records };
+}
+
+function normalizePendingSyncLogRetryCounts(
+  row:
+    | {
+        total: number | null;
+        retryable: number | null;
+        failed: number | null;
+        inFlight: number | null;
+        manualReview: number | null;
+      }
+    | undefined
+): PendingSyncLogRetryCounts {
+  const total = Number(row?.total ?? 0);
+  const retryable = Number(row?.retryable ?? 0);
+  return {
+    total,
+    retryable,
+    deferred: Math.max(0, total - retryable),
+    failed: Number(row?.failed ?? 0),
+    inFlight: Number(row?.inFlight ?? 0),
+    manualReview: Number(row?.manualReview ?? 0),
+  };
+}
+
+export async function getPageSyncLogPendingCounts(): Promise<PendingSyncLogRetryCounts> {
+  const db = await getDb();
+  const now = nowISO();
+  const rows = db.query(
+    `SELECT
+       COUNT(*) as total,
+       SUM(CASE WHEN next_retry_at IS NULL OR next_retry_at <= ? THEN 1 ELSE 0 END) as retryable,
+       SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+       SUM(CASE WHEN status = 'in_flight' THEN 1 ELSE 0 END) as inFlight,
+       SUM(CASE WHEN status = 'failed' AND attempt_count >= ? THEN 1 ELSE 0 END) as manualReview
+     FROM sync_log
+     WHERE synced = 0
+       AND status != 'synced'
+       AND table_name = 'pages'`,
+    [now, SYNC_LOG_MANUAL_REVIEW_FAILURE_THRESHOLD]
+  ) as unknown as Array<{
+    total: number | null;
+    retryable: number | null;
+    failed: number | null;
+    inFlight: number | null;
+    manualReview: number | null;
+  }>;
+  return normalizePendingSyncLogRetryCounts(rows[0]);
+}
+
+export async function getDatabaseSyncLogPendingCounts(): Promise<PendingSyncLogRetryCounts> {
+  const db = await getDb();
+  const now = nowISO();
+  const rows = db.query(
+    `SELECT
+       COUNT(*) as total,
+       SUM(CASE WHEN next_retry_at IS NULL OR next_retry_at <= ? THEN 1 ELSE 0 END) as retryable,
+       SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+       SUM(CASE WHEN status = 'in_flight' THEN 1 ELSE 0 END) as inFlight,
+       SUM(CASE WHEN status = 'failed' AND attempt_count >= ? THEN 1 ELSE 0 END) as manualReview
+     FROM sync_log
+     WHERE synced = 0
+       AND status != 'synced'
+       AND table_name IN ('databases', 'database_fields', 'database_rows', 'database_views')`,
+    [now, SYNC_LOG_MANUAL_REVIEW_FAILURE_THRESHOLD]
+  ) as unknown as Array<{
+    total: number | null;
+    retryable: number | null;
+    failed: number | null;
+    inFlight: number | null;
+    manualReview: number | null;
+  }>;
+  return normalizePendingSyncLogRetryCounts(rows[0]);
 }
 
 export async function getPendingPageSyncRecords(

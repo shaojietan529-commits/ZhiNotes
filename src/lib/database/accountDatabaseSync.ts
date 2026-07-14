@@ -11,6 +11,7 @@ import {
   clearLocalDatabaseCacheExceptKeys,
   getAllDatabaseRecordsForSync,
   getDatabaseRecordsForSyncByKeys,
+  getDatabaseSyncLogPendingCounts,
   getLocalDatabaseSyncSummary,
   getPendingDatabaseSyncRecords,
   getRemoteDatabaseRecordKey,
@@ -189,6 +190,8 @@ export interface PendingCloudDatabaseSyncStatus {
   pending: number;
   queued: number;
   syncLogPending: number;
+  syncLogRetryable: number;
+  syncLogDeferred: number;
   failed: number;
   failureCountTotal: number;
   maxFailureCount: number;
@@ -1574,11 +1577,20 @@ export async function flushPendingCloudDatabasePushes(
 
 export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudDatabaseSyncStatus> {
   let syncLogPending = 0;
+  let syncLogRetryable = 0;
+  let syncLogDeferred = 0;
   try {
-    const pending = await getPendingDatabaseSyncRecords(1000);
-    syncLogPending = pending.entries.length;
+    const [pending, counts] = await Promise.all([
+      getPendingDatabaseSyncRecords(1000),
+      getDatabaseSyncLogPendingCounts(),
+    ]);
+    syncLogRetryable = pending.entries.length;
+    syncLogPending = Math.max(counts.total, syncLogRetryable);
+    syncLogDeferred = Math.max(0, syncLogPending - syncLogRetryable);
   } catch {
     syncLogPending = 0;
+    syncLogRetryable = 0;
+    syncLogDeferred = 0;
   }
   const pendingKeys = getPendingCloudDatabasePushKeys();
   const pendingMeta = getPendingCloudDatabasePushMeta();
@@ -1618,6 +1630,8 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
     pending: pendingKeys.length,
     queued: queuedCloudDatabasePush.size,
     syncLogPending,
+    syncLogRetryable,
+    syncLogDeferred,
     failed: failedKeys.length,
     failureCountTotal,
     maxFailureCount,

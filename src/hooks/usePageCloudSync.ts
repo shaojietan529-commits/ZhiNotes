@@ -60,6 +60,8 @@ const EMPTY_PAGE_PENDING_STATUS: PendingCloudPageSyncStatus = {
   pending: 0,
   queued: 0,
   syncLogPending: 0,
+  syncLogRetryable: 0,
+  syncLogDeferred: 0,
   failed: 0,
   failureCountTotal: 0,
   maxFailureCount: 0,

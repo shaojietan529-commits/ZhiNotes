@@ -1432,6 +1432,8 @@ function SyncDashboard() {
       pending: 0,
       queued: 0,
       syncLogPending: 0,
+      syncLogRetryable: 0,
+      syncLogDeferred: 0,
       failed: 0,
       failureCountTotal: 0,
       maxFailureCount: 0,
@@ -5067,19 +5069,29 @@ function SyncDashboard() {
       setSyncSummary(nextSyncSummary);
       setSyncEntries(nextSyncEntries);
       setSyncDrainReceipt(receipt);
+      const afterPageWaiting =
+        afterPageStatus.pending +
+        afterPageStatus.queued +
+        (afterPageStatus.syncLogPending ?? 0);
+      const afterDatabaseWaiting =
+        afterDatabaseStatus.pending +
+        afterDatabaseStatus.queued +
+        (afterDatabaseStatus.syncLogPending ?? 0);
       setPagePendingMessage(
         `统一补传后：页面推送 ${pageResult.pushed} 个，拉取 ${pageResult.pulled} 个；当前页面待上传 ${
-          afterPageStatus.pending +
-          afterPageStatus.queued +
-          (afterPageStatus.syncLogPending ?? 0)
-        } 个。`
+          afterPageWaiting
+        } 个，其中 sync_log 可补传 ${
+          afterPageStatus.syncLogRetryable ?? afterPageStatus.syncLogPending ?? 0
+        } 条、等待退避/人工处理 ${afterPageStatus.syncLogDeferred ?? 0} 条。`
       );
       setDatabasePendingMessage(
         `统一补传后：数据库推送 ${databaseResult.pushed} 条，拉取 ${databaseResult.pulled} 条；当前数据库待上传 ${
-          afterDatabaseStatus.pending +
-          afterDatabaseStatus.queued +
-          (afterDatabaseStatus.syncLogPending ?? 0)
-        } 条。`
+          afterDatabaseWaiting
+        } 条，其中 sync_log 可补传 ${
+          afterDatabaseStatus.syncLogRetryable ??
+          afterDatabaseStatus.syncLogPending ??
+          0
+        } 条、等待退避/人工处理 ${afterDatabaseStatus.syncLogDeferred ?? 0} 条。`
       );
       setSyncDrainMessage(
         allQueuesClear
@@ -5111,15 +5123,19 @@ function SyncDashboard() {
       setPagePendingStatus(nextStatus);
       const nextPendingTotal =
         nextStatus.pending + nextStatus.queued + (nextStatus.syncLogPending ?? 0);
+      const nextSyncLogRetryable =
+        nextStatus.syncLogRetryable ?? nextStatus.syncLogPending ?? 0;
+      const nextSyncLogDeferred = nextStatus.syncLogDeferred ?? 0;
+      const nextPageQueueDetail = `当前仍有 ${nextPendingTotal} 个页面待上传，其中 sync_log 可补传 ${nextSyncLogRetryable} 条、等待退避/人工处理 ${nextSyncLogDeferred} 条。`;
       if (result.status === "ok") {
         setPagePendingMessage(
-          `补传完成：推送 ${result.pushed} 个页面，拉取 ${result.pulled} 个页面；当前仍有 ${nextPendingTotal} 个页面待上传。`
+          `补传完成：推送 ${result.pushed} 个页面，拉取 ${result.pulled} 个页面；${nextPageQueueDetail}`
         );
       } else {
         setPagePendingMessage(
           `补传暂未完成：${formatPageSyncStatus(result.status)}${
             result.message ? `，${result.message}` : ""
-          }；待上传 ${nextPendingTotal} 个页面。`
+          }；${nextPageQueueDetail}`
         );
       }
     } catch (err) {
@@ -5146,15 +5162,23 @@ function SyncDashboard() {
       });
       const nextStatus = await getPendingCloudDatabaseSyncStatus();
       setDatabasePendingStatus(nextStatus);
+      const nextDatabaseTotal =
+        nextStatus.pending +
+        nextStatus.queued +
+        (nextStatus.syncLogPending ?? 0);
+      const nextDatabaseRetryable =
+        nextStatus.syncLogRetryable ?? nextStatus.syncLogPending ?? 0;
+      const nextDatabaseDeferred = nextStatus.syncLogDeferred ?? 0;
+      const nextDatabaseQueueDetail = `当前仍有 ${nextDatabaseTotal} 条数据库待上传，其中 sync_log 可补传 ${nextDatabaseRetryable} 条、等待退避/人工处理 ${nextDatabaseDeferred} 条。`;
       if (result.status === "ok") {
         setDatabasePendingMessage(
-          `补传完成：推送 ${result.pushed} 条数据库记录，拉取 ${result.pulled} 条记录；当前 cloud key 队列 ${nextStatus.pending} 条，本地 sync_log ${nextStatus.syncLogPending ?? 0} 条。`
+          `补传完成：推送 ${result.pushed} 条数据库记录，拉取 ${result.pulled} 条记录；${nextDatabaseQueueDetail}`
         );
       } else {
         setDatabasePendingMessage(
           `补传暂未完成：${formatDatabaseSyncStatus(result.status)}${
             result.message ? `，${result.message}` : ""
-          }；cloud key 队列 ${nextStatus.pending} 条，本地 sync_log ${nextStatus.syncLogPending ?? 0} 条。`
+          }；${nextDatabaseQueueDetail}`
         );
       }
     } catch (err) {
@@ -22277,6 +22301,9 @@ function PagePendingQueueDetails({
   status: PendingCloudPageSyncStatus;
 }) {
   const syncLogPending = status.syncLogPending ?? 0;
+  const syncLogRetryable = status.syncLogRetryable ?? syncLogPending;
+  const syncLogDeferred =
+    status.syncLogDeferred ?? Math.max(0, syncLogPending - syncLogRetryable);
   const totalWaiting = status.pending + status.queued + syncLogPending;
   const queueHealth = getSyncQueueHealth({
     domain: "页面",
@@ -22299,7 +22326,12 @@ function PagePendingQueueDetails({
     {
       label: "本地 sync_log",
       value: String(syncLogPending),
-      detail: "已落入本地 sync_log、等待云端 ACK 的页面账本行。",
+      detail: `已落入本地 sync_log、等待云端 ACK 的页面账本行；其中 ${syncLogRetryable} 条现在可补传，${syncLogDeferred} 条在等待退避/人工处理。`,
+    },
+    {
+      label: "可补传 sync_log",
+      value: String(syncLogRetryable),
+      detail: "补传按钮本轮会尝试处理这些已到重试时间的页面账本行。",
     },
     {
       label: "内存批次",
@@ -22399,6 +22431,15 @@ function PagePendingQueueDetails({
         </p>
       ) : null}
 
+      {syncLogDeferred > 0 ? (
+        <p
+          data-testid="page-sync-log-deferred-warning"
+          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          有 {syncLogDeferred} 条页面 sync_log 仍在等待重试退避或人工处理。它们会阻断换设备和缓存重建，但不会阻止你继续本地写作；等退避结束或进入人工复核后再补传。
+        </p>
+      ) : null}
+
       <div className="rounded-md border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -22480,7 +22521,7 @@ function PagePendingQueueDetails({
 
       <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
         页面同步当前{status.enabled ? "已开启" : "已关闭"}。
-        首次账号同步会补种本机页面基线；之后普通同步只会补传 pending queue 里的页面。
+        首次账号同步会补种本机页面基线；之后普通同步会先处理 pending queue 和已到重试时间的 sync_log。
       </p>
     </div>
   );
@@ -22492,6 +22533,9 @@ function DatabasePendingQueueDetails({
   status: PendingCloudDatabaseSyncStatus;
 }) {
   const syncLogPending = status.syncLogPending ?? 0;
+  const syncLogRetryable = status.syncLogRetryable ?? syncLogPending;
+  const syncLogDeferred =
+    status.syncLogDeferred ?? Math.max(0, syncLogPending - syncLogRetryable);
   const totalWaiting = status.pending + status.queued + syncLogPending;
   const queueHealth = getSyncQueueHealth({
     domain: "数据库",
@@ -22514,7 +22558,12 @@ function DatabasePendingQueueDetails({
     {
       label: "本地 sync_log",
       value: String(syncLogPending),
-      detail: "本地同步日志里的待上传数据库变更计数。",
+      detail: `本地同步日志里的待上传数据库变更计数；其中 ${syncLogRetryable} 条现在可补传，${syncLogDeferred} 条在等待退避/人工处理。`,
+    },
+    {
+      label: "可补传 sync_log",
+      value: String(syncLogRetryable),
+      detail: "补传按钮本轮会尝试处理这些已到重试时间的数据库账本行。",
     },
     {
       label: "内存批次",
@@ -22613,6 +22662,15 @@ function DatabasePendingQueueDetails({
           数据库队列存在滞留风险。这里用 oldestPendingQueuedAt、lastFailureAt
           和 counts 做长时间未上传判断，只显示 database/field/row/view
           key，不读取 row value。
+        </p>
+      ) : null}
+
+      {syncLogDeferred > 0 ? (
+        <p
+          data-testid="database-sync-log-deferred-warning"
+          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          有 {syncLogDeferred} 条数据库 sync_log 仍在等待重试退避或人工处理。它们会阻断换设备和缓存重建，但不会阻止你继续本地编辑；等退避结束或进入人工复核后再补传。
         </p>
       ) : null}
 

@@ -1046,7 +1046,10 @@ check(
     pageSyncClient.includes("export async function getPendingCloudPageSyncStatusWithSyncLog") &&
     pageSyncClient.includes("export async function pushPendingLocalPageChangesToCloud") &&
     pageSyncClient.includes("syncLogPending") &&
-    pageSyncClient.includes("const pending = await getPendingPageSyncRecords(1000)") &&
+    pageSyncClient.includes("syncLogRetryable") &&
+    pageSyncClient.includes("syncLogDeferred") &&
+    pageSyncClient.includes("getPageSyncLogPendingCounts()") &&
+    pageSyncClient.includes("getPendingPageSyncRecords(1000)") &&
     pageSyncClient.includes("pending: pendingIds.length") &&
     pageSyncClient.includes("queued: queuedCloudPush.size") &&
     pageSyncClient.includes("oldestPendingQueuedAt") &&
@@ -1071,7 +1074,9 @@ check(
     syncDashboardShell.includes("includeManualReview: true") &&
     syncDashboardShell.includes("forceAccountGate: true") &&
     syncDashboardShell.includes("首次账号同步会补种本机页面基线") &&
-    syncDashboardShell.includes("之后普通同步只会补传 pending queue 里的页面"),
+    syncDashboardShell.includes("之后普通同步会先处理 pending queue 和已到重试时间的 sync_log") &&
+    syncDashboardShell.includes("可补传 sync_log") &&
+    syncDashboardShell.includes("等待退避/人工处理"),
   "同步页应展示页面 pending 上传队列并提供 quick 增量补传，同时说明首次基线补种和后续增量补传"
 );
 check(
@@ -1079,10 +1084,13 @@ check(
     databaseSyncClient.includes("export async function getPendingCloudDatabaseSyncStatus") &&
     databaseSyncClient.includes("PENDING_PUSH_META_KEY") &&
     databaseSyncClient.includes("getPendingCloudDatabasePushMeta") &&
-    databaseSyncClient.includes("const pending = await getPendingDatabaseSyncRecords(1000)") &&
+    databaseSyncClient.includes("getPendingDatabaseSyncRecords(1000)") &&
+    databaseSyncClient.includes("getDatabaseSyncLogPendingCounts()") &&
     databaseSyncClient.includes("pending: pendingKeys.length") &&
     databaseSyncClient.includes("queued: queuedCloudDatabasePush.size") &&
     databaseSyncClient.includes("syncLogPending") &&
+    databaseSyncClient.includes("syncLogRetryable") &&
+    databaseSyncClient.includes("syncLogDeferred") &&
     databaseSyncClient.includes("oldestPendingQueuedAt") &&
     databaseSyncClient.includes("pendingSampleKeys: pendingKeys.slice(0, 5)") &&
     databaseSyncClient.includes("authRetryStatus: authRetry.status") &&
@@ -3983,6 +3991,10 @@ check(
 check(
   localQueries.includes("export async function getPendingPageSyncRecords") &&
     localQueries.includes("table_name = 'pages'") &&
+    localQueries.includes("export async function getPageSyncLogPendingCounts") &&
+    localQueries.includes("export async function getDatabaseSyncLogPendingCounts") &&
+    localQueries.includes("retryable") &&
+    localQueries.includes("deferred: Math.max(0, total - retryable)") &&
     localQueries.includes("export async function markPageSyncLogEntriesSynced") &&
     localQueries.includes("export async function markPageSyncLogEntriesAttempted") &&
     localQueries.includes("export async function markPageSyncLogEntriesFailed") &&
