@@ -1725,6 +1725,7 @@ export default function DailyNotesShell() {
           ...current.filter((item) => item.id !== optimisticNote.id),
         ]);
         upsertPages([optimisticNote]);
+        void seedDailyNoteForImmediateOpen(optimisticNote);
         if (dailyCreateOpenMode === "peek") {
           setPeekInitialPage(optimisticNote);
           setOpeningNoteId(optimisticNote.id);
@@ -1766,9 +1767,6 @@ export default function DailyNotesShell() {
       });
       revealDailyNoteOnCalendar(optimisticNote);
       scheduleOptimisticDailyHotCacheWrite(optimisticNote, initialRootId, 220);
-      scheduleDailyIdleTask(() => {
-        void seedDailyNoteForImmediateOpen(optimisticNote);
-      }, 320);
       window.setTimeout(() => {
         releaseCreatingDate();
       }, 250);

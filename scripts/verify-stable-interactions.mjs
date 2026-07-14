@@ -160,9 +160,10 @@ function run() {
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
       "setNotes((current) => [",
       "upsertPages([optimisticNote]);",
+      "void seedDailyNoteForImmediateOpen(optimisticNote);",
       "scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);",
     ],
-    "Daily + must publish local feedback and route handoff before background persistence."
+    "Daily + must publish local feedback, route handoff, and start non-blocking local persistence before background work."
   );
   assertOrdered(
     files.dailyShell,
@@ -180,10 +181,9 @@ function run() {
       "recordLocalPerformanceSnapshot({",
       "revealDailyNoteOnCalendar(optimisticNote);",
       "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
-      "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
       "scheduleDailyIdleTask(() => {\n        void (async () => {",
     ],
-    "Daily create must defer hot-cache, local-index, root resolution, and sync queue persistence behind visible local feedback."
+    "Daily create must defer hot-cache, root resolution, and sync queue persistence behind visible local feedback while local cache persistence starts non-blocking."
   );
 
   for (const [snippet, message] of [

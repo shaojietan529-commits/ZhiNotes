@@ -1187,6 +1187,8 @@ check(
   shells.daily.indexOf("rememberPendingPageDraft(optimisticNote)") <
     shells.daily.indexOf("upsertPages([optimisticNote])") &&
     shells.daily.indexOf("upsertPages([optimisticNote])") <
+      shells.daily.indexOf("void seedDailyNoteForImmediateOpen(optimisticNote);") &&
+    shells.daily.indexOf("void seedDailyNoteForImmediateOpen(optimisticNote);") <
       shells.daily.indexOf("setPeekInitialPage(optimisticNote)") &&
     shells.daily.indexOf("setPeekInitialPage(optimisticNote)") <
       shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&
@@ -1194,8 +1196,8 @@ check(
       shells.daily.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") &&
     shells.daily.indexOf("setPeekPageId(optimisticNote.id)") <
       shells.daily.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") &&
-    shells.daily.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") <
-      shells.daily.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
+    shells.daily.indexOf("void seedDailyNoteForImmediateOpen(optimisticNote);") <
+      shells.daily.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") &&
     shells.daily.includes("window.setTimeout(() =>") &&
     shells.daily.includes("DAILY_CREATE_FEEDBACK_FRAME_TIMEOUT_MS") &&
     shells.daily.includes("waitForDailyCreateFeedbackFrame") &&
@@ -1204,7 +1206,7 @@ check(
     shells.daily.includes("current === dateKey ? null : current") &&
     shells.daily.indexOf("setPeekPageId(optimisticNote.id)") <
       shells.daily.indexOf("persistOptimisticDailyNote"),
-  "DailyNotesShell 新增纪要必须先登记草稿和轻量缓存，再直接进入完整页面，快速释放 + 按钮并后台持久化"
+  "DailyNotesShell 新增纪要必须先登记草稿、立即启动本地落盘，再进入 peek/完整页面，快速释放 + 按钮并后台持久化"
 );
 check(
   shells.daily.includes("await applyRemotePages(records)") &&

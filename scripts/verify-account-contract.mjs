@@ -1418,12 +1418,14 @@ check(
     dailyNotesShell.indexOf("rememberPendingPageDraft(optimisticNote)") <
       dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
     dailyNotesShell.indexOf("upsertPages([optimisticNote])") <
+      dailyNotesShell.indexOf("void seedDailyNoteForImmediateOpen(optimisticNote);") &&
+    dailyNotesShell.indexOf("void seedDailyNoteForImmediateOpen(optimisticNote);") <
+      dailyNotesShell.indexOf("setPeekInitialPage(optimisticNote);") &&
+    dailyNotesShell.indexOf("void seedDailyNoteForImmediateOpen(optimisticNote);") <
       dailyNotesShell.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") &&
     dailyNotesShell.includes(
       "const currentNotes = collectVisibleDailyNotesForHotCache(notesByDate);"
     ) &&
-    dailyNotesShell.indexOf("scheduleOptimisticDailyHotCacheWrite(optimisticNote") <
-      dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") &&
     dailyNotesShell.includes(
       "warmDailyCreateOpenPath();\n        setOpeningDraft({ pageId: optimisticNote.id, dateKey });"
     ) &&

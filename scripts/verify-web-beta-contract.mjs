@@ -6720,8 +6720,8 @@ function run() {
       "Daily + creation performance snapshots must prove route handoff was seeded without storing page ids or titles.",
     ],
     [
-      "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
-      "Daily + creation must defer local cache persistence until after the page is already opening.",
+      "upsertPages([optimisticNote]);\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
+      "Daily + creation must start local cache persistence immediately after the in-memory draft, without awaiting the slower local write.",
     ],
     [
       "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
@@ -7617,15 +7617,16 @@ function run() {
       "setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
       "rememberPendingPageDraft(optimisticNote);",
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
+      "upsertPages([optimisticNote]);",
+      "void seedDailyNoteForImmediateOpen(optimisticNote);",
       "setPeekInitialPage(optimisticNote);",
       "setOpeningNoteId(optimisticNote.id);",
       "setPeekPageId(optimisticNote.id);",
       "scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);",
       "recordLocalPerformanceSnapshot({",
       "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
-      "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
     ],
-    "Daily + creation must show the local peek/opening shell before hot-cache and local-index background work."
+    "Daily + creation must seed the draft, start local persistence without awaiting it, and still show the local peek/opening shell before hot-cache background work."
   );
   assertSourceOrderedSnippets(
     files.dailyNotesShell,

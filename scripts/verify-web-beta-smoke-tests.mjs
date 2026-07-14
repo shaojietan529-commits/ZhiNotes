@@ -1422,6 +1422,10 @@ function run() {
       "Daily note creation must keep same-page peek opening available as an explicit mode.",
     ],
     [
+      "upsertPages([optimisticNote]);\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
+      "Daily note creation must start IndexedDB persistence immediately after the local draft enters memory, so + remains recoverable during heavy calendars.",
+    ],
+    [
       "scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);",
       "Daily note creation must fall back to the full page if the same-page peek shell stalls.",
     ],
@@ -1530,6 +1534,10 @@ function run() {
     [
       "router.push(`/page/${pageId}`);",
       "Daily note fallback opens must not bypass the local-first route handoff.",
+    ],
+    [
+      "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
+      "Daily note creation must not delay the first local IndexedDB write behind an idle timer after + is clicked.",
     ],
   ]) {
     assertExcludes(files.dailyNotesShell, dailyNotesShell, snippet, message);
@@ -11415,15 +11423,16 @@ function run() {
       "setOpeningDraft({ pageId: optimisticNote.id, dateKey });",
       "rememberPendingPageDraft(optimisticNote);",
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
+      "upsertPages([optimisticNote]);",
+      "void seedDailyNoteForImmediateOpen(optimisticNote);",
       "setPeekInitialPage(optimisticNote);",
       "setOpeningNoteId(optimisticNote.id);",
       "setPeekPageId(optimisticNote.id);",
       "scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);",
       "recordLocalPerformanceSnapshot({",
       "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
-      "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
     ],
-    "Daily + creation must show the local peek/opening shell before hot-cache and local-index background work."
+    "Daily + creation must seed the draft, start local persistence without awaiting it, and still show the local peek/opening shell before hot-cache background work."
   );
   assertOrderedSnippets(
     files.dailyNotesShell,
@@ -11449,8 +11458,8 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "scheduleDailyIdleTask(() => {\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
-    "Daily + creation must defer local cache persistence until after the page is already opening."
+    "upsertPages([optimisticNote]);\n        void seedDailyNoteForImmediateOpen(optimisticNote);",
+    "Daily + creation must start local cache persistence immediately after the in-memory draft, without waiting for the slower background save."
   );
   assertIncludes(
     files.dailyNotesShell,
