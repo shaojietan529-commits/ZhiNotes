@@ -10586,6 +10586,24 @@ function run() {
     "Page sync status badge must expose the exact Sync module queue target."
   );
   assertIncludes(
+    files.pageShell,
+    pageShell,
+    "queueMicrotask(() =>",
+    "Page shell must read local page sync status immediately after opening instead of waiting for the idle refresh."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "if (!cancelled) callback();",
+    "Page shell immediate sync-status refresh must be cancellable when navigating away."
+  );
+  assertIncludes(
+    files.pageShell,
+    pageShell,
+    "if (cancelled) return;",
+    "Page shell idle sync-status fallback must not run after the immediate refresh is cancelled."
+  );
+  assertIncludes(
     files.pageCloudSaveStatus,
     pageCloudSaveStatus,
     "/modules/sync#page-pending-upload-queue",

@@ -1835,17 +1835,30 @@ function schedulePageSyncStatusInitialRefresh(callback: () => void): () => void 
   let timer: number | null = null;
   let idleId: number | null = null;
   let fallbackTimer: number | null = null;
+  let cancelled = false;
+  queueMicrotask(() => {
+    if (!cancelled) callback();
+  });
   timer = window.setTimeout(() => {
     timer = null;
+    if (cancelled) return;
     if (typeof maybeWindow.requestIdleCallback === "function") {
-      idleId = maybeWindow.requestIdleCallback(callback, {
-        timeout: PAGE_SYNC_STATUS_FIRST_REFRESH_IDLE_TIMEOUT_MS,
-      });
+      idleId = maybeWindow.requestIdleCallback(
+        () => {
+          if (!cancelled) callback();
+        },
+        {
+          timeout: PAGE_SYNC_STATUS_FIRST_REFRESH_IDLE_TIMEOUT_MS,
+        }
+      );
       return;
     }
-    fallbackTimer = window.setTimeout(callback, 80);
+    fallbackTimer = window.setTimeout(() => {
+      if (!cancelled) callback();
+    }, 80);
   }, PAGE_SYNC_STATUS_FIRST_REFRESH_DELAY_MS);
   return () => {
+    cancelled = true;
     if (timer !== null) window.clearTimeout(timer);
     if (idleId !== null) maybeWindow.cancelIdleCallback?.(idleId);
     if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);

@@ -2776,6 +2776,9 @@ check(
     ) &&
     pageShell.includes("getCloudPageSyncItemStatus(pageId)") &&
     pageShell.includes("scheduleStatusRefresh") &&
+    pageShell.includes("queueMicrotask(() =>") &&
+    pageShell.includes("if (!cancelled) callback();") &&
+    pageShell.includes("if (cancelled) return;") &&
     pageShell.includes("function isPageSyncStorageEvent(") &&
     pageShell.includes("event.key.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)") &&
     pageShell.includes('window.addEventListener("storage", handleStorageRefresh)') &&
