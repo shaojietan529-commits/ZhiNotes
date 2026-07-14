@@ -14452,6 +14452,36 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "cloudHandoffAutoRecoverStartedRef",
+    "Sync UI must guard automatic handoff recovery so it runs at most once per page load."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "cloudCallbackHandoffHandledRef",
+    "Sync UI must avoid duplicate handoff recovery immediately after the auth callback already attempted it."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'void handleRecoverCloudHandoff("auto")',
+    "Sync UI must automatically attempt metadata-only handoff recovery when an existing session is local-only."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'workspaceIdentity.cloud_status === "linked-alpha"',
+    "Sync UI automatic handoff recovery must skip devices that are already linked to a cloud workspace."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "检测到本机已有云 session",
+    "Sync UI automatic handoff recovery must explain that it only checks account/workspace metadata."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "/api/workspaces",
     "Cloud handoff recovery must first list accessible workspaces instead of creating or uploading content."
   );

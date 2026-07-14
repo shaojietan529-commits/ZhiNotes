@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type ReactNode,
@@ -1358,6 +1360,8 @@ function SyncContent() {
 
 function SyncDashboard() {
   const router = useRouter();
+  const cloudCallbackHandoffHandledRef = useRef(false);
+  const cloudHandoffAutoRecoverStartedRef = useRef(false);
   const { pages } = usePages();
   const { favoriteIds } = usePageFavorites();
   const [databases, setDatabases] = useState<Database[]>([]);
@@ -1825,6 +1829,7 @@ function SyncDashboard() {
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("cloud") === "connected" && session) {
+      cloudCallbackHandoffHandledRef.current = true;
       setCloudMessage(getCloudCallbackHandoffMessage(params.get("handoff")));
       window.history.replaceState(null, "", "/modules/sync");
     }
@@ -3562,25 +3567,35 @@ function SyncDashboard() {
     }
   };
 
-  const handleRecoverCloudHandoff = async () => {
-    if (!cloudSession || cloudSessionExpired) {
-      if (cloudSessionExpired) {
-        clearCloudSession();
-        setCloudSession(null);
+  const handleRecoverCloudHandoff = useCallback(
+    async (source: "manual" | "auto" = "manual") => {
+      if (!cloudSession || cloudSessionExpired) {
+        if (cloudSessionExpired) {
+          clearCloudSession();
+          setCloudSession(null);
+        }
+        setCloudMessage({
+          tone: "warning",
+          title: "需要先登录",
+          detail:
+            "恢复云接力需要一个有效的本地云 session；这个动作不会上传本地内容。",
+        });
+        return;
       }
-      setCloudMessage({
-        tone: "warning",
-        title: "需要先登录",
-        detail:
-          "恢复云接力需要一个有效的本地云 session；这个动作不会上传本地内容。",
-      });
-      return;
-    }
 
-    setBusyCloudAction("recover-handoff");
-    setCloudMessage(null);
-    try {
-      let activeSession: ZhiNotesCloudSession = cloudSession;
+      setBusyCloudAction("recover-handoff");
+      setCloudMessage(
+        source === "auto"
+          ? {
+              tone: "info",
+              title: "正在恢复云接力",
+              detail:
+                "检测到本机已有云 session，正在做一次账号/workspace metadata 检查；不会上传本地内容。",
+            }
+          : null
+      );
+      try {
+        let activeSession: ZhiNotesCloudSession = cloudSession;
 
       if (!activeSession.user?.id) {
         const sessionResponse = await fetchSyncCloudApiWithTimeout(
@@ -3769,20 +3784,50 @@ function SyncDashboard() {
         detail:
           `已把本机 workspace 重新连接到 ${nextWorkspace.name}。这个动作只恢复账号/workspace metadata，不上传页面、数据库、文件或同步队列；push/pull 仍保持关闭。`,
       });
-    } catch (err) {
-      console.error("[Zhinote] Cloud handoff recovery failed:", err);
-      setCloudMessage({
-        tone: "error",
-        title: "云接力恢复失败",
-        detail:
-          err instanceof Error
-            ? err.message
-            : "未知云端错误；本地输入和待上传队列已保留。",
-      });
-    } finally {
-      setBusyCloudAction(null);
+      } catch (err) {
+        console.error("[Zhinote] Cloud handoff recovery failed:", err);
+        setCloudMessage({
+          tone: "error",
+          title: "云接力恢复失败",
+          detail:
+            err instanceof Error
+              ? err.message
+              : "未知云端错误；本地输入和待上传队列已保留。",
+        });
+      } finally {
+        setBusyCloudAction(null);
+      }
+    },
+    [
+      cloudSession,
+      cloudSessionExpired,
+      selectedCloudWorkspaceId,
+      workspaceIdentity,
+    ]
+  );
+
+  useEffect(() => {
+    if (cloudHandoffAutoRecoverStartedRef.current) return;
+    if (cloudCallbackHandoffHandledRef.current) return;
+    if (!cloudSession || cloudSessionExpired) return;
+    if (!workspaceIdentity) return;
+    if (
+      workspaceIdentity.cloud_status === "linked-alpha" &&
+      workspaceIdentity.cloud_workspace_id
+    ) {
+      return;
     }
-  };
+    if (busyCloudAction) return;
+
+    cloudHandoffAutoRecoverStartedRef.current = true;
+    void handleRecoverCloudHandoff("auto");
+  }, [
+    busyCloudAction,
+    cloudSession,
+    cloudSessionExpired,
+    handleRecoverCloudHandoff,
+    workspaceIdentity,
+  ]);
 
   const handleLinkCloudWorkspace = () => {
     if (!cloudSession?.user?.id) {

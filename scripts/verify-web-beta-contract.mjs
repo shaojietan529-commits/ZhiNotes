@@ -11153,6 +11153,26 @@ function run() {
       "Sync UI must track cloud handoff recovery as its own busy state.",
     ],
     [
+      "cloudHandoffAutoRecoverStartedRef",
+      "Sync UI must guard automatic handoff recovery so it runs at most once per page load.",
+    ],
+    [
+      "cloudCallbackHandoffHandledRef",
+      "Sync UI must avoid duplicate handoff recovery immediately after the auth callback already attempted it.",
+    ],
+    [
+      'void handleRecoverCloudHandoff("auto")',
+      "Sync UI must automatically attempt metadata-only handoff recovery when an existing session is local-only.",
+    ],
+    [
+      'workspaceIdentity.cloud_status === "linked-alpha"',
+      "Sync UI automatic handoff recovery must skip devices that are already linked to a cloud workspace.",
+    ],
+    [
+      "检测到本机已有云 session",
+      "Sync UI automatic handoff recovery must explain that it only checks account/workspace metadata.",
+    ],
+    [
       "/api/workspaces",
       "Cloud handoff recovery must first list accessible workspaces instead of creating or uploading content.",
     ],
