@@ -1718,7 +1718,9 @@ function SyncDashboard() {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
     let timer: number | undefined;
+    let pagePendingRefreshGeneration = 0;
     const schedulePagePendingRefresh = (
       status: PendingCloudPageSyncStatus
     ) => {
@@ -1733,16 +1735,21 @@ function SyncDashboard() {
     const refreshPagePendingStatus = (event?: Event) => {
       const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
         ?.detail;
+      const generation = pagePendingRefreshGeneration + 1;
+      pagePendingRefreshGeneration = generation;
       if (next) {
+        if (!mounted) return;
         setPagePendingStatus(next);
         schedulePagePendingRefresh(next);
         void getPendingCloudPageSyncStatusWithSyncLog().then((status) => {
+          if (!mounted || pagePendingRefreshGeneration !== generation) return;
           setPagePendingStatus(status);
           schedulePagePendingRefresh(status);
         });
         return;
       }
       void getPendingCloudPageSyncStatusWithSyncLog().then((status) => {
+        if (!mounted || pagePendingRefreshGeneration !== generation) return;
         setPagePendingStatus(status);
         schedulePagePendingRefresh(status);
       });
@@ -1762,6 +1769,7 @@ function SyncDashboard() {
     window.addEventListener(SYNC_LOG_STATUS_EVENT, refreshPagePendingStatus);
     window.addEventListener("storage", handlePageStorageRefresh);
     return () => {
+      mounted = false;
       window.removeEventListener(
         PAGE_SYNC_STATUS_EVENT,
         refreshPagePendingStatus
@@ -1782,6 +1790,7 @@ function SyncDashboard() {
   useEffect(() => {
     let mounted = true;
     let timer: number | undefined;
+    let databasePendingRefreshGeneration = 0;
     const scheduleDatabasePendingRefresh = (
       status: PendingCloudDatabaseSyncStatus
     ) => {
@@ -1797,13 +1806,18 @@ function SyncDashboard() {
       const next = (
         event as CustomEvent<PendingCloudDatabaseSyncStatus> | undefined
       )?.detail;
+      const generation = databasePendingRefreshGeneration + 1;
+      databasePendingRefreshGeneration = generation;
       if (next) {
+        if (!mounted) return;
         setDatabasePendingStatus(next);
         scheduleDatabasePendingRefresh(next);
         return;
       }
       void getPendingCloudDatabaseSyncStatus().then((status) => {
-        if (!mounted) return;
+        if (!mounted || databasePendingRefreshGeneration !== generation) {
+          return;
+        }
         setDatabasePendingStatus(status);
         scheduleDatabasePendingRefresh(status);
       });

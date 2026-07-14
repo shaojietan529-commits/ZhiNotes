@@ -15886,6 +15886,14 @@ function run() {
       "Sync UI page pending panel must schedule adaptive refreshes.",
     ],
     [
+      "pagePendingRefreshGeneration",
+      "Sync UI page pending panel must guard async refreshes against stale responses.",
+    ],
+    [
+      "pagePendingRefreshGeneration !== generation",
+      "Sync UI page pending panel must ignore older pending-status responses.",
+    ],
+    [
       "isActivePagePendingStatus(status)",
       "Sync UI page pending panel must use active queue state to choose refresh speed.",
     ],
@@ -15996,6 +16004,14 @@ function run() {
     [
       "scheduleDatabasePendingRefresh",
       "Sync UI database pending panel must schedule adaptive refreshes.",
+    ],
+    [
+      "databasePendingRefreshGeneration",
+      "Sync UI database pending panel must guard async refreshes against stale responses.",
+    ],
+    [
+      "databasePendingRefreshGeneration !== generation",
+      "Sync UI database pending panel must ignore older pending-status responses.",
     ],
     [
       "isActiveDatabasePendingStatus(status)",
