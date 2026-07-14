@@ -19859,6 +19859,14 @@ function run() {
       "getDevelopmentOwnerGatedActions()",
       "Stable-use health response must use the shared owner-gated action catalog.",
     ],
+    [
+      "getPendingDomainCatalog()",
+      "Stable-use health response must use the shared pending-domain catalog.",
+    ],
+    [
+      "monitored_sync_domains",
+      "Stable-use health response must expose monitored sync domains.",
+    ],
   ]) {
     assertSourceIncludes(files.stableUseHealth, stableUseHealth, snippet, message);
   }

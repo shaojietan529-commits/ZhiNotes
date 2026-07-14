@@ -36,6 +36,14 @@ export type PendingDomainDefinition = {
   tablePrefixes?: string[];
 };
 
+export type PendingDomainCatalogItem = {
+  id: Exclude<PendingDomainId, "other">;
+  label: string;
+  detail: string;
+  tableNames: string[];
+  tablePrefixes: string[];
+};
+
 export const PENDING_DOMAIN_DEFINITIONS: PendingDomainDefinition[] = [
   {
     id: "pages",
@@ -114,6 +122,16 @@ export const PENDING_DOMAIN_DEFINITIONS: PendingDomainDefinition[] = [
     tablePrefixes: ["audit_", "receipt_", "migration_"],
   },
 ];
+
+export function getPendingDomainCatalog(): PendingDomainCatalogItem[] {
+  return PENDING_DOMAIN_DEFINITIONS.map((definition) => ({
+    id: definition.id,
+    label: definition.label,
+    detail: definition.detail,
+    tableNames: [...definition.tableNames],
+    tablePrefixes: [...(definition.tablePrefixes ?? [])],
+  }));
+}
 
 export function buildPendingDomainRows(
   syncSummary: SyncLogSummary | null,

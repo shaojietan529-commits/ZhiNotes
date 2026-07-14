@@ -15712,6 +15712,8 @@ function run() {
         "reads_tokens_or_cookies: false",
         "getDevelopmentStableUseRoutes()",
         "getDevelopmentOwnerGatedActions()",
+        "getPendingDomainCatalog()",
+        "monitored_sync_domains",
       ],
     ],
     [

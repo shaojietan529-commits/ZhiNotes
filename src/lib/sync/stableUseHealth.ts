@@ -2,6 +2,15 @@ import {
   getDevelopmentOwnerGatedActions,
   getDevelopmentStableUseRoutes,
 } from "@/lib/sync/developmentStabilityPlan";
+import { getPendingDomainCatalog } from "@/lib/sync/syncPendingDomainRegistry";
+
+export interface StableUseMonitoredSyncDomain {
+  id: string;
+  label: string;
+  detail: string;
+  table_names: string[];
+  table_prefixes: string[];
+}
 
 export interface StableUseHealthResponse {
   format: "zhinote-stable-use-health";
@@ -18,6 +27,7 @@ export interface StableUseHealthResponse {
   cache_rebuild_approved_by_health_check: false;
   stable_use_routes: string[];
   owner_gated_actions: string[];
+  monitored_sync_domains: StableUseMonitoredSyncDomain[];
   required_before_shipping_changes: string[];
   boundary: {
     deployment_health_metadata_only: true;
@@ -77,6 +87,13 @@ export function buildStableUseHealthResponse(input: {
     cache_rebuild_approved_by_health_check: false,
     stable_use_routes: getDevelopmentStableUseRoutes(),
     owner_gated_actions: getDevelopmentOwnerGatedActions(),
+    monitored_sync_domains: getPendingDomainCatalog().map((domain) => ({
+      id: domain.id,
+      label: domain.label,
+      detail: domain.detail,
+      table_names: domain.tableNames,
+      table_prefixes: domain.tablePrefixes,
+    })),
     required_before_shipping_changes: [
       "Run the focused verifier for the changed surface.",
       "Run npm run verify:route-smoke for stable route, sidebar, module, account, Daily, ZhiHui, or sync-center changes.",
@@ -86,6 +103,6 @@ export function buildStableUseHealthResponse(input: {
     ],
     boundary: STABLE_USE_HEALTH_BOUNDARY,
     privacy_note:
-      "This health response is deployment metadata only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
+      "This health response is deployment metadata plus the static sync-domain taxonomy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
   };
 }

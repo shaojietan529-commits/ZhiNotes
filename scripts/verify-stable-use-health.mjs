@@ -101,6 +101,8 @@ function verifySourceContracts() {
   assertIncludes(healthSource, 'sync_failure_policy: "retry-visible-not-sign-out"', "health response must preserve retry-not-signout policy");
   assertIncludes(healthSource, "getDevelopmentStableUseRoutes()", "health response must use shared stable-use route catalog");
   assertIncludes(healthSource, "getDevelopmentOwnerGatedActions()", "health response must use shared owner-gated action catalog");
+  assertIncludes(healthSource, "getPendingDomainCatalog()", "health response must use the shared pending-domain catalog");
+  assertIncludes(healthSource, "monitored_sync_domains", "health response must expose monitored sync domains");
   assertIncludes(healthSource, "git pull --rebase before git push; never force push.", "health response must preserve safe push guidance");
   for (const flag of requiredTopLevelFalseFlags) {
     assertIncludes(healthSource, `${flag}: false`, `${flag} must be false in source`);
@@ -156,6 +158,44 @@ function verifyRouteResult(result) {
     !body.owner_gated_actions.includes("cache_rebuild_from_cloud")
   ) {
     failures.push("owner_gated_actions must include sync push and cache rebuild gates");
+  }
+  const monitoredSyncDomains = body?.monitored_sync_domains ?? [];
+  if (!Array.isArray(monitoredSyncDomains) || monitoredSyncDomains.length < 8) {
+    failures.push("monitored_sync_domains must list the stable pending-domain catalog");
+  }
+  for (const id of [
+    "pages",
+    "databases",
+    "comments",
+    "versions",
+    "files",
+    "settings",
+    "permissions",
+    "audit",
+  ]) {
+    if (!monitoredSyncDomains.some((domain) => domain?.id === id)) {
+      failures.push(`monitored_sync_domains missing ${id}`);
+    }
+  }
+  if (
+    !monitoredSyncDomains.some(
+      (domain) =>
+        domain?.id === "pages" &&
+        domain?.table_names?.includes("pages") &&
+        domain?.table_prefixes?.includes("daily_")
+    )
+  ) {
+    failures.push("monitored_sync_domains must include page and daily-note metadata");
+  }
+  if (
+    !monitoredSyncDomains.some(
+      (domain) =>
+        domain?.id === "settings" &&
+        domain?.table_names?.includes("sidebar_items") &&
+        domain?.table_prefixes?.includes("sidebar_")
+    )
+  ) {
+    failures.push("monitored_sync_domains must include sidebar/module settings metadata");
   }
   if (
     !Array.isArray(body?.required_before_shipping_changes) ||
@@ -392,6 +432,9 @@ function printReceipt(result, status, port, devServer) {
       : 0,
     owner_gated_actions: Array.isArray(result?.body?.owner_gated_actions)
       ? result.body.owner_gated_actions.length
+      : 0,
+    monitored_sync_domains: Array.isArray(result?.body?.monitored_sync_domains)
+      ? result.body.monitored_sync_domains.length
       : 0,
     failures,
     privacy_boundary:

@@ -36,6 +36,7 @@ vm.runInNewContext(output, sandbox, { filename: sourcePath });
 const {
   PENDING_DOMAIN_DEFINITIONS,
   buildPendingDomainRows,
+  getPendingDomainCatalog,
   summarizeSyncSummaryTables,
 } = cjsModule.exports;
 
@@ -60,6 +61,50 @@ for (const id of [
     `registry missing domain ${id}`
   );
 }
+
+const catalog = getPendingDomainCatalog();
+check(
+  Array.isArray(catalog) && catalog.length === PENDING_DOMAIN_DEFINITIONS.length,
+  "registry should expose a stable pending-domain catalog for health checks"
+);
+check(
+  catalog.every(
+    (item) =>
+      typeof item.id === "string" &&
+      typeof item.label === "string" &&
+      typeof item.detail === "string" &&
+      Array.isArray(item.tableNames) &&
+      Array.isArray(item.tablePrefixes)
+  ),
+  "pending-domain catalog items should expose id, label, detail, tableNames, and tablePrefixes"
+);
+check(
+  catalog.some(
+    (item) =>
+      item.id === "pages" &&
+      item.tableNames.includes("pages") &&
+      item.tablePrefixes.includes("daily_")
+  ),
+  "pending-domain catalog should include page and daily-note metadata"
+);
+check(
+  catalog.some(
+    (item) =>
+      item.id === "settings" &&
+      item.tableNames.includes("sidebar_items") &&
+      item.tablePrefixes.includes("sidebar_")
+  ),
+  "pending-domain catalog should include sidebar/module settings metadata"
+);
+
+const catalogPages = catalog.find((item) => item.id === "pages");
+catalogPages?.tableNames.push("mutated_by_verifier");
+check(
+  !PENDING_DOMAIN_DEFINITIONS.find((item) => item.id === "pages")?.tableNames.includes(
+    "mutated_by_verifier"
+  ),
+  "pending-domain catalog should return copied arrays, not mutable registry internals"
+);
 
 const syncSummary = {
   tables: [
@@ -195,6 +240,7 @@ console.log(
   JSON.stringify(
     {
       domains: PENDING_DOMAIN_DEFINITIONS.length,
+      catalog_domains: catalog.length,
       rows: rows.length,
       active_rows: rows.filter((row) => row.total > 0).length,
       core_fallbacks_checked: 3,
