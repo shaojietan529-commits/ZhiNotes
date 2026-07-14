@@ -19880,8 +19880,20 @@ function run() {
       "Stable-use health response must use the shared pending-domain catalog.",
     ],
     [
+      "buildPendingDomainCoverageReport",
+      "Stable-use health response must use the shared pending-domain coverage report.",
+    ],
+    [
       "monitored_sync_domains",
       "Stable-use health response must expose monitored sync domains.",
+    ],
+    [
+      "sync_domain_coverage",
+      "Stable-use health response must expose sync-domain coverage metadata.",
+    ],
+    [
+      'coverage_source: "static-pending-domain-catalog"',
+      "Stable-use health response must mark sync-domain coverage as static metadata.",
     ],
   ]) {
     assertSourceIncludes(files.stableUseHealth, stableUseHealth, snippet, message);
@@ -19942,6 +19954,14 @@ function run() {
     [
       "reads_tokens_or_cookies",
       "Stable-use health verifier must assert token/cookie reads stay disabled.",
+    ],
+    [
+      "sync_domain_coverage",
+      "Stable-use health verifier must assert sync-domain coverage metadata.",
+    ],
+    [
+      "coverage_complete",
+      "Stable-use health verifier must assert sync-domain coverage completeness.",
     ],
   ]) {
     assertSourceIncludes(

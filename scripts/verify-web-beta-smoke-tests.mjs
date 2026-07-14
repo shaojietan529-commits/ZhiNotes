@@ -15755,7 +15755,10 @@ function run() {
         "getDevelopmentStableUseRoutes()",
         "getDevelopmentOwnerGatedActions()",
         "getPendingDomainCatalog()",
+        "buildPendingDomainCoverageReport",
         "monitored_sync_domains",
+        "sync_domain_coverage",
+        'coverage_source: "static-pending-domain-catalog"',
       ],
     ],
     [
@@ -15775,6 +15778,8 @@ function run() {
         "cloud_sync_can_be_enabled_by_health_check",
         "web_beta_launch_approved_by_health_check",
         "reads_tokens_or_cookies",
+        "sync_domain_coverage",
+        "coverage_complete",
       ],
     ],
     [

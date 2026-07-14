@@ -2,7 +2,11 @@ import {
   getDevelopmentOwnerGatedActions,
   getDevelopmentStableUseRoutes,
 } from "@/lib/sync/developmentStabilityPlan";
-import { getPendingDomainCatalog } from "@/lib/sync/syncPendingDomainRegistry";
+import {
+  buildPendingDomainCoverageReport,
+  getPendingDomainCatalog,
+  type PendingDomainRow,
+} from "@/lib/sync/syncPendingDomainRegistry";
 
 export interface StableUseMonitoredSyncDomain {
   id: string;
@@ -10,6 +14,16 @@ export interface StableUseMonitoredSyncDomain {
   detail: string;
   table_names: string[];
   table_prefixes: string[];
+}
+
+export interface StableUseSyncDomainCoverage {
+  coverage_source: "static-pending-domain-catalog";
+  registered_domain_count: number;
+  visible_registered_domain_count: number;
+  active_registered_domain_count: number;
+  unmatched_table_domain_count: number;
+  missing_registered_domain_ids: string[];
+  coverage_complete: boolean;
 }
 
 export interface StableUseHealthResponse {
@@ -28,6 +42,7 @@ export interface StableUseHealthResponse {
   stable_use_routes: string[];
   owner_gated_actions: string[];
   monitored_sync_domains: StableUseMonitoredSyncDomain[];
+  sync_domain_coverage: StableUseSyncDomainCoverage;
   required_before_shipping_changes: string[];
   boundary: {
     deployment_health_metadata_only: true;
@@ -72,6 +87,25 @@ const STABLE_USE_HEALTH_BOUNDARY: StableUseHealthResponse["boundary"] = {
 export function buildStableUseHealthResponse(input: {
   checkedAt?: string;
 } = {}): StableUseHealthResponse {
+  const monitoredSyncDomains = getPendingDomainCatalog();
+  const syncDomainCoverage = buildPendingDomainCoverageReport(
+    monitoredSyncDomains.map(
+      (domain): PendingDomainRow => ({
+        id: domain.id,
+        label: domain.label,
+        detail: domain.detail,
+        nextAction: "健康检查只验证静态同步域覆盖，不读取本地队列。",
+        pending: 0,
+        failed: 0,
+        inFlight: 0,
+        manualReview: 0,
+        total: 0,
+        lastChangeAt: null,
+        tableNames: domain.tableNames,
+      })
+    )
+  );
+
   return {
     format: "zhinote-stable-use-health",
     format_version: 1,
@@ -87,13 +121,25 @@ export function buildStableUseHealthResponse(input: {
     cache_rebuild_approved_by_health_check: false,
     stable_use_routes: getDevelopmentStableUseRoutes(),
     owner_gated_actions: getDevelopmentOwnerGatedActions(),
-    monitored_sync_domains: getPendingDomainCatalog().map((domain) => ({
+    monitored_sync_domains: monitoredSyncDomains.map((domain) => ({
       id: domain.id,
       label: domain.label,
       detail: domain.detail,
       table_names: domain.tableNames,
       table_prefixes: domain.tablePrefixes,
     })),
+    sync_domain_coverage: {
+      coverage_source: "static-pending-domain-catalog",
+      registered_domain_count: syncDomainCoverage.registeredDomainCount,
+      visible_registered_domain_count:
+        syncDomainCoverage.visibleRegisteredDomainCount,
+      active_registered_domain_count:
+        syncDomainCoverage.activeRegisteredDomainCount,
+      unmatched_table_domain_count: syncDomainCoverage.unmatchedTableDomainCount,
+      missing_registered_domain_ids:
+        syncDomainCoverage.missingRegisteredDomainIds,
+      coverage_complete: syncDomainCoverage.coverageComplete,
+    },
     required_before_shipping_changes: [
       "Run the focused verifier for the changed surface.",
       "Run npm run verify:route-smoke for stable route, sidebar, module, account, Daily, ZhiHui, or sync-center changes.",
@@ -103,6 +149,6 @@ export function buildStableUseHealthResponse(input: {
     ],
     boundary: STABLE_USE_HEALTH_BOUNDARY,
     privacy_note:
-      "This health response is deployment metadata plus the static sync-domain taxonomy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
+      "This health response is deployment metadata plus the static sync-domain taxonomy and static coverage report only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
   };
 }

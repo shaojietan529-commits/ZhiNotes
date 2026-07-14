@@ -102,7 +102,10 @@ function verifySourceContracts() {
   assertIncludes(healthSource, "getDevelopmentStableUseRoutes()", "health response must use shared stable-use route catalog");
   assertIncludes(healthSource, "getDevelopmentOwnerGatedActions()", "health response must use shared owner-gated action catalog");
   assertIncludes(healthSource, "getPendingDomainCatalog()", "health response must use the shared pending-domain catalog");
+  assertIncludes(healthSource, "buildPendingDomainCoverageReport", "health response must use the shared pending-domain coverage report");
   assertIncludes(healthSource, "monitored_sync_domains", "health response must expose monitored sync domains");
+  assertIncludes(healthSource, "sync_domain_coverage", "health response must expose sync-domain coverage");
+  assertIncludes(healthSource, 'coverage_source: "static-pending-domain-catalog"', "health response must mark coverage as static metadata");
   assertIncludes(healthSource, "git pull --rebase before git push; never force push.", "health response must preserve safe push guidance");
   for (const flag of requiredTopLevelFalseFlags) {
     assertIncludes(healthSource, `${flag}: false`, `${flag} must be false in source`);
@@ -196,6 +199,43 @@ function verifyRouteResult(result) {
     )
   ) {
     failures.push("monitored_sync_domains must include sidebar/module settings metadata");
+  }
+  const coverage = body?.sync_domain_coverage ?? {};
+  assertEqual(
+    coverage.coverage_source,
+    "static-pending-domain-catalog",
+    "sync_domain_coverage.coverage_source"
+  );
+  assertEqual(
+    coverage.registered_domain_count,
+    8,
+    "sync_domain_coverage.registered_domain_count"
+  );
+  assertEqual(
+    coverage.visible_registered_domain_count,
+    8,
+    "sync_domain_coverage.visible_registered_domain_count"
+  );
+  assertEqual(
+    coverage.active_registered_domain_count,
+    0,
+    "sync_domain_coverage.active_registered_domain_count"
+  );
+  assertEqual(
+    coverage.unmatched_table_domain_count,
+    0,
+    "sync_domain_coverage.unmatched_table_domain_count"
+  );
+  assertEqual(
+    coverage.coverage_complete,
+    true,
+    "sync_domain_coverage.coverage_complete"
+  );
+  if (
+    !Array.isArray(coverage.missing_registered_domain_ids) ||
+    coverage.missing_registered_domain_ids.length !== 0
+  ) {
+    failures.push("sync_domain_coverage must report no missing registered domains");
   }
   if (
     !Array.isArray(body?.required_before_shipping_changes) ||
@@ -436,6 +476,18 @@ function printReceipt(result, status, port, devServer) {
     monitored_sync_domains: Array.isArray(result?.body?.monitored_sync_domains)
       ? result.body.monitored_sync_domains.length
       : 0,
+    sync_domain_coverage_complete:
+      result?.body?.sync_domain_coverage?.coverage_complete ?? null,
+    registered_sync_domains:
+      result?.body?.sync_domain_coverage?.registered_domain_count ?? null,
+    visible_registered_sync_domains:
+      result?.body?.sync_domain_coverage?.visible_registered_domain_count ??
+      null,
+    missing_registered_sync_domains: Array.isArray(
+      result?.body?.sync_domain_coverage?.missing_registered_domain_ids
+    )
+      ? result.body.sync_domain_coverage.missing_registered_domain_ids.length
+      : null,
     failures,
     privacy_boundary:
       "This verifier starts a temporary local Next dev server when available, or reuses an already-running same-project dev server without stopping it. It requests only /daily for readiness and /api/stable-use/health for the health check. It does not read browser storage, page bodies, database rows, file names, file bytes, cookies, credentials, secrets, remote manifests, or cloud data; it does not write server data, upload workspace data, clear cache, enable sync, or enable AI.",
