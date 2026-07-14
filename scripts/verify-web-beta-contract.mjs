@@ -16661,6 +16661,59 @@ function run() {
     "buildWebBetaEnvironmentPreflight",
     "GET /api/web-beta/environment-preflight"
   );
+  for (const [snippet, message] of [
+    [
+      '"present-disabled"',
+      "Environment preflight must distinguish an existing boolean gate from an enabled boolean gate.",
+    ],
+    [
+      'expected_value: "true"',
+      "Environment preflight must mark cloud safety flags as active only when explicitly true.",
+    ],
+    [
+      "checks_public_boolean_activation: true",
+      "Environment preflight boundary must disclose public boolean activation checks.",
+    ],
+    [
+      "active_required",
+      "Environment preflight summary must count required settings that are actually active.",
+    ],
+    [
+      "inactive_required",
+      "Environment preflight summary must count missing or disabled required settings.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.environmentPreflight,
+      environmentPreflight,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "getCloudAlphaConfigMetric",
+      "Sync Cloud Alpha UI must derive the cloud config metric from live environment preflight state.",
+    ],
+    [
+      "environmentPreflight={environmentPreflight}",
+      "Sync Cloud Alpha panel must receive environment preflight data.",
+    ],
+    [
+      "只读受限",
+      "Sync Cloud Alpha UI must distinguish read-ready config from write-gated config.",
+    ],
+    [
+      "账号可试",
+      "Sync Cloud Alpha UI must distinguish account/workspace readiness from full Web Beta readiness.",
+    ],
+    [
+      "公开布尔安全开关是否已明确打开",
+      "Sync environment preflight copy must explain boolean safety gate checks without exposing secrets.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
   assertSourceIncludes(
     files.auditEventEnvelope,
     auditEventEnvelope,

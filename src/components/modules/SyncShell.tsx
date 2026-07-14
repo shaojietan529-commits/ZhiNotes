@@ -6816,6 +6816,8 @@ function SyncDashboard() {
         <CloudAlphaPanel
           email={cloudEmail}
           workspaceName={cloudWorkspaceName}
+          environmentPreflight={environmentPreflight}
+          environmentPreflightError={environmentPreflightError}
           session={cloudSession}
           sessionExpired={cloudSessionExpired}
           sessionNeedsRefresh={cloudSessionNeedsRefresh}
@@ -10138,7 +10140,8 @@ function SyncDashboard() {
           <ContractPanel title="环境预检" className="mt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <p className="max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Web Beta 环境设置的本地服务端检查。它只返回预期变量是否存在或缺失；
+                Web Beta 环境设置的本地服务端检查。它返回预期变量是否存在，
+                并检查公开布尔安全开关是否已明确打开；
                 永远不返回密钥值、tokens、连接字符串或存储凭证。
               </p>
               <button
@@ -10162,7 +10165,7 @@ function SyncDashboard() {
             )}
             {environmentPreflight ? (
               <>
-                <div className="mt-4 grid gap-3 md:grid-cols-5">
+                <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
                   <PreflightSummaryCard
                     label="必需"
                     value={environmentPreflight.summary.required}
@@ -10176,12 +10179,33 @@ function SyncDashboard() {
                     tone="present"
                   />
                   <PreflightSummaryCard
+                    label="已可用"
+                    value={environmentPreflight.summary.active_required}
+                    detail="存在且开关有效"
+                    tone={
+                      environmentPreflight.summary.active_required ===
+                      environmentPreflight.summary.required
+                        ? "present"
+                        : "present-disabled"
+                    }
+                  />
+                  <PreflightSummaryCard
                     label="缺失"
                     value={environmentPreflight.summary.missing_required}
                     detail="Beta 前必需"
                     tone={
                       environmentPreflight.summary.missing_required > 0
                         ? "missing"
+                        : "present"
+                    }
+                  />
+                  <PreflightSummaryCard
+                    label="待处理"
+                    value={environmentPreflight.summary.inactive_required}
+                    detail="缺失或未打开"
+                    tone={
+                      environmentPreflight.summary.inactive_required > 0
+                        ? "present-disabled"
                         : "present"
                     }
                   />
@@ -10194,7 +10218,7 @@ function SyncDashboard() {
                   <PreflightSummaryCard
                     label="边界"
                     value="不含密钥"
-                    detail="只检查是否存在"
+                    detail="只检查存在和开关"
                     tone="present"
                   />
                 </div>
@@ -11536,9 +11560,106 @@ function SyncDashboard() {
   );
 }
 
+const CLOUD_ALPHA_RUNTIME_ENV_KEYS = new Set([
+  "ZHINOTES_CLOUD_ENABLED",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+]);
+
+const CLOUD_ALPHA_WRITE_ENV_KEY = "ZHINOTES_ALLOW_CLOUD_WRITES";
+
+function getCloudAlphaConfigMetric(
+  environmentPreflight: WebBetaEnvironmentPreflight | null,
+  environmentPreflightError: string | null
+): { value: string; detail: string; tone: CloudAlphaMessageTone } {
+  if (environmentPreflightError) {
+    return {
+      value: "检查失败",
+      detail: `${environmentPreflightError} 云端动作保持禁用，本地写作不受影响。`,
+      tone: "warning",
+    };
+  }
+
+  if (!environmentPreflight) {
+    return {
+      value: "检查中",
+      detail: "正在检查云配置是否存在和安全开关是否打开；不读取密钥值。",
+      tone: "info",
+    };
+  }
+
+  const requiredChecks = environmentPreflight.checks.filter(
+    (check) => check.required
+  );
+  const runtimeBlockers = requiredChecks.filter(
+    (check) =>
+      CLOUD_ALPHA_RUNTIME_ENV_KEYS.has(check.key) &&
+      !getEnvironmentCheckIsActive(check)
+  );
+  if (runtimeBlockers.length > 0) {
+    return {
+      value: "未启用",
+      detail: `账号/工作区云路由还不可用：${formatEnvironmentBlockers(runtimeBlockers)}。`,
+      tone: "warning",
+    };
+  }
+
+  const writeGate = requiredChecks.find(
+    (check) => check.key === CLOUD_ALPHA_WRITE_ENV_KEY
+  );
+  if (writeGate && !getEnvironmentCheckIsActive(writeGate)) {
+    return {
+      value: "只读受限",
+      detail:
+        "云读取配置可用，但写入开关未打开；登录、创建工作区和后续上传仍被保护。",
+      tone: "warning",
+    };
+  }
+
+  const inactiveRequired = requiredChecks.filter(
+    (check) => !getEnvironmentCheckIsActive(check)
+  );
+  if (inactiveRequired.length > 0) {
+    return {
+      value: "账号可试",
+      detail: `账号/工作区配置可用；完整 Web Beta 还缺 ${inactiveRequired.length} 个上线项：${formatEnvironmentBlockers(inactiveRequired)}。`,
+      tone: "info",
+    };
+  }
+
+  return {
+    value: "已就绪",
+    detail: `${environmentPreflight.summary.active_required}/${environmentPreflight.summary.required} 个必需项已可用；可以尝试账号和工作区元数据。`,
+    tone: "success",
+  };
+}
+
+function getEnvironmentCheckIsActive(
+  check: WebBetaEnvironmentPreflight["checks"][number]
+) {
+  return check.active;
+}
+
+function formatEnvironmentBlockers(
+  checks: WebBetaEnvironmentPreflight["checks"]
+) {
+  const shown = checks.slice(0, 3).map((check) => {
+    if (!check.present) return `${check.label} 缺失`;
+    if (check.required_value_hint) {
+      return `${check.label} 需要 ${check.required_value_hint}`;
+    }
+    return `${check.label} 未可用`;
+  });
+
+  const remaining = checks.length - shown.length;
+  return `${shown.join("、")}${remaining > 0 ? ` 等 ${remaining} 项` : ""}`;
+}
+
 function CloudAlphaPanel({
   email,
   workspaceName,
+  environmentPreflight,
+  environmentPreflightError,
   session,
   sessionExpired,
   sessionNeedsRefresh,
@@ -11565,6 +11686,8 @@ function CloudAlphaPanel({
 }: {
   email: string;
   workspaceName: string;
+  environmentPreflight: WebBetaEnvironmentPreflight | null;
+  environmentPreflightError: string | null;
   session: ZhiNotesCloudSession | null;
   sessionExpired: boolean;
   sessionNeedsRefresh: boolean;
@@ -11590,6 +11713,10 @@ function CloudAlphaPanel({
   onClearSession: () => void;
 }) {
   const hasUsableSession = Boolean(session && !sessionExpired);
+  const cloudConfigMetric = getCloudAlphaConfigMetric(
+    environmentPreflight,
+    environmentPreflightError
+  );
   const workspaceOptions = workspaces.length > 0
     ? workspaces
     : workspace
@@ -11653,9 +11780,9 @@ function CloudAlphaPanel({
       <div className="mt-4 grid gap-3 md:grid-cols-5">
         <CloudAlphaMetric
           label="云配置"
-          value="受限"
-          detail="环境变量启用前保持禁用"
-          tone="warning"
+          value={cloudConfigMetric.value}
+          detail={cloudConfigMetric.detail}
+          tone={cloudConfigMetric.tone}
         />
         <CloudAlphaMetric
           label="本地会话"
@@ -17244,7 +17371,7 @@ function PreflightGroupRow({
 }: {
   group: WebBetaEnvironmentPreflight["groups"][number];
 }) {
-  const complete = group.missing === 0;
+  const complete = group.inactive === 0;
 
   return (
     <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
@@ -17254,10 +17381,12 @@ function PreflightGroupRow({
             {group.group}
           </div>
           <div className="mt-1 text-[11px] text-zinc-400">
-            {group.present}/{group.required} 个必需项已存在
+            {group.active}/{group.required} 个必需项可用；{group.present} 个已存在
           </div>
         </div>
-        <PreflightStatusPill status={complete ? "present" : "missing"} />
+        <PreflightStatusPill
+          status={complete ? "present" : "present-disabled"}
+        />
       </div>
     </article>
   );
@@ -17284,6 +17413,11 @@ function PreflightCheckRow({
       <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
         {check.purpose}
       </p>
+      {check.required_value_hint && (
+        <p className="mt-2 leading-5 text-amber-600 dark:text-amber-300">
+          要生效：{check.required_value_hint}
+        </p>
+      )}
       <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         {check.privacy_boundary}
       </p>
@@ -17298,6 +17432,7 @@ function PreflightStatusPill({
 }) {
   const labels: Record<WebBetaEnvironmentCheckStatus, string> = {
     present: "已存在",
+    "present-disabled": "未打开",
     missing: "缺失",
     "optional-missing": "可选",
   };
@@ -17305,6 +17440,8 @@ function PreflightStatusPill({
   const className =
     status === "present"
       ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "present-disabled"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
       : status === "missing"
         ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
         : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";

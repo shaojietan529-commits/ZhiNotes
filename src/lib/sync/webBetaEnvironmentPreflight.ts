@@ -8,6 +8,7 @@ export type WebBetaEnvironmentGroup =
 
 export type WebBetaEnvironmentCheckStatus =
   | "present"
+  | "present-disabled"
   | "missing"
   | "optional-missing";
 
@@ -16,6 +17,7 @@ export interface WebBetaEnvironmentRequirement {
   label: string;
   group: WebBetaEnvironmentGroup;
   required: boolean;
+  expected_value?: "true";
   purpose: string;
   privacy_boundary: string;
 }
@@ -24,6 +26,8 @@ export interface WebBetaEnvironmentCheck
   extends WebBetaEnvironmentRequirement {
   status: WebBetaEnvironmentCheckStatus;
   present: boolean;
+  active: boolean;
+  required_value_hint: string | null;
 }
 
 export interface WebBetaEnvironmentGroupSummary {
@@ -31,6 +35,8 @@ export interface WebBetaEnvironmentGroupSummary {
   required: number;
   present: number;
   missing: number;
+  active: number;
+  inactive: number;
 }
 
 export interface WebBetaEnvironmentPreflight {
@@ -41,6 +47,7 @@ export interface WebBetaEnvironmentPreflight {
   privacy_note: string;
   boundary: {
     checks_presence_only: true;
+    checks_public_boolean_activation: true;
     exposes_secret_values: false;
     connects_cloud_services: false;
     creates_accounts: false;
@@ -52,6 +59,8 @@ export interface WebBetaEnvironmentPreflight {
     required: number;
     present_required: number;
     missing_required: number;
+    active_required: number;
+    inactive_required: number;
     optional: number;
     present_optional: number;
   };
@@ -66,6 +75,7 @@ export const WEB_BETA_ENVIRONMENT_REQUIREMENTS: WebBetaEnvironmentRequirement[] 
       label: "Cloud route enable flag",
       group: "deployment",
       required: true,
+      expected_value: "true",
       purpose: "Explicit switch for allowing guarded cloud routes to talk to Supabase.",
       privacy_boundary:
         "Boolean flag only; it must not include user, token, or workspace content.",
@@ -75,6 +85,7 @@ export const WEB_BETA_ENVIRONMENT_REQUIREMENTS: WebBetaEnvironmentRequirement[] 
       label: "Cloud write enable flag",
       group: "security",
       required: true,
+      expected_value: "true",
       purpose: "Separate write gate for login start, logout, workspace create, and future write APIs.",
       privacy_boundary:
         "Boolean flag only; keeping it false prevents cloud writes even when read config is present.",
@@ -160,15 +171,25 @@ export function buildWebBetaEnvironmentPreflight(
     WEB_BETA_ENVIRONMENT_REQUIREMENTS.map((requirement) => {
       const value = readEnv(requirement.key);
       const present = typeof value === "string" && value.trim().length > 0;
-      const status: WebBetaEnvironmentCheckStatus = present
+      const active =
+        present &&
+        (!requirement.expected_value ||
+          value.trim() === requirement.expected_value);
+      const status: WebBetaEnvironmentCheckStatus = active
         ? "present"
-        : requirement.required
-          ? "missing"
-          : "optional-missing";
+        : present && requirement.expected_value
+          ? "present-disabled"
+          : requirement.required
+            ? "missing"
+            : "optional-missing";
 
       return {
         ...requirement,
         present,
+        active,
+        required_value_hint: requirement.expected_value
+          ? `must equal ${requirement.expected_value}`
+          : null,
         status,
       };
     });
@@ -183,9 +204,10 @@ export function buildWebBetaEnvironmentPreflight(
     preflight_status: "local-preflight-only",
     launch_verdict: "not-ready",
     privacy_note:
-      "Generated locally. This preflight checks only whether expected environment variables are present. It does not expose secret values, connect cloud services, create accounts, write server data, upload workspace data, or share notes.",
+      "Generated locally. This preflight checks whether expected environment variables are present and whether public boolean safety flags are explicitly enabled. It does not expose secret values, connect cloud services, create accounts, write server data, upload workspace data, or share notes.",
     boundary: {
       checks_presence_only: true,
+      checks_public_boolean_activation: true,
       exposes_secret_values: false,
       connects_cloud_services: false,
       creates_accounts: false,
@@ -197,6 +219,8 @@ export function buildWebBetaEnvironmentPreflight(
       required: required.length,
       present_required: required.filter((check) => check.present).length,
       missing_required: required.filter((check) => !check.present).length,
+      active_required: required.filter((check) => check.active).length,
+      inactive_required: required.filter((check) => !check.active).length,
       optional: optional.length,
       present_optional: optional.filter((check) => check.present).length,
     },
@@ -225,6 +249,8 @@ function summarizeEnvironmentGroups(
       required: required.length,
       present: required.filter((check) => check.present).length,
       missing: required.filter((check) => !check.present).length,
+      active: required.filter((check) => check.active).length,
+      inactive: required.filter((check) => !check.active).length,
     };
   });
 }

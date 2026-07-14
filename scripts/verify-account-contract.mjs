@@ -3509,6 +3509,18 @@ check(
   "Cloud Alpha 配置面板应有稳定 test id，方便只读 UI 检查确认它排在使用安全状态之后"
 );
 check(
+  syncDashboardShell.includes("getCloudAlphaConfigMetric") &&
+    syncDashboardShell.includes("environmentPreflight={environmentPreflight}") &&
+    syncDashboardShell.includes(
+      "environmentPreflightError={environmentPreflightError}"
+    ) &&
+    syncDashboardShell.includes("只读受限") &&
+    syncDashboardShell.includes("账号可试") &&
+    syncDashboardShell.includes("公开布尔安全开关是否已明确打开") &&
+    syncDashboardShell.includes('status === "present-disabled"'),
+  "Cloud Alpha 应展示真实环境预检状态，区分变量存在、开关未打开、账号可试和完整 Beta 缺口"
+);
+check(
   syncDashboardShell.includes("DevelopmentStabilityPlanPanel") &&
     syncDashboardShell.includes("buildDevelopmentStabilityPlan") &&
     syncDashboardShell.includes("syncLocalUseQueueSnapshot") &&

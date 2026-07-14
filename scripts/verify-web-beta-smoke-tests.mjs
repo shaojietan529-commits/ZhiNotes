@@ -240,6 +240,7 @@ const files = {
   pageDetailRouteLoading: "src/app/(workspace)/page/[pageId]/loading.tsx",
   scheduleRoute: "src/app/(workspace)/schedule/page.tsx",
   scheduleRouteLoading: "src/app/(workspace)/schedule/loading.tsx",
+  environmentPreflight: "src/lib/sync/webBetaEnvironmentPreflight.ts",
   environmentPreflightRoute:
     "src/app/api/web-beta/environment-preflight/route.ts",
   commentVersionCloudReplayContract:
@@ -755,6 +756,7 @@ function run() {
   const pageDetailRouteLoading = readProjectFile(files.pageDetailRouteLoading);
   const scheduleRoute = readProjectFile(files.scheduleRoute);
   const scheduleRouteLoading = readProjectFile(files.scheduleRouteLoading);
+  const environmentPreflight = readProjectFile(files.environmentPreflight);
   const environmentPreflightRoute = readProjectFile(
     files.environmentPreflightRoute
   );
@@ -19064,6 +19066,42 @@ function run() {
     "buildWebBetaEnvironmentPreflight",
     "Environment preflight route must keep presence-only checks wired."
   );
+  for (const [snippet, message] of [
+    [
+      '"present-disabled"',
+      "Environment preflight must distinguish present-but-disabled cloud gates.",
+    ],
+    [
+      "checks_public_boolean_activation: true",
+      "Environment preflight must disclose public boolean activation checks.",
+    ],
+    [
+      "active_required",
+      "Environment preflight must count required settings that are active.",
+    ],
+    [
+      "inactive_required",
+      "Environment preflight must count required settings that are missing or disabled.",
+    ],
+  ]) {
+    assertIncludes(files.environmentPreflight, environmentPreflight, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "getCloudAlphaConfigMetric",
+      "Sync Cloud Alpha metric must derive from environment preflight.",
+    ],
+    [
+      "environmentPreflight={environmentPreflight}",
+      "Sync Cloud Alpha panel must receive environment preflight data.",
+    ],
+    [
+      "只读受限",
+      "Sync Cloud Alpha UI must show write-gated cloud config distinctly.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
 
   const summary = {
     smoke_cases: smokeCaseIds.length,
