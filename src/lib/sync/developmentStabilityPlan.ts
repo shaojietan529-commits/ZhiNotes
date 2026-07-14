@@ -27,6 +27,7 @@ export interface DevelopmentStabilityOperatingMode {
   local_pending_queue_preserved_during_development: true;
   account_session_must_not_be_cleared_by_sync_failures: true;
   sync_failures_show_retry_state_not_sign_out: true;
+  upload_blocks_do_not_block_local_writing: true;
   safe_to_use_routes: string[];
   blocked_without_owner_gate: string[];
   next_action: string;
@@ -368,6 +369,7 @@ function buildStableUseOperatingMode(
     local_pending_queue_preserved_during_development: true,
     account_session_must_not_be_cleared_by_sync_failures: true,
     sync_failures_show_retry_state_not_sign_out: true,
+    upload_blocks_do_not_block_local_writing: true,
     safe_to_use_routes: STABLE_USE_ENTRYPOINTS.map((entry) => entry.route),
     blocked_without_owner_gate: HIGH_RISK_ACTIONS_GATED,
     next_action: readiness.localInputCanContinue

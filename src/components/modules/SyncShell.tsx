@@ -20459,8 +20459,14 @@ function DevelopmentStabilityPlanPanel({
       data-sync-failures-show-retry-state-not-sign-out={String(
         operatingMode.sync_failures_show_retry_state_not_sign_out
       )}
+      data-upload-blocks-do-not-block-local-writing={String(
+        operatingMode.upload_blocks_do_not_block_local_writing
+      )}
       data-handoff-receipt-format={handoffReceipt.format}
       data-handoff-stable-use-verdict={handoffReceipt.stable_use_verdict}
+      data-handoff-upload-blocks-do-not-block-local-writing={String(
+        handoffReceipt.upload_blocks_do_not_block_local_writing
+      )}
       data-handoff-cloud-sync-can-be-enabled-now={String(
         handoffReceipt.cloud_sync_can_be_enabled_now
       )}
@@ -20530,6 +20536,9 @@ function DevelopmentStabilityPlanPanel({
         data-sync-failures-show-retry-state-not-sign-out={String(
           operatingMode.sync_failures_show_retry_state_not_sign_out
         )}
+        data-upload-blocks-do-not-block-local-writing={String(
+          operatingMode.upload_blocks_do_not_block_local_writing
+        )}
         data-safe-route-count={operatingMode.safe_to_use_routes.length}
         data-owner-gated-action-count={
           operatingMode.blocked_without_owner_gate.length
@@ -20551,6 +20560,9 @@ function DevelopmentStabilityPlanPanel({
             </span>
             <span className="rounded bg-white/70 px-2 py-1 dark:bg-emerald-950">
               同步失败不登出
+            </span>
+            <span className="rounded bg-white/70 px-2 py-1 dark:bg-emerald-950">
+              上传失败不挡写作
             </span>
             <span className="rounded bg-white/70 px-2 py-1 dark:bg-emerald-950">
               实验改动先本地 / staging

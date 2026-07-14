@@ -11,6 +11,7 @@ export interface DevelopmentStabilityHandoffReceipt {
   production_changes_should_be_batched: true;
   experimental_changes_go_to_staging_first: true;
   local_input_remains_available: true;
+  upload_blocks_do_not_block_local_writing: true;
   cloud_sync_can_be_enabled_now: false;
   web_beta_can_launch_now: false;
   cache_rebuild_can_run_now: boolean;
@@ -101,6 +102,7 @@ export function buildDevelopmentStabilityHandoffReceipt(input: {
     production_changes_should_be_batched: true,
     experimental_changes_go_to_staging_first: true,
     local_input_remains_available: true,
+    upload_blocks_do_not_block_local_writing: true,
     cloud_sync_can_be_enabled_now: false,
     web_beta_can_launch_now: false,
     cache_rebuild_can_run_now: !plan.summary.cache_rebuild_blocked,

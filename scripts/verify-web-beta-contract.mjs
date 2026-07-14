@@ -13080,6 +13080,10 @@ function run() {
       "Development stability plan must show sync failures as retry states instead of apparent sign-out.",
     ],
     [
+      "upload_blocks_do_not_block_local_writing",
+      "Development stability plan must keep upload blocks from blocking local writing.",
+    ],
+    [
       "blocked_without_owner_gate",
       "Development stability plan must keep high-risk actions owner gated.",
     ],
@@ -13115,6 +13119,14 @@ function run() {
     [
       "experimental_changes_go_to_staging_first: true",
       "Development stability handoff receipt must preserve staging-first experimental policy.",
+    ],
+    [
+      "local_input_remains_available: true",
+      "Development stability handoff receipt must keep local input available.",
+    ],
+    [
+      "upload_blocks_do_not_block_local_writing: true",
+      "Development stability handoff receipt must preserve upload-block-does-not-block-writing policy.",
     ],
     [
       "reads_page_body_text: false",
@@ -13174,6 +13186,10 @@ function run() {
       "Stable-use operating mode must expose retry-state-not-signout policy.",
     ],
     [
+      "data-upload-blocks-do-not-block-local-writing={String(",
+      "Stable-use operating mode must expose upload-block-does-not-block-writing policy.",
+    ],
+    [
       "data-experimental-changes-go-to-staging-first={String(",
       "Stable-use operating mode must expose staging-first experimental policy.",
     ],
@@ -13202,6 +13218,10 @@ function run() {
       "Stable-use operating mode must make batched production changes visible in Chinese.",
     ],
     [
+      "上传失败不挡写作",
+      "Stable-use operating mode must make upload-block-does-not-block-writing visible in Chinese.",
+    ],
+    [
       "buildDevelopmentStabilityHandoffReceipt",
       "SyncShell must build a metadata-only development stability handoff receipt from the visible stable-use state.",
     ],
@@ -13220,6 +13240,10 @@ function run() {
     [
       "data-handoff-web-beta-can-launch-now={String(",
       "SyncShell handoff receipt must expose that Web Beta launch is not approved by the receipt.",
+    ],
+    [
+      "data-handoff-upload-blocks-do-not-block-local-writing={String(",
+      "SyncShell handoff receipt must expose that upload blocks do not block local writing.",
     ],
     [
       "导出交接收据",
