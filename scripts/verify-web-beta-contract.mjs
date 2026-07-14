@@ -186,6 +186,8 @@ const files = {
   accountServer: "src/lib/account/server.ts",
   cloudApi: "src/lib/cloud/api.ts",
   cloudSupabaseRest: "src/lib/cloud/supabaseRest.ts",
+  cloudClientSession: "src/lib/cloud/clientSession.ts",
+  authRefreshRoute: "src/app/api/auth/refresh/route.ts",
   accountClientSession: "src/lib/account/clientSession.ts",
   accountShell: "src/components/modules/AccountShell.tsx",
   accountMeRoute: "src/app/api/account/me/route.ts",
@@ -755,6 +757,8 @@ function run() {
   const accountServer = readProjectFile(files.accountServer);
   const cloudApi = readProjectFile(files.cloudApi);
   const cloudSupabaseRest = readProjectFile(files.cloudSupabaseRest);
+  const cloudClientSession = readProjectFile(files.cloudClientSession);
+  const authRefreshRoute = readProjectFile(files.authRefreshRoute);
   const accountClientSession = readProjectFile(files.accountClientSession);
   const accountShell = readProjectFile(files.accountShell);
   const accountMeRoute = readProjectFile(files.accountMeRoute);
@@ -5043,6 +5047,103 @@ function run() {
     fail(
       "Supabase REST/Auth requests must keep fetch usage centralized in fetchSupabaseRequestWithTimeout."
     );
+  }
+  for (const [snippet, message] of [
+    [
+      'export const CLOUD_SESSION_UPDATED_EVENT = "zhinotes:cloud-session-updated";',
+      "Cloud session storage changes must dispatch a local browser event so other UI panels do not show stale login state.",
+    ],
+    [
+      "export async function refreshCloudSession",
+      "Cloud client sessions must be able to refresh an expired access token before sync calls fail.",
+    ],
+    [
+      "cloudSessionRefreshInFlight",
+      "Cloud client session refreshes must be coalesced so multiple sync domains do not stampede the refresh endpoint.",
+    ],
+    [
+      'fetch("/api/auth/refresh"',
+      "Cloud client sessions must refresh through the local privacy-scoped auth refresh route.",
+    ],
+    [
+      "writeCloudSession(nextSession);",
+      "Cloud client session refresh must persist the refreshed token for future tabs and requests.",
+    ],
+  ]) {
+    assertSourceIncludes(files.cloudClientSession, cloudClientSession, snippet, message);
+  }
+  const cloudAccessTokenHelper = cloudClientSession.slice(
+    cloudClientSession.indexOf("export function getCloudAccessToken"),
+    cloudClientSession.indexOf("export function isCloudSessionExpired")
+  );
+  if (cloudAccessTokenHelper.includes("clearCloudSession")) {
+    fail(
+      "Cloud access token helper must not clear an expired session; sync requests should refresh first so users are not logged out."
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-cloud-auth-refresh"',
+      "Auth refresh route must return a stable response format for client refresh handling.",
+    ],
+    [
+      '"/token?grant_type=refresh_token"',
+      "Auth refresh route must use Supabase's refresh-token grant instead of asking the user to sign in again.",
+    ],
+    [
+      "requestSupabaseAuth<SupabaseRefreshResponse>",
+      "Auth refresh route must go through the bounded Supabase auth helper.",
+    ],
+    [
+      "privacy_note",
+      "Auth refresh route must state that it only refreshes auth and does not read or upload user content.",
+    ],
+  ]) {
+    assertSourceIncludes(files.authRefreshRoute, authRefreshRoute, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "const cloudSessionNeedsRefresh = cloudSession",
+      "Sync UI must distinguish refreshable expired sessions from truly logged-out sessions.",
+    ],
+    [
+      "isCloudSessionExpired(cloudSession) && Boolean(cloudSession.refreshToken)",
+      "Sync UI must keep refresh-token-backed expired sessions available for automatic renewal.",
+    ],
+    [
+      "async function withFreshCloudAuthorization",
+      "Sync cloud requests must refresh stale Authorization headers before hitting cloud routes.",
+    ],
+    [
+      "const result = await refreshCloudSession(session);",
+      "Sync cloud requests must invoke the shared cloud session refresh helper.",
+    ],
+    [
+      'headers.set("Authorization", `Bearer ${result.session.accessToken}`);',
+      "Sync cloud requests must replace stale Authorization headers after successful refresh.",
+    ],
+    [
+      "window.addEventListener(CLOUD_SESSION_UPDATED_EVENT, refreshStoredCloudSession);",
+      "Sync UI must listen for same-tab cloud session changes after auth callback or refresh.",
+    ],
+    [
+      "sessionNeedsRefresh={cloudSessionNeedsRefresh}",
+      "Cloud alpha panel must receive refreshable-session state for user-facing status.",
+    ],
+    [
+      "待自动续期",
+      "Cloud alpha panel must label refreshable expired sessions instead of showing signed out.",
+    ],
+    [
+      "const latestSession = readCloudSession() ?? cloudSession;",
+      "Cloud session check must not overwrite a freshly refreshed access token with a stale closure.",
+    ],
+    [
+      "const latestSession = readCloudSession() ?? activeSession;",
+      "Cloud handoff recovery must preserve freshly refreshed tokens while adding user metadata.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }
   for (const [snippet, message] of [
     [

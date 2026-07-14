@@ -283,9 +283,12 @@ import {
   type WebBetaApiStub,
 } from "@/lib/sync/webBetaApiStubs";
 import {
+  CLOUD_SESSION_KEY,
+  CLOUD_SESSION_UPDATED_EVENT,
   clearCloudSession,
   isCloudSessionExpired,
   readCloudSession,
+  refreshCloudSession,
   writeCloudSession,
   type ZhiNotesCloudSession,
 } from "@/lib/cloud/clientSession";
@@ -1835,6 +1838,24 @@ function SyncDashboard() {
     }
   }, []);
 
+  useEffect(() => {
+    const refreshStoredCloudSession = () => {
+      setCloudSession(readCloudSession());
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === CLOUD_SESSION_KEY) refreshStoredCloudSession();
+    };
+    window.addEventListener(CLOUD_SESSION_UPDATED_EVENT, refreshStoredCloudSession);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(
+        CLOUD_SESSION_UPDATED_EVENT,
+        refreshStoredCloudSession
+      );
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
+
   const fileSummary = useMemo(() => summarizeFiles(storedFiles), [storedFiles]);
   const pageModuleTotals = useMemo(
     () =>
@@ -3183,8 +3204,11 @@ function SyncDashboard() {
       syncSummary,
     ]
   );
+  const cloudSessionNeedsRefresh = cloudSession
+    ? isCloudSessionExpired(cloudSession) && Boolean(cloudSession.refreshToken)
+    : false;
   const cloudSessionExpired = cloudSession
-    ? isCloudSessionExpired(cloudSession)
+    ? isCloudSessionExpired(cloudSession) && !cloudSession.refreshToken
     : false;
   const selectedCloudWorkspace = useMemo(() => {
     const selected = cloudWorkspaces.find(
@@ -3317,8 +3341,9 @@ function SyncDashboard() {
       }
 
       const user = getCloudSessionUser(body);
+      const latestSession = readCloudSession() ?? cloudSession;
       const nextSession = {
-        ...cloudSession,
+        ...latestSession,
         user,
       };
       writeCloudSession(nextSession);
@@ -3649,8 +3674,9 @@ function SyncDashboard() {
           return;
         }
 
+        const latestSession = readCloudSession() ?? activeSession;
         activeSession = {
-          ...activeSession,
+          ...latestSession,
           user,
         };
         writeCloudSession(activeSession);
@@ -6791,6 +6817,7 @@ function SyncDashboard() {
           workspaceName={cloudWorkspaceName}
           session={cloudSession}
           sessionExpired={cloudSessionExpired}
+          sessionNeedsRefresh={cloudSessionNeedsRefresh}
           workspace={cloudWorkspace}
           workspaces={cloudWorkspaces}
           selectedWorkspaceId={selectedCloudWorkspaceId}
@@ -11513,6 +11540,7 @@ function CloudAlphaPanel({
   workspaceName,
   session,
   sessionExpired,
+  sessionNeedsRefresh,
   workspace,
   workspaces,
   selectedWorkspaceId,
@@ -11538,6 +11566,7 @@ function CloudAlphaPanel({
   workspaceName: string;
   session: ZhiNotesCloudSession | null;
   sessionExpired: boolean;
+  sessionNeedsRefresh: boolean;
   workspace: CloudAlphaWorkspace | null;
   workspaces: CloudAlphaWorkspace[];
   selectedWorkspaceId: string;
@@ -11632,10 +11661,14 @@ function CloudAlphaPanel({
           value={
             sessionExpired
               ? "已过期"
+              : sessionNeedsRefresh
+                ? "待自动续期"
               : session?.user?.email || (session ? "已保存 token" : "无")
           }
           detail={
-            session?.expiresAt
+            sessionNeedsRefresh
+              ? "下一次云请求会先用 refresh token 自动续期"
+              : session?.expiresAt
               ? `过期时间 ${formatDate(new Date(session.expiresAt).toISOString())}`
               : "这个浏览器没有云端 token"
           }
@@ -27028,6 +27061,7 @@ async function fetchSyncCloudApiWithTimeout(
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1]
 ): Promise<Response> {
+  const freshInit = await withFreshCloudAuthorization(init);
   const controller = new AbortController();
   let didTimeout = false;
   const timeout = window.setTimeout(() => {
@@ -27037,7 +27071,7 @@ async function fetchSyncCloudApiWithTimeout(
 
   try {
     return await fetch(input, {
-      ...init,
+      ...freshInit,
       signal: controller.signal,
     });
   } catch (error) {
@@ -27050,6 +27084,35 @@ async function fetchSyncCloudApiWithTimeout(
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+async function withFreshCloudAuthorization(
+  init?: Parameters<typeof fetch>[1]
+): Promise<Parameters<typeof fetch>[1]> {
+  const headers = new Headers(init?.headers);
+  const authorization = headers.get("Authorization");
+  const session = readCloudSession();
+  if (
+    !authorization ||
+    !session ||
+    authorization !== `Bearer ${session.accessToken}` ||
+    !isCloudSessionExpired(session)
+  ) {
+    return init;
+  }
+
+  const result = await refreshCloudSession(session);
+  if (result.status !== "refreshed") {
+    throw new Error(
+      `云端 session 自动续期失败：${result.error}。本地数据和待上传队列已保留，请稍后重试或重新登录。`
+    );
+  }
+
+  headers.set("Authorization", `Bearer ${result.session.accessToken}`);
+  return {
+    ...init,
+    headers,
+  };
 }
 
 async function readCloudApiBody(response: Response) {
