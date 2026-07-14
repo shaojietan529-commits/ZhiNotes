@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import { ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY } from "@/lib/account/clientSession";
 import {
@@ -15,6 +15,9 @@ import {
 
 const FILE_EMBED_STATUS_REFRESH_INTERVAL_MS = 10 * 1000;
 const FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT = 5;
+const FILE_EMBED_FOREGROUND_RETRY_LIMIT = 2;
+const FILE_EMBED_QUEUE_RETRY_DELAY_MS = 1200;
+const FILE_EMBED_AUTO_RETRY_MIN_INTERVAL_MS = 8000;
 
 function hasRetryableFileEmbedWork(status: PendingFileEmbedSyncStatus) {
   return status.pending + status.failed > 0;
@@ -24,6 +27,9 @@ export function useFileEmbedCloudSyncStatus() {
   const [status, setStatus] = useState<PendingFileEmbedSyncStatus>(() =>
     getPendingFileEmbedSyncStatus()
   );
+  const autoRetryTimerRef = useRef<number | null>(null);
+  const autoRetryRunningRef = useRef(false);
+  const lastAutoRetryAtRef = useRef(0);
 
   const refresh = useCallback(() => {
     setStatus(getPendingFileEmbedSyncStatus());
@@ -41,27 +47,82 @@ export function useFileEmbedCloudSyncStatus() {
     [refresh]
   );
 
+  const scheduleAutoRetry = useCallback(
+    (
+      inputStatus: PendingFileEmbedSyncStatus,
+      options: { delayMs?: number; forceAuthRetry?: boolean; limit?: number } = {}
+    ) => {
+      if (!hasRetryableFileEmbedWork(inputStatus)) return;
+      if (inputStatus.authRetryStatus && !options.forceAuthRetry) return;
+      if (autoRetryRunningRef.current) return;
+      if (autoRetryTimerRef.current !== null) {
+        window.clearTimeout(autoRetryTimerRef.current);
+      }
+      const elapsedMs = Date.now() - lastAutoRetryAtRef.current;
+      const minDelayMs = Math.max(
+        FILE_EMBED_AUTO_RETRY_MIN_INTERVAL_MS - elapsedMs,
+        0
+      );
+      const delayMs = Math.max(options.delayMs ?? 0, minDelayMs);
+      autoRetryTimerRef.current = window.setTimeout(() => {
+        autoRetryTimerRef.current = null;
+        const currentStatus = getPendingFileEmbedSyncStatus();
+        setStatus(currentStatus);
+        if (!hasRetryableFileEmbedWork(currentStatus)) return;
+        if (currentStatus.authRetryStatus && !options.forceAuthRetry) return;
+        autoRetryRunningRef.current = true;
+        lastAutoRetryAtRef.current = Date.now();
+        void syncNow({
+          includeManualReview: false,
+          limit: options.limit ?? FILE_EMBED_FOREGROUND_RETRY_LIMIT,
+        }).finally(() => {
+          autoRetryRunningRef.current = false;
+          setStatus(getPendingFileEmbedSyncStatus());
+        });
+      }, delayMs);
+    },
+    [syncNow]
+  );
+
   useEffect(() => {
     const refreshAndMaybeRetry = () => {
       const nextStatus = getPendingFileEmbedSyncStatus();
       setStatus(nextStatus);
       if (!hasRetryableFileEmbedWork(nextStatus)) return;
-      void syncNow({ limit: FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT });
+      scheduleAutoRetry(nextStatus, {
+        forceAuthRetry: true,
+        limit: FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT,
+      });
+    };
+    const refreshAndMaybeForegroundRetry = () => {
+      const nextStatus = getPendingFileEmbedSyncStatus();
+      setStatus(nextStatus);
+      scheduleAutoRetry(nextStatus, {
+        limit: FILE_EMBED_FOREGROUND_RETRY_LIMIT,
+      });
     };
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") refresh();
+      if (document.visibilityState === "visible") {
+        refreshAndMaybeForegroundRetry();
+      }
     }, FILE_EMBED_STATUS_REFRESH_INTERVAL_MS);
-    const handleForeground = () => refresh();
+    const handleForeground = () => refreshAndMaybeForegroundRetry();
     const handleVisible = () => {
-      if (document.visibilityState === "visible") refresh();
+      if (document.visibilityState === "visible") {
+        refreshAndMaybeForegroundRetry();
+      }
     };
     const handleQueue = (event: Event) => {
       const detail = (event as CustomEvent<PendingFileEmbedSyncStatus>).detail;
       if (detail) {
         setStatus(detail);
+        scheduleAutoRetry(detail, {
+          delayMs: FILE_EMBED_QUEUE_RETRY_DELAY_MS,
+          limit: FILE_EMBED_FOREGROUND_RETRY_LIMIT,
+        });
         return;
       }
-      refresh();
+      refreshAndMaybeForegroundRetry();
     };
     const handleStorage = (event: StorageEvent) => {
       if (
@@ -77,7 +138,7 @@ export function useFileEmbedCloudSyncStatus() {
       ) {
         return;
       }
-      refresh();
+      refreshAndMaybeForegroundRetry();
     };
     const handleAccountProfileUpdated = () => {
       refreshAndMaybeRetry();
@@ -102,8 +163,12 @@ export function useFileEmbedCloudSyncStatus() {
         handleAccountProfileUpdated
       );
       document.removeEventListener("visibilitychange", handleVisible);
+      if (autoRetryTimerRef.current !== null) {
+        window.clearTimeout(autoRetryTimerRef.current);
+        autoRetryTimerRef.current = null;
+      }
     };
-  }, [refresh, syncNow]);
+  }, [refresh, scheduleAutoRetry]);
 
   return { status, refresh, syncNow };
 }

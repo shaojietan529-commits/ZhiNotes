@@ -763,8 +763,12 @@ check(
   ) &&
     fileEmbedSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
     fileEmbedSyncStatusHook.includes("refreshAndMaybeRetry") &&
-    fileEmbedSyncStatusHook.includes("FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT"),
-  "文件云同步队列必须在账号恢复后做一次有上限的快速重试，避免用户登录恢复后仍长时间看不到补传进展"
+    fileEmbedSyncStatusHook.includes("FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT") &&
+    fileEmbedSyncStatusHook.includes("FILE_EMBED_FOREGROUND_RETRY_LIMIT") &&
+    fileEmbedSyncStatusHook.includes("FILE_EMBED_AUTO_RETRY_MIN_INTERVAL_MS") &&
+    fileEmbedSyncStatusHook.includes("scheduleAutoRetry") &&
+    fileEmbedSyncStatusHook.includes("FILE_EMBED_QUEUE_RETRY_DELAY_MS"),
+  "文件云同步队列必须在账号恢复、前台恢复、联网恢复和队列变化后做有上限、低频的小批量重试，避免用户登录恢复后仍长时间看不到补传进展"
 );
 check(
   pageIngestRoute.includes("accountSessionUnconfirmedPayload") &&

@@ -551,17 +551,47 @@ function run() {
       "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
       "File embed queue must retry quickly when account recovery is observed in another tab.",
     ],
-    [
-      files.fileEmbedSyncStatusHook,
-      fileEmbedSyncStatusHook,
-      "ACCOUNT_PROFILE_UPDATED_EVENT",
-      "File embed queue must retry quickly after same-tab account login/profile recovery.",
-    ],
+	    [
+	      files.fileEmbedSyncStatusHook,
+	      fileEmbedSyncStatusHook,
+	      "ACCOUNT_PROFILE_UPDATED_EVENT",
+	      "File embed queue must retry quickly after same-tab account login/profile recovery.",
+	    ],
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
       "FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT",
       "File embed account-recovery retry must stay bounded instead of high-frequency uploading large files.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "FILE_EMBED_FOREGROUND_RETRY_LIMIT",
+      "File embed foreground auto-retry must stay in small batches.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "FILE_EMBED_AUTO_RETRY_MIN_INTERVAL_MS",
+      "File embed auto-retry must have a minimum interval so large uploads do not thrash the network.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "scheduleAutoRetry",
+      "File embed queue changes must schedule bounded auto-retry instead of only refreshing status.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "FILE_EMBED_QUEUE_RETRY_DELAY_MS",
+      "File embed queue updates must coalesce before auto-retry so queue events do not cause upload loops.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "if (document.visibilityState === \"visible\") {\n        refreshAndMaybeForegroundRetry();\n      }",
+      "Visible file embed queue heartbeats must continue draining large queues in small batches.",
     ],
     [
       files.upload,
