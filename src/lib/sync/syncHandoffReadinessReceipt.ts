@@ -121,11 +121,14 @@ export function buildSyncHandoffReadinessReceipt(
   input: SyncHandoffReadinessReceiptInput
 ): SyncHandoffReadinessReceipt {
   const generatedAt = input.generatedAt ?? new Date().toISOString();
-  const pagePendingRows = input.pageStatus.pending + input.pageStatus.queued;
+  const pagePendingRows =
+    input.pageStatus.pending +
+    input.pageStatus.queued +
+    (input.pageStatus.syncLogPending ?? 0);
   const databasePendingRows =
     input.databaseStatus.pending +
     input.databaseStatus.queued +
-    input.databaseStatus.syncLogPending;
+    (input.databaseStatus.syncLogPending ?? 0);
   const filePendingRows = input.fileStatus.pending;
   const failedRows = Math.max(
     input.pageStatus.failed + input.databaseStatus.failed + input.fileStatus.failed,
@@ -280,7 +283,7 @@ export function buildSyncHandoffReadinessReceipt(
       page_in_memory_queued_rows: input.pageStatus.queued,
       database_pending_rows: input.databaseStatus.pending,
       database_in_memory_queued_rows: input.databaseStatus.queued,
-      database_sync_log_pending_rows: input.databaseStatus.syncLogPending,
+      database_sync_log_pending_rows: input.databaseStatus.syncLogPending ?? 0,
       file_pending_rows: filePendingRows,
       total_sync_log_pending_rows: input.totalSyncPending,
       failed_rows: failedRows,

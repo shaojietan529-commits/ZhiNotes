@@ -267,13 +267,13 @@ export function buildSyncUploadDrainReceipt(
 }
 
 function getPageWaitingRows(status: PendingCloudPageSyncStatus): number {
-  return status.pending + status.queued;
+  return status.pending + status.queued + (status.syncLogPending ?? 0);
 }
 
 function getDatabaseWaitingRows(
   status: PendingCloudDatabaseSyncStatus
 ): number {
-  return status.pending + status.queued + status.syncLogPending;
+  return status.pending + status.queued + (status.syncLogPending ?? 0);
 }
 
 function getFileWaitingRows(status: PendingFileEmbedSyncStatus): number {

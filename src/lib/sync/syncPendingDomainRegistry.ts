@@ -272,8 +272,9 @@ function mergeCorePendingDomainRows(
 ): PendingDomainRow[] {
   return rows.map((row) => {
     if (row.id === "pages") {
+      const syncLogPending = pageStatus.syncLogPending ?? 0;
       return mergePendingDomainRowWithCoreStatus(row, {
-        pending: pageStatus.pending + pageStatus.queued,
+        pending: pageStatus.pending + pageStatus.queued + syncLogPending,
         failed: pageStatus.failed,
         manualReview: pageStatus.manualReviewCount,
         lastChangeAt:
@@ -285,11 +286,12 @@ function mergeCorePendingDomainRows(
       });
     }
     if (row.id === "databases") {
+      const syncLogPending = databaseStatus.syncLogPending ?? 0;
       return mergePendingDomainRowWithCoreStatus(row, {
         pending:
           databaseStatus.pending +
           databaseStatus.queued +
-          databaseStatus.syncLogPending,
+          syncLogPending,
         failed: databaseStatus.failed,
         manualReview: databaseStatus.manualReviewCount,
         lastChangeAt:

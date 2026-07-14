@@ -92,16 +92,18 @@ export function useAccountCloudSyncCoordinator() {
   );
 
   const pagePendingTotal =
-    pageSync.pendingStatus.pending + pageSync.pendingStatus.queued;
+    pageSync.pendingStatus.pending +
+    pageSync.pendingStatus.queued +
+    (pageSync.pendingStatus.syncLogPending ?? 0);
   const databasePendingTotal =
     databaseSync.pendingStatus.pending +
     databaseSync.pendingStatus.queued +
-    databaseSync.pendingStatus.syncLogPending;
+    (databaseSync.pendingStatus.syncLogPending ?? 0);
   const settingsPendingTotal = settingsSync.status.totalPending;
   const knowledgePendingTotal = knowledgeSync.status.totalPending;
   const filePendingTotal = fileSync.status.pending;
   const globalSyncLogCoveredPendingTotal =
-    databaseSync.pendingStatus.syncLogPending +
+    (databaseSync.pendingStatus.syncLogPending ?? 0) +
     settingsPendingTotal +
     knowledgePendingTotal;
   const globalSyncLogExtraPendingTotal = Math.max(
@@ -177,7 +179,9 @@ export function useAccountCloudSyncCoordinator() {
       pageSync.pendingStatus.pending -
         pageSync.pendingStatus.manualReviewCount,
       0
-    ) + pageSync.pendingStatus.queued;
+    ) +
+    pageSync.pendingStatus.queued +
+    (pageSync.pendingStatus.syncLogPending ?? 0);
   const databaseAutoRetryablePendingTotal =
     Math.max(
       databaseSync.pendingStatus.pending -
@@ -185,7 +189,7 @@ export function useAccountCloudSyncCoordinator() {
       0
     ) +
     databaseSync.pendingStatus.queued +
-    databaseSync.pendingStatus.syncLogPending;
+    (databaseSync.pendingStatus.syncLogPending ?? 0);
   const settingsAutoRetryablePendingTotal = Math.max(
     settingsPendingTotal - settingsSync.status.manualReviewCount,
     0

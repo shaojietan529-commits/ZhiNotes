@@ -23,8 +23,12 @@ import {
   getAllPageMetadata,
   getAllPagesForSync,
   getPagesForSyncByIds,
+  getPendingPageSyncRecords,
   getLocalPageSyncSummary,
   getNextPosition,
+  markPageSyncLogEntriesAttempted,
+  markPageSyncLogEntriesFailed,
+  markPageSyncLogEntriesSynced,
   movePage,
   deletePage,
   updatePage,
@@ -139,6 +143,7 @@ export interface PendingCloudPageSyncStatus {
   enabled: boolean;
   pending: number;
   queued: number;
+  syncLogPending: number;
   failed: number;
   failureCountTotal: number;
   maxFailureCount: number;
@@ -282,6 +287,17 @@ export interface PushCloudPagesResult {
   status: PageSyncStatus;
   accepted: string[];
   skipped: string[];
+  message?: string;
+}
+
+export interface PushLocalPagesResult {
+  status: PageSyncStatus;
+  pushed: number;
+  skipped: number;
+  total: number;
+  marked?: number;
+  acceptedIds?: string[];
+  skippedIds?: string[];
   message?: string;
 }
 
@@ -1145,6 +1161,10 @@ export async function pushCloudPages(
     : [];
   const acknowledgedIds = [...accepted, ...skipped];
   clearPendingCloudPushIds(acknowledgedIds);
+  void markAcknowledgedPageSyncIds(acknowledgedIds).catch(() => {
+    // Keep the upload success path non-blocking; the next status refresh will
+    // surface any unacknowledged local sync_log rows.
+  });
   if (acknowledgedIds.length > 0) setLastPageSyncAtNow();
   return {
     status: "ok",
@@ -1159,10 +1179,14 @@ async function pushCloudRecordsInBatches(
   status: PageSyncStatus;
   accepted: number;
   skipped: number;
+  acceptedIds: string[];
+  skippedIds: string[];
   message?: string;
 }> {
   let accepted = 0;
   let skipped = 0;
+  const acceptedIds: string[] = [];
+  const skippedIds: string[] = [];
   let oversized = 0;
   let batch: RemotePageRecord[] = [];
   let batchBytes = 0;
@@ -1187,6 +1211,8 @@ async function pushCloudRecordsInBatches(
           status: result.status,
           accepted,
           skipped,
+          acceptedIds,
+          skippedIds,
           message: result.message,
         };
       }
@@ -1194,6 +1220,8 @@ async function pushCloudRecordsInBatches(
         clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
         accepted += result.accepted.length;
         skipped += result.skipped.length;
+        acceptedIds.push(...result.accepted);
+        skippedIds.push(...result.skipped);
       }
     }
     if (size > PUSH_BATCH_BYTES) {
@@ -1218,6 +1246,8 @@ async function pushCloudRecordsInBatches(
       status: result.status,
       accepted,
       skipped,
+      acceptedIds,
+      skippedIds,
       message: result.message,
     };
   }
@@ -1225,16 +1255,20 @@ async function pushCloudRecordsInBatches(
     clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
     accepted += result.accepted.length;
     skipped += result.skipped.length;
+    acceptedIds.push(...result.accepted);
+    skippedIds.push(...result.skipped);
   }
   if (oversized > 0) {
     return {
       status: "error",
       accepted,
       skipped,
+      acceptedIds,
+      skippedIds,
       message: `${oversized} 条页面记录超过云同步单批上限，已保留在 pending queue 并标记失败原因。`,
     };
   }
-  return { status: "ok", accepted, skipped };
+  return { status: "ok", accepted, skipped, acceptedIds, skippedIds };
 }
 
 export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> {
@@ -1541,6 +1575,113 @@ async function flushPendingCloudPushes(
     status: "ok",
     pushed: result.accepted,
     pending: getPendingCloudPushIds().length,
+  };
+}
+
+async function markAcknowledgedPageSyncIds(ids: string[]): Promise<number> {
+  const acknowledged = new Set(ids.filter(isValidRemotePageId));
+  if (acknowledged.size === 0) return 0;
+  const pending = await getPendingPageSyncRecords(1000);
+  return markPageSyncLogEntriesSynced(
+    pending.entries
+      .filter((entry) => acknowledged.has(entry.pageId))
+      .map((entry) => entry.logId)
+  );
+}
+
+export async function pushPendingLocalPageChangesToCloud(): Promise<PushLocalPagesResult> {
+  if (!isPageSyncEnabled()) {
+    return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
+  }
+  const pending = await getPendingPageSyncRecords(200);
+  if (pending.entries.length === 0) {
+    return { status: "ok", pushed: 0, skipped: 0, total: 0 };
+  }
+  const recordIds = new Set(pending.records.map((record) => record.id));
+  const missingLogIds = pending.entries
+    .filter((entry) => !recordIds.has(entry.pageId))
+    .map((entry) => entry.logId);
+  if (pending.records.length === 0) {
+    await markPageSyncLogEntriesFailed(
+      missingLogIds,
+      "页面同步日志指向的本地页面记录不存在，已保留为待处理。"
+    );
+    emitPageSyncStatusChanged();
+    return {
+      status: "error",
+      pushed: 0,
+      skipped: 0,
+      total: pending.entries.length,
+      message: "页面同步日志指向的本地页面记录不存在，已保留为待处理。",
+    };
+  }
+
+  const pendingLogIds = pending.entries.map((entry) => entry.logId);
+  await markPageSyncLogEntriesAttempted(pendingLogIds);
+  emitPageSyncStatusChanged();
+
+  const result = await pushCloudRecordsInBatches(pending.records.map(toRecord));
+  const acknowledged = new Set([...result.acceptedIds, ...result.skippedIds]);
+  const acknowledgedLogIds = pending.entries
+    .filter((entry) => acknowledged.has(entry.pageId))
+    .map((entry) => entry.logId);
+  const marked = await markPageSyncLogEntriesSynced(acknowledgedLogIds);
+  if (missingLogIds.length > 0) {
+    await markPageSyncLogEntriesFailed(
+      missingLogIds,
+      "页面同步日志指向的本地页面记录不存在，已保留为待处理。"
+    );
+  }
+  const missingMessage =
+    missingLogIds.length > 0
+      ? "部分页面同步日志指向的本地页面记录不存在，已保留为待处理。"
+      : undefined;
+
+  if (result.status !== "ok") {
+    const failedLogIds = pending.entries
+      .filter(
+        (entry) =>
+          !acknowledged.has(entry.pageId) && recordIds.has(entry.pageId)
+      )
+      .map((entry) => entry.logId);
+    await markPageSyncLogEntriesFailed(
+      failedLogIds,
+      result.message ?? result.status
+    );
+    emitPageSyncStatusChanged();
+    return {
+      status: result.status,
+      pushed: result.accepted,
+      skipped: result.skipped,
+      total: pending.entries.length,
+      marked,
+      acceptedIds: result.acceptedIds,
+      skippedIds: result.skippedIds,
+      message: result.message ?? missingMessage,
+    };
+  }
+
+  emitPageSyncStatusChanged();
+  if (missingLogIds.length > 0) {
+    return {
+      status: "error",
+      pushed: result.accepted,
+      skipped: result.skipped,
+      total: pending.entries.length,
+      marked,
+      acceptedIds: result.acceptedIds,
+      skippedIds: result.skippedIds,
+      message: missingMessage,
+    };
+  }
+  return {
+    status: "ok",
+    pushed: result.accepted,
+    skipped: result.skipped,
+    total: pending.entries.length,
+    marked,
+    acceptedIds: result.acceptedIds,
+    skippedIds: result.skippedIds,
   };
 }
 
@@ -2031,6 +2172,7 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
     enabled: isPageSyncEnabled(),
     pending: pendingIds.length,
     queued: queuedCloudPush.size,
+    syncLogPending: 0,
     failed: failedIds.length,
     failureCountTotal,
     maxFailureCount,
@@ -2052,6 +2194,19 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
     authRetryUntil: authRetry.until,
     lastSyncAt: getLastPageSyncAt(),
   };
+}
+
+export async function getPendingCloudPageSyncStatusWithSyncLog(): Promise<PendingCloudPageSyncStatus> {
+  const status = getPendingCloudPageSyncStatus();
+  try {
+    const pending = await getPendingPageSyncRecords(1000);
+    return {
+      ...status,
+      syncLogPending: pending.entries.length,
+    };
+  } catch {
+    return status;
+  }
 }
 
 export function isCloudPagePendingSync(pageId: string): boolean {
@@ -2620,8 +2775,23 @@ export async function reconcilePageSync(
         message: pendingPush.message,
       };
     }
+    const pendingSyncLogPush = await pushPendingLocalPageChangesToCloud();
+    if (
+      pendingSyncLogPush.status === "unauthenticated" ||
+      pendingSyncLogPush.status === "unconfigured" ||
+      pendingSyncLogPush.status === "disabled" ||
+      pendingSyncLogPush.status === "error"
+    ) {
+      return {
+        status: pendingSyncLogPush.status,
+        pulled: 0,
+        pushed: pendingPush.pushed + pendingSyncLogPush.pushed,
+        message: pendingSyncLogPush.message,
+      };
+    }
     const baselineUpload = await uploadLocalPageBaselineIfNeeded();
-    const initialPushed = pendingPush.pushed + baselineUpload.pushed;
+    const initialPushed =
+      pendingPush.pushed + pendingSyncLogPush.pushed + baselineUpload.pushed;
     const bootstrapped =
       baselineUpload.total > 0 ? baselineUpload.total : undefined;
     if (baselineUpload.status !== "ok") {

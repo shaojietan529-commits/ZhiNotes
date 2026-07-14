@@ -1014,15 +1014,18 @@ check(
     pageSyncClient.includes("if (options.forceAccountGate)") &&
     pageSyncClient.includes("checkAccountCloudSyncGate({ force: true })") &&
     pageSyncClient.includes("getAccountGatePageSyncMessage") &&
+    pageSyncClient.includes("const pendingSyncLogPush = await pushPendingLocalPageChangesToCloud()") &&
     pageSyncClient.includes("const baselineUpload = await uploadLocalPageBaselineIfNeeded()") &&
-    pageSyncClient.includes("const initialPushed = pendingPush.pushed + baselineUpload.pushed") &&
+    pageSyncClient.includes(
+      "pendingPush.pushed + pendingSyncLogPush.pushed + baselineUpload.pushed"
+    ) &&
     pageSyncClient.includes("bootstrapped?: number") &&
     pageSyncClient.includes("const local = await getAllPageMetadata()") &&
     pageSyncClient.includes("readSyncStorage(LOCAL_BASELINE_UPLOAD_SIGNATURE_KEY)") &&
     !pageSyncClient.includes("const localAfter =") &&
     !pageSyncClient.includes("const toPush: Page[]") &&
     !pageSyncClient.includes("pendingPush.pushed + pushResult.accepted"),
-  "reconcile 每轮同步应先补发待上传页面，再做一次性本机基线补种；不能回到按 updated_at 猜测上传的旧路径"
+  "reconcile 每轮同步应先补发待上传页面和页面 sync_log，再做一次性本机基线补种；不能回到按 updated_at 猜测上传的旧路径"
 );
 check(
   pageSyncClient.includes("FlushPendingCloudPushOptions") &&
@@ -1040,6 +1043,10 @@ check(
 check(
   pageSyncClient.includes("export interface PendingCloudPageSyncStatus") &&
     pageSyncClient.includes("export function getPendingCloudPageSyncStatus") &&
+    pageSyncClient.includes("export async function getPendingCloudPageSyncStatusWithSyncLog") &&
+    pageSyncClient.includes("export async function pushPendingLocalPageChangesToCloud") &&
+    pageSyncClient.includes("syncLogPending") &&
+    pageSyncClient.includes("const pending = await getPendingPageSyncRecords(1000)") &&
     pageSyncClient.includes("pending: pendingIds.length") &&
     pageSyncClient.includes("queued: queuedCloudPush.size") &&
     pageSyncClient.includes("oldestPendingQueuedAt") &&
@@ -1050,7 +1057,7 @@ check(
     pageSyncClient.includes("export function isCloudPagePendingSync") &&
     pageSyncClient.includes("queuedCloudPush.has(pageId)") &&
     pageSyncClient.includes("getPendingCloudPushIds().includes(pageId)"),
-  "页面同步客户端应暴露只读 pending 上传状态、最早排队时间、样本 id 和当前页 pending 判断，供同步页/页面壳展示和补传前后对账"
+  "页面同步客户端应暴露只读 pending 上传状态、sync_log pending、最早排队时间、样本 id 和当前页 pending 判断，供同步页/页面壳展示和补传前后对账"
 );
 check(
   syncDashboardShell.includes("页面 pending 上传队列") &&
@@ -2294,6 +2301,7 @@ check(
 );
 check(
   pageCloudSyncHook.includes("getPendingCloudPageSyncStatus") &&
+    pageCloudSyncHook.includes("getPendingCloudPageSyncStatusWithSyncLog") &&
     pageCloudSyncHook.includes("pendingStatus") &&
     pageCloudSyncHook.includes("refreshPendingStatus") &&
     pageCloudSyncHook.includes("return { state, lastSyncAt, pendingStatus, syncNow: runSync }"),
@@ -2308,13 +2316,17 @@ check(
     pageCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&
     pageCloudSyncHook.includes("schedulePendingStatusSync") &&
     pageCloudSyncHook.includes("function shouldForceAccountGateForPendingStatus") &&
-    pageCloudSyncHook.includes("status.pending + status.queued <= 0") &&
+    pageCloudSyncHook.includes(
+      "status.pending + status.queued + (status.syncLogPending ?? 0) <= 0"
+    ) &&
     pageCloudSyncHook.includes("return Boolean(status.authRetryStatus)") &&
     pageCloudSyncHook.includes("forceLease: Boolean(options.forceAccountGate)") &&
     pageCloudSyncHook.includes("forceAccountGate: Boolean(options.forceAccountGate)") &&
     pageCloudSyncHook.includes("shouldForceAccountGateForPendingStatus(detail)") &&
     pageCloudSyncHook.includes("shouldForceAccountGateForPendingStatus(nextStatus)") &&
-    pageCloudSyncHook.includes("detail.pending + detail.queued") &&
+    pageCloudSyncHook.includes(
+      "detail.pending + detail.queued + (detail.syncLogPending ?? 0)"
+    ) &&
     pageCloudSyncHook.includes("PAGE_PENDING_STORAGE_KEYS") &&
     pageCloudSyncHook.includes('PAGE_PENDING_STORAGE_KEYS.has(event.key ?? "")'),
   "页面云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync；若 pending 队列正处于账号重试状态，应有边界地重新确认账号，避免可登录状态下等完整个退避窗口"
@@ -2431,13 +2443,13 @@ check(
     databaseCloudSyncHook.includes("CustomEvent<PendingCloudDatabaseSyncStatus>") &&
     databaseCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&
     databaseCloudSyncHook.includes("function shouldForceAccountGateForPendingStatus") &&
-    databaseCloudSyncHook.includes("status.pending + status.queued + status.syncLogPending <= 0") &&
+    databaseCloudSyncHook.includes("status.pending + status.queued + (status.syncLogPending ?? 0) <= 0") &&
     databaseCloudSyncHook.includes("return Boolean(status.authRetryStatus)") &&
     databaseCloudSyncHook.includes("forceLease: Boolean(options.forceAccountGate)") &&
     databaseCloudSyncHook.includes("forceAccountGate: Boolean(options.forceAccountGate)") &&
     databaseCloudSyncHook.includes("shouldForceAccountGateForPendingStatus(detail)") &&
     databaseCloudSyncHook.includes("shouldForceAccountGateForPendingStatus(nextStatus)") &&
-    databaseCloudSyncHook.includes("detail.pending + detail.queued + detail.syncLogPending") &&
+    databaseCloudSyncHook.includes("detail.pending + detail.queued + (detail.syncLogPending ?? 0)") &&
     databaseCloudSyncHook.includes("DATABASE_PENDING_STORAGE_KEYS") &&
     databaseCloudSyncHook.includes('DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")'),
   "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync；若 pending 队列正处于账号重试状态，应有边界地重新确认账号，避免可登录状态下等完整个退避窗口"
@@ -3378,9 +3390,11 @@ check(
     syncPendingDomainRegistry.includes("PENDING_DOMAIN_DEFINITIONS") &&
     syncPendingDomainRegistry.includes("buildPendingDomainCoverageReport") &&
     syncPendingDomainRegistry.includes("mergeCorePendingDomainRows") &&
-    syncPendingDomainRegistry.includes("pageStatus.pending + pageStatus.queued") &&
     syncPendingDomainRegistry.includes(
-      "databaseStatus.pending +\n          databaseStatus.queued +\n          databaseStatus.syncLogPending"
+      "pageStatus.pending + pageStatus.queued + syncLogPending"
+    ) &&
+    syncPendingDomainRegistry.includes(
+      "databaseStatus.pending +\n          databaseStatus.queued +\n          syncLogPending"
     ) &&
     syncPendingDomainRegistry.includes("fileStatus.pending") &&
     syncPendingDomainRegistry.includes("file_embed_sync_queue") &&
@@ -3965,6 +3979,16 @@ check(
     localQueries.includes("never sync payloads or note content") &&
     localQueries.includes("emitSyncLogStatusEvent();"),
   "sync_log 新增、ack、失败和重试状态变化后应发出不含内容的全域刷新事件和跨 tab 时间戳提醒，让同步中心全域队列计数及时更新"
+);
+check(
+  localQueries.includes("export async function getPendingPageSyncRecords") &&
+    localQueries.includes("table_name = 'pages'") &&
+    localQueries.includes("export async function markPageSyncLogEntriesSynced") &&
+    localQueries.includes("export async function markPageSyncLogEntriesAttempted") &&
+    localQueries.includes("export async function markPageSyncLogEntriesFailed") &&
+    localQueries.includes("return markSyncLogEntriesAttempted(ids)") &&
+    localQueries.includes("return markSyncLogEntriesFailed(ids, error, retryDelayMs)"),
+  "页面 sync_log 应有独立的待补传读取、ACK、尝试和失败标记方法，且只处理 pages 表元数据"
 );
 check(
   localQueries.includes("emitKnowledgeSyncStatusEvent") &&

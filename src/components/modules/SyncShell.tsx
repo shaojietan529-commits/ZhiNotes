@@ -71,6 +71,7 @@ import {
   getCloudMeetingManifestSummary,
   getCloudPageManifestSummary,
   getPendingCloudPageSyncStatus,
+  getPendingCloudPageSyncStatusWithSyncLog,
   PAGE_SYNC_CONFIG_EVENT,
   PAGE_SYNC_STATUS_EVENT,
   fetchDailyCloudMetadata,
@@ -1553,6 +1554,7 @@ function SyncDashboard() {
           loadedModuleSettings,
           loadedHotCacheSetting,
           loadedHotCacheLocalIndexSummary,
+          loadedPagePendingStatus,
           loadedDatabasePendingStatus,
           loadedEnvironmentPreflight,
         ] = await Promise.all([
@@ -1567,6 +1569,7 @@ function SyncDashboard() {
           listModuleSettings(),
           getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY),
           getHotCacheLocalIndexSummary(),
+          getPendingCloudPageSyncStatusWithSyncLog(),
           getPendingCloudDatabaseSyncStatus(),
           fetchSyncCloudApiWithTimeout("/api/web-beta/environment-preflight")
             .then((response) => {
@@ -1594,7 +1597,7 @@ function SyncDashboard() {
         setWorkspaceSettings(loadedWorkspaceSettings);
         setAccountSettings(loadedAccountSettings);
         setModuleSettings(loadedModuleSettings);
-        setPagePendingStatus(getPendingCloudPageSyncStatus());
+        setPagePendingStatus(loadedPagePendingStatus);
         setDatabasePendingStatus(loadedDatabasePendingStatus);
         setHotCacheSetting(loadedHotCacheSetting);
         setHotCachePreferences(parseHotCachePreferences(loadedHotCacheSetting));
@@ -1728,12 +1731,25 @@ function SyncDashboard() {
     const refreshPagePendingStatus = (event?: Event) => {
       const next = (event as CustomEvent<PendingCloudPageSyncStatus> | undefined)
         ?.detail;
-      const status = next ?? getPendingCloudPageSyncStatus();
-      setPagePendingStatus(status);
-      schedulePagePendingRefresh(status);
+      if (next) {
+        setPagePendingStatus(next);
+        schedulePagePendingRefresh(next);
+        void getPendingCloudPageSyncStatusWithSyncLog().then((status) => {
+          setPagePendingStatus(status);
+          schedulePagePendingRefresh(status);
+        });
+        return;
+      }
+      void getPendingCloudPageSyncStatusWithSyncLog().then((status) => {
+        setPagePendingStatus(status);
+        schedulePagePendingRefresh(status);
+      });
     };
     const handlePageStorageRefresh = (event: StorageEvent) => {
-      if (isPageSyncStorageEvent(event)) {
+      if (
+        isPageSyncStorageEvent(event) ||
+        event.key === SYNC_LOG_STATUS_STORAGE_KEY
+      ) {
         refreshPagePendingStatus();
       }
     };
@@ -1741,6 +1757,7 @@ function SyncDashboard() {
     refreshPagePendingStatus();
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, refreshPagePendingStatus);
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, refreshPagePendingStatus);
+    window.addEventListener(SYNC_LOG_STATUS_EVENT, refreshPagePendingStatus);
     window.addEventListener("storage", handlePageStorageRefresh);
     return () => {
       window.removeEventListener(
@@ -1749,6 +1766,10 @@ function SyncDashboard() {
       );
       window.removeEventListener(
         PAGE_SYNC_CONFIG_EVENT,
+        refreshPagePendingStatus
+      );
+      window.removeEventListener(
+        SYNC_LOG_STATUS_EVENT,
         refreshPagePendingStatus
       );
       window.removeEventListener("storage", handlePageStorageRefresh);
@@ -2067,11 +2088,14 @@ function SyncDashboard() {
     ]
   );
   const syncLocalUseQueueSnapshot = useMemo(() => {
-    const pageWaiting = pagePendingStatus.pending + pagePendingStatus.queued;
+    const pageWaiting =
+      pagePendingStatus.pending +
+      pagePendingStatus.queued +
+      (pagePendingStatus.syncLogPending ?? 0);
     const databaseWaiting =
       databasePendingStatus.pending +
       databasePendingStatus.queued +
-      databasePendingStatus.syncLogPending;
+      (databasePendingStatus.syncLogPending ?? 0);
     const fileWaiting = fileEmbedPendingStatus.pending;
     const settingsQueue = summarizeSyncSummaryTables(syncSummary, [
       "workspace_settings",
@@ -4946,11 +4970,12 @@ function SyncDashboard() {
     setSyncDrainMessage(null);
     setSyncDrainReceipt(null);
     try {
-      const [beforeDatabaseStatus, beforeSyncLogSummary] = await Promise.all([
-        getPendingCloudDatabaseSyncStatus(),
-        getSyncLogSummary(),
-      ]);
-      const beforePageStatus = getPendingCloudPageSyncStatus();
+      const [beforePageStatus, beforeDatabaseStatus, beforeSyncLogSummary] =
+        await Promise.all([
+          getPendingCloudPageSyncStatusWithSyncLog(),
+          getPendingCloudDatabaseSyncStatus(),
+          getSyncLogSummary(),
+        ]);
       const beforeFileStatus = getPendingFileEmbedSyncStatus();
 
       const pageResult: SyncUploadDrainResultSnapshot = await reconcilePageSync({
@@ -5005,13 +5030,13 @@ function SyncDashboard() {
           message: err instanceof Error ? err.message : "文件补传失败。",
         }));
 
-      const [afterDatabaseStatus, nextSyncSummary, nextSyncEntries] =
+      const [afterPageStatus, afterDatabaseStatus, nextSyncSummary, nextSyncEntries] =
         await Promise.all([
+          getPendingCloudPageSyncStatusWithSyncLog(),
           getPendingCloudDatabaseSyncStatus(),
           getSyncLogSummary(),
           getPendingSyncLogEntries(25),
         ]);
-      const afterPageStatus = getPendingCloudPageSyncStatus();
       const afterFileStatus = getPendingFileEmbedSyncStatus();
       const receipt = buildSyncUploadDrainReceipt({
         beforePageStatus,
@@ -5044,14 +5069,16 @@ function SyncDashboard() {
       setSyncDrainReceipt(receipt);
       setPagePendingMessage(
         `统一补传后：页面推送 ${pageResult.pushed} 个，拉取 ${pageResult.pulled} 个；当前页面待上传 ${
-          afterPageStatus.pending + afterPageStatus.queued
+          afterPageStatus.pending +
+          afterPageStatus.queued +
+          (afterPageStatus.syncLogPending ?? 0)
         } 个。`
       );
       setDatabasePendingMessage(
         `统一补传后：数据库推送 ${databaseResult.pushed} 条，拉取 ${databaseResult.pulled} 条；当前数据库待上传 ${
           afterDatabaseStatus.pending +
           afterDatabaseStatus.queued +
-          afterDatabaseStatus.syncLogPending
+          (afterDatabaseStatus.syncLogPending ?? 0)
         } 条。`
       );
       setSyncDrainMessage(
@@ -5080,22 +5107,24 @@ function SyncDashboard() {
         includeManualReview: true,
         forceAccountGate: true,
       });
-      const nextStatus = getPendingCloudPageSyncStatus();
+      const nextStatus = await getPendingCloudPageSyncStatusWithSyncLog();
       setPagePendingStatus(nextStatus);
+      const nextPendingTotal =
+        nextStatus.pending + nextStatus.queued + (nextStatus.syncLogPending ?? 0);
       if (result.status === "ok") {
         setPagePendingMessage(
-          `补传完成：推送 ${result.pushed} 个页面，拉取 ${result.pulled} 个页面；当前仍有 ${nextStatus.pending} 个页面待上传。`
+          `补传完成：推送 ${result.pushed} 个页面，拉取 ${result.pulled} 个页面；当前仍有 ${nextPendingTotal} 个页面待上传。`
         );
       } else {
         setPagePendingMessage(
           `补传暂未完成：${formatPageSyncStatus(result.status)}${
             result.message ? `，${result.message}` : ""
-          }；待上传 ${nextStatus.pending} 个页面。`
+          }；待上传 ${nextPendingTotal} 个页面。`
         );
       }
     } catch (err) {
       console.error("[Zhinote] Failed to retry page pending sync:", err);
-      setPagePendingStatus(getPendingCloudPageSyncStatus());
+      void getPendingCloudPageSyncStatusWithSyncLog().then(setPagePendingStatus);
       setPagePendingMessage(
         err instanceof Error
           ? `补传失败：${err.message}`
@@ -5119,13 +5148,13 @@ function SyncDashboard() {
       setDatabasePendingStatus(nextStatus);
       if (result.status === "ok") {
         setDatabasePendingMessage(
-          `补传完成：推送 ${result.pushed} 条数据库记录，拉取 ${result.pulled} 条记录；当前 cloud key 队列 ${nextStatus.pending} 条，本地 sync_log ${nextStatus.syncLogPending} 条。`
+          `补传完成：推送 ${result.pushed} 条数据库记录，拉取 ${result.pulled} 条记录；当前 cloud key 队列 ${nextStatus.pending} 条，本地 sync_log ${nextStatus.syncLogPending ?? 0} 条。`
         );
       } else {
         setDatabasePendingMessage(
           `补传暂未完成：${formatDatabaseSyncStatus(result.status)}${
             result.message ? `，${result.message}` : ""
-          }；cloud key 队列 ${nextStatus.pending} 条，本地 sync_log ${nextStatus.syncLogPending} 条。`
+          }；cloud key 队列 ${nextStatus.pending} 条，本地 sync_log ${nextStatus.syncLogPending ?? 0} 条。`
         );
       }
     } catch (err) {
@@ -5165,7 +5194,7 @@ function SyncDashboard() {
         getCloudDatabaseManifestSummary(),
         getPendingCloudDatabaseSyncStatus(),
       ]);
-      const nextPagePending = getPendingCloudPageSyncStatus();
+      const nextPagePending = await getPendingCloudPageSyncStatusWithSyncLog();
       setPagePendingStatus(nextPagePending);
       setDatabasePendingStatus(nextDatabasePending);
       const [
@@ -5208,21 +5237,30 @@ function SyncDashboard() {
           title: "页面",
           localSummary: localPageSummary,
           cloudResult: cloudPageSummary,
-          pending: nextPagePending.pending + nextPagePending.queued,
+          pending:
+            nextPagePending.pending +
+            nextPagePending.queued +
+            (nextPagePending.syncLogPending ?? 0),
         }),
         buildCoreManifestDomainCompare({
           id: "daily",
           title: "每日纪要",
           localSummary: localDailySummary,
           cloudResult: cloudDailySummary,
-          pending: nextPagePending.pending + nextPagePending.queued,
+          pending:
+            nextPagePending.pending +
+            nextPagePending.queued +
+            (nextPagePending.syncLogPending ?? 0),
         }),
         buildCoreManifestDomainCompare({
           id: "meetings",
           title: "会议日历",
           localSummary: localMeetingSummary,
           cloudResult: cloudMeetingSummary,
-          pending: nextPagePending.pending + nextPagePending.queued,
+          pending:
+            nextPagePending.pending +
+            nextPagePending.queued +
+            (nextPagePending.syncLogPending ?? 0),
         }),
         buildCoreManifestDomainCompare({
           id: "databases",
@@ -5232,7 +5270,7 @@ function SyncDashboard() {
           pending:
             nextDatabasePending.pending +
             nextDatabasePending.queued +
-            nextDatabasePending.syncLogPending,
+            (nextDatabasePending.syncLogPending ?? 0),
         }),
       ];
       const dateDiffReport = buildCoreDateManifestDiffReport({
@@ -21376,11 +21414,12 @@ function SyncUploadSafetyPanel({
   drainMessage: string | null;
   handoffReceipt: SyncHandoffReadinessReceipt;
 }) {
-  const pageWaiting = pageStatus.pending + pageStatus.queued;
+  const pageWaiting =
+    pageStatus.pending + pageStatus.queued + (pageStatus.syncLogPending ?? 0);
   const databaseWaiting =
     databaseStatus.pending +
     databaseStatus.queued +
-    databaseStatus.syncLogPending;
+    (databaseStatus.syncLogPending ?? 0);
   const fileWaiting = fileStatus.pending;
   const failed = Math.max(
     pageStatus.failed + databaseStatus.failed + fileStatus.failed,
@@ -22189,7 +22228,8 @@ function PagePendingQueueDetails({
 }: {
   status: PendingCloudPageSyncStatus;
 }) {
-  const totalWaiting = status.pending + status.queued;
+  const syncLogPending = status.syncLogPending ?? 0;
+  const totalWaiting = status.pending + status.queued + syncLogPending;
   const queueHealth = getSyncQueueHealth({
     domain: "页面",
     enabled: status.enabled,
@@ -22207,6 +22247,11 @@ function PagePendingQueueDetails({
       label: "待上传页面",
       value: String(status.pending),
       detail: "已写入本地 pending queue 的 page id。",
+    },
+    {
+      label: "本地 sync_log",
+      value: String(syncLogPending),
+      detail: "已落入本地 sync_log、等待云端 ACK 的页面账本行。",
     },
     {
       label: "内存批次",
@@ -22398,7 +22443,8 @@ function DatabasePendingQueueDetails({
 }: {
   status: PendingCloudDatabaseSyncStatus;
 }) {
-  const totalWaiting = status.pending + status.queued + status.syncLogPending;
+  const syncLogPending = status.syncLogPending ?? 0;
+  const totalWaiting = status.pending + status.queued + syncLogPending;
   const queueHealth = getSyncQueueHealth({
     domain: "数据库",
     enabled: status.enabled,
@@ -22419,7 +22465,7 @@ function DatabasePendingQueueDetails({
     },
     {
       label: "本地 sync_log",
-      value: String(status.syncLogPending),
+      value: String(syncLogPending),
       detail: "本地同步日志里的待上传数据库变更计数。",
     },
     {
@@ -22627,11 +22673,12 @@ function CacheRebuildSafetyPanel({
   onExportReceipt: () => void;
   onOpenAccount: () => void;
 }) {
-  const pagePending = pageStatus.pending + pageStatus.queued;
+  const pagePending =
+    pageStatus.pending + pageStatus.queued + (pageStatus.syncLogPending ?? 0);
   const databasePending =
     databaseStatus.pending +
     databaseStatus.queued +
-    databaseStatus.syncLogPending;
+    (databaseStatus.syncLogPending ?? 0);
   const hasPending = pagePending > 0 || databasePending > 0 || totalSyncPending > 0;
   const disabledDomains = [
     pageStatus.enabled ? null : "页面同步关闭",
@@ -27577,6 +27624,7 @@ function isActivePagePendingStatus(status: PendingCloudPageSyncStatus): boolean 
   return (
     status.pending +
       status.queued +
+      (status.syncLogPending ?? 0) +
       status.failed +
       status.manualReviewCount >
     0
@@ -27589,7 +27637,7 @@ function isActiveDatabasePendingStatus(
   return (
     status.pending +
       status.queued +
-      status.syncLogPending +
+      (status.syncLogPending ?? 0) +
       status.failed +
       status.manualReviewCount >
     0

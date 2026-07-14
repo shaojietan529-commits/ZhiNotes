@@ -123,11 +123,14 @@ export function buildCloudNativeFluidityReport(
   input: CloudNativeFluidityReportInput
 ): CloudNativeFluidityReport {
   const generatedAt = input.generatedAt ?? new Date().toISOString();
-  const pagePendingRows = input.pageStatus.pending + input.pageStatus.queued;
+  const pagePendingRows =
+    input.pageStatus.pending +
+    input.pageStatus.queued +
+    (input.pageStatus.syncLogPending ?? 0);
   const databasePendingRows =
     input.databaseStatus.pending +
     input.databaseStatus.queued +
-    input.databaseStatus.syncLogPending;
+    (input.databaseStatus.syncLogPending ?? 0);
   const filePendingRows = input.fileStatus.pending;
   const failedRows = Math.max(
     input.pageStatus.failed + input.databaseStatus.failed + input.fileStatus.failed,

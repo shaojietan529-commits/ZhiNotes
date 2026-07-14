@@ -257,7 +257,8 @@ function buildFileDomain(
 function buildPageDomain(
   status: PendingCloudPageSyncStatus
 ): SyncManualReviewDomain {
-  const pending = status.pending + status.queued;
+  const syncLogPending = status.syncLogPending ?? 0;
+  const pending = status.pending + status.queued + syncLogPending;
   const domainStatus = getDomainStatus({
     enabled: status.enabled,
     pending,
@@ -271,7 +272,7 @@ function buildPageDomain(
     enabled: status.enabled,
     pending: status.pending,
     queued: status.queued,
-    sync_log_pending: 0,
+    sync_log_pending: syncLogPending,
     failed: status.failed,
     failure_count_total: status.failureCountTotal,
     max_failure_count: status.maxFailureCount,
@@ -291,7 +292,8 @@ function buildPageDomain(
 function buildDatabaseDomain(
   status: PendingCloudDatabaseSyncStatus
 ): SyncManualReviewDomain {
-  const pending = status.pending + status.queued + status.syncLogPending;
+  const syncLogPending = status.syncLogPending ?? 0;
+  const pending = status.pending + status.queued + syncLogPending;
   const domainStatus = getDomainStatus({
     enabled: status.enabled,
     pending,
@@ -305,7 +307,7 @@ function buildDatabaseDomain(
     enabled: status.enabled,
     pending: status.pending,
     queued: status.queued,
-    sync_log_pending: status.syncLogPending,
+    sync_log_pending: syncLogPending,
     failed: status.failed,
     failure_count_total: status.failureCountTotal,
     max_failure_count: status.maxFailureCount,

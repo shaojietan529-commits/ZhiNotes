@@ -10574,8 +10574,8 @@ function run() {
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
-    "detail.pending + detail.queued",
-    "Page pending status quick sync must include both durable and in-memory page queues."
+    "detail.pending + detail.queued + (detail.syncLogPending ?? 0)",
+    "Page pending status quick sync must include durable, in-memory, and sync_log page queues."
   );
   assertIncludes(
     files.pageCloudSync,
@@ -11314,13 +11314,13 @@ function run() {
   assertIncludes(
     files.syncPendingDomainRegistry,
     syncPendingDomainRegistry,
-    "pageStatus.pending + pageStatus.queued",
-    "Sync UI pending domain rows must include page pending and in-memory page queues."
+    "pageStatus.pending + pageStatus.queued + syncLogPending",
+    "Sync UI pending domain rows must include page pending, in-memory, and sync_log page queues."
   );
   assertIncludes(
     files.syncPendingDomainRegistry,
     syncPendingDomainRegistry,
-    "databaseStatus.pending +\n          databaseStatus.queued +\n          databaseStatus.syncLogPending",
+    "databaseStatus.pending +\n          databaseStatus.queued +\n          syncLogPending",
     "Sync UI pending domain rows must include database cloud-key, in-memory, and sync_log queues."
   );
   assertIncludes(
@@ -11422,8 +11422,8 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "pageStatus.pending + pageStatus.queued",
-    "Sync upload safety panel must include page pending and in-memory queues."
+    "pageStatus.pending + pageStatus.queued + (pageStatus.syncLogPending ?? 0)",
+    "Sync upload safety panel must include page pending, in-memory, and sync_log queues."
   );
   assertIncludes(
     files.syncShell,
@@ -14677,6 +14677,12 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "export async function getPendingCloudPageSyncStatusWithSyncLog",
+    "Smoke verifier must keep page sync_log pending status visible to the sync dashboard."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "export function getPendingCloudPageSyncStatus",
     "Smoke verifier must keep page pending upload status visible to the sync dashboard."
   );
@@ -15765,7 +15771,7 @@ function run() {
   assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
-    "detail.pending + detail.queued + detail.syncLogPending",
+    "detail.pending + detail.queued + (detail.syncLogPending ?? 0)",
     "Database pending status quick sync must include all local pending queue sources."
   );
   assertIncludes(

@@ -18,7 +18,7 @@ import {
   PAGE_SYNC_STORAGE_KEY_PREFIX,
   forcePullDailyCloudPages,
   getLastPageSyncAt,
-  getPendingCloudPageSyncStatus,
+  getPendingCloudPageSyncStatusWithSyncLog,
   isPageSyncEnabled,
   reconcilePageSync,
   rebuildPageCacheFromCloud,
@@ -182,14 +182,16 @@ function getAccountActionFailureMessage(
     : fallbackMessage;
 }
 
-function getPageCacheRebuildPendingBlocker(): string | null {
-  return getPageCacheRebuildBlockerFromStatus(getPendingCloudPageSyncStatus());
+async function getPageCacheRebuildPendingBlocker(): Promise<string | null> {
+  return getPageCacheRebuildBlockerFromStatus(
+    await getPendingCloudPageSyncStatusWithSyncLog()
+  );
 }
 
 function getPageCacheRebuildBlockerFromStatus(
   status: PendingCloudPageSyncStatus
 ): string | null {
-  const pending = status.pending + status.queued;
+  const pending = status.pending + status.queued + (status.syncLogPending ?? 0);
   if (
     pending === 0 &&
     status.failed === 0 &&
@@ -197,7 +199,7 @@ function getPageCacheRebuildBlockerFromStatus(
   ) {
     return null;
   }
-  return `页面缓存重建已拦截：仍有 ${pending} 条待上传/内存排队变更、${status.failed} 条失败记录、${status.manualReviewCount} 条需要人工处理。为避免未上传或失败输入在重建本机缓存时被隐藏，请先点击“立即同步”，确认页面 pending、failed、manual review 都清零后再重建。`;
+  return `页面缓存重建已拦截：仍有 ${pending} 条待上传/内存排队/sync_log 变更、${status.failed} 条失败记录、${status.manualReviewCount} 条需要人工处理。为避免未上传或失败输入在重建本机缓存时被隐藏，请先点击“立即同步”，确认页面 pending、failed、manual review 都清零后再重建。`;
 }
 
 async function getDatabaseCacheRebuildPendingBlocker(): Promise<string | null> {
@@ -229,7 +231,8 @@ function getFileEmbedCacheRebuildBlockerFromStatus(
 function getDatabaseCacheRebuildBlockerFromStatus(
   status: PendingCloudDatabaseSyncStatus
 ): string | null {
-  const pending = status.pending + status.queued + status.syncLogPending;
+  const syncLogPending = status.syncLogPending ?? 0;
+  const pending = status.pending + status.queued + syncLogPending;
   if (
     pending === 0 &&
     status.failed === 0 &&
@@ -237,7 +240,7 @@ function getDatabaseCacheRebuildBlockerFromStatus(
   ) {
     return null;
   }
-  return `数据库缓存重建已拦截：仍有 ${pending} 条待上传变更（cloud key ${status.pending} 条、内存排队 ${status.queued} 条、本地 sync_log ${status.syncLogPending} 条）、${status.failed} 条失败记录、${status.manualReviewCount} 条需要人工处理。为避免本机新输入被云端旧 manifest 隐藏，请先“上传待同步变更”或“立即同步数据库”，确认 pending、failed、manual review 都清零后再重建。`;
+  return `数据库缓存重建已拦截：仍有 ${pending} 条待上传变更（cloud key ${status.pending} 条、内存排队 ${status.queued} 条、本地 sync_log ${syncLogPending} 条）、${status.failed} 条失败记录、${status.manualReviewCount} 条需要人工处理。为避免本机新输入被云端旧 manifest 隐藏，请先“上传待同步变更”或“立即同步数据库”，确认 pending、failed、manual review 都清零后再重建。`;
 }
 
 function isAccountCloudUploadStatusStorageEvent(event: StorageEvent): boolean {
@@ -317,11 +320,12 @@ export default function AccountShell() {
   }, []);
 
   const refreshCloudUploadReliability = useCallback(async () => {
-    const [databaseStatus, localSyncSummary] = await Promise.all([
+    const [pageStatus, databaseStatus, localSyncSummary] = await Promise.all([
+      getPendingCloudPageSyncStatusWithSyncLog(),
       getPendingCloudDatabaseSyncStatus(),
       getSyncLogSummary().catch(() => null),
     ]);
-    setPagePendingStatus(getPendingCloudPageSyncStatus());
+    setPagePendingStatus(pageStatus);
     setDatabasePendingStatus(databaseStatus);
     setFileEmbedPendingStatus(getPendingFileEmbedSyncStatus());
     setSyncSummary(localSyncSummary);
@@ -697,7 +701,7 @@ export default function AccountShell() {
 
   async function handlePageCacheRebuildRun() {
     const pendingBlocker =
-      getPageCacheRebuildPendingBlocker() ??
+      (await getPageCacheRebuildPendingBlocker()) ??
       getFileEmbedCacheRebuildPendingBlocker();
     if (pendingBlocker) {
       setPageSyncNotice(pendingBlocker);
@@ -1682,12 +1686,14 @@ function AccountCloudCoverageCard({
   onOpenSyncCenter: () => void;
 }) {
   const pagePending = pagePendingStatus
-    ? pagePendingStatus.pending + pagePendingStatus.queued
+    ? pagePendingStatus.pending +
+      pagePendingStatus.queued +
+      (pagePendingStatus.syncLogPending ?? 0)
     : null;
   const databasePending = databasePendingStatus
     ? databasePendingStatus.pending +
       databasePendingStatus.queued +
-      databasePendingStatus.syncLogPending
+      (databasePendingStatus.syncLogPending ?? 0)
     : null;
   const filePending = fileEmbedPendingStatus
     ? fileEmbedPendingStatus.pending +

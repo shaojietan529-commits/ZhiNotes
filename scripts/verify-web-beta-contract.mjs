@@ -6370,8 +6370,8 @@ function run() {
   assertSourceIncludes(
     files.pageCloudSync,
     pageCloudSync,
-    "detail.pending + detail.queued",
-    "Page pending status quick sync must include durable and in-memory page queues."
+    "detail.pending + detail.queued + (detail.syncLogPending ?? 0)",
+    "Page pending status quick sync must include durable, in-memory, and sync_log page queues."
   );
   assertSourceIncludes(
     files.pageCloudSync,
@@ -11172,8 +11172,8 @@ function run() {
       "Sync UI must render a plain-language upload safety overview.",
     ],
     [
-      "pageStatus.pending + pageStatus.queued",
-      "Upload safety overview must include page durable and in-memory queues.",
+      "pageStatus.pending + pageStatus.queued + (pageStatus.syncLogPending ?? 0)",
+      "Upload safety overview must include page durable, in-memory, and sync_log queues.",
     ],
     [
       "databaseStatus.syncLogPending",
@@ -11800,11 +11800,11 @@ function run() {
       "Full-domain pending distribution must merge core page/database/file queues even when sync_log is catching up.",
     ],
     [
-      "pageStatus.pending + pageStatus.queued",
-      "Full-domain pending distribution must include page pending and in-memory page queues.",
+      "pageStatus.pending + pageStatus.queued + syncLogPending",
+      "Full-domain pending distribution must include page pending, in-memory, and sync_log page queues.",
     ],
     [
-      "databaseStatus.pending +\n          databaseStatus.queued +\n          databaseStatus.syncLogPending",
+      "databaseStatus.pending +\n          databaseStatus.queued +\n          syncLogPending",
       "Full-domain pending distribution must include database cloud-key, in-memory, and sync_log queues.",
     ],
     [
@@ -12498,7 +12498,7 @@ function run() {
       "Database pending queue status events must be able to decide whether pending auth retry should force an account gate refresh.",
     ],
     [
-      "status.pending + status.queued + status.syncLogPending <= 0",
+      "status.pending + status.queued + (status.syncLogPending ?? 0) <= 0",
       "Database pending status account-gate refresh must include cloud key, memory, and sync_log queues.",
     ],
     [
@@ -12522,7 +12522,7 @@ function run() {
       "Database cross-tab pending storage changes must force an account gate refresh when pending rows are stuck behind auth retry.",
     ],
     [
-      "detail.pending + detail.queued + detail.syncLogPending",
+      "detail.pending + detail.queued + (detail.syncLogPending ?? 0)",
       "Database pending status quick sync must include cloud key, memory, and sync_log queues.",
     ],
     [
@@ -24921,6 +24921,18 @@ function run() {
   }
 
   for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "export async function getPendingCloudPageSyncStatusWithSyncLog",
+      "Account page sync must expose page sync_log pending status for the sync dashboard.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "export async function pushPendingLocalPageChangesToCloud",
+      "Account page sync must drain local page sync_log rows through the same cloud ACK path.",
+    ],
     [
       files.accountPageSync,
       accountPageSync,

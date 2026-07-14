@@ -88,7 +88,7 @@ function shouldForceAccountGateForPendingStatus(
   status: PendingCloudDatabaseSyncStatus | null | undefined
 ): boolean {
   if (!status?.enabled) return false;
-  if (status.pending + status.queued + status.syncLogPending <= 0) {
+  if (status.pending + status.queued + (status.syncLogPending ?? 0) <= 0) {
     return false;
   }
   return Boolean(status.authRetryStatus);
@@ -443,7 +443,7 @@ export function useDatabaseCloudSync() {
       if (detail) {
         setPendingStatus(detail);
         const totalPending =
-          detail.pending + detail.queued + detail.syncLogPending;
+          detail.pending + detail.queued + (detail.syncLogPending ?? 0);
         if (detail.enabled && totalPending > 0) {
           scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS, {
             forceAccountGate:

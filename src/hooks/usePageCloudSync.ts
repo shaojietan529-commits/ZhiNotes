@@ -20,10 +20,14 @@ import {
   LOCAL_CACHE_RECOVERY_SIGNAL_KEY,
 } from "@/lib/db/local/client";
 import {
+  SYNC_LOG_STATUS_EVENT,
+  SYNC_LOG_STATUS_STORAGE_KEY,
+} from "@/lib/db/local/queries";
+import {
   isPageSyncEnabled,
   reconcilePageSync,
   getLastPageSyncAt,
-  getPendingCloudPageSyncStatus,
+  getPendingCloudPageSyncStatusWithSyncLog,
   PAGE_SYNC_CONFIG_EVENT,
   PAGE_SYNC_STATUS_EVENT,
   recordPageSyncAuthRetryStatus,
@@ -55,6 +59,7 @@ const EMPTY_PAGE_PENDING_STATUS: PendingCloudPageSyncStatus = {
   enabled: false,
   pending: 0,
   queued: 0,
+  syncLogPending: 0,
   failed: 0,
   failureCountTotal: 0,
   maxFailureCount: 0,
@@ -90,7 +95,9 @@ function shouldForceAccountGateForPendingStatus(
   status: PendingCloudPageSyncStatus | null | undefined
 ): boolean {
   if (!status?.enabled) return false;
-  if (status.pending + status.queued <= 0) return false;
+  if (status.pending + status.queued + (status.syncLogPending ?? 0) <= 0) {
+    return false;
+  }
   return Boolean(status.authRetryStatus);
 }
 
@@ -159,9 +166,15 @@ export function usePageCloudSync() {
   const authRetryStateRef = useRef<PageCloudSyncState>("signed-out");
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
   const recoveringLocalCacheSignalRef = useRef<string | null>(null);
+  const pendingStatusRefreshGenerationRef = useRef(0);
 
   const refreshPendingStatus = useCallback(() => {
-    setPendingStatus(getPendingCloudPageSyncStatus());
+    const generation = pendingStatusRefreshGenerationRef.current + 1;
+    pendingStatusRefreshGenerationRef.current = generation;
+    void getPendingCloudPageSyncStatusWithSyncLog().then((status) => {
+      if (pendingStatusRefreshGenerationRef.current !== generation) return;
+      setPendingStatus(status);
+    });
   }, []);
 
   const gateAccountSync = useCallback(async (force = false) => {
@@ -357,6 +370,18 @@ export function usePageCloudSync() {
         });
       }, PENDING_STATUS_SYNC_DELAY_MS);
     };
+    const refreshStatusAndScheduleIfNeeded = () => {
+      void getPendingCloudPageSyncStatusWithSyncLog().then((status) => {
+        setPendingStatus(status);
+        const totalPending =
+          status.pending + status.queued + (status.syncLogPending ?? 0);
+        if (status.enabled && totalPending > 0) {
+          schedulePendingStatusSync({
+            forceAccountGate: shouldForceAccountGateForPendingStatus(status),
+          });
+        }
+      });
+    };
     refreshPendingStatus();
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
@@ -415,21 +440,26 @@ export function usePageCloudSync() {
         void recoverLocalCacheFromCloud();
       }
       if (event.key?.startsWith("zhinote.pagesync.")) {
-        const nextStatus = getPendingCloudPageSyncStatus();
-        setPendingStatus(nextStatus);
-        if (PAGE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
-          schedulePendingStatusSync({
-            forceAccountGate:
-              shouldForceAccountGateForPendingStatus(nextStatus),
-          });
-        }
+        void getPendingCloudPageSyncStatusWithSyncLog().then((nextStatus) => {
+          setPendingStatus(nextStatus);
+          if (PAGE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
+            schedulePendingStatusSync({
+              forceAccountGate:
+                shouldForceAccountGateForPendingStatus(nextStatus),
+            });
+          }
+        });
+      }
+      if (event.key === SYNC_LOG_STATUS_STORAGE_KEY) {
+        refreshStatusAndScheduleIfNeeded();
       }
     };
     const handleStatus = (event: Event) => {
       const detail = (event as CustomEvent<PendingCloudPageSyncStatus>).detail;
       if (detail) {
         setPendingStatus(detail);
-        const totalPending = detail.pending + detail.queued;
+        const totalPending =
+          detail.pending + detail.queued + (detail.syncLogPending ?? 0);
         if (detail.enabled && totalPending > 0) {
           schedulePendingStatusSync({
             forceAccountGate:
@@ -440,8 +470,10 @@ export function usePageCloudSync() {
         refreshPendingStatus();
       }
     };
+    const handleSyncLogStatus = () => refreshStatusAndScheduleIfNeeded();
     window.addEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus);
+    window.addEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus);
     window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate);
     window.addEventListener(
       ACCOUNT_PROFILE_UPDATED_EVENT,
@@ -461,6 +493,7 @@ export function usePageCloudSync() {
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_CONFIG_EVENT, handleConfig);
       window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleStatus);
+      window.removeEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus);
       window.removeEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate);
       window.removeEventListener(
         ACCOUNT_PROFILE_UPDATED_EVENT,

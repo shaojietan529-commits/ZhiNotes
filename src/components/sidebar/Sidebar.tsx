@@ -764,11 +764,13 @@ export default function Sidebar() {
     (module) => module.route && module.route !== "/"
   );
   const pageSyncPendingTotal =
-    pageSync.pendingStatus.pending + pageSync.pendingStatus.queued;
+    pageSync.pendingStatus.pending +
+    pageSync.pendingStatus.queued +
+    (pageSync.pendingStatus.syncLogPending ?? 0);
   const databaseSyncPendingTotal =
     databaseSync.pendingStatus.pending +
     databaseSync.pendingStatus.queued +
-    databaseSync.pendingStatus.syncLogPending;
+    (databaseSync.pendingStatus.syncLogPending ?? 0);
   const pageSyncTitle =
     pageSync.pendingStatus.failed > 0
       ? `页面同步：${pageSync.pendingStatus.failed} 个待重试；打开同步中心查看最近失败原因`

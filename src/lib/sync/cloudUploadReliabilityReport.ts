@@ -101,11 +101,14 @@ export function buildCloudUploadReliabilityReport(
   input: CloudUploadReliabilityReportInput
 ): CloudUploadReliabilityReport {
   const generatedAt = input.generatedAt ?? new Date().toISOString();
-  const pageWaitingRows = input.pageStatus.pending + input.pageStatus.queued;
+  const pageWaitingRows =
+    input.pageStatus.pending +
+    input.pageStatus.queued +
+    (input.pageStatus.syncLogPending ?? 0);
   const databaseWaitingRows =
     input.databaseStatus.pending +
     input.databaseStatus.queued +
-    input.databaseStatus.syncLogPending;
+    (input.databaseStatus.syncLogPending ?? 0);
   const fileWaitingRows = input.fileStatus.pending;
   const syncLogPendingRows = input.syncSummary?.pending ?? 0;
   const totalWaitingRows =

@@ -1260,7 +1260,7 @@ function run() {
     "DATABASE_SYNC_CONFIG_EVENT",
     "DATABASE_SYNC_STATUS_EVENT",
     "scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS)",
-    "detail.pending + detail.queued + detail.syncLogPending",
+    "detail.pending + detail.queued + (detail.syncLogPending ?? 0)",
     'DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")',
     "AUTH_RETRY_BACKOFF_MS",
     "authRetryAfterRef",

@@ -127,6 +127,7 @@ const rows = buildPendingDomainRows(
   {
     pending: 3,
     queued: 2,
+    syncLogPending: 4,
     failed: 1,
     manualReviewCount: 1,
     lastFailureAt: "2026-07-06T00:00:00.000Z",
@@ -168,8 +169,11 @@ const missingCoverageReport = buildPendingDomainCoverageReport(
   rows.filter((row) => row.id !== "settings")
 );
 
-check(rows[0]?.id === "databases", "largest pending core queue should sort first");
-check(pageRow?.pending === 5, "page row should merge page pending + queued");
+check(rows[0]?.id === "pages", "largest pending core queue should sort first");
+check(
+  pageRow?.pending === 9,
+  "page row should merge page pending + queued + sync_log pending"
+);
 check(pageRow?.failed === 1, "page row should preserve page failures");
 check(
   pageRow?.manualReview === 1 &&

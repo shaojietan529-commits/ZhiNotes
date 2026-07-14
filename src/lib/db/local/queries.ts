@@ -61,6 +61,16 @@ export interface SyncLogEntry {
   source: string;
 }
 
+export interface PendingPageSyncLogEntry {
+  logId: number;
+  pageId: string;
+}
+
+export interface PendingPageSyncRecords {
+  entries: PendingPageSyncLogEntry[];
+  records: Page[];
+}
+
 export interface WorkspaceSettingRecord {
   key: string;
   valueJson: string;
@@ -4076,6 +4086,92 @@ export async function getPendingDatabaseSyncRecords(
     entries.map((entry) => entry.key)
   );
   return { entries, records };
+}
+
+export async function getPendingPageSyncRecords(
+  limit: number = 200
+): Promise<PendingPageSyncRecords> {
+  const db = await getDb();
+  const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 1000);
+  const now = nowISO();
+  const rows = db.query(
+    `SELECT id, row_id as rowId
+     FROM sync_log
+     WHERE synced = 0
+       AND status != 'synced'
+       AND (next_retry_at IS NULL OR next_retry_at <= ?)
+       AND table_name = 'pages'
+     ORDER BY timestamp ASC, id ASC
+     LIMIT ?`,
+    [now, safeLimit]
+  ) as unknown as Array<{
+    id: number;
+    rowId: string;
+  }>;
+  const entries = rows
+    .map((row) => {
+      if (!row.rowId) return null;
+      return {
+        logId: Number(row.id),
+        pageId: row.rowId,
+      };
+    })
+    .filter((entry): entry is PendingPageSyncLogEntry => Boolean(entry));
+  const records = await getPagesForSyncByIds(
+    entries.map((entry) => entry.pageId)
+  );
+  return { entries, records };
+}
+
+export async function markPageSyncLogEntriesSynced(
+  ids: number[]
+): Promise<number> {
+  const db = await getDb();
+  const uniqueIds = normalizeSyncLogIds(ids);
+  if (uniqueIds.length === 0) return 0;
+  let marked = 0;
+  const chunkSize = 200;
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    const chunk = uniqueIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const beforeRows = db.query(
+      `SELECT COUNT(*) as count
+       FROM sync_log
+       WHERE id IN (${placeholders})
+         AND table_name = 'pages'
+         AND synced = 0`,
+      chunk
+    ) as unknown as Array<{ count: number | null }>;
+    db.run(
+      `UPDATE sync_log
+       SET synced = 1,
+           status = 'synced',
+           last_attempt_at = COALESCE(last_attempt_at, ?),
+           next_retry_at = NULL,
+           last_error = NULL
+       WHERE id IN (${placeholders})
+         AND table_name = 'pages'
+         AND synced = 0`,
+      [nowISO(), ...chunk]
+    );
+    marked += Number(beforeRows[0]?.count ?? 0);
+  }
+  if (marked > 0) emitSyncLogStatusEvent();
+  return marked;
+}
+
+export async function markPageSyncLogEntriesAttempted(
+  ids: number[]
+): Promise<number> {
+  return markSyncLogEntriesAttempted(ids);
+}
+
+export async function markPageSyncLogEntriesFailed(
+  ids: number[],
+  error: string,
+  retryDelayMs = 60_000
+): Promise<number> {
+  return markSyncLogEntriesFailed(ids, error, retryDelayMs);
 }
 
 export async function markDatabaseSyncLogEntriesSynced(
