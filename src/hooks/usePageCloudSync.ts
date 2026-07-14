@@ -86,6 +86,14 @@ interface PageCloudSyncRunOptions {
   includeManualReview?: boolean;
 }
 
+function shouldForceAccountGateForPendingStatus(
+  status: PendingCloudPageSyncStatus | null | undefined
+): boolean {
+  if (!status?.enabled) return false;
+  if (status.pending + status.queued <= 0) return false;
+  return Boolean(status.authRetryStatus);
+}
+
 function getRetryStateFromAccountGate(
   status: AccountCloudSyncGateStatus
 ): PageCloudSyncState {
@@ -323,12 +331,18 @@ export function usePageCloudSync() {
     if (!dbReady) return;
     let editSyncTimer: number | undefined;
     let pendingStatusSyncTimer: number | undefined;
-    const schedulePendingStatusSync = () => {
+    const schedulePendingStatusSync = (
+      options: { forceAccountGate?: boolean } = {}
+    ) => {
       if (pendingStatusSyncTimer !== undefined) {
         window.clearTimeout(pendingStatusSyncTimer);
       }
       pendingStatusSyncTimer = window.setTimeout(() => {
-        void runSync({ quick: true });
+        void runSync({
+          quick: true,
+          forceLease: Boolean(options.forceAccountGate),
+          forceAccountGate: Boolean(options.forceAccountGate),
+        });
       }, PENDING_STATUS_SYNC_DELAY_MS);
     };
     refreshPendingStatus();
@@ -389,9 +403,13 @@ export function usePageCloudSync() {
         void recoverLocalCacheFromCloud();
       }
       if (event.key?.startsWith("zhinote.pagesync.")) {
-        refreshPendingStatus();
+        const nextStatus = getPendingCloudPageSyncStatus();
+        setPendingStatus(nextStatus);
         if (PAGE_PENDING_STORAGE_KEYS.has(event.key ?? "")) {
-          schedulePendingStatusSync();
+          schedulePendingStatusSync({
+            forceAccountGate:
+              shouldForceAccountGateForPendingStatus(nextStatus),
+          });
         }
       }
     };
@@ -401,7 +419,10 @@ export function usePageCloudSync() {
         setPendingStatus(detail);
         const totalPending = detail.pending + detail.queued;
         if (detail.enabled && totalPending > 0) {
-          schedulePendingStatusSync();
+          schedulePendingStatusSync({
+            forceAccountGate:
+              shouldForceAccountGateForPendingStatus(detail),
+          });
         }
       } else {
         refreshPendingStatus();

@@ -2096,7 +2096,11 @@ check(
   "页面/数据库后台云同步应先共享账号 gate，再访问具体 account-sync 接口；租约接管和账号强制检查必须分开，避免前台切换时重复空转"
 );
 check(
-  (pageCloudSyncHook.match(/runSync\(\{ quick: true \}/g) ?? []).length >= 4,
+  (pageCloudSyncHook.match(/quick: true/g) ?? []).length >= 8 &&
+    pageCloudSyncHook.includes("const initialSyncTimer") &&
+    pageCloudSyncHook.includes("window.setInterval") &&
+    pageCloudSyncHook.includes("const handleForeground = () =>") &&
+    pageCloudSyncHook.includes("EDIT_DEBOUNCE_MS"),
   "页面云同步 hook 的加载、轮询、前台恢复和编辑后同步应默认走 quick 增量"
 );
 check(
@@ -2128,7 +2132,7 @@ check(
     pageCloudSyncHook.includes("window.addEventListener(\"focus\", handleForeground)") &&
     pageCloudSyncHook.includes("window.removeEventListener(\"online\", handleOnline)") &&
     pageCloudSyncHook.includes("void runSync({ quick: true, forceLease: true });"),
-  "页面同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化才强制重新确认账号"
+  "页面同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化/pending 队列在 auth retry 中时才强制重新确认账号"
 );
 check(
   pageCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
@@ -2206,10 +2210,17 @@ check(
     pageCloudSyncHook.includes("CustomEvent<PendingCloudPageSyncStatus>") &&
     pageCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&
     pageCloudSyncHook.includes("schedulePendingStatusSync") &&
+    pageCloudSyncHook.includes("function shouldForceAccountGateForPendingStatus") &&
+    pageCloudSyncHook.includes("status.pending + status.queued <= 0") &&
+    pageCloudSyncHook.includes("return Boolean(status.authRetryStatus)") &&
+    pageCloudSyncHook.includes("forceLease: Boolean(options.forceAccountGate)") &&
+    pageCloudSyncHook.includes("forceAccountGate: Boolean(options.forceAccountGate)") &&
+    pageCloudSyncHook.includes("shouldForceAccountGateForPendingStatus(detail)") &&
+    pageCloudSyncHook.includes("shouldForceAccountGateForPendingStatus(nextStatus)") &&
     pageCloudSyncHook.includes("detail.pending + detail.queued") &&
     pageCloudSyncHook.includes("PAGE_PENDING_STORAGE_KEYS") &&
     pageCloudSyncHook.includes('PAGE_PENDING_STORAGE_KEYS.has(event.key ?? "")'),
-  "页面云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync"
+  "页面云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync；若 pending 队列正处于账号重试状态，应有边界地重新确认账号，避免可登录状态下等完整个退避窗口"
 );
 check(
   pageCloudSyncHook.includes("rerunAfterCurrentSyncRef") &&
