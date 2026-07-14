@@ -4746,8 +4746,32 @@ function run() {
   assertSourceIncludes(
     files.accountCloudSyncGate,
     accountCloudSyncGate,
+    "session-unconfirmed",
+    "Account cloud sync gate must preserve retryable session-unconfirmed as its own state instead of collapsing it into generic error."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    '| "unconfirmed"',
+    "Account cloud sync gate status union must include unconfirmed for visible auth-retry state."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
     'session.status === "unconfigured" && session.authenticated',
     "Account cloud sync gate must keep a stale authenticated account visible during transient unconfigured responses."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    'session.status === "unconfirmed" && session.authenticated',
+    "Account cloud sync gate must keep stale authenticated fallback visible during session-unconfirmed responses."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncGate,
+    accountCloudSyncGate,
+    'status: "unconfirmed"',
+    "Account cloud sync gate must return unconfirmed for retryable account session uncertainty."
   );
   assertSourceIncludes(
     files.accountCloudSyncGate,
@@ -5268,6 +5292,30 @@ function run() {
   assertSourceIncludes(
     files.accountPageSync,
     accountPageSync,
+    'accountGate.status === "unconfirmed"',
+    "Page account-sync client must keep session-unconfirmed distinct from generic cloud errors."
+  );
+  assertSourceIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    'json.reason === "session-unconfirmed" || json.retryable',
+    "Page account-sync client must detect retryable session-unconfirmed route responses."
+  );
+  assertSourceIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    'rememberAuthRetryStatus("unconfirmed")',
+    "Page account-sync client must store session-unconfirmed as a visible auth retry status."
+  );
+  assertSourceIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "账号登录状态暂时无法确认，本地输入已保留，会稍后重试。",
+    "Page account-sync client must tell users that session-unconfirmed preserves local input."
+  );
+  assertSourceIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "账号云端暂时无法确认，本地输入已保留，会稍后重试。",
     "Page account-sync client must show shared account-gate uncertainty as a retryable local-preserved state."
   );
@@ -5288,6 +5336,18 @@ function run() {
     pageCloudSync,
     "gateAccountSync",
     "Page cloud sync must centralize account gate handling for initial, foreground, and recovery syncs."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'if (status === "unconfirmed") return "unconfirmed";',
+    "Page cloud sync hook must propagate unconfirmed account-gate status into auth retry metadata."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'result.status === "unconfirmed") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";',
+    "Page cloud sync hook must keep session-unconfirmed retrying without looking signed out."
   );
   assertSourceIncludes(
     files.pageCloudSync,
@@ -5330,6 +5390,30 @@ function run() {
     databaseCloudSync,
     "checkAccountCloudSyncGate",
     "Database cloud sync must pass the shared account gate before hitting databases account-sync."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    'accountGate.status === "unconfirmed"',
+    "Database account-sync client must keep session-unconfirmed distinct from generic cloud errors."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    'json.reason === "session-unconfirmed" || json.retryable',
+    "Database account-sync client must detect retryable session-unconfirmed route responses."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    'rememberAuthRetryStatus("unconfirmed")',
+    "Database account-sync client must store session-unconfirmed as a visible auth retry status."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "账号登录状态暂时无法确认，本地输入已保留，会稍后重试。",
+    "Database account-sync client must tell users that session-unconfirmed preserves local input."
   );
   assertSourceIncludes(
     files.accountDatabaseSync,
@@ -5732,6 +5816,18 @@ function run() {
     accountDatabaseSync,
     'probeStatus = "unauthenticated";\n      rememberAuthRetryStatus("unauthenticated");',
     "Database account-sync client must not write a long unauthenticated backoff from the domain sync route after the shared gate has passed."
+  );
+  assertSourceIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'if (status === "unconfirmed") return "unconfirmed";',
+    "Database cloud sync hook must propagate unconfirmed account-gate status into auth retry metadata."
+  );
+  assertSourceIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'result.status === "unconfirmed") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";',
+    "Database cloud sync hook must keep session-unconfirmed retrying without looking signed out."
   );
   assertSourceIncludes(
     files.databaseCloudSync,
@@ -11026,6 +11122,10 @@ function run() {
     [
       "authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}",
       "Sync UI must pass account auth-retry domains into the first-screen readiness mirror.",
+    ],
+    [
+      'if (status === "unconfirmed") return "账号临时不可确认";',
+      "Sync UI must label retryable session-unconfirmed status without implying a logout.",
     ],
     [
       "data-auth-retry-active={Boolean(authRetryDomainLabel)}",

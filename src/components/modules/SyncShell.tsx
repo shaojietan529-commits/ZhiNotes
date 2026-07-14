@@ -27332,6 +27332,7 @@ function isValidCloudEmail(value: string) {
 function formatPageSyncStatus(status: string) {
   if (status === "unauthenticated") return "账号未登录";
   if (status === "unconfigured") return "云端未配置";
+  if (status === "unconfirmed") return "账号临时不可确认";
   if (status === "disabled") return "页面同步已关闭";
   if (status === "error") return "云端同步错误";
   return status;
@@ -27340,6 +27341,7 @@ function formatPageSyncStatus(status: string) {
 function formatDatabaseSyncStatus(status: string) {
   if (status === "unauthenticated") return "账号未登录";
   if (status === "unconfigured") return "云端未配置";
+  if (status === "unconfirmed") return "账号临时不可确认";
   if (status === "disabled") return "数据库同步已关闭";
   if (status === "error") return "云端同步错误";
   return status;

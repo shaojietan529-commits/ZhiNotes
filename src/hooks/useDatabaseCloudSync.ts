@@ -105,6 +105,7 @@ function getAuthRetryStatusFromAccountGate(
 ): DatabaseSyncStatus {
   if (status === "signed-out") return "unauthenticated";
   if (status === "unconfigured") return "unconfigured";
+  if (status === "unconfirmed") return "unconfirmed";
   return "error";
 }
 
@@ -260,6 +261,11 @@ export function useDatabaseCloudSync() {
           authRetryStateRef.current = "error";
           recordDatabaseSyncAuthRetryStatus("unconfigured");
           setState("error");
+        } else if (result.status === "unconfirmed") {
+          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+          authRetryStateRef.current = "error";
+          recordDatabaseSyncAuthRetryStatus("unconfirmed");
+          setState("error");
         } else if (result.status === "disabled") {
           authRetryAfterRef.current = 0;
           authRetryStateRef.current = "signed-out";
@@ -328,6 +334,11 @@ export function useDatabaseCloudSync() {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordDatabaseSyncAuthRetryStatus("unconfigured");
+        setState("error");
+      } else if (result.status === "unconfirmed") {
+        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+        authRetryStateRef.current = "error";
+        recordDatabaseSyncAuthRetryStatus("unconfirmed");
         setState("error");
       } else if (result.status === "disabled") {
         authRetryStateRef.current = "signed-out";

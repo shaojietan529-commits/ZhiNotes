@@ -105,6 +105,7 @@ function getAuthRetryStatusFromAccountGate(
 ): PageSyncStatus {
   if (status === "signed-out") return "unauthenticated";
   if (status === "unconfigured") return "unconfigured";
+  if (status === "unconfirmed") return "unconfirmed";
   return "error";
 }
 
@@ -245,6 +246,11 @@ export function usePageCloudSync() {
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("unconfigured");
         setState("error");
+      } else if (result.status === "unconfirmed") {
+        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+        authRetryStateRef.current = "error";
+        recordPageSyncAuthRetryStatus("unconfirmed");
+        setState("error");
       } else if (result.status === "disabled") {
         authRetryAfterRef.current = 0;
         authRetryStateRef.current = "signed-out";
@@ -309,6 +315,11 @@ export function usePageCloudSync() {
         authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
         authRetryStateRef.current = "error";
         recordPageSyncAuthRetryStatus("unconfigured");
+        setState("error");
+      } else if (result.status === "unconfirmed") {
+        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+        authRetryStateRef.current = "error";
+        recordPageSyncAuthRetryStatus("unconfirmed");
         setState("error");
       } else if (result.status === "disabled") {
         authRetryStateRef.current = "signed-out";

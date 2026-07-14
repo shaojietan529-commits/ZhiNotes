@@ -65,6 +65,7 @@ export type DatabaseSyncStatus =
   | "ok"
   | "unauthenticated"
   | "unconfigured"
+  | "unconfirmed"
   | "disabled"
   | "error";
 
@@ -672,6 +673,14 @@ async function call(body: Record<string, unknown>): Promise<
     rememberAuthRetryStatus("unauthenticated");
     return { ok: false, status: "unauthenticated" };
   }
+  if (accountGate.status === "unconfirmed") {
+    rememberAuthRetryStatus("unconfirmed");
+    return {
+      ok: false,
+      status: "unconfirmed",
+      message: "账号登录状态暂时无法确认，本地输入已保留，会稍后重试。",
+    };
+  }
   if (accountGate.status === "error") {
     rememberAuthRetryStatus("error");
     return {
@@ -704,6 +713,21 @@ async function call(body: Record<string, unknown>): Promise<
       };
     }
     const json = await res.json().catch(() => ({}));
+    if (
+      res.status === 503 &&
+      (json.reason === "session-unconfirmed" || json.retryable)
+    ) {
+      probeStatus = "unconfirmed";
+      rememberAuthRetryStatus("unconfirmed");
+      return {
+        ok: false,
+        status: "unconfirmed",
+        message:
+          typeof json.message === "string"
+            ? json.message
+            : "数据库同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。",
+      };
+    }
     if (!res.ok) {
       rememberAuthRetryStatus("error");
       return {
@@ -1107,6 +1131,7 @@ async function waitForAuthRetryProbe(): Promise<DatabaseSyncStatus | null> {
   const status = await probe.catch((): AuthRetryProbeStatus => "ok");
   return status === "unauthenticated" ||
     status === "unconfigured" ||
+    status === "unconfirmed" ||
     status === "error"
     ? status
     : null;
@@ -1150,6 +1175,7 @@ function rememberAuthRetryStatus(status: DatabaseSyncStatus): void {
   if (
     status === "unauthenticated" ||
     status === "unconfigured" ||
+    status === "unconfirmed" ||
     status === "error"
   ) {
     authRetryStatus = status;
@@ -1188,6 +1214,7 @@ function readStoredAuthRetryStatus(): DatabaseSyncStatus | null {
     if (
       parsed.status !== "unauthenticated" &&
       parsed.status !== "unconfigured" &&
+      parsed.status !== "unconfirmed" &&
       parsed.status !== "error"
     ) {
       authRetryStatus = null;

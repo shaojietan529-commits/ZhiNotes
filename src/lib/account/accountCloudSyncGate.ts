@@ -6,12 +6,14 @@ export type AccountCloudSyncGateStatus =
   | "ready"
   | "signed-out"
   | "unconfigured"
+  | "unconfirmed"
   | "error";
 
 export type AccountCloudSyncGateReason =
   | "authenticated"
   | "signed-out"
   | "account-unconfigured"
+  | "session-unconfirmed"
   | "account-check-failed";
 
 export interface AccountCloudSyncGateResult {
@@ -66,9 +68,9 @@ export async function checkAccountCloudSyncGate(
   }
   if (session.status === "unconfirmed" && session.authenticated) {
     return {
-      status: "error",
+      status: "unconfirmed",
       authenticated: true,
-      reason: "account-check-failed",
+      reason: "session-unconfirmed",
       retryable: true,
       local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
@@ -86,9 +88,9 @@ export async function checkAccountCloudSyncGate(
   }
   if (session.status === "unconfirmed") {
     return {
-      status: "error",
+      status: "unconfirmed",
       authenticated: false,
-      reason: "account-check-failed",
+      reason: "session-unconfirmed",
       retryable: true,
       local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,

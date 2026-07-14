@@ -469,6 +469,8 @@ check(
 check(
   accountCloudSyncGate.includes("fetchAccountSession") &&
     accountCloudSyncGate.includes("account-unconfigured") &&
+    accountCloudSyncGate.includes("session-unconfirmed") &&
+    accountCloudSyncGate.includes('| "unconfirmed"') &&
     accountCloudSyncGate.includes(
       'session.status === "unconfigured" && session.authenticated'
     ) &&
@@ -807,12 +809,22 @@ check(
   pageSyncClient.includes("checkAccountCloudSyncGate") &&
     pageSyncClient.includes('accountGate.status === "unconfigured"') &&
     pageSyncClient.includes('accountGate.status === "signed-out"') &&
+    pageSyncClient.includes('accountGate.status === "unconfirmed"') &&
+    pageSyncClient.includes('| "unconfirmed"') &&
+    pageSyncClient.includes('rememberAuthRetryStatus("unconfirmed")') &&
+    pageSyncClient.includes('json.reason === "session-unconfirmed" || json.retryable') &&
+    pageSyncClient.includes("账号登录状态暂时无法确认，本地输入已保留，会稍后重试。") &&
     pageSyncClient.includes("账号云端暂时无法确认，本地输入已保留，会稍后重试。") &&
     pageSyncClient.includes("页面同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。") &&
     !pageSyncClient.includes('probeStatus = "unauthenticated";\n      rememberAuthRetryStatus("unauthenticated");') &&
     databaseSyncClient.includes("checkAccountCloudSyncGate") &&
     databaseSyncClient.includes('accountGate.status === "unconfigured"') &&
     databaseSyncClient.includes('accountGate.status === "signed-out"') &&
+    databaseSyncClient.includes('accountGate.status === "unconfirmed"') &&
+    databaseSyncClient.includes('| "unconfirmed"') &&
+    databaseSyncClient.includes('rememberAuthRetryStatus("unconfirmed")') &&
+    databaseSyncClient.includes('json.reason === "session-unconfirmed" || json.retryable') &&
+    databaseSyncClient.includes("账号登录状态暂时无法确认，本地输入已保留，会稍后重试。") &&
     databaseSyncClient.includes("账号云端暂时无法确认，本地输入已保留，会稍后重试。") &&
     databaseSyncClient.includes("数据库同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。") &&
     !databaseSyncClient.includes('probeStatus = "unauthenticated";\n      rememberAuthRetryStatus("unauthenticated");'),
@@ -2246,9 +2258,12 @@ check(
     pageCloudSyncHook.includes(
       "getAuthRetryStatusFromAccountGate(accountGate.status)"
     ) &&
+    pageCloudSyncHook.includes('if (status === "unconfirmed") return "unconfirmed";') &&
     pageSyncClient.includes("export function recordPageSyncAuthRetryStatus") &&
     pageSyncClient.includes('status === "error"') &&
+    pageSyncClient.includes('status === "unconfirmed"') &&
     pageSyncClient.includes('rememberAuthRetryStatus("error")') &&
+    pageSyncClient.includes('rememberAuthRetryStatus("unconfirmed")') &&
     pageCloudSyncHook.includes(
       'return status === "signed-out" ? "signed-out" : "error";'
     ) &&
@@ -2263,6 +2278,10 @@ check(
     pageCloudSyncHook.includes('result.status === "unconfigured"') &&
     pageCloudSyncHook.includes(
       'result.status === "unconfigured") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";'
+    ) &&
+    pageCloudSyncHook.includes('result.status === "unconfirmed"') &&
+    pageCloudSyncHook.includes(
+      'result.status === "unconfirmed") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";'
     ),
   "页面同步应短期退避；只有共享账号 gate 明确 signed-out 才能显示未登录，具体同步接口认证失败必须显示成云端暂不可确认，避免误导用户以为账号掉线"
 );
@@ -2332,9 +2351,12 @@ check(
     databaseCloudSyncHook.includes(
       "getAuthRetryStatusFromAccountGate(accountGate.status)"
     ) &&
+    databaseCloudSyncHook.includes('if (status === "unconfirmed") return "unconfirmed";') &&
     databaseSyncClient.includes("export function recordDatabaseSyncAuthRetryStatus") &&
     databaseSyncClient.includes('status === "error"') &&
+    databaseSyncClient.includes('status === "unconfirmed"') &&
     databaseSyncClient.includes('rememberAuthRetryStatus("error")') &&
+    databaseSyncClient.includes('rememberAuthRetryStatus("unconfirmed")') &&
     databaseCloudSyncHook.includes(
       'return status === "signed-out" ? "signed-out" : "error";'
     ) &&
@@ -2349,6 +2371,10 @@ check(
     databaseCloudSyncHook.includes('result.status === "unconfigured"') &&
     databaseCloudSyncHook.includes(
       'result.status === "unconfigured") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";'
+    ) &&
+    databaseCloudSyncHook.includes('result.status === "unconfirmed"') &&
+    databaseCloudSyncHook.includes(
+      'result.status === "unconfirmed") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";'
     ),
   "数据库同步应短期退避；只有共享账号 gate 明确 signed-out 才能显示未登录，具体同步接口认证失败必须显示成云端暂不可确认，避免误导用户以为账号掉线"
 );
@@ -3452,6 +3478,9 @@ check(
     ) &&
     syncDashboardShell.includes(
       "authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}"
+    ) &&
+    syncDashboardShell.includes(
+      'if (status === "unconfirmed") return "账号临时不可确认";'
     ) &&
     syncDashboardShell.includes(
       "authRetryUntilLabel={syncLocalUseQueueSnapshot.authRetryUntilLabel}"

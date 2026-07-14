@@ -23,6 +23,13 @@ async function call<T>(
     const accountGate = await checkAccountCloudSyncGate();
     if (accountGate.status === "unconfigured") return { status: "unconfigured" };
     if (accountGate.status === "signed-out") return { status: "unauthenticated" };
+    if (accountGate.status === "unconfirmed") {
+      return {
+        status: "error",
+        message:
+          "账号登录状态暂时无法确认；组合数据仍保留在本地，稍后可重试。",
+      };
+    }
     if (accountGate.status === "error") {
       return {
         status: "error",
