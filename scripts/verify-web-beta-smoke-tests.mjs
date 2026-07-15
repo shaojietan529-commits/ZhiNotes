@@ -20101,13 +20101,31 @@ function run() {
   assertIncludes(
     files.localFirstPageNavigation,
     localFirstPageNavigation,
-    "LOCAL_FIRST_ROUTE_FALLBACK_MS = 1200",
-    "Shared page navigation must keep a bounded hard fallback when client routing does not start."
+    "LOCAL_FIRST_ROUTE_CREATE_FALLBACK_MS = 600",
+    "Shared page navigation must keep a fast hard fallback for page creation when client routing does not start."
   );
   assertIncludes(
     files.localFirstPageNavigation,
     localFirstPageNavigation,
-    "scheduleLocalFirstRouteFallback(href, Boolean(options.replace));",
+    "LOCAL_FIRST_ROUTE_OPEN_FALLBACK_MS = 900",
+    "Shared page navigation must keep a bounded hard fallback for normal page opens when client routing does not start."
+  );
+  assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    "getLocalFirstRouteFallbackMs(options.source)",
+    "Shared page navigation must pick the fallback delay from the navigation source."
+  );
+  assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    'source?.endsWith("-create")',
+    "Shared page navigation must use the faster fallback for create-and-enter flows."
+  );
+  assertIncludes(
+    files.localFirstPageNavigation,
+    localFirstPageNavigation,
+    "scheduleLocalFirstRouteFallback(\n        href,\n        Boolean(options.replace),\n        getLocalFirstRouteFallbackMs(options.source)\n      );",
     "Shared page navigation must schedule the hard fallback before client router push/replace."
   );
   assertIncludes(

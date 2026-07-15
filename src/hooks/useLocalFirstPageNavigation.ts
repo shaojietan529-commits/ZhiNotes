@@ -10,7 +10,8 @@ import {
 } from "@/lib/pages/localFirstPageNavigation";
 import type { Page } from "@/lib/utils/types";
 
-const LOCAL_FIRST_ROUTE_FALLBACK_MS = 1200;
+const LOCAL_FIRST_ROUTE_CREATE_FALLBACK_MS = 600;
+const LOCAL_FIRST_ROUTE_OPEN_FALLBACK_MS = 900;
 let localFirstRouteAttempt = 0;
 
 export function useLocalFirstPageNavigation() {
@@ -36,7 +37,11 @@ export function useLocalFirstPageNavigation() {
       }
 
       const href = `/page/${pageId}`;
-      scheduleLocalFirstRouteFallback(href, Boolean(options.replace));
+      scheduleLocalFirstRouteFallback(
+        href,
+        Boolean(options.replace),
+        getLocalFirstRouteFallbackMs(options.source)
+      );
       if (options.replace) {
         router.replace(href);
       } else {
@@ -47,7 +52,19 @@ export function useLocalFirstPageNavigation() {
   );
 }
 
-function scheduleLocalFirstRouteFallback(href: string, replace: boolean): void {
+function getLocalFirstRouteFallbackMs(
+  source: LocalFirstPageNavigationOptions["source"]
+): number {
+  return source?.endsWith("-create")
+    ? LOCAL_FIRST_ROUTE_CREATE_FALLBACK_MS
+    : LOCAL_FIRST_ROUTE_OPEN_FALLBACK_MS;
+}
+
+function scheduleLocalFirstRouteFallback(
+  href: string,
+  replace: boolean,
+  fallbackMs: number
+): void {
   if (typeof window === "undefined") return;
   const attempt = ++localFirstRouteAttempt;
   const startedPath = window.location.pathname;
@@ -60,5 +77,5 @@ function scheduleLocalFirstRouteFallback(href: string, replace: boolean): void {
     } else {
       window.location.assign(href);
     }
-  }, LOCAL_FIRST_ROUTE_FALLBACK_MS);
+  }, fallbackMs);
 }
