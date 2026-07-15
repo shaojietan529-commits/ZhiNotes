@@ -554,20 +554,20 @@ function run() {
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
-      "File embed queue must notice explicit cross-tab logout without relying only on the last-authenticated fallback key.",
+      "isAccountSessionStorageKey",
+      "File embed queue must use the shared account-session storage filter for login/logout wakeups.",
     ],
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
-      "File embed queue must handle explicit logout separately so it refreshes status without pushing file bytes.",
+      "if (isAccountSessionStorageKey(event.key)) {",
+      "File embed queue must handle account login/logout storage changes through the shared helper.",
     ],
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "if (event.newValue) refreshAndMaybeRetry();\n        else setStatusIfMounted(getPendingFileEmbedSyncStatus());",
-      "File embed queue must retry on account recovery but only refresh when the last-authenticated fallback is cleared.",
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n          event.newValue",
+      "File embed queue must retry on account recovery but not on explicit logout markers.",
     ],
     [
       files.fileEmbedSyncStatusHook,

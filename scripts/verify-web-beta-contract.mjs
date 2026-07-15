@@ -5354,16 +5354,16 @@ function run() {
   );
   for (const [snippet, message] of [
     [
-      "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
-      "Account shell must subscribe to cross-tab last-authenticated account changes.",
+      "isAccountSessionStorageKey",
+      "Account shell must use the shared account-session storage filter for login/logout wakeups.",
     ],
     [
       "handleAccountSessionStorage",
       "Account shell must keep an explicit storage handler for cross-tab account state refresh.",
     ],
     [
-      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
-      "Account shell storage listener must only refresh for account-session fallback changes.",
+      "if (isAccountSessionStorageKey(event.key)) {",
+      "Account shell storage listener must only refresh for account-session login/logout changes.",
     ],
     [
       'window.addEventListener("storage", handleAccountSessionStorage)',
@@ -27445,8 +27445,8 @@ function run() {
     [
       files.sidebar,
       sidebar,
-      "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
-      "Sidebar account label must use the shared last-authenticated storage key.",
+      "isAccountSessionStorageKey",
+      "Sidebar account label must use the shared account-session storage filter.",
     ],
     [
       files.sidebar,
@@ -27511,7 +27511,7 @@ function run() {
     [
       files.sidebar,
       sidebar,
-      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+      "if (isAccountSessionStorageKey(event.key)) {",
       "Sidebar account label storage listener must ignore unrelated localStorage churn.",
     ],
     [
@@ -30209,14 +30209,14 @@ function run() {
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
-      "File embed status must respond to cross-tab account fallback writes and removals.",
+      "isAccountSessionStorageKey",
+      "File embed status must use the shared account-session storage filter for login/logout wakeups.",
     ],
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "if (event.newValue) refreshAndMaybeRetry();\n        else setStatusIfMounted(getPendingFileEmbedSyncStatus());",
-      "File embed account fallback removal must refresh status without forcing an auth-recovery upload.",
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n          event.newValue",
+      "File embed status must retry uploads only for account fallback recovery writes.",
     ],
   ]) {
     assertSourceIncludes(sourceLabel, source, snippet, message);

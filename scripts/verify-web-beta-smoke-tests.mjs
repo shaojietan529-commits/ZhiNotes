@@ -10302,8 +10302,8 @@ function run() {
   assertIncludes(
     files.accountShell,
     accountShell,
-    "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
-    "Account shell must subscribe to cross-tab last-authenticated account changes."
+    "isAccountSessionStorageKey",
+    "Account shell must use the shared account-session storage filter for login/logout wakeups."
   );
   assertIncludes(
     files.accountShell,
@@ -10314,8 +10314,8 @@ function run() {
   assertIncludes(
     files.accountShell,
     accountShell,
-    "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
-    "Account shell storage listener must only refresh for account-session fallback changes."
+    "if (isAccountSessionStorageKey(event.key)) {",
+    "Account shell storage listener must only refresh for account-session login/logout changes."
   );
   assertIncludes(
     files.accountShell,
@@ -11870,8 +11870,8 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
-    "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
-    "Sidebar account label must use the shared last-authenticated storage key."
+    "isAccountSessionStorageKey",
+    "Sidebar account label must use the shared account-session storage filter."
   );
   assertIncludes(
     files.sidebar,
@@ -11954,7 +11954,7 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
-    "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
+    "if (isAccountSessionStorageKey(event.key)) {",
     "Sidebar account label storage listener must ignore unrelated localStorage churn."
   );
   assertIncludes(
@@ -14876,26 +14876,26 @@ function run() {
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
-      "File embed status must observe explicit cross-tab logout markers.",
+      "isAccountSessionStorageKey",
+      "File embed status must use the shared account-session storage filter for login/logout wakeups.",
     ],
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "if (event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY) {",
-      "File embed explicit logout handling must refresh status without forcing file upload retries.",
+      "if (isAccountSessionStorageKey(event.key)) {",
+      "File embed account storage handling must include explicit logout markers without duplicating key checks.",
     ],
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
-      "File embed status must respond to cross-tab account fallback writes and removals.",
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n          event.newValue",
+      "File embed status must retry uploads only for account fallback recovery writes.",
     ],
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "if (event.newValue) refreshAndMaybeRetry();\n        else setStatusIfMounted(getPendingFileEmbedSyncStatus());",
-      "File embed account fallback removal must refresh status without forcing an auth-recovery upload.",
+      "setStatusIfMounted(getPendingFileEmbedSyncStatus());",
+      "File embed account fallback removal or explicit logout must refresh status without forcing an auth-recovery upload.",
     ],
   ]) {
     assertIncludes(sourceLabel, source, snippet, message);

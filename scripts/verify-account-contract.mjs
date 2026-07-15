@@ -541,15 +541,9 @@ check(
   "AccountShell 账号页异步 session、同步健康卡和共享/API key 初始化必须有卸载保护和请求序号，旧请求不能覆盖最新账号状态"
 );
 check(
-  shell.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
-    shell.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
+  shell.includes("isAccountSessionStorageKey") &&
     shell.includes("handleAccountSessionStorage") &&
-    shell.includes(
-      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
-    ) &&
-    shell.includes(
-      "event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY"
-    ) &&
+    shell.includes("if (isAccountSessionStorageKey(event.key)) {") &&
     shell.includes('window.addEventListener("storage", handleAccountSessionStorage)') &&
     shell.includes(
       'window.removeEventListener("storage", handleAccountSessionStorage)'
@@ -897,7 +891,7 @@ check(
   fileEmbedSyncStatusHook.includes(
     "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
   ) &&
-    fileEmbedSyncStatusHook.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
+    fileEmbedSyncStatusHook.includes("isAccountSessionStorageKey") &&
     fileEmbedSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
     fileEmbedSyncStatusHook.includes("refreshAndMaybeRetry") &&
     fileEmbedSyncStatusHook.includes("FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT") &&
@@ -912,14 +906,13 @@ check(
     fileEmbedSyncStatusHook.includes(
       "claimVisibleRefreshLease(\n          FILE_EMBED_AUTO_RETRY_LEASE_KEY"
     ) &&
+    fileEmbedSyncStatusHook.includes("if (isAccountSessionStorageKey(event.key)) {") &&
     fileEmbedSyncStatusHook.includes(
-      "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {"
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n          event.newValue"
     ) &&
+    fileEmbedSyncStatusHook.includes("refreshAndMaybeRetry();") &&
     fileEmbedSyncStatusHook.includes(
-      "if (event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY) {"
-    ) &&
-    fileEmbedSyncStatusHook.includes(
-      "if (event.newValue) refreshAndMaybeRetry();\n        else setStatusIfMounted(getPendingFileEmbedSyncStatus());"
+      "setStatusIfMounted(getPendingFileEmbedSyncStatus());"
     ) &&
     fileEmbedSyncStatusHook.includes("scheduleAutoRetry") &&
     fileEmbedSyncStatusHook.includes("FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY") &&
@@ -4466,8 +4459,7 @@ check(
     sidebar.includes("if (options.preferStored)") &&
     sidebar.includes("账号资料已在其他标签页更新，正在确认云端状态") &&
     sidebar.includes("正在确认账号云端状态，已先显示最近用户名") &&
-    sidebar.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
-    sidebar.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
+    sidebar.includes("isAccountSessionStorageKey") &&
     sidebar.includes("formatClientAccountLabel") &&
     sidebar.includes("getLastAuthenticatedAccount") &&
     sidebar.includes("getLastKnownAccountLabel") &&
@@ -4485,12 +4477,7 @@ check(
     sidebar.includes("const handleAccountForeground = () =>") &&
     sidebar.includes("const handleAccountVisible = () =>") &&
     sidebar.includes('document.visibilityState === "visible"') &&
-    sidebar.includes(
-      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
-    ) &&
-    sidebar.includes(
-      "event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY"
-    ) &&
+    sidebar.includes("if (isAccountSessionStorageKey(event.key)) {") &&
     sidebar.includes('session.status === "ok"') &&
     sidebar.includes("const lastKnownLabel = getLastKnownAccountLabel()") &&
     sidebar.includes(
