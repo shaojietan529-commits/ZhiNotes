@@ -52,6 +52,8 @@ const METADATA_DELTA_THROTTLE_MS = 2500;
 const AUTH_RETRY_PROBE_WINDOW_KEY = "__zhinoteDatabaseSyncAuthRetryProbe";
 const EMPTY_CLOUD_DATABASE_ACK_MESSAGE =
   "云端没有返回任何数据库 ACK，已保留本地待上传状态并稍后重试。";
+const PARTIAL_CLOUD_DATABASE_ACK_MESSAGE =
+  "云端只确认了部分数据库记录，未确认的记录已保留在 pending queue 并稍后重试。";
 
 let queuedCloudDatabasePush = new Map<string, CloudDatabaseRecord>();
 let queuedCloudDatabasePushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1548,18 +1550,43 @@ export async function pushCloudDatabaseRecords(
       message: EMPTY_CLOUD_DATABASE_ACK_MESSAGE,
     };
   }
+  const acknowledgedKeySet = new Set(acknowledgedKeys);
+  const unacknowledgedRecords = records.filter((record) => {
+    const key = getRemoteDatabaseRecordKey(record);
+    return isValidRecordKey(key) && !acknowledgedKeySet.has(key);
+  });
+  if (unacknowledgedRecords.length > 0) {
+    markPendingCloudDatabasePushFailedRecords(
+      unacknowledgedRecords,
+      "error",
+      PARTIAL_CLOUD_DATABASE_ACK_MESSAGE
+    );
+    emitDatabaseSyncStatusChanged();
+  }
   clearPendingCloudDatabasePushKeys(acknowledgedKeys);
   setLastDatabaseSyncAtNow();
   recordDatabaseSyncOutcome({
-    status: "ok",
+    status: unacknowledgedRecords.length > 0 ? "error" : "ok",
     source: "direct-push",
     pulled: 0,
     pushed: accepted.length,
     accepted: accepted.length,
     skipped: skipped.length,
     pendingAfter: getPendingCloudDatabasePushKeys().length,
+    message:
+      unacknowledgedRecords.length > 0
+        ? PARTIAL_CLOUD_DATABASE_ACK_MESSAGE
+        : null,
   });
-  return { status: "ok", accepted, skipped };
+  return {
+    status: unacknowledgedRecords.length > 0 ? "error" : "ok",
+    accepted,
+    skipped,
+    message:
+      unacknowledgedRecords.length > 0
+        ? PARTIAL_CLOUD_DATABASE_ACK_MESSAGE
+        : undefined,
+  };
 }
 
 function markPendingCloudDatabasePushAttemptRecords(
@@ -1847,22 +1874,26 @@ async function pushCloudDatabaseRecordsInBatches(
       (batchBytes + size > PUSH_BATCH_BYTES && batch.length > 0)
     ) {
       const result = await flush();
-      if (result && result.status !== "ok") {
-        return {
-          status: result.status,
-          pushed,
-          skipped,
-          total: records.length,
-          acceptedKeys,
-          skippedKeys,
-          message: result.message,
-        };
-      }
       if (result) {
         pushed += result.accepted.length;
         skipped += result.skipped.length;
         acceptedKeys.push(...result.accepted);
         skippedKeys.push(...result.skipped);
+        if (result.status !== "ok") {
+          await markAcknowledgedDatabaseSyncKeys([
+            ...acceptedKeys,
+            ...skippedKeys,
+          ]);
+          return {
+            status: result.status,
+            pushed,
+            skipped,
+            total: records.length,
+            acceptedKeys,
+            skippedKeys,
+            message: result.message,
+          };
+        }
       }
     }
     if (size > PUSH_BATCH_BYTES) {
@@ -1883,22 +1914,23 @@ async function pushCloudDatabaseRecordsInBatches(
   }
 
   const result = await flush();
-  if (result && result.status !== "ok") {
-    return {
-      status: result.status,
-      pushed,
-      skipped,
-      total: records.length,
-      acceptedKeys,
-      skippedKeys,
-      message: result.message,
-    };
-  }
   if (result) {
     pushed += result.accepted.length;
     skipped += result.skipped.length;
     acceptedKeys.push(...result.accepted);
     skippedKeys.push(...result.skipped);
+    if (result.status !== "ok") {
+      await markAcknowledgedDatabaseSyncKeys([...acceptedKeys, ...skippedKeys]);
+      return {
+        status: result.status,
+        pushed,
+        skipped,
+        total: records.length,
+        acceptedKeys,
+        skippedKeys,
+        message: result.message,
+      };
+    }
   }
   await markAcknowledgedDatabaseSyncKeys([...acceptedKeys, ...skippedKeys]);
   if (oversizedKeys.length > 0) {

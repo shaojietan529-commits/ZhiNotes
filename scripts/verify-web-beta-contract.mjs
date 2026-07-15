@@ -13090,8 +13090,16 @@ function run() {
       "Database sync must keep local rows pending when the cloud response does not acknowledge any specific record.",
     ],
     [
+      "PARTIAL_CLOUD_DATABASE_ACK_MESSAGE",
+      "Database sync must mark unacknowledged rows failed when the cloud only acknowledges part of a batch.",
+    ],
+    [
       "records.length > 0 && acknowledgedKeys.length === 0",
       "Database sync must not treat an empty cloud ACK receipt as a successful sync.",
+    ],
+    [
+      "unacknowledgedRecords.length > 0",
+      "Database sync must keep partial cloud ACK failures visible for retry/manual review.",
     ],
     [
       "failedSampleKeys",
@@ -26012,8 +26020,20 @@ function run() {
     [
       files.accountPageSync,
       accountPageSync,
+      "PARTIAL_CLOUD_PAGE_ACK_MESSAGE",
+      "Account page sync must mark unacknowledged rows failed when the cloud only acknowledges part of a batch.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
       "records.length > 0 && acknowledgedIds.length === 0",
       "Account page sync must not treat an empty cloud ACK receipt as a successful sync.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "unacknowledgedRecords.length > 0",
+      "Account page sync must keep partial cloud ACK failures visible for retry/manual review.",
     ],
     [
       files.accountPageSync,

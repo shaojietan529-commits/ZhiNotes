@@ -85,6 +85,8 @@ const MAX_COVER_CHARS = 300 * 1024;
 const CLOUD_PUSH_DEBOUNCE_MS = 1000;
 const EMPTY_CLOUD_PAGE_ACK_MESSAGE =
   "云端没有返回任何页面 ACK，已保留本地待上传状态并稍后重试。";
+const PARTIAL_CLOUD_PAGE_ACK_MESSAGE =
+  "云端只确认了部分页面记录，未确认的记录已保留在 pending queue 并稍后重试。";
 let queuedCloudPush = new Map<string, RemotePageRecord>();
 let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
 let metadataDeltaInFlight: Promise<CloudPageMetadataDeltaResult> | null = null;
@@ -1259,13 +1261,25 @@ export async function pushCloudPages(
       message: EMPTY_CLOUD_PAGE_ACK_MESSAGE,
     };
   }
+  const acknowledgedSet = new Set(acknowledgedIds);
+  const unacknowledgedRecords = records.filter(
+    (record) =>
+      isValidRemotePageId(record.id) && !acknowledgedSet.has(record.id)
+  );
+  if (unacknowledgedRecords.length > 0) {
+    markPendingCloudPushFailedRecords(
+      unacknowledgedRecords,
+      "error",
+      PARTIAL_CLOUD_PAGE_ACK_MESSAGE
+    );
+  }
   clearPendingCloudPushIds(acknowledgedIds);
   void markAcknowledgedPageSyncIds(acknowledgedIds).catch(() => {
     // Keep the upload success path non-blocking; the next status refresh will
     // surface any unacknowledged local sync_log rows.
   });
   recordPageSyncOutcome({
-    status: "ok",
+    status: unacknowledgedRecords.length > 0 ? "error" : "ok",
     source: "direct-push",
     pulled: 0,
     pushed: accepted.length,
@@ -1273,16 +1287,22 @@ export async function pushCloudPages(
     skippedRemoteNewer: skipped.length,
     pendingAfter: getPendingCloudPushIds().length,
     message:
-      skipped.length > 0
-        ? "云端已有相同或更新版本，本机上传被安全跳过；不会覆盖远端较新的页面。"
-        : null,
+      unacknowledgedRecords.length > 0
+        ? PARTIAL_CLOUD_PAGE_ACK_MESSAGE
+        : skipped.length > 0
+          ? "云端已有相同或更新版本，本机上传被安全跳过；不会覆盖远端较新的页面。"
+          : null,
   });
   if (acknowledgedIds.length > 0) setLastPageSyncAtNow();
   else emitPageSyncStatusChanged();
   return {
-    status: "ok",
+    status: unacknowledgedRecords.length > 0 ? "error" : "ok",
     accepted,
     skipped,
+    message:
+      unacknowledgedRecords.length > 0
+        ? PARTIAL_CLOUD_PAGE_ACK_MESSAGE
+        : undefined,
   };
 }
 
@@ -1319,22 +1339,22 @@ async function pushCloudRecordsInBatches(
       (batchBytes + size > PUSH_BATCH_BYTES && batch.length > 0)
     ) {
       const result = await flush();
-      if (result && result.status !== "ok") {
-        return {
-          status: result.status,
-          accepted,
-          skipped,
-          acceptedIds,
-          skippedIds,
-          message: result.message,
-        };
-      }
       if (result) {
         clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
         accepted += result.accepted.length;
         skipped += result.skipped.length;
         acceptedIds.push(...result.accepted);
         skippedIds.push(...result.skipped);
+        if (result.status !== "ok") {
+          return {
+            status: result.status,
+            accepted,
+            skipped,
+            acceptedIds,
+            skippedIds,
+            message: result.message,
+          };
+        }
       }
     }
     if (size > PUSH_BATCH_BYTES) {
@@ -1354,22 +1374,22 @@ async function pushCloudRecordsInBatches(
   }
 
   const result = await flush();
-  if (result && result.status !== "ok") {
-    return {
-      status: result.status,
-      accepted,
-      skipped,
-      acceptedIds,
-      skippedIds,
-      message: result.message,
-    };
-  }
   if (result) {
     clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
     accepted += result.accepted.length;
     skipped += result.skipped.length;
     acceptedIds.push(...result.accepted);
     skippedIds.push(...result.skipped);
+    if (result.status !== "ok") {
+      return {
+        status: result.status,
+        accepted,
+        skipped,
+        acceptedIds,
+        skippedIds,
+        message: result.message,
+      };
+    }
   }
   if (oversized > 0) {
     return {

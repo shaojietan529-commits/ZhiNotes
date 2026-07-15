@@ -16000,8 +16000,20 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "PARTIAL_CLOUD_PAGE_ACK_MESSAGE",
+    "Page push must mark unacknowledged rows failed when the cloud only acknowledges part of a batch."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "records.length > 0 && acknowledgedIds.length === 0",
     "Page push must not treat an empty cloud ACK receipt as a successful sync."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "unacknowledgedRecords.length > 0",
+    "Page push must keep partial cloud ACK failures visible for retry/manual review."
   );
   assertIncludes(
     files.accountPageSync,
@@ -17524,8 +17536,20 @@ function run() {
   assertIncludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
+    "PARTIAL_CLOUD_DATABASE_ACK_MESSAGE",
+    "Database push must mark unacknowledged rows failed when the cloud only acknowledges part of a batch."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
     "records.length > 0 && acknowledgedKeys.length === 0",
     "Database push must not treat an empty cloud ACK receipt as a successful sync."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "unacknowledgedRecords.length > 0",
+    "Database push must keep partial cloud ACK failures visible for retry/manual review."
   );
   assertIncludes(
     files.accountDatabaseSync,
