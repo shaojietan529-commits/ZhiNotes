@@ -6690,6 +6690,36 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "let localMetadataLoadFailed = false",
+    "Daily local metadata refresh must track failures separately from cloud correction."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'console.warn("Daily calendar local metadata load failed", error)',
+    "Daily local metadata refresh failures must be caught so a bad local index does not abort the full calendar load."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "本地每日纪要目录本轮刷新失败，已保留当前可见内容；后台会继续重试。",
+    "Daily local metadata refresh failures must preserve already visible notes instead of clearing the calendar."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'recordDailyPerformance("local-refresh-error"',
+    "Daily local metadata refresh failures must leave a metadata-only performance marker for diagnosis."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "if (stableDailyRootId && !localMetadataLoadFailed)",
+    "Daily background fallback must only run when a stable daily root is available and local metadata did not hard-fail."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "当前月本地目录暂未命中，正在并行补齐旧导入 metadata 和云端目录。",
     "Daily empty first paint must keep the fallback recovery visible even when cloud correction starts."
   );

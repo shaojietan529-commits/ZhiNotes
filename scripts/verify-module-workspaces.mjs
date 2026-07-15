@@ -329,11 +329,11 @@ check(
     shells.daily.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleNotes: true,\n      });") &&
     shells.daily.includes("cancelCloudRecheck = scheduleDailyIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });\n      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
     shells.daily.includes(
-      'const dailyRootId = localDailyRootId ?? (await getModuleRootId("daily"))'
+      'dailyRootId = localDailyRootId ?? (await getModuleRootId("daily"))'
     ) &&
     shells.daily.indexOf('await findLocalModuleRootId("daily")') <
       shells.daily.indexOf(
-        'const dailyRootId = localDailyRootId ?? (await getModuleRootId("daily"))'
+        'dailyRootId = localDailyRootId ?? (await getModuleRootId("daily"))'
       ),
   "DailyNotesShell 必须先用本地 root 元数据快速显示日历，再后台确认云端 canonical root"
 );

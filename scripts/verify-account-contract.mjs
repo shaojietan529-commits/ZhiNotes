@@ -1504,6 +1504,12 @@ check(
     dailyNotesShell.includes("if (!includeCloud && interruptCloud && mountedRef.current)") &&
     dailyNotesShell.includes("seedVisibleDailyNotesForBackgroundRefresh(") &&
     dailyNotesShell.includes("function seedVisibleDailyNotesForBackgroundRefresh(") &&
+    dailyNotesShell.includes("let localMetadataLoadFailed = false") &&
+    dailyNotesShell.includes('console.warn("Daily calendar local metadata load failed", error)') &&
+    dailyNotesShell.includes("本地每日纪要目录本轮刷新失败，已保留当前可见内容；后台会继续重试。") &&
+    dailyNotesShell.includes('recordDailyPerformance("local-refresh-error"') &&
+    dailyNotesShell.includes("const stableDailyRootId = dailyRootId") &&
+    dailyNotesShell.includes("if (stableDailyRootId && !localMetadataLoadFailed)") &&
     dailyNotesShell.includes("interruptCloud: false") &&
     dailyNotesShell.includes("preserveVisibleNotes: true") &&
     dailyNotesShell.includes("buildDailyCalendarLoadStatusView") &&
