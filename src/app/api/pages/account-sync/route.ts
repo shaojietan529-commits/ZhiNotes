@@ -1601,9 +1601,8 @@ export async function GET(request: Request) {
     const result = await repairDailyImportPlacement(config, account.email);
     return NextResponse.json({ ok: true, ...result });
   } catch {
-    return NextResponse.json(
-      { error: "云端存储读写失败，请稍后重试。" },
-      { status: 502 }
+    return accountSessionUnconfirmedResponse(
+      "每日纪要修复云端读写暂时失败；不会登出，请稍后重试。"
     );
   }
 }
@@ -1847,9 +1846,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
   } catch {
-    return NextResponse.json(
-      { error: "云端存储读写失败，请稍后重试。" },
-      { status: 502 }
+    return accountSessionUnconfirmedResponse(
+      "页面同步云端读写暂时失败；本地输入已保留，会稍后重试。"
     );
   }
 }

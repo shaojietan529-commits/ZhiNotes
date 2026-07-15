@@ -689,9 +689,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
   } catch {
-    return NextResponse.json(
-      { error: "云端存储读写失败，请稍后重试。" },
-      { status: 502 }
+    return accountSessionUnconfirmedResponse(
+      "数据库同步云端读写暂时失败；本地修改已保留，会稍后重试。"
     );
   }
 }

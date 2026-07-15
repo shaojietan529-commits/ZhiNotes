@@ -756,7 +756,9 @@ async function call(body: Record<string, unknown>): Promise<
         message:
           typeof json.message === "string"
             ? json.message
-            : "数据库同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。",
+            : typeof json.error === "string"
+              ? json.error
+              : "数据库同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。",
       };
     }
     if (!res.ok) {

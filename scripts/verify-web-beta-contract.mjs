@@ -197,6 +197,7 @@ const files = {
   portfolioEmailPositionRoute: "src/app/api/portfolio/email-position/route.ts",
   accountPortfolioSync: "src/lib/portfolio/accountSync.ts",
   accountPageSync: "src/lib/pages/accountPageSync.ts",
+  pageAccountSyncRoute: "src/app/api/pages/account-sync/route.ts",
   pageCloudSaveStatus: "src/lib/pages/pageCloudSaveStatus.ts",
   pageBodyHydrationStatus: "src/lib/pages/pageBodyHydrationStatus.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -220,6 +221,7 @@ const files = {
   localFirstDatabaseNavigationUtil:
     "src/lib/database/localFirstDatabaseNavigation.ts",
   accountDatabaseSync: "src/lib/database/accountDatabaseSync.ts",
+  databaseAccountSyncRoute: "src/app/api/databases/account-sync/route.ts",
   usePage: "src/hooks/usePage.ts",
   usePages: "src/hooks/usePages.ts",
   workspaceStore: "src/stores/workspaceStore.ts",
@@ -777,6 +779,7 @@ function run() {
   );
   const accountPortfolioSync = readProjectFile(files.accountPortfolioSync);
   const accountPageSync = readProjectFile(files.accountPageSync);
+  const pageAccountSyncRoute = readProjectFile(files.pageAccountSyncRoute);
   const pageCloudSaveStatus = readProjectFile(files.pageCloudSaveStatus);
   const pageBodyHydrationStatus = readProjectFile(
     files.pageBodyHydrationStatus
@@ -816,6 +819,9 @@ function run() {
     files.localFirstDatabaseNavigationUtil
   );
   const accountDatabaseSync = readProjectFile(files.accountDatabaseSync);
+  const databaseAccountSyncRoute = readProjectFile(
+    files.databaseAccountSyncRoute
+  );
   const usePage = readProjectFile(files.usePage);
   const usePages = readProjectFile(files.usePages);
   const workspaceStore = readProjectFile(files.workspaceStore);
@@ -5350,10 +5356,40 @@ function run() {
     "Page account-sync client must detect retryable session-unconfirmed route responses."
   );
   assertSourceIncludes(
+    files.pageAccountSyncRoute,
+    pageAccountSyncRoute,
+    "页面同步云端读写暂时失败；本地输入已保留，会稍后重试。",
+    "Page account-sync route must turn transient cloud read/write failures into retryable local-preserved responses."
+  );
+  assertSourceIncludes(
+    files.pageAccountSyncRoute,
+    pageAccountSyncRoute,
+    "每日纪要修复云端读写暂时失败；不会登出，请稍后重试。",
+    "Daily repair route must preserve the session on transient cloud read/write failures."
+  );
+  assertSourceExcludes(
+    files.pageAccountSyncRoute,
+    pageAccountSyncRoute,
+    "{ status: 502 }",
+    "Page account-sync route must not return a generic 502 for retryable cloud sync failures."
+  );
+  assertSourceExcludes(
+    files.pageAccountSyncRoute,
+    pageAccountSyncRoute,
+    "云端存储读写失败，请稍后重试。",
+    "Page account-sync route must not hide retryable cloud failures behind a generic storage error."
+  );
+  assertSourceIncludes(
     files.accountPageSync,
     accountPageSync,
     'rememberAuthRetryStatus("unconfirmed")',
     "Page account-sync client must store session-unconfirmed as a visible auth retry status."
+  );
+  assertSourceIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    'typeof json.error === "string"',
+    "Page account-sync client must surface route-provided retryable cloud failure copy."
   );
   assertSourceIncludes(
     files.accountPageSync,
@@ -5464,10 +5500,34 @@ function run() {
     "Database account-sync client must detect retryable session-unconfirmed route responses."
   );
   assertSourceIncludes(
+    files.databaseAccountSyncRoute,
+    databaseAccountSyncRoute,
+    "数据库同步云端读写暂时失败；本地修改已保留，会稍后重试。",
+    "Database account-sync route must turn transient cloud read/write failures into retryable local-preserved responses."
+  );
+  assertSourceExcludes(
+    files.databaseAccountSyncRoute,
+    databaseAccountSyncRoute,
+    "{ status: 502 }",
+    "Database account-sync route must not return a generic 502 for retryable cloud sync failures."
+  );
+  assertSourceExcludes(
+    files.databaseAccountSyncRoute,
+    databaseAccountSyncRoute,
+    "云端存储读写失败，请稍后重试。",
+    "Database account-sync route must not hide retryable cloud failures behind a generic storage error."
+  );
+  assertSourceIncludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
     'rememberAuthRetryStatus("unconfirmed")',
     "Database account-sync client must store session-unconfirmed as a visible auth retry status."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    'typeof json.error === "string"',
+    "Database account-sync client must surface route-provided retryable cloud failure copy."
   );
   assertSourceIncludes(
     files.accountDatabaseSync,

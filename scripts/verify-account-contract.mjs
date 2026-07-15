@@ -637,8 +637,12 @@ check(
   pageSyncRoute.includes("accountSessionUnconfirmedResponse") &&
     pageSyncRoute.includes("页面同步暂时无法确认账号；本地输入已保留，请稍后重试。") &&
     pageSyncRoute.includes("每日纪要修复暂时无法确认账号；不会登出，请稍后重试。") &&
+    pageSyncRoute.includes("页面同步云端读写暂时失败；本地输入已保留，会稍后重试。") &&
+    pageSyncRoute.includes("每日纪要修复云端读写暂时失败；不会登出，请稍后重试。") &&
+    !pageSyncRoute.includes("{ status: 502 }") &&
+    !pageSyncRoute.includes("云端存储读写失败，请稍后重试。") &&
     !pageSyncRoute.includes("登录已过期，请重新登录。"),
-  "pages account-sync route 有 cookie 但 session 暂时查不到时必须返回可重试 session-unconfirmed，不能返回登录过期"
+  "pages account-sync route 有 cookie 但 session 暂时查不到或云端读写短暂失败时必须返回可重试 session-unconfirmed，不能返回登录过期或普通 502"
 );
 check(
   pageSyncRoute.includes("existing.u >= record.updated_at"),
@@ -758,8 +762,11 @@ const syncPendingDomainRegistry = read(
 check(
   databaseSyncRoute.includes("accountSessionUnconfirmedResponse") &&
     databaseSyncRoute.includes("数据库同步暂时无法确认账号；本地修改已保留，请稍后重试。") &&
+    databaseSyncRoute.includes("数据库同步云端读写暂时失败；本地修改已保留，会稍后重试。") &&
+    !databaseSyncRoute.includes("{ status: 502 }") &&
+    !databaseSyncRoute.includes("云端存储读写失败，请稍后重试。") &&
     !databaseSyncRoute.includes("登录已过期，请重新登录。"),
-  "databases account-sync route 有 cookie 但 session 暂时查不到时必须返回可重试 session-unconfirmed，不能返回登录过期"
+  "databases account-sync route 有 cookie 但 session 暂时查不到或云端读写短暂失败时必须返回可重试 session-unconfirmed，不能返回登录过期或普通 502"
 );
 check(
   fileEmbedSyncRoute.includes("accountSessionUnconfirmedResponse") &&
@@ -853,6 +860,7 @@ check(
     pageSyncClient.includes('| "unconfirmed"') &&
     pageSyncClient.includes('rememberAuthRetryStatus("unconfirmed")') &&
     pageSyncClient.includes('json.reason === "session-unconfirmed" || json.retryable') &&
+    pageSyncClient.includes('typeof json.error === "string"') &&
     pageSyncClient.includes("账号登录状态暂时无法确认，本地输入已保留，会稍后重试。") &&
     pageSyncClient.includes("账号云端暂时无法确认，本地输入已保留，会稍后重试。") &&
     pageSyncClient.includes("页面同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。") &&
@@ -864,6 +872,7 @@ check(
     databaseSyncClient.includes('| "unconfirmed"') &&
     databaseSyncClient.includes('rememberAuthRetryStatus("unconfirmed")') &&
     databaseSyncClient.includes('json.reason === "session-unconfirmed" || json.retryable') &&
+    databaseSyncClient.includes('typeof json.error === "string"') &&
     databaseSyncClient.includes("账号登录状态暂时无法确认，本地输入已保留，会稍后重试。") &&
     databaseSyncClient.includes("账号云端暂时无法确认，本地输入已保留，会稍后重试。") &&
     databaseSyncClient.includes("数据库同步接口暂时无法确认账号权限；已保留本地输入并稍后重试。") &&
