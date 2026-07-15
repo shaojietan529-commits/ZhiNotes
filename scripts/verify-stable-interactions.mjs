@@ -135,6 +135,10 @@ function run() {
       "Daily + must use one activation path so pointer, mouse, and click paths cannot compete under load.",
     ],
     [
+      "scheduleDailyForegroundAwareIdleTask",
+      "Daily background cloud/index work must wait for foreground create/open activity to quiet down.",
+    ],
+    [
       'data-create-activation="single-entry"',
       "Daily + controls must mark that create activation is consolidated into one guarded entry path.",
     ],
@@ -258,6 +262,14 @@ function run() {
     [
       "scheduleMeetingCreatePeekReadyFallback",
       "ZhiHui create must fall back to a full page if the peek shell stalls.",
+    ],
+    [
+      "scheduleMeetingForegroundAwareIdleTask",
+      "ZhiHui background cloud/index work must wait for foreground create/open activity to quiet down.",
+    ],
+    [
+      "scheduleMeetingFirstPaintFallbackRecheck",
+      "ZhiHui old-import fallback must re-check whether first paint is already visible before doing heavier metadata work.",
     ],
     [
       "isPagePeekCreateShellStillPreparing(page.id)",
@@ -463,6 +475,7 @@ function run() {
           route_shell_before_hydration: true,
           create_on_pointer_or_mouse_down: true,
           local_draft_visible_before_cloud: true,
+          foreground_background_work_deferred: true,
           local_first_page_handoff: true,
           page_body_hydration_deferred: true,
           large_body_preview_bounded: true,

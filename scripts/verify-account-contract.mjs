@@ -1596,6 +1596,7 @@ check(
     dailyNotesShell.includes("markDailyForegroundInteraction") &&
     dailyNotesShell.includes("getDailyForegroundRefreshDelay") &&
     dailyNotesShell.includes("scheduleDailyForegroundAwareRefresh") &&
+    dailyNotesShell.includes("scheduleDailyForegroundAwareIdleTask") &&
     dailyNotesShell.includes("window.setTimeout(runWhenQuiet, foregroundDelay)") &&
     dailyNotesShell.includes("return scheduleDailyForegroundAwareRefresh(() => {") &&
     dailyNotesShell.includes("cancelLocalReload = scheduleDailyForegroundAwareRefresh(() => {") &&
@@ -1607,9 +1608,9 @@ check(
     dailyNotesShell.includes("const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 120") &&
     dailyNotesShell.includes("const DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 900") &&
     dailyNotesShell.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleNotes: true,\n      });") &&
-    dailyNotesShell.includes("cancelCloudRecheck = scheduleDailyIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });\n      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
-    dailyNotesShell.includes("}, DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS);") &&
-    dailyNotesShell.includes("cancelCloudRecheck?.()") &&
+    dailyNotesShell.includes("const cancelCloudRecheck = scheduleDailyForegroundAwareIdleTask(") &&
+    dailyNotesShell.includes("DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS,\n      DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
+    dailyNotesShell.includes("cancelCloudRecheck()") &&
     dailyNotesShell.includes("let cancelLocalReload: (() => void) | null = null") &&
     dailyNotesShell.includes("let cancelCloudRecheck: (() => void) | null = null") &&
     dailyNotesShell.includes("cancelLocalReload?.()") &&
@@ -1894,13 +1895,14 @@ check(
     meetingScheduleShell.includes("const MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120") &&
     meetingScheduleShell.includes("const MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS = 2200") &&
     meetingScheduleShell.includes("const MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS = 1800") &&
-    meetingScheduleShell.includes("const fallbackRecheckDelayMs =\n      meetingsRef.current.length === 0\n        ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n        : MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS;") &&
-    meetingScheduleShell.includes("const fallbackIdleTimeoutMs =\n        meetingsRef.current.length === 0\n          ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n          : MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS;") &&
     meetingScheduleShell.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n        includeUnindexedFallback: false,\n      });") &&
-    meetingScheduleShell.includes("cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        if (!mountedRef.current) return;\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, fallbackIdleTimeoutMs);") &&
-    meetingScheduleShell.includes("cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
-    meetingScheduleShell.includes("}, MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS);") &&
-    meetingScheduleShell.includes("cancelCloudRecheck?.()") &&
+    meetingScheduleShell.includes("const hasVisibleMeetings = meetingsRef.current.length > 0") &&
+    meetingScheduleShell.includes("const targetDelay = hasVisibleMeetings") &&
+    meetingScheduleShell.includes("const cancelFallbackRecheck = scheduleMeetingFirstPaintFallbackRecheck(() => {") &&
+    meetingScheduleShell.includes("const cancelCloudRecheck = scheduleMeetingForegroundAwareIdleTask(") &&
+    meetingScheduleShell.includes("MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS,\n      MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
+    meetingScheduleShell.includes("cancelFallbackRecheck()") &&
+    meetingScheduleShell.includes("cancelCloudRecheck()") &&
     meetingScheduleShell.indexOf("publishMeetings([], cachedCloud.pages)") <
       meetingScheduleShell.indexOf("getModuleRootId(\"meeting-schedule\")"),
   "MeetingScheduleShell 首屏应先读本地/热缓存会议目录，云端当前窗口 metadata 必须延后到空闲校正；recent metadata 窗口按热缓存偏好有界扩大，全局 metadata 同步只能空闲后台预热；本地刷新也应记录流畅度快照"
@@ -1972,6 +1974,8 @@ check(
     meetingScheduleShell.includes("foregroundQuietUntilRef") &&
     meetingScheduleShell.includes("markMeetingForegroundInteraction();") &&
     meetingScheduleShell.includes("scheduleMeetingForegroundAwareRefresh") &&
+    meetingScheduleShell.includes("scheduleMeetingForegroundAwareIdleTask") &&
+    meetingScheduleShell.includes("scheduleMeetingFirstPaintFallbackRecheck") &&
     meetingScheduleShell.includes("window.setTimeout(runWhenQuiet, foregroundDelay)") &&
     meetingScheduleShell.includes("return scheduleMeetingForegroundAwareRefresh(() => {") &&
     meetingScheduleShell.includes("cancelLocalReload = scheduleMeetingForegroundAwareRefresh(() => {") &&

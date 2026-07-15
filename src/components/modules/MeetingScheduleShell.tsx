@@ -620,6 +620,78 @@ export default function MeetingScheduleShell() {
     [getMeetingForegroundRefreshDelay]
   );
 
+  const scheduleMeetingForegroundAwareIdleTask = useCallback(
+    (callback: () => void, delayMs: number, idleTimeoutMs: number) => {
+      let timer: number | null = null;
+      let cancelIdleTask: (() => void) | null = null;
+      const runWhenQuiet = () => {
+        if (!mountedRef.current) {
+          timer = null;
+          return;
+        }
+        const foregroundDelay = getMeetingForegroundRefreshDelay();
+        if (foregroundDelay > 0) {
+          timer = window.setTimeout(runWhenQuiet, foregroundDelay);
+          return;
+        }
+        timer = null;
+        cancelIdleTask = scheduleMeetingIdleTask(() => {
+          cancelIdleTask = null;
+          if (!mountedRef.current) return;
+          callback();
+        }, idleTimeoutMs);
+      };
+      timer = window.setTimeout(runWhenQuiet, delayMs);
+      return () => {
+        if (timer !== null) window.clearTimeout(timer);
+        timer = null;
+        cancelIdleTask?.();
+        cancelIdleTask = null;
+      };
+    },
+    [getMeetingForegroundRefreshDelay]
+  );
+
+  const scheduleMeetingFirstPaintFallbackRecheck = useCallback(
+    (callback: () => void) => {
+      const scheduledAt = getLocalPerformanceNow();
+      let timer: number | null = null;
+      let cancelIdleTask: (() => void) | null = null;
+      const scheduleNext = (delayMs: number) => {
+        timer = window.setTimeout(runWhenReady, delayMs);
+      };
+      const runWhenReady = () => {
+        timer = null;
+        if (!mountedRef.current) return;
+        const hasVisibleMeetings = meetingsRef.current.length > 0;
+        const targetDelay = hasVisibleMeetings
+          ? MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS
+          : MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS;
+        const elapsedMs = getLocalPerformanceNow() - scheduledAt;
+        if (elapsedMs < targetDelay) {
+          scheduleNext(targetDelay - elapsedMs);
+          return;
+        }
+        const idleTimeoutMs = hasVisibleMeetings
+          ? MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS
+          : MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS;
+        cancelIdleTask = scheduleMeetingForegroundAwareIdleTask(
+          callback,
+          0,
+          idleTimeoutMs
+        );
+      };
+      scheduleNext(MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS);
+      return () => {
+        if (timer !== null) window.clearTimeout(timer);
+        timer = null;
+        cancelIdleTask?.();
+        cancelIdleTask = null;
+      };
+    },
+    [scheduleMeetingForegroundAwareIdleTask]
+  );
+
   const publishCalendarStatus = useCallback(
     (
       phase: MeetingCalendarLoadPhase,
@@ -1417,45 +1489,38 @@ export default function MeetingScheduleShell() {
       });
     });
 
-    const fallbackRecheckDelayMs =
-      meetingsRef.current.length === 0
-        ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS
-        : MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS;
-    let cancelFallbackRecheck: (() => void) | null = null;
-    const fallbackRecheckTimer = window.setTimeout(() => {
-      const fallbackIdleTimeoutMs =
-        meetingsRef.current.length === 0
-          ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS
-          : MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS;
-      cancelFallbackRecheck = scheduleMeetingIdleTask(() => {
-        if (!mountedRef.current) return;
-        void load({
-          includeCloud: false,
-          interruptCloud: false,
-          preserveVisibleMeetings: true,
-          includeUnindexedFallback: true,
-        });
-      }, fallbackIdleTimeoutMs);
-    }, fallbackRecheckDelayMs);
+    const cancelFallbackRecheck = scheduleMeetingFirstPaintFallbackRecheck(() => {
+      if (!mountedRef.current) return;
+      void load({
+        includeCloud: false,
+        interruptCloud: false,
+        preserveVisibleMeetings: true,
+        includeUnindexedFallback: true,
+      });
+    });
 
-    let cancelCloudRecheck: (() => void) | null = null;
-    const cloudRecheckTimer = window.setTimeout(() => {
-      cancelCloudRecheck = scheduleMeetingIdleTask(() => {
+    const cancelCloudRecheck = scheduleMeetingForegroundAwareIdleTask(
+      () => {
         void load({
           includeCloud: true,
           preserveVisibleMeetings: true,
           includeUnindexedFallback: false,
         });
-      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);
-    }, MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS);
+      },
+      MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS,
+      MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS
+    );
 
     return () => {
-      window.clearTimeout(fallbackRecheckTimer);
-      window.clearTimeout(cloudRecheckTimer);
-      cancelFallbackRecheck?.();
-      cancelCloudRecheck?.();
+      cancelFallbackRecheck();
+      cancelCloudRecheck();
     };
-  }, [dbReady, load]);
+  }, [
+    dbReady,
+    load,
+    scheduleMeetingFirstPaintFallbackRecheck,
+    scheduleMeetingForegroundAwareIdleTask,
+  ]);
 
   useEffect(() => {
     if (!dbReady) return;

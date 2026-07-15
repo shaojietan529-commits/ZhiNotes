@@ -327,7 +327,9 @@ check(
     shells.daily.includes("DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS") &&
     shells.daily.includes("DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
     shells.daily.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleNotes: true,\n      });") &&
-    shells.daily.includes("cancelCloudRecheck = scheduleDailyIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });\n      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
+    shells.daily.includes("scheduleDailyForegroundAwareIdleTask") &&
+    shells.daily.includes("const cancelCloudRecheck = scheduleDailyForegroundAwareIdleTask(") &&
+    shells.daily.includes("DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS,\n      DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
     shells.daily.includes(
       'dailyRootId = localDailyRootId ?? (await getModuleRootId("daily"))'
     ) &&
@@ -1684,11 +1686,14 @@ check(
     shells.schedule.includes("MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120") &&
     shells.schedule.includes("MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS = 2200") &&
     shells.schedule.includes("MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS = 1800") &&
-    shells.schedule.includes("const fallbackRecheckDelayMs =\n      meetingsRef.current.length === 0\n        ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n        : MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS;") &&
-    shells.schedule.includes("const fallbackIdleTimeoutMs =\n        meetingsRef.current.length === 0\n          ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n          : MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS;") &&
+    shells.schedule.includes("scheduleMeetingForegroundAwareIdleTask") &&
+    shells.schedule.includes("scheduleMeetingFirstPaintFallbackRecheck") &&
+    shells.schedule.includes("const hasVisibleMeetings = meetingsRef.current.length > 0") &&
+    shells.schedule.includes("const targetDelay = hasVisibleMeetings") &&
     shells.schedule.includes("void load({\n        includeCloud: false,\n        interruptCloud: false,\n        preserveVisibleMeetings: true,\n        includeUnindexedFallback: false,\n      });") &&
-    shells.schedule.includes("cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        if (!mountedRef.current) return;\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, fallbackIdleTimeoutMs);") &&
-    shells.schedule.includes("cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);") &&
+    shells.schedule.includes("const cancelFallbackRecheck = scheduleMeetingFirstPaintFallbackRecheck(() => {") &&
+    shells.schedule.includes("const cancelCloudRecheck = scheduleMeetingForegroundAwareIdleTask(") &&
+    shells.schedule.includes("MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS,\n      MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS") &&
     !shells.schedule.includes("localPagesForMerge = await listPages(id)") &&
     !shells.schedule.includes("localPagesForMerge = await listPageMetadata(id)") &&
     !shells.schedule.includes("import { listPages"),
