@@ -119,6 +119,10 @@ export interface StableUseTwoDaySyncPolicy {
   pending_failed_manual_review_must_be_visible: true;
   cache_rebuild_requires_queue_clearance: true;
   owner_smoke_required_before_full_sync_claim: true;
+  device_handoff_requires_successful_required_receipts: true;
+  device_handoff_requires_required_receipts_pending_after_zero: true;
+  failed_required_receipt_blocks_device_handoff: true;
+  uncleared_required_receipt_blocks_device_handoff: true;
   user_facing_copy: string;
 }
 
@@ -265,8 +269,12 @@ const STABLE_USE_TWO_DAY_SYNC_POLICY: StableUseTwoDaySyncPolicy = {
   pending_failed_manual_review_must_be_visible: true,
   cache_rebuild_requires_queue_clearance: true,
   owner_smoke_required_before_full_sync_claim: true,
+  device_handoff_requires_successful_required_receipts: true,
+  device_handoff_requires_required_receipts_pending_after_zero: true,
+  failed_required_receipt_blocks_device_handoff: true,
+  uncleared_required_receipt_blocks_device_handoff: true,
   user_facing_copy:
-    "48 小时目标是私有 beta 可稳定使用：写作先本地保存，页面/每日纪要/ZhiHui/数据库/文件元数据/设置的同步状态必须可见；只有真实两设备 smoke 跑通并且 pending、failed、manual review 清零后，才能声称全平台同步可用。",
+    "48 小时目标是私有 beta 可稳定使用：写作先本地保存，页面/每日纪要/ZhiHui/数据库/文件元数据/设置的同步状态必须可见；页面/数据库必需回执必须 ok 且 pendingAfter=0，失败回执或 pendingAfter 未清不能换设备；只有真实两设备 smoke 跑通并且 pending、failed、manual review 清零后，才能声称全平台同步可用。",
 };
 
 function buildStableUseDevelopmentLanePolicy(input: {

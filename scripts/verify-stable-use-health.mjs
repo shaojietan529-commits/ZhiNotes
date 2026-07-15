@@ -166,6 +166,11 @@ function verifySourceContracts() {
   assertIncludes(healthSource, "local_input_must_continue_during_cloud_uncertainty: true", "two-day policy must keep local input available during cloud uncertainty");
   assertIncludes(healthSource, "pending_failed_manual_review_must_be_visible: true", "two-day policy must keep sync status transparent");
   assertIncludes(healthSource, "owner_smoke_required_before_full_sync_claim: true", "two-day policy must require owner smoke before full sync claims");
+  assertIncludes(healthSource, "device_handoff_requires_successful_required_receipts: true", "device handoff must require successful required receipts");
+  assertIncludes(healthSource, "device_handoff_requires_required_receipts_pending_after_zero: true", "device handoff must require required receipts to clear pendingAfter");
+  assertIncludes(healthSource, "failed_required_receipt_blocks_device_handoff: true", "failed required receipts must block device handoff");
+  assertIncludes(healthSource, "uncleared_required_receipt_blocks_device_handoff: true", "uncleared required receipts must block device handoff");
+  assertIncludes(healthSource, "pendingAfter=0", "two-day policy copy must mention pendingAfter=0 for handoff");
   assertIncludes(healthSource, 'coverage_source: "static-pending-domain-catalog"', "health response must mark coverage as static metadata");
   assertIncludes(healthSource, "git pull --rebase before git push; never force push.", "health response must preserve safe push guidance");
   for (const flag of requiredTopLevelFalseFlags) {
@@ -650,6 +655,26 @@ function verifyRouteResult(result) {
     true,
     "two_day_sync_policy.owner_smoke_required_before_full_sync_claim"
   );
+  assertEqual(
+    twoDaySyncPolicy.device_handoff_requires_successful_required_receipts,
+    true,
+    "two_day_sync_policy.device_handoff_requires_successful_required_receipts"
+  );
+  assertEqual(
+    twoDaySyncPolicy.device_handoff_requires_required_receipts_pending_after_zero,
+    true,
+    "two_day_sync_policy.device_handoff_requires_required_receipts_pending_after_zero"
+  );
+  assertEqual(
+    twoDaySyncPolicy.failed_required_receipt_blocks_device_handoff,
+    true,
+    "two_day_sync_policy.failed_required_receipt_blocks_device_handoff"
+  );
+  assertEqual(
+    twoDaySyncPolicy.uncleared_required_receipt_blocks_device_handoff,
+    true,
+    "two_day_sync_policy.uncleared_required_receipt_blocks_device_handoff"
+  );
   for (const surface of [
     "page",
     "daily",
@@ -665,6 +690,16 @@ function verifyRouteResult(result) {
   if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("真实两设备 smoke")) {
     failures.push(
       "two_day_sync_policy.user_facing_copy must require real two-device smoke evidence"
+    );
+  }
+  if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("pendingAfter=0")) {
+    failures.push(
+      "two_day_sync_policy.user_facing_copy must require pendingAfter=0 before device handoff"
+    );
+  }
+  if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("失败回执")) {
+    failures.push(
+      "two_day_sync_policy.user_facing_copy must say failed required receipts block device handoff"
     );
   }
   if (
