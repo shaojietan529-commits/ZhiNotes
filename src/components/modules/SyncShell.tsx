@@ -22406,7 +22406,9 @@ function SyncUploadSafetyPanel({
             detail={
               handoffReceipt.summary.required_sync_outcome_domains_ready
                 ? `页面/数据库有效；最老 ${handoffReceipt.summary.oldest_sync_outcome_age_label}`
-                : `缺失 ${handoffReceipt.summary.sync_outcome_missing_required_domains} · 过期 ${handoffReceipt.summary.sync_outcome_stale_required_domains}`
+                : formatRequiredSyncOutcomeEvidenceDetail(
+                    handoffReceipt.summary
+                  )
             }
           />
           <CacheRebuildFact
@@ -22686,6 +22688,12 @@ function SyncHandoffQuickCheckPanel({
       data-sync-outcome-missing-required-domains={
         summary.sync_outcome_missing_required_domains
       }
+      data-sync-outcome-failed-required-domains={
+        summary.sync_outcome_failed_required_domains
+      }
+      data-sync-outcome-uncleared-required-domains={
+        summary.sync_outcome_uncleared_required_domains
+      }
       data-sync-outcome-stale-required-domains={
         summary.sync_outcome_stale_required_domains
       }
@@ -22793,7 +22801,7 @@ function SyncHandoffQuickCheckPanel({
                   summary.page_last_sync_outcome_pulled
                 } · 远端跳过 ${
                   summary.page_last_sync_outcome_skipped_remote_newer
-                }`
+                } · 剩余 pending ${summary.page_last_sync_outcome_pending_after}`
               : "队列清空仍是主判断；回执会在下一次页面同步后出现。"
           }
         />
@@ -22810,7 +22818,7 @@ function SyncHandoffQuickCheckPanel({
                   summary.database_last_sync_outcome_source ?? "unknown"
                 )}：推送 ${summary.database_last_sync_outcome_pushed} · 拉取 ${
                   summary.database_last_sync_outcome_pulled
-                } · 跳过 ${summary.database_last_sync_outcome_skipped}`
+                } · 跳过 ${summary.database_last_sync_outcome_skipped} · 剩余 pending ${summary.database_last_sync_outcome_pending_after}`
               : "队列清空仍是主判断；回执会在下一次数据库同步后出现。"
           }
         />
@@ -22841,7 +22849,7 @@ function SyncHandoffQuickCheckPanel({
           detail={
             summary.required_sync_outcome_domains_ready
               ? `必需回执有效；最老 ${summary.oldest_sync_outcome_age_label}`
-              : `缺失 ${summary.sync_outcome_missing_required_domains} · 过期 ${summary.sync_outcome_stale_required_domains}`
+              : formatRequiredSyncOutcomeEvidenceDetail(summary)
           }
         />
         <SyncHandoffQuickFact
@@ -22946,7 +22954,15 @@ function formatSyncOutcomeEvidenceStatus(status: SyncOutcomeEvidenceStatus) {
   if (status === "fresh") return "有效";
   if (status === "warning") return "文件提醒";
   if (status === "missing-required") return "缺必需回执";
+  if (status === "failed-required") return "必需回执失败";
+  if (status === "uncleared-required") return "pending未清";
   return "必需回执过期";
+}
+
+function formatRequiredSyncOutcomeEvidenceDetail(
+  summary: SyncHandoffReadinessReceipt["summary"]
+) {
+  return `缺失 ${summary.sync_outcome_missing_required_domains} · 失败 ${summary.sync_outcome_failed_required_domains} · 未清 ${summary.sync_outcome_uncleared_required_domains} · 过期 ${summary.sync_outcome_stale_required_domains}`;
 }
 
 function syncHandoffReadinessStatusClass(

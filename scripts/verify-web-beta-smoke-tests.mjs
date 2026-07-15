@@ -16772,8 +16772,38 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "data-sync-outcome-failed-required-domains",
+    "Sync UI quick check must expose failed required sync receipt counts."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-sync-outcome-uncleared-required-domains",
+    "Sync UI quick check must expose uncleared required sync receipt counts."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "回执证据",
     "Sync UI must label the required sync outcome evidence in Chinese."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "formatRequiredSyncOutcomeEvidenceDetail",
+    "Sync UI must show missing, failed, uncleared, and stale required receipt counts together."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "必需回执失败",
+    "Sync UI must translate failed required receipt evidence into user-facing Chinese."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "pending未清",
+    "Sync UI must translate uncleared required receipt evidence into user-facing Chinese."
   );
   assertIncludes(
     files.syncShell,
@@ -17018,8 +17048,32 @@ function run() {
   assertIncludes(
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
+    "sync_outcome_failed_required_domains",
+    "Handoff readiness receipt must count failed required sync outcome evidence."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "sync_outcome_uncleared_required_domains",
+    "Handoff readiness receipt must count required sync receipts whose pendingAfter is not clear."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
     "sync_outcome_stale_required_domains",
     "Handoff readiness receipt must count stale required sync outcome evidence."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    'domain.outcomeStatus !== "ok"',
+    "Handoff readiness receipt must not treat failed page/database receipts as valid handoff evidence."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "domain.pendingAfter > 0",
+    "Handoff readiness receipt must not treat uncleared page/database receipts as valid handoff evidence."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,
@@ -17169,7 +17223,7 @@ function run() {
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
     "blocked-stale-outcome",
-    "Handoff readiness receipt must block handoff when required page/database outcome evidence is missing or stale."
+    "Handoff readiness receipt must block handoff when required page/database outcome evidence is missing, failed, uncleared, or stale."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,

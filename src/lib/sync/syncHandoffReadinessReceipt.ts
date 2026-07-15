@@ -22,6 +22,8 @@ export type SyncOutcomeEvidenceStatus =
   | "fresh"
   | "warning"
   | "missing-required"
+  | "failed-required"
+  | "uncleared-required"
   | "stale-required";
 
 export type SyncHandoffMode =
@@ -50,8 +52,12 @@ interface SyncOutcomeEvidenceSummary {
   status: SyncOutcomeEvidenceStatus;
   requiredReady: boolean;
   missingRequiredCount: number;
+  failedRequiredCount: number;
+  unclearedRequiredCount: number;
   staleRequiredCount: number;
   missingOptionalCount: number;
+  failedOptionalCount: number;
+  unclearedOptionalCount: number;
   staleOptionalCount: number;
   oldestOutcomeAt: string | null;
   oldestOutcomeAgeMs: number | null;
@@ -167,8 +173,12 @@ export interface SyncHandoffReadinessReceipt {
     sync_outcome_evidence_status: SyncOutcomeEvidenceStatus;
     required_sync_outcome_domains_ready: boolean;
     sync_outcome_missing_required_domains: number;
+    sync_outcome_failed_required_domains: number;
+    sync_outcome_uncleared_required_domains: number;
     sync_outcome_stale_required_domains: number;
     sync_outcome_missing_optional_domains: number;
+    sync_outcome_failed_optional_domains: number;
+    sync_outcome_uncleared_optional_domains: number;
     sync_outcome_stale_optional_domains: number;
     oldest_sync_outcome_at: string | null;
     oldest_sync_outcome_age_ms: number | null;
@@ -214,8 +224,14 @@ export function buildSyncHandoffReadinessReceipt(
     pageSyncEnabled: input.pageStatus.enabled,
     databaseSyncEnabled: input.databaseStatus.enabled,
     fileSyncEnabled: input.fileStatus.enabled,
+    pageLastOutcomeStatus: pageLastOutcome?.status ?? null,
+    pageLastOutcomePendingAfter: pageLastOutcome?.pendingAfter ?? null,
     pageLastOutcomeAt: pageLastOutcome?.at ?? null,
+    databaseLastOutcomeStatus: databaseLastOutcome?.status ?? null,
+    databaseLastOutcomePendingAfter: databaseLastOutcome?.pendingAfter ?? null,
     databaseLastOutcomeAt: databaseLastOutcome?.at ?? null,
+    fileLastOutcomeStatus: fileLastOutcome?.status ?? null,
+    fileLastOutcomePendingAfter: fileLastOutcome?.pendingAfter ?? null,
     fileLastOutcomeAt: fileLastOutcome?.at ?? null,
     generatedAt,
   });
@@ -383,10 +399,18 @@ export function buildSyncHandoffReadinessReceipt(
     required_sync_outcome_domains_ready: syncOutcomeEvidence.requiredReady,
     sync_outcome_missing_required_domains:
       syncOutcomeEvidence.missingRequiredCount,
+    sync_outcome_failed_required_domains:
+      syncOutcomeEvidence.failedRequiredCount,
+    sync_outcome_uncleared_required_domains:
+      syncOutcomeEvidence.unclearedRequiredCount,
     sync_outcome_stale_required_domains:
       syncOutcomeEvidence.staleRequiredCount,
     sync_outcome_missing_optional_domains:
       syncOutcomeEvidence.missingOptionalCount,
+    sync_outcome_failed_optional_domains:
+      syncOutcomeEvidence.failedOptionalCount,
+    sync_outcome_uncleared_optional_domains:
+      syncOutcomeEvidence.unclearedOptionalCount,
     sync_outcome_stale_optional_domains:
       syncOutcomeEvidence.staleOptionalCount,
     oldest_sync_outcome_at: syncOutcomeEvidence.oldestOutcomeAt,
@@ -508,10 +532,18 @@ export function buildSyncHandoffReadinessReceipt(
       required_sync_outcome_domains_ready: syncOutcomeEvidence.requiredReady,
       sync_outcome_missing_required_domains:
         syncOutcomeEvidence.missingRequiredCount,
+      sync_outcome_failed_required_domains:
+        syncOutcomeEvidence.failedRequiredCount,
+      sync_outcome_uncleared_required_domains:
+        syncOutcomeEvidence.unclearedRequiredCount,
       sync_outcome_stale_required_domains:
         syncOutcomeEvidence.staleRequiredCount,
       sync_outcome_missing_optional_domains:
         syncOutcomeEvidence.missingOptionalCount,
+      sync_outcome_failed_optional_domains:
+        syncOutcomeEvidence.failedOptionalCount,
+      sync_outcome_uncleared_optional_domains:
+        syncOutcomeEvidence.unclearedOptionalCount,
       sync_outcome_stale_optional_domains:
         syncOutcomeEvidence.staleOptionalCount,
       oldest_sync_outcome_at: syncOutcomeEvidence.oldestOutcomeAt,
@@ -552,8 +584,14 @@ function buildSyncOutcomeEvidence(input: {
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
   fileSyncEnabled: boolean;
+  pageLastOutcomeStatus: PageLastSyncOutcome["status"] | null;
+  pageLastOutcomePendingAfter: number | null;
   pageLastOutcomeAt: string | null;
+  databaseLastOutcomeStatus: DatabaseLastSyncOutcome["status"] | null;
+  databaseLastOutcomePendingAfter: number | null;
   databaseLastOutcomeAt: string | null;
+  fileLastOutcomeStatus: FileLastSyncOutcome["status"] | null;
+  fileLastOutcomePendingAfter: number | null;
   fileLastOutcomeAt: string | null;
   generatedAt: string;
 }): SyncOutcomeEvidenceSummary {
@@ -563,26 +601,60 @@ function buildSyncOutcomeEvidence(input: {
       enabled: input.pageSyncEnabled,
       required: true,
       outcomeAt: input.pageLastOutcomeAt,
+      outcomeStatus: input.pageLastOutcomeStatus,
+      pendingAfter: input.pageLastOutcomePendingAfter,
     },
     {
       id: "database",
       enabled: input.databaseSyncEnabled,
       required: true,
       outcomeAt: input.databaseLastOutcomeAt,
+      outcomeStatus: input.databaseLastOutcomeStatus,
+      pendingAfter: input.databaseLastOutcomePendingAfter,
     },
     {
       id: "file",
       enabled: input.fileSyncEnabled,
       required: false,
       outcomeAt: input.fileLastOutcomeAt,
+      outcomeStatus: input.fileLastOutcomeStatus,
+      pendingAfter: input.fileLastOutcomePendingAfter,
     },
   ];
   const enabledDomains = domains.filter((domain) => domain.enabled);
   const missingRequiredCount = enabledDomains.filter(
     (domain) => domain.required && !domain.outcomeAt
   ).length;
+  const failedRequiredCount = enabledDomains.filter(
+    (domain) =>
+      domain.required &&
+      Boolean(domain.outcomeAt) &&
+      domain.outcomeStatus !== "ok"
+  ).length;
+  const unclearedRequiredCount = enabledDomains.filter(
+    (domain) =>
+      domain.required &&
+      Boolean(domain.outcomeAt) &&
+      domain.outcomeStatus === "ok" &&
+      typeof domain.pendingAfter === "number" &&
+      domain.pendingAfter > 0
+  ).length;
   const missingOptionalCount = enabledDomains.filter(
     (domain) => !domain.required && !domain.outcomeAt
+  ).length;
+  const failedOptionalCount = enabledDomains.filter(
+    (domain) =>
+      !domain.required &&
+      Boolean(domain.outcomeAt) &&
+      domain.outcomeStatus !== "ok"
+  ).length;
+  const unclearedOptionalCount = enabledDomains.filter(
+    (domain) =>
+      !domain.required &&
+      Boolean(domain.outcomeAt) &&
+      domain.outcomeStatus === "ok" &&
+      typeof domain.pendingAfter === "number" &&
+      domain.pendingAfter > 0
   ).length;
   const staleRequiredCount = enabledDomains.filter((domain) => {
     if (!domain.required || !domain.outcomeAt) return false;
@@ -595,7 +667,10 @@ function buildSyncOutcomeEvidence(input: {
     return ageMs !== null && ageMs >= HANDOFF_OUTCOME_STALE_MS;
   }).length;
   const requiredReady =
-    missingRequiredCount === 0 && staleRequiredCount === 0;
+    missingRequiredCount === 0 &&
+    failedRequiredCount === 0 &&
+    unclearedRequiredCount === 0 &&
+    staleRequiredCount === 0;
   const oldestOutcomeAt = getOldestTimestamp(
     enabledDomains.map((domain) => domain.outcomeAt)
   );
@@ -606,9 +681,16 @@ function buildSyncOutcomeEvidence(input: {
   const status: SyncOutcomeEvidenceStatus =
     missingRequiredCount > 0
       ? "missing-required"
+      : failedRequiredCount > 0
+        ? "failed-required"
+        : unclearedRequiredCount > 0
+          ? "uncleared-required"
       : staleRequiredCount > 0
         ? "stale-required"
-        : missingOptionalCount > 0 || staleOptionalCount > 0
+        : missingOptionalCount > 0 ||
+            failedOptionalCount > 0 ||
+            unclearedOptionalCount > 0 ||
+            staleOptionalCount > 0
           ? "warning"
           : "fresh";
 
@@ -616,8 +698,12 @@ function buildSyncOutcomeEvidence(input: {
     status,
     requiredReady,
     missingRequiredCount,
+    failedRequiredCount,
+    unclearedRequiredCount,
     staleRequiredCount,
     missingOptionalCount,
+    failedOptionalCount,
+    unclearedOptionalCount,
     staleOptionalCount,
     oldestOutcomeAt,
     oldestOutcomeAgeMs,
@@ -709,19 +795,22 @@ function buildGates(input: {
       id: "recent-sync-outcome-evidence",
       title: "页面/数据库最近同步回执有效",
       status:
-        input.syncOutcomeEvidence.status === "missing-required" ||
-        input.syncOutcomeEvidence.status === "stale-required"
+        !input.syncOutcomeEvidence.requiredReady
           ? "block"
           : input.syncOutcomeEvidence.status === "warning"
             ? "warn"
             : "pass",
       evidence:
         input.syncOutcomeEvidence.status === "fresh"
-          ? `页面/数据库必需回执有效；最老回执 ${input.syncOutcomeEvidence.oldestOutcomeAgeLabel}。`
-          : input.syncOutcomeEvidence.status === "warning"
-            ? `页面/数据库必需回执有效，但文件回执缺失 ${input.syncOutcomeEvidence.missingOptionalCount} 个、过期 ${input.syncOutcomeEvidence.staleOptionalCount} 个。`
+            ? `页面/数据库必需回执有效；最老回执 ${input.syncOutcomeEvidence.oldestOutcomeAgeLabel}。`
+            : input.syncOutcomeEvidence.status === "warning"
+            ? `页面/数据库必需回执有效，但文件回执缺失 ${input.syncOutcomeEvidence.missingOptionalCount} 个、失败 ${input.syncOutcomeEvidence.failedOptionalCount} 个、未清 pending ${input.syncOutcomeEvidence.unclearedOptionalCount} 个、过期 ${input.syncOutcomeEvidence.staleOptionalCount} 个。`
             : input.syncOutcomeEvidence.status === "missing-required"
               ? `页面/数据库必需回执缺失 ${input.syncOutcomeEvidence.missingRequiredCount} 个；不能只凭空队列判断另一台设备已经能看到数据。`
+              : input.syncOutcomeEvidence.status === "failed-required"
+                ? `页面/数据库必需回执失败 ${input.syncOutcomeEvidence.failedRequiredCount} 个；失败回执不能证明云端已经可靠保存。`
+                : input.syncOutcomeEvidence.status === "uncleared-required"
+                  ? `页面/数据库必需回执仍有 pendingAfter 未清 ${input.syncOutcomeEvidence.unclearedRequiredCount} 个；不能把未清队列当作可换设备证据。`
               : `页面/数据库必需回执过期 ${input.syncOutcomeEvidence.staleRequiredCount} 个；最老回执 ${input.syncOutcomeEvidence.oldestOutcomeAgeLabel}。`,
       next_action: input.syncOutcomeEvidence.requiredReady
         ? input.syncOutcomeEvidence.status === "warning"
