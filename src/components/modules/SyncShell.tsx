@@ -23673,6 +23673,9 @@ function TwoDeviceSyncSmokeRunbookPanel({
       data-two-device-sync-claim-passed={String(
         runbook.ready_to_claim_two_device_sync_passed
       )}
+      data-two-device-sync-domain-coverage-complete={String(
+        runbook.summary.sync_domain_coverage_complete
+      )}
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -23701,7 +23704,7 @@ function TwoDeviceSyncSmokeRunbookPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
         <CacheRebuildFact
           label="可开始"
           value={runbook.ready_to_run_real_smoke_now ? "可以" : "等待"}
@@ -23726,6 +23729,13 @@ function TwoDeviceSyncSmokeRunbookPanel({
           label="账号退避"
           value={runbook.summary.auth_retry_active ? "有" : "无"}
           detail="不等于登出"
+        />
+        <CacheRebuildFact
+          label="覆盖"
+          value={
+            runbook.summary.sync_domain_coverage_complete ? "完整" : "缺口"
+          }
+          detail="同步域"
         />
         <CacheRebuildFact
           label="切设备"

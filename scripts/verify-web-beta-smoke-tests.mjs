@@ -3519,6 +3519,10 @@ function run() {
       "Two-device sync smoke runbook must not claim the real two-device smoke has passed without owner evidence.",
     ],
     [
+      "sync_domain_coverage_complete",
+      "Two-device sync smoke runbook must expose whether sync-domain coverage is complete before real two-device smoke starts.",
+    ],
+    [
       "reads_page_body_text: false",
       "Two-device sync smoke runbook must not read page body text.",
     ],
@@ -3537,6 +3541,10 @@ function run() {
     [
       "same-account-session",
       "Two-device sync smoke runbook must include the same-account session smoke step.",
+    ],
+    [
+      "sync-domain-coverage-check",
+      "Two-device sync smoke runbook must include a sync-domain coverage check before workflow samples.",
     ],
     [
       "page-note-sync",
@@ -3565,6 +3573,10 @@ function run() {
     [
       "Page、每日纪要、ZhiHui、数据库、文件元数据至少各跑一条测试样本",
       "Two-device sync smoke runbook must state the required real workflow samples for the final owner receipt.",
+    ],
+    [
+      "sync-domain coverage complete",
+      "Two-device sync smoke runbook final receipt must require complete sync-domain coverage evidence.",
     ],
   ]) {
     assertIncludes(
@@ -3610,6 +3622,10 @@ function run() {
     [
       'data-testid="two-device-sync-smoke-runbook"',
       "Sync UI must expose a stable test id for the two-device sync smoke runbook.",
+    ],
+    [
+      "data-two-device-sync-domain-coverage-complete",
+      "Sync UI must expose two-device sync-domain coverage readiness.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);

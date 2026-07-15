@@ -6,6 +6,7 @@ export type TwoDeviceSyncSmokeStepStatus = "ready" | "wait" | "blocked";
 
 export type TwoDeviceSyncSmokeSurface =
   | "account"
+  | "sync"
   | "page"
   | "daily"
   | "zhihui"
@@ -55,6 +56,7 @@ export interface TwoDeviceSyncSmokeRunbook {
     failed_rows: number;
     manual_review_rows: number;
     auth_retry_active: boolean;
+    sync_domain_coverage_complete: boolean;
     can_keep_using_now: boolean;
     can_switch_devices_now: boolean;
   };
@@ -77,8 +79,17 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
   const authRetryActive = reliability.auth_retry_active;
   const canKeepUsing = input.gate.can_keep_using_now;
   const canSwitchDevices = input.gate.can_switch_devices_now;
+  const syncDomainCoverageGate = input.gate.gates.find(
+    (gate) => gate.id === "sync-domain-coverage"
+  );
+  const syncDomainCoverageComplete =
+    input.gate.summary.sync_domain_coverage_complete;
   const crossDeviceReady =
-    canSwitchDevices && !waitingForDrain && !failedOrManual && !authRetryActive;
+    canSwitchDevices &&
+    syncDomainCoverageComplete &&
+    !waitingForDrain &&
+    !failedOrManual &&
+    !authRetryActive;
 
   const steps: TwoDeviceSyncSmokeStep[] = [
     step({
@@ -97,6 +108,25 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
       blocker: authRetryActive
         ? input.reliability.summary.auth_retry_state_label
         : null,
+    }),
+    step({
+      id: "sync-domain-coverage-check",
+      surface: "sync",
+      title: "同步域覆盖检查",
+      status: syncDomainCoverageComplete ? "ready" : "blocked",
+      deviceA:
+        "设备 A 打开 /modules/sync，确认同步中心能看到页面、数据库、文件、设置、知识库附属和其他 sync_log 队列。",
+      deviceB:
+        "设备 B 打开 /modules/sync，确认同一账号下同步域覆盖状态一致，不只看页面/数据库两个队列。",
+      pass:
+        "同步域覆盖为 complete；没有被隐藏的 pending / failed / manual review 域。",
+      evidence:
+        "同步中心 coverage 截图或导出的 handoff receipt：coverageComplete=true。",
+      blocker:
+        syncDomainCoverageComplete
+          ? null
+          : syncDomainCoverageGate?.next_action ??
+            "同步域覆盖未完整；先补齐可见队列后再做真实两端 smoke。",
     }),
     step({
       id: "page-note-sync",
@@ -222,6 +252,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
   const blocked = steps.filter((item) => item.status === "blocked").length;
   const coreSurfacesReady =
     canKeepUsing &&
+    syncDomainCoverageComplete &&
     reliability.cloud_workspace_linked &&
     reliability.page_sync_enabled &&
     reliability.database_sync_enabled &&
@@ -258,6 +289,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
       failed_rows: reliability.failed_rows,
       manual_review_rows: reliability.manual_review_rows,
       auth_retry_active: reliability.auth_retry_active,
+      sync_domain_coverage_complete: syncDomainCoverageComplete,
       can_keep_using_now: canKeepUsing,
       can_switch_devices_now: canSwitchDevices,
     },
@@ -265,6 +297,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
     steps,
     final_owner_receipt_template: [
       "设备 A / 设备 B 使用同一账号和 workspace。",
+      "同步中心显示 sync-domain coverage complete，所有 pending / failed / manual review 域都可见。",
       "Page、每日纪要、ZhiHui、数据库、文件元数据至少各跑一条测试样本。",
       "测试结束时 pending=0、failed=0、manual review=0、auth retry=无。",
       "两端刷新后都能看到对方最后一次编辑。",
