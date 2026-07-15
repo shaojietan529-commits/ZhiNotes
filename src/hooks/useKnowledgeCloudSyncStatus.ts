@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import { isAccountSessionStorageKey } from "@/lib/account/clientSession";
 import { getPendingKnowledgeSyncLogEntries } from "@/lib/db/local/queries";
 import {
@@ -95,6 +96,7 @@ export function useKnowledgeCloudSyncStatus() {
     const handleVisible = () => {
       if (document.visibilityState === "visible") void refresh();
     };
+    const handleAccountProfileUpdated = () => void refresh();
     const handleStatus = (event: Event) => {
       const detail = (event as CustomEvent<KnowledgeCloudSyncStatus | undefined>)
         .detail;
@@ -115,6 +117,10 @@ export function useKnowledgeCloudSyncStatus() {
     };
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);
+    window.addEventListener(
+      ACCOUNT_PROFILE_UPDATED_EVENT,
+      handleAccountProfileUpdated
+    );
     window.addEventListener(KNOWLEDGE_SYNC_STATUS_EVENT, handleStatus);
     window.addEventListener("storage", handleStorage);
     document.addEventListener("visibilitychange", handleVisible);
@@ -123,6 +129,10 @@ export function useKnowledgeCloudSyncStatus() {
       window.clearInterval(interval);
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
+      window.removeEventListener(
+        ACCOUNT_PROFILE_UPDATED_EVENT,
+        handleAccountProfileUpdated
+      );
       window.removeEventListener(KNOWLEDGE_SYNC_STATUS_EVENT, handleStatus);
       window.removeEventListener("storage", handleStorage);
       document.removeEventListener("visibilitychange", handleVisible);

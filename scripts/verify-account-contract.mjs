@@ -4350,9 +4350,17 @@ check(
     ) &&
     settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_EVENT") &&
     settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
+    settingsCloudSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
+    settingsCloudSyncStatusHook.includes("handleAccountProfileUpdated") &&
     settingsCloudSyncStatusHook.includes("isAccountSessionStorageKey") &&
     settingsCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
     settingsCloudSyncStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
+    settingsCloudSyncStatusHook.includes(
+      "window.addEventListener(\n      ACCOUNT_PROFILE_UPDATED_EVENT"
+    ) &&
+    settingsCloudSyncStatusHook.includes(
+      "window.removeEventListener(\n        ACCOUNT_PROFILE_UPDATED_EVENT"
+    ) &&
     settingsCloudSyncStatusHook.includes("if (isAccountSessionStorageKey(event.key)) {") &&
     settingsCloudSyncStatusHook.includes("event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
     !settingsCloudSyncStatusHook.includes(
@@ -4384,9 +4392,17 @@ check(
     knowledgeCloudSyncStatusHook.includes("getPendingKnowledgeSyncLogEntries") &&
     knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
     knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
+    knowledgeCloudSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
+    knowledgeCloudSyncStatusHook.includes("handleAccountProfileUpdated") &&
     knowledgeCloudSyncStatusHook.includes("isAccountSessionStorageKey") &&
     knowledgeCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
     knowledgeCloudSyncStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
+    knowledgeCloudSyncStatusHook.includes(
+      "window.addEventListener(\n      ACCOUNT_PROFILE_UPDATED_EVENT"
+    ) &&
+    knowledgeCloudSyncStatusHook.includes(
+      "window.removeEventListener(\n        ACCOUNT_PROFILE_UPDATED_EVENT"
+    ) &&
     knowledgeCloudSyncStatusHook.includes("if (isAccountSessionStorageKey(event.key)) {") &&
     knowledgeCloudSyncStatusHook.includes("event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
     !knowledgeCloudSyncStatusHook.includes(

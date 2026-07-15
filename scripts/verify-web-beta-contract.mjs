@@ -6552,6 +6552,18 @@ function run() {
   assertSourceIncludes(
     files.settingsCloudSyncStatusHook,
     settingsCloudSyncStatusHook,
+    "ACCOUNT_PROFILE_UPDATED_EVENT",
+    "Settings cloud sync status hook must refresh on same-tab account profile updates."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "handleAccountProfileUpdated",
+    "Settings cloud sync status hook must keep a dedicated same-tab account update handler."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
     'window.addEventListener("storage", handleStorage)',
     "Settings cloud sync status hook must refresh when another tab changes settings sync metadata."
   );
@@ -6626,6 +6638,18 @@ function run() {
     knowledgeCloudSyncStatusHook,
     "isAccountSessionStorageKey",
     "Knowledge sync status hook must refresh promptly when account login/logout state changes."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "ACCOUNT_PROFILE_UPDATED_EVENT",
+    "Knowledge sync status hook must refresh on same-tab account profile updates."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "handleAccountProfileUpdated",
+    "Knowledge sync status hook must keep a dedicated same-tab account update handler."
   );
   assertSourceIncludes(
     files.knowledgeCloudSyncStatusHook,
