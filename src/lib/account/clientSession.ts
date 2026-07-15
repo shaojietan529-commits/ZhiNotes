@@ -8,10 +8,14 @@ const ACCOUNT_SESSION_UNCONFIGURED_STORAGE_KEY =
   "zhinote:account-session-unconfigured:v1";
 export const ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY =
   "zhinote:account-session-last-authenticated:v1";
+export const ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY =
+  "zhinote:account-session-explicit-logout:v1";
 const ACCOUNT_SESSION_REQUEST_TIMEOUT_MS = 8000;
 // Match the 90-day httpOnly session cookie so transient account API failures
 // do not make a valid long-lived login look signed out after one day.
 const ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const ACCOUNT_SESSION_EXPLICIT_LOGOUT_TTL_MS =
+  ACCOUNT_SESSION_LAST_AUTHENTICATED_TTL_MS;
 
 export type AccountSessionStatus =
   | "ok"
@@ -48,11 +52,14 @@ export function clearAccountSessionCache(
   clearAccountSessionRuntimeCache();
   if (options.clearLastAuthenticated) {
     clearStoredAuthenticatedAccount();
+    storeExplicitLogoutMarker(Date.now());
   }
 }
 
 export function getLastAuthenticatedAccount(): ClientAccountInfo | null {
-  return readStoredAuthenticatedAccount(Date.now());
+  const now = Date.now();
+  if (hasStoredExplicitLogoutMarker(now)) return null;
+  return readStoredAuthenticatedAccount(now);
 }
 
 export function rememberLastAuthenticatedAccount(
@@ -288,6 +295,9 @@ function withStoredAuthenticatedFallback(
   if (result.authenticated) {
     return result;
   }
+  if (hasStoredExplicitLogoutMarker(now)) {
+    return result;
+  }
   const canUseFallback =
     result.status === "error" ||
     result.status === "unconfigured" ||
@@ -328,6 +338,7 @@ function storeAuthenticatedAccount(
   now: number
 ): void {
   if (typeof window === "undefined") return;
+  clearStoredExplicitLogoutMarker();
   const payload = JSON.stringify({
     storedAt: now,
     account: {
@@ -420,5 +431,69 @@ function clearStoredAuthenticatedAccount(): void {
     );
   } catch {
     // Ignore storage failures; explicit server logout still clears the cookie.
+  }
+}
+
+function hasStoredExplicitLogoutMarker(now: number): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    readExplicitLogoutMarkerFromStorage(window.sessionStorage, now) ||
+    readExplicitLogoutMarkerFromStorage(window.localStorage, now)
+  );
+}
+
+function readExplicitLogoutMarkerFromStorage(
+  storage: Storage,
+  now: number
+): boolean {
+  try {
+    const raw = storage.getItem(ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { loggedOutAt?: unknown };
+    if (
+      typeof parsed.loggedOutAt !== "number" ||
+      now - parsed.loggedOutAt > ACCOUNT_SESSION_EXPLICIT_LOGOUT_TTL_MS
+    ) {
+      storage.removeItem(ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function storeExplicitLogoutMarker(now: number): void {
+  if (typeof window === "undefined") return;
+  const payload = JSON.stringify({ loggedOutAt: now });
+  try {
+    window.sessionStorage.setItem(
+      ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY,
+      payload
+    );
+  } catch {
+    // Logout is still enforced by clearing the httpOnly cookie server-side.
+  }
+  try {
+    window.localStorage.setItem(
+      ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY,
+      payload
+    );
+  } catch {
+    // Cross-tab logout signaling is best effort.
+  }
+}
+
+function clearStoredExplicitLogoutMarker(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY);
+  } catch {
+    // Optional marker cleanup; a confirmed server session will still win.
+  }
+  try {
+    window.localStorage.removeItem(ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY);
+  } catch {
+    // Optional marker cleanup; a confirmed server session will still win.
   }
 }

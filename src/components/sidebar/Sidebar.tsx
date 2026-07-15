@@ -38,6 +38,7 @@ import {
   formatClientAccountLabel,
 } from "@/lib/account/clientProfile";
 import {
+  ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY,
   ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
   fetchAccountSession,
   getLastAuthenticatedAccount,
@@ -1097,7 +1098,10 @@ export default function Sidebar() {
   useEffect(() => {
     void refreshAccountLabel();
     const handleAccountStorage = (event: StorageEvent) => {
-      if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
+      if (
+        event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||
+        event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY
+      ) {
         void refreshAccountLabel({
           force: true,
           preferStored: true,

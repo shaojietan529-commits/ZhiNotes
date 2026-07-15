@@ -376,6 +376,7 @@ check(
     accountClientSession.includes("clearAccountSessionRuntimeCache") &&
     accountClientSession.includes("clearLastAuthenticated") &&
     accountClientSession.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    accountClientSession.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
     accountClientSession.includes("getLastAuthenticatedAccount") &&
     accountClientSession.includes("rememberLastAuthenticatedAccount") &&
     accountClientSession.includes("withStoredAuthenticatedFallback") &&
@@ -390,6 +391,9 @@ check(
     accountClientSession.includes("confirmedSignedOut?: boolean") &&
     accountClientSession.includes("confirmedSignedOut: true") &&
     accountClientSession.includes("clearStoredAuthenticatedAccount") &&
+    accountClientSession.includes("storeExplicitLogoutMarker") &&
+    accountClientSession.includes("clearStoredExplicitLogoutMarker") &&
+    accountClientSession.includes("hasStoredExplicitLogoutMarker") &&
     accountClientSession.includes("ACCOUNT_SESSION_REQUEST_TIMEOUT_MS = 8000") &&
     accountClientSession.includes("async function fetchAccountSessionStatus") &&
     accountClientSession.includes("const controller = new AbortController();") &&
@@ -404,6 +408,17 @@ check(
     accountClientSession.includes("getStoredAuthenticatedFallbackReason") &&
     accountClientSession.includes("只有手动退出登录才会清除本机账号显示"),
   "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和跨标签页最近登录账号降级保护"
+);
+check(
+  accountClientSession.includes("storeExplicitLogoutMarker(Date.now())") &&
+    accountClientSession.includes("clearStoredExplicitLogoutMarker();") &&
+    accountClientSession.includes("if (hasStoredExplicitLogoutMarker(now))") &&
+    accountClientSession.indexOf(
+      "if (hasStoredExplicitLogoutMarker(now))"
+    ) < accountClientSession.indexOf("const canUseFallback =") &&
+    accountClientSession.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_TTL_MS") &&
+    accountClientSession.includes("loggedOutAt"),
+  "账号最近登录兜底必须尊重显式退出：临时失败保留用户名，但主动退出后不能被本机缓存拉回"
 );
 check(
   accountClientSession.includes(
@@ -486,9 +501,13 @@ check(
 );
 check(
   shell.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    shell.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
     shell.includes("handleAccountSessionStorage") &&
     shell.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
+    ) &&
+    shell.includes(
+      "event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY"
     ) &&
     shell.includes('window.addEventListener("storage", handleAccountSessionStorage)') &&
     shell.includes(
@@ -2718,7 +2737,7 @@ check(
 check(
   pageRoute.includes("PageRouteLocalFirstLoadingShell") &&
     pageRouteLoading.includes("PageRouteLoadingShell") &&
-    pageRouteLoadingShell.includes("PageRouteLocalFirstLoadingShell") &&
+    pageRouteLoadingShell.includes("PageRouteSkeleton") &&
     pageRouteLocalFirstLoadingShell.includes("PageRouteSkeleton") &&
     pageShell.includes("PageRouteSkeleton") &&
     pageRouteLocalFirstLoadingShell.includes("readPageRouteHandoff") &&
@@ -4202,6 +4221,7 @@ check(
     sidebar.includes("账号资料已在其他标签页更新，正在确认云端状态") &&
     sidebar.includes("正在确认账号云端状态，已先显示最近用户名") &&
     sidebar.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    sidebar.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
     sidebar.includes("formatClientAccountLabel") &&
     sidebar.includes("getLastAuthenticatedAccount") &&
     sidebar.includes("getLastKnownAccountLabel") &&
@@ -4221,6 +4241,9 @@ check(
     sidebar.includes('document.visibilityState === "visible"') &&
     sidebar.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
+    ) &&
+    sidebar.includes(
+      "event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY"
     ) &&
     sidebar.includes('session.status === "ok"') &&
     sidebar.includes("const lastKnownLabel = getLastKnownAccountLabel()") &&
