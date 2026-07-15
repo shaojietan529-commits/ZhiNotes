@@ -10006,7 +10006,15 @@ function run() {
       "Sync cloud requests must invoke the shared cloud session refresh helper.",
     ],
     [
-      'headers.set("Authorization", `Bearer ${result.session.accessToken}`);',
+      'authorization !== `Bearer ${session.accessToken}`',
+      "Sync cloud requests must detect stale closure Authorization headers after another request refreshes the stored token.",
+    ],
+    [
+      "withCloudAuthorization(headers, session.accessToken)",
+      "Sync cloud requests must replace stale closure tokens with the latest locally stored access token.",
+    ],
+    [
+      "withCloudAuthorization(headers, result.session.accessToken)",
       "Sync cloud requests must replace stale Authorization headers after successful refresh.",
     ],
     [

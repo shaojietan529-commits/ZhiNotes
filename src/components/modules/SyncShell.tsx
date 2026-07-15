@@ -28708,12 +28708,17 @@ async function withFreshCloudAuthorization(
   const headers = new Headers(init?.headers);
   const authorization = headers.get("Authorization");
   const session = readCloudSession();
-  if (
-    !authorization ||
-    !session ||
-    authorization !== `Bearer ${session.accessToken}` ||
-    !isCloudSessionExpired(session)
-  ) {
+  if (!authorization || !session) {
+    return init;
+  }
+
+  if (!isCloudSessionExpired(session)) {
+    if (authorization !== `Bearer ${session.accessToken}`) {
+      return {
+        ...init,
+        headers: withCloudAuthorization(headers, session.accessToken),
+      };
+    }
     return init;
   }
 
@@ -28723,12 +28728,15 @@ async function withFreshCloudAuthorization(
       `云端 session 自动续期失败：${result.error}。本地数据和待上传队列已保留，请稍后重试或重新登录。`
     );
   }
-
-  headers.set("Authorization", `Bearer ${result.session.accessToken}`);
   return {
     ...init,
-    headers,
+    headers: withCloudAuthorization(headers, result.session.accessToken),
   };
+}
+
+function withCloudAuthorization(headers: Headers, accessToken: string): Headers {
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  return headers;
 }
 
 async function readCloudApiBody(response: Response) {
