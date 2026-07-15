@@ -2346,12 +2346,10 @@ check(
 );
 check(
   pageCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    pageCloudSyncHook.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
     pageCloudSyncHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
     pageCloudSyncHook.includes(
-      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
-    ) &&
-    pageCloudSyncHook.includes(
-      "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {"
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||\n        event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY"
     ) &&
     !pageCloudSyncHook.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue"
@@ -2535,12 +2533,10 @@ check(
 );
 check(
   databaseCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
+    databaseCloudSyncHook.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
     databaseCloudSyncHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
     databaseCloudSyncHook.includes(
-      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
-    ) &&
-    databaseCloudSyncHook.includes(
-      "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {"
+      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||\n        event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY"
     ) &&
     !databaseCloudSyncHook.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue"

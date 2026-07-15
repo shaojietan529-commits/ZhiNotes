@@ -10000,8 +10000,14 @@ function run() {
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
-    "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
-    "Page cloud sync must wake for cross-tab account fallback removal as well as writes."
+    "ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
+    "Page cloud sync must import the explicit logout marker so cross-tab logout wakes sync immediately."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||\n        event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
+    "Page cloud sync must wake for cross-tab account fallback writes and explicit logout markers."
   );
   assertExcludes(
     files.pageCloudSync,
@@ -10168,8 +10174,14 @@ function run() {
   assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
-    "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
-    "Database cloud sync must wake for cross-tab account fallback removal as well as writes."
+    "ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
+    "Database cloud sync must import the explicit logout marker so cross-tab logout wakes sync immediately."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||\n        event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
+    "Database cloud sync must wake for cross-tab account fallback writes and explicit logout markers."
   );
   assertExcludes(
     files.databaseCloudSync,

@@ -13,7 +13,10 @@ import {
   type AccountCloudSyncGateStatus,
 } from "@/lib/account/accountCloudSyncGate";
 import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
-import { ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY } from "@/lib/account/clientSession";
+import {
+  ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY,
+  ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+} from "@/lib/account/clientSession";
 import {
   getLocalCacheRecoverySignal,
   LOCAL_CACHE_RECOVERY_EVENT,
@@ -477,7 +480,10 @@ export function usePageCloudSync() {
     };
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
-      if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
+      if (
+        event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||
+        event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY
+      ) {
         void runSync({
           quick: true,
           forceLease: true,
