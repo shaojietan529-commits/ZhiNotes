@@ -977,6 +977,33 @@ check(
     databaseSyncClient.includes("数据库同步请求超时；本地输入已保留，会稍后重试。"),
   "数据库同步底层 fetch 必须实时 no-store 且可超时取消；超时只能进入可重试错误并明确本地输入已保留"
 );
+const databaseMetadataDeltaAuthRecoveryBody = databaseSyncClient.slice(
+  databaseSyncClient.indexOf("export async function syncCloudDatabaseMetadataDelta"),
+  databaseSyncClient.indexOf("function shouldBackOffAuthRetry")
+);
+check(
+  databaseMetadataDeltaAuthRecoveryBody.includes(
+    "const forcedAuthRetryRecovery ="
+  ) &&
+    databaseMetadataDeltaAuthRecoveryBody.includes(
+      "recoverAuthRetryForForcedDatabaseMetadataSync"
+    ) &&
+    databaseMetadataDeltaAuthRecoveryBody.includes("Boolean(options.force)") &&
+    databaseMetadataDeltaAuthRecoveryBody.includes(
+      "if (forcedAuthRetryRecovery) return forcedAuthRetryRecovery"
+    ) &&
+    databaseMetadataDeltaAuthRecoveryBody.indexOf(
+      "const forcedAuthRetryRecovery ="
+    ) < databaseMetadataDeltaAuthRecoveryBody.indexOf("if (shouldBackOffAuthRetry())") &&
+    databaseSyncClient.includes("recoverAuthRetryForForcedDatabaseMetadataSync") &&
+    databaseSyncClient.includes("checkAccountCloudSyncGate({ force: true })") &&
+    databaseSyncClient.includes('accountGate.status === "ready"') &&
+    databaseSyncClient.includes('rememberAuthRetryStatus("ok")') &&
+    databaseSyncClient.includes(
+      "getAccountGateDatabaseSyncMessage(accountGate.status)"
+    ),
+  "数据库云端 metadata 强制恢复必须先重新确认账号并清理旧 auth retry，避免新设备登录后仍被旧退避挡住数据库目录"
+);
 const coreManifestCompareReceipt = read(
   "src/lib/sync/coreManifestCompareReceipt.ts"
 );

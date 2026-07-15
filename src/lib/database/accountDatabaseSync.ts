@@ -1053,6 +1053,11 @@ export async function syncCloudDatabaseMetadataDelta(
       fullRefresh: false,
     };
   }
+  const forcedAuthRetryRecovery =
+    await recoverAuthRetryForForcedDatabaseMetadataSync(
+      Boolean(options.force)
+    );
+  if (forcedAuthRetryRecovery) return forcedAuthRetryRecovery;
   if (shouldBackOffAuthRetry()) {
     return {
       status: authRetryStatus ?? "unauthenticated",
@@ -1150,6 +1155,27 @@ async function runCloudDatabaseMetadataDelta(
     fullRefresh: true,
     cacheWriteFailed: metadata.cacheWriteFailed,
     message: metadata.message,
+  };
+}
+
+async function recoverAuthRetryForForcedDatabaseMetadataSync(
+  force: boolean
+): Promise<CloudDatabaseMetadataDeltaResult | null> {
+  if (!force || !shouldBackOffAuthRetry()) return null;
+  const accountGate = await checkAccountCloudSyncGate({ force: true });
+  if (accountGate.status === "ready") {
+    rememberAuthRetryStatus("ok");
+    return null;
+  }
+  const status = getAuthRetryStatusFromAccountGate(accountGate.status);
+  rememberAuthRetryStatus(status);
+  return {
+    status,
+    pulled: 0,
+    total: 0,
+    records: [],
+    fullRefresh: false,
+    message: getAccountGateDatabaseSyncMessage(accountGate.status),
   };
 }
 

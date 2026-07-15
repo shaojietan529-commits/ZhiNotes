@@ -15672,6 +15672,24 @@ function run() {
     "Forced page metadata recovery must short-circuit with a visible retry state when the account still cannot be confirmed."
   );
   assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "recoverAuthRetryForForcedDatabaseMetadataSync",
+    "Forced database metadata recovery must be able to clear stale auth retry after the account is confirmed."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "checkAccountCloudSyncGate({ force: true })",
+    "Forced database metadata recovery must recheck the account instead of waiting for an old auth retry backoff."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "if (forcedAuthRetryRecovery) return forcedAuthRetryRecovery",
+    "Forced database metadata recovery must short-circuit with a visible retry state when the account still cannot be confirmed."
+  );
+  assertIncludes(
     files.accountPageSync,
     accountPageSync,
     "shouldRecoverPageMetadataCoverageBeforeIncrementalPull",
