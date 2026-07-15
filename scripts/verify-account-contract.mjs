@@ -3203,8 +3203,10 @@ check(
     pageSaveAuthRetryIndex > pageSaveLocalOnlyIndex &&
     pageCloudSaveStatus.includes(
       "当前云端暂不可确认，会稍后自动重试，不会因此登出"
-    ),
-  "PageCloudSaveStatus 必须优先显示当前页/全局 pending、failed、manual review；同步关闭和 auth retry 只能作为队列清空后的状态，避免盖住待处理数据"
+    ) &&
+    pageCloudSaveStatus.includes("formatAuthRetryDetail") &&
+    pageCloudSaveStatus.includes("下次自动重试约"),
+  "PageCloudSaveStatus 必须优先显示当前页/全局 pending、failed、manual review；同步关闭和 auth retry 只能作为队列清空后的状态，并且必须显示具体原因和重试时间，避免盖住待处理数据或误导用户以为账号掉线"
 );
 
 const useVersionsHook = read("src/hooks/useVersions.ts");

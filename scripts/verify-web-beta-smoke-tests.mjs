@@ -11893,6 +11893,18 @@ function run() {
       "Page save status auth-retry copy must describe temporary cloud uncertainty instead of implying the account was logged out.",
     ],
     [
+      "formatAuthRetryDetail",
+      "Page save status auth-retry copy must include a concrete reason and retry hint.",
+    ],
+    [
+      "账号待重新确认",
+      "Page save status auth-retry copy must distinguish true account recheck from generic cloud delay.",
+    ],
+    [
+      "下次自动重试约",
+      "Page save status auth-retry copy must show the next retry time when available.",
+    ],
+    [
       "reads page body text",
       "Page save status privacy boundary must mention page body access is excluded.",
     ],

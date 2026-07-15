@@ -165,12 +165,16 @@ export function buildPageCloudSaveStatus(
   }
 
   if (input.status.authRetryStatus) {
+    const authRetryDetail = formatAuthRetryDetail(
+      input.status.authRetryStatus,
+      input.status.authRetryUntil
+    );
     return view({
       ...base,
       id: "offline-buffer",
       label: "本地缓冲",
       title:
-        "页面已在本机保存；当前云端暂不可确认，会稍后自动重试，不会因此登出。",
+        `页面已在本机保存；当前云端暂不可确认，会稍后自动重试，不会因此登出。${authRetryDetail}`,
       tone: "warning",
       blocksCacheRebuild: true,
     });
@@ -239,4 +243,25 @@ function formatSyncTime(value: string | null) {
     }),
     longLabel: date.toLocaleString("zh-CN"),
   };
+}
+
+function formatAuthRetryDetail(
+  status: PendingCloudPageSyncStatus["authRetryStatus"],
+  until: string | null
+) {
+  if (!status) return "";
+  const statusLabel = formatAuthRetryStatus(status);
+  const retryAt = formatSyncTime(until);
+  const retryLabel = retryAt ? `下次自动重试约 ${retryAt.shortLabel}` : null;
+  return ` 原因：${[statusLabel, retryLabel].filter(Boolean).join("；")}。`;
+}
+
+function formatAuthRetryStatus(
+  status: PendingCloudPageSyncStatus["authRetryStatus"]
+) {
+  if (status === "unauthenticated") return "账号待重新确认";
+  if (status === "unconfigured") return "云同步暂未配置";
+  if (status === "unconfirmed") return "账号状态暂未确认";
+  if (status === "error") return "云端或网络暂不可确认";
+  return "云端暂不可确认";
 }
