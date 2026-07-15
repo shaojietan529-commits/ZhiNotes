@@ -175,6 +175,7 @@ const DAILY_PEEK_EDITOR_WARMUP_DELAY_MS = 1400;
 const DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 1800;
 // Keep create fallbacks short so calendar + never feels inert on heavy imports.
 const DAILY_PEEK_CREATE_READY_RETRY_MS = 450;
+const DAILY_CREATE_ACTIVATION_DEDUPE_MS = 800;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120;
@@ -345,6 +346,10 @@ export default function DailyNotesShell() {
     null
   );
   const openingDraftRef = useRef<OpeningDailyDraft | null>(null);
+  const dailyCreateActivationRef = useRef<{
+    dateKey: string;
+    startedAt: number;
+  } | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
     x: number;
@@ -2045,6 +2050,35 @@ export default function DailyNotesShell() {
     ]
   );
 
+  const claimDailyCreateActivation = useCallback((dateKey: string) => {
+    if (creatingDateKeyRef.current) return false;
+    const now = getLocalPerformanceNow();
+    const current = dailyCreateActivationRef.current;
+    if (
+      current?.dateKey === dateKey &&
+      now - current.startedAt < DAILY_CREATE_ACTIVATION_DEDUPE_MS
+    ) {
+      return false;
+    }
+    dailyCreateActivationRef.current = { dateKey, startedAt: now };
+    return true;
+  }, []);
+
+  const runDailyCreateActivation = useCallback(
+    (dateKey: string) => {
+      if (!claimDailyCreateActivation(dateKey)) return;
+      warmDailyCreateOpenPath();
+      hydrateDailyDateKey(dateKey);
+      void addNote(dateKey);
+    },
+    [
+      addNote,
+      claimDailyCreateActivation,
+      hydrateDailyDateKey,
+      warmDailyCreateOpenPath,
+    ]
+  );
+
   const activateDailyCreate = useCallback(
     (
       event: MouseEvent<HTMLButtonElement> | PointerEvent<HTMLButtonElement>,
@@ -2052,10 +2086,9 @@ export default function DailyNotesShell() {
     ) => {
       if (creatingDateKeyRef.current) return;
       event.preventDefault();
-      hydrateDailyDateKey(dateKey);
-      void addNote(dateKey);
+      runDailyCreateActivation(dateKey);
     },
-    [addNote, hydrateDailyDateKey]
+    [runDailyCreateActivation]
   );
 
   const addNoteOnMouseDown = useCallback(
@@ -2072,6 +2105,13 @@ export default function DailyNotesShell() {
       activateDailyCreate(event, dateKey);
     },
     [activateDailyCreate]
+  );
+
+  const addNoteOnClick = useCallback(
+    (dateKey: string) => {
+      runDailyCreateActivation(dateKey);
+    },
+    [runDailyCreateActivation]
   );
 
   const primeDailyNoteOpen = useCallback(
@@ -2540,7 +2580,7 @@ export default function DailyNotesShell() {
                 onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}
                 onMouseDown={(event) => addNoteOnMouseDown(event, todayKey)}
                 onFocus={warmDailyCreateOpenPath}
-                onClick={() => void addNote(todayKey)}
+                onClick={() => addNoteOnClick(todayKey)}
                 className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
                 title={getDailyCreateButtonTitle(
                   todayKey,
@@ -2708,7 +2748,7 @@ export default function DailyNotesShell() {
                       onPointerDown={(event) => addNoteOnPointerDown(event, key)}
                       onMouseDown={(event) => addNoteOnMouseDown(event, key)}
                       onFocus={warmDailyCreateOpenPath}
-                      onClick={() => void addNote(key)}
+                      onClick={() => addNoteOnClick(key)}
                       className="flex h-6 w-6 items-center justify-center rounded text-base text-zinc-400 opacity-50 transition-opacity hover:bg-zinc-200 hover:text-zinc-700 hover:opacity-100 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-60 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                       title={getDailyCreateButtonTitle(
                         key,

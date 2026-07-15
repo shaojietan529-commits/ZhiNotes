@@ -151,6 +151,7 @@ const MEETING_PEEK_EDITOR_WARMUP_DELAY_MS = 1600;
 const MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2000;
 // Keep create fallbacks short so calendar + never feels inert on heavy imports.
 const MEETING_PEEK_CREATE_READY_RETRY_MS = 450;
+const MEETING_CREATE_ACTIVATION_DEDUPE_MS = 800;
 const MEETING_INTAKE_TIMEOUT_MS = 8000;
 const MEETING_AGENT_QUEUE_TIMEOUT_MS = 12000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
@@ -457,6 +458,10 @@ export default function MeetingScheduleShell() {
     string | null
   >(null);
   const creatingMeetingDateKeyRef = useRef<string | null>(null);
+  const meetingCreateActivationRef = useRef<{
+    dateKey: string;
+    startedAt: number;
+  } | null>(null);
   const [openingDraft, setOpeningDraft] =
     useState<OpeningMeetingDraft | null>(null);
   const openingDraftRef = useRef<OpeningMeetingDraft | null>(null);
@@ -2987,16 +2992,43 @@ export default function MeetingScheduleShell() {
     ]
   );
 
+  const claimMeetingCreateActivation = useCallback((dateKey: string) => {
+    if (creatingMeetingDateKeyRef.current !== null) return false;
+    const now = getLocalPerformanceNow();
+    const current = meetingCreateActivationRef.current;
+    if (
+      current?.dateKey === dateKey &&
+      now - current.startedAt < MEETING_CREATE_ACTIVATION_DEDUPE_MS
+    ) {
+      return false;
+    }
+    meetingCreateActivationRef.current = { dateKey, startedAt: now };
+    return true;
+  }, []);
+
+  const runMeetingCreateActivation = useCallback(
+    (dateKey: string) => {
+      if (!claimMeetingCreateActivation(dateKey)) return;
+      warmMeetingPeekOpen();
+      hydrateMeetingDateKey(dateKey);
+      quickCreateMeetingForDate(dateKey);
+    },
+    [
+      claimMeetingCreateActivation,
+      hydrateMeetingDateKey,
+      quickCreateMeetingForDate,
+      warmMeetingPeekOpen,
+    ]
+  );
+
   const addMeetingOnMouseDown = useCallback(
     (event: MouseEvent<HTMLButtonElement>, dateKey: string) => {
       if (event.button !== 0) return;
       if (creatingMeetingDateKeyRef.current !== null) return;
       event.preventDefault();
-      warmMeetingPeekOpen();
-      hydrateMeetingDateKey(dateKey);
-      quickCreateMeetingForDate(dateKey);
+      runMeetingCreateActivation(dateKey);
     },
-    [hydrateMeetingDateKey, quickCreateMeetingForDate, warmMeetingPeekOpen]
+    [runMeetingCreateActivation]
   );
 
   const addMeetingOnPointerDown = useCallback(
@@ -3004,11 +3036,16 @@ export default function MeetingScheduleShell() {
       if (event.pointerType === "mouse" && event.button !== 0) return;
       if (creatingMeetingDateKeyRef.current !== null) return;
       event.preventDefault();
-      warmMeetingPeekOpen();
-      hydrateMeetingDateKey(dateKey);
-      quickCreateMeetingForDate(dateKey);
+      runMeetingCreateActivation(dateKey);
     },
-    [hydrateMeetingDateKey, quickCreateMeetingForDate, warmMeetingPeekOpen]
+    [runMeetingCreateActivation]
+  );
+
+  const addMeetingOnClick = useCallback(
+    (dateKey: string) => {
+      runMeetingCreateActivation(dateKey);
+    },
+    [runMeetingCreateActivation]
   );
   const meetingCalendarEmptyLoadHint =
     meetings.length === 0 &&
@@ -3611,7 +3648,7 @@ export default function MeetingScheduleShell() {
                       onPointerDown={(event) => addMeetingOnPointerDown(event, key)}
                       onMouseDown={(event) => addMeetingOnMouseDown(event, key)}
                       onFocus={warmMeetingPeekOpen}
-                      onClick={() => void quickCreateMeetingForDate(key)}
+                      onClick={() => addMeetingOnClick(key)}
                       className="text-zinc-300 opacity-50 transition-opacity hover:text-zinc-600 hover:opacity-100 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-60 group-hover:opacity-100 dark:hover:text-zinc-200"
                       title="在这天加会议"
                     >

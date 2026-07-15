@@ -1257,8 +1257,15 @@ check(
     shells.daily.includes("warmDailyPeekOpen();") &&
     shells.daily.includes("onPointerEnter={warmDailyCreateOpenPath}") &&
     shells.daily.includes("const addNoteOnPointerDown = useCallback") &&
+    shells.daily.includes("DAILY_CREATE_ACTIVATION_DEDUPE_MS") &&
+    shells.daily.includes("const claimDailyCreateActivation = useCallback") &&
+    shells.daily.includes("const runDailyCreateActivation = useCallback") &&
+    shells.daily.includes("const addNoteOnClick = useCallback") &&
     shells.daily.includes("onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}") &&
     shells.daily.includes("onPointerDown={(event) => addNoteOnPointerDown(event, key)}") &&
+    shells.daily.includes("onClick={() => addNoteOnClick(todayKey)}") &&
+    shells.daily.includes("onClick={() => addNoteOnClick(key)}") &&
+    !shells.daily.includes("onClick={() => void addNote(") &&
     shells.daily.includes("onFocus={warmDailyCreateOpenPath}") &&
     !shells.daily.includes("const warmPageRoute = useCallback(() => {\n    warmPagePeekModal();") &&
     !shells.daily.includes("@/components/page/PagePeekModal") &&
@@ -1525,8 +1532,14 @@ check(
     shells.schedule.includes("creatingMeetingDateKeyRef.current = dateKey") &&
     shells.schedule.includes("const addMeetingOnPointerDown = useCallback") &&
     shells.schedule.includes("const addMeetingOnMouseDown = useCallback") &&
+    shells.schedule.includes("MEETING_CREATE_ACTIVATION_DEDUPE_MS") &&
+    shells.schedule.includes("const claimMeetingCreateActivation = useCallback") &&
+    shells.schedule.includes("const runMeetingCreateActivation = useCallback") &&
+    shells.schedule.includes("const addMeetingOnClick = useCallback") &&
     shells.schedule.includes("onPointerDown={(event) => addMeetingOnPointerDown(event, key)}") &&
     shells.schedule.includes("onMouseDown={(event) => addMeetingOnMouseDown(event, key)}") &&
+    shells.schedule.includes("onClick={() => addMeetingOnClick(key)}") &&
+    !shells.schedule.includes("onClick={() => void quickCreateMeetingForDate(key)}") &&
     shells.schedule.includes("type MeetingCreateButtonState =") &&
     shells.schedule.includes("function getMeetingCreateButtonState(") &&
     shells.schedule.includes("data-create-state={newMeetingButtonState}") &&
