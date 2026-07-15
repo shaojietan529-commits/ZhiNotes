@@ -167,8 +167,12 @@ function run() {
       "Daily peek fallback must still trigger if the local shell clears opening state before the editor is ready.",
     ],
     [
-      "DAILY_PEEK_CREATE_READY_RETRY_MS",
+      "DAILY_PEEK_CREATE_READY_RETRY_MS = 450",
       "Daily peek-mode create fallback must be bounded so + never looks like a dead click.",
+    ],
+    [
+      "DAILY_FULL_PAGE_CREATE_NAVIGATION_RETRY_MS = 650",
+      "Daily full-page create navigation retry must stay fast enough that + never looks stuck.",
     ],
     [
       "每日纪要弹窗准备较慢，已自动打开完整页面。",
@@ -258,6 +262,10 @@ function run() {
     [
       "isPagePeekCreateShellStillPreparing(page.id)",
       "ZhiHui create fallback must still trigger if the local shell clears opening state before the editor is ready.",
+    ],
+    [
+      "MEETING_PEEK_CREATE_READY_RETRY_MS = 450",
+      "ZhiHui peek-mode create fallback must be bounded so + never looks like a dead click.",
     ],
     [
       "openCreatedMeetingPage(result.page)",
