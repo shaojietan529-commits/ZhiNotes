@@ -12013,6 +12013,24 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "const activateDailyCreate = useCallback",
+    "Daily + creation must consolidate pointer, mouse, and click activation into one guarded path."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'data-create-activation="single-entry"',
+    "Daily + controls must expose that create activation is consolidated for diagnostics."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "scheduleDailyCreateOpenWarmupAfterFeedback",
+    "Daily + creation must defer create-open warmup until after visible local draft feedback."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "getDailyCreateButtonState(",
     "Daily + controls must expose a structured create state so clicking + never looks idle while a local draft is opening."
   );
@@ -12137,7 +12155,10 @@ function run() {
     );
   }
   for (const snippet of [
-    "warmDailyCreateOpenPath();\n        setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
+    "setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });\n        rememberPendingPageDraft(optimisticNote);",
+    "scheduleDailyCreateOpenWarmupAfterFeedback();",
+    "const activateDailyCreate = useCallback",
+    'data-create-activation="single-entry"',
     "openingDraftRef.current = resolved;",
     "DEFAULT_DAILY_CREATE_OPEN_MODE",
     'data-testid="daily-create-open-mode"',
@@ -12174,12 +12195,12 @@ function run() {
     files.dailyNotesShell,
     dailyNotesShell,
     [
-      "warmDailyCreateOpenPath();",
       "setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
       "rememberPendingPageDraft(optimisticNote);",
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
       "upsertPages([optimisticNote]);",
       "void seedDailyNoteForImmediateOpen(optimisticNote);",
+      "scheduleDailyCreateOpenWarmupAfterFeedback();",
       "setPeekInitialPage(optimisticNote);",
       "setOpeningNoteId(optimisticNote.id);",
       "setPeekPageId(optimisticNote.id);",
@@ -12187,7 +12208,7 @@ function run() {
       "recordLocalPerformanceSnapshot({",
       "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
     ],
-    "Daily + creation must seed the draft, start local persistence without awaiting it, and still show the local peek/opening shell before hot-cache background work."
+    "Daily + creation must seed the draft and show the local peek/opening shell before warmup, hot-cache, or other background work."
   );
   assertOrderedSnippets(
     files.dailyNotesShell,

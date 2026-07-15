@@ -1577,8 +1577,11 @@ check(
       "const currentNotes = collectVisibleDailyNotesForHotCache(notesByDate);"
     ) &&
     dailyNotesShell.includes(
-      "warmDailyCreateOpenPath();\n        setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });"
+      "setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });\n        rememberPendingPageDraft(optimisticNote);"
     ) &&
+    dailyNotesShell.includes("scheduleDailyCreateOpenWarmupAfterFeedback") &&
+    dailyNotesShell.includes("const activateDailyCreate = useCallback") &&
+    dailyNotesShell.includes('data-create-activation="single-entry"') &&
     dailyNotesShell.indexOf("setPeekInitialPage(optimisticNote);") <
       dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id);") &&
     dailyNotesShell.indexOf("setPeekPageId(optimisticNote.id);") <
@@ -3092,6 +3095,9 @@ check(
     dailyNotesShell.indexOf('primeDailyNoteOpen(note, "daily-open");') <
       dailyNotesShell.indexOf("setOpeningNoteId(note.id);") &&
     dailyNotesShell.includes("const creatingDateKeyRef = useRef<string | null>(null)") &&
+    dailyNotesShell.includes("const activateDailyCreate = useCallback") &&
+    dailyNotesShell.includes('data-create-activation="single-entry"') &&
+    dailyNotesShell.includes("scheduleDailyCreateOpenWarmupAfterFeedback") &&
     dailyNotesShell.includes("const addNoteOnMouseDown = useCallback") &&
     dailyNotesShell.includes("const addNoteOnPointerDown = useCallback") &&
     dailyNotesShell.includes("onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}") &&

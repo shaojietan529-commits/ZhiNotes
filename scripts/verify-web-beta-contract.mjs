@@ -7190,6 +7190,18 @@ function run() {
       "Daily + creation must warm the selected open path so default full-page and explicit peek both feel immediate.",
     ],
     [
+      "const activateDailyCreate = useCallback",
+      "Daily + creation must consolidate pointer, mouse, and click activation into one guarded path.",
+    ],
+    [
+      'data-create-activation="single-entry"',
+      "Daily + controls must expose that create activation is consolidated for diagnostics.",
+    ],
+    [
+      "scheduleDailyCreateOpenWarmupAfterFeedback",
+      "Daily + creation must defer create-open warmup until after visible local draft feedback.",
+    ],
+    [
       "warmDailyPeekOpen();",
       "Daily calendar must warm the lazy peek modal on page-open intent while keeping first paint light.",
     ],
@@ -7218,8 +7230,8 @@ function run() {
       "Daily + creation must hand off the optimistic page before peek or full-page opening.",
     ],
     [
-      "warmDailyCreateOpenPath();\n        setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
-      "Daily + creation must warm the selected open path before setting the opening draft state.",
+      "setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });\n        rememberPendingPageDraft(optimisticNote);",
+      "Daily + creation must set the visible opening draft before later create-open warmup work.",
     ],
     [
       "openingDraftRef.current = resolved;",
@@ -8132,6 +8144,18 @@ function run() {
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "const activateDailyCreate = useCallback",
+    "Daily + creation must use one guarded activation path for pointer, mouse, and click."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    'data-create-activation="single-entry"',
+    "Daily + controls must mark the consolidated activation path for diagnostics."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "const addNoteOnMouseDown = useCallback",
     "Daily + creation must begin on mouse-down for immediate visible feedback."
   );
@@ -8223,12 +8247,12 @@ function run() {
     files.dailyNotesShell,
     dailyNotesShell,
     [
-      "warmDailyCreateOpenPath();",
       "setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
       "rememberPendingPageDraft(optimisticNote);",
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
       "upsertPages([optimisticNote]);",
       "void seedDailyNoteForImmediateOpen(optimisticNote);",
+      "scheduleDailyCreateOpenWarmupAfterFeedback();",
       "setPeekInitialPage(optimisticNote);",
       "setOpeningNoteId(optimisticNote.id);",
       "setPeekPageId(optimisticNote.id);",

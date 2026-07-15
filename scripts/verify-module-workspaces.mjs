@@ -1171,6 +1171,9 @@ for (const token of [
   "const addNoteOnPointerDown = useCallback",
   "onPointerDown={(event) => addNoteOnPointerDown(event, todayKey)}",
   "onPointerDown={(event) => addNoteOnPointerDown(event, key)}",
+  "const activateDailyCreate = useCallback",
+  'data-create-activation="single-entry"',
+  "scheduleDailyCreateOpenWarmupAfterFeedback",
   "onFocus={warmDailyCreateOpenPath}",
   "setPeekInitialPage(toDailyNoteSeed(seededNote, note));",
   'import("@/components/providers/PageShell")',
@@ -1211,6 +1214,8 @@ check(
     shells.daily.indexOf("upsertPages([optimisticNote])") <
       shells.daily.indexOf("void seedDailyNoteForImmediateOpen(optimisticNote);") &&
     shells.daily.indexOf("void seedDailyNoteForImmediateOpen(optimisticNote);") <
+      shells.daily.indexOf("scheduleDailyCreateOpenWarmupAfterFeedback();") &&
+    shells.daily.indexOf("scheduleDailyCreateOpenWarmupAfterFeedback();") <
       shells.daily.indexOf("setPeekInitialPage(optimisticNote)") &&
     shells.daily.indexOf("setPeekInitialPage(optimisticNote)") <
       shells.daily.indexOf("setPeekPageId(optimisticNote.id)") &&

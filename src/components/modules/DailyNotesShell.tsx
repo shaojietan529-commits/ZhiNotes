@@ -1734,6 +1734,13 @@ export default function DailyNotesShell() {
     [notesByDate, viewMonth]
   );
 
+  const scheduleDailyCreateOpenWarmupAfterFeedback = useCallback(() => {
+    void waitForDailyCreateFeedbackFrame().then(() => {
+      if (!mountedRef.current) return;
+      warmDailyCreateOpenPath();
+    });
+  }, [warmDailyCreateOpenPath]);
+
   useEffect(() => {
     const occupiedDateKeys = buildOccupiedDailyCalendarHydrationKeys(
       grid,
@@ -1833,7 +1840,6 @@ export default function DailyNotesShell() {
         releaseCreatingDate();
       };
       try {
-        warmDailyCreateOpenPath();
         setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });
         rememberPendingPageDraft(optimisticNote);
         rememberPageRouteHandoff(optimisticNote, "daily-create");
@@ -1843,6 +1849,7 @@ export default function DailyNotesShell() {
         ]);
         upsertPages([optimisticNote]);
         void seedDailyNoteForImmediateOpen(optimisticNote);
+        scheduleDailyCreateOpenWarmupAfterFeedback();
         if (dailyCreateOpenMode === "peek") {
           setPeekInitialPage(optimisticNote);
           setOpeningNoteId(optimisticNote.id);
@@ -1984,33 +1991,38 @@ export default function DailyNotesShell() {
       scheduleDailyCreatePeekReadyFallback,
       scheduleDailyCreateFullPageNavigationRetry,
       setOpeningDraftAndRef,
-      warmDailyCreateOpenPath,
       markDailyForegroundInteraction,
+      scheduleDailyCreateOpenWarmupAfterFeedback,
     ]
+  );
+
+  const activateDailyCreate = useCallback(
+    (
+      event: MouseEvent<HTMLButtonElement> | PointerEvent<HTMLButtonElement>,
+      dateKey: string
+    ) => {
+      if (creatingDateKeyRef.current) return;
+      event.preventDefault();
+      hydrateDailyDateKey(dateKey);
+      void addNote(dateKey);
+    },
+    [addNote, hydrateDailyDateKey]
   );
 
   const addNoteOnMouseDown = useCallback(
     (event: MouseEvent<HTMLButtonElement>, dateKey: string) => {
       if (event.button !== 0) return;
-      if (creatingDateKeyRef.current) return;
-      event.preventDefault();
-      warmDailyCreateOpenPath();
-      hydrateDailyDateKey(dateKey);
-      void addNote(dateKey);
+      activateDailyCreate(event, dateKey);
     },
-    [addNote, hydrateDailyDateKey, warmDailyCreateOpenPath]
+    [activateDailyCreate]
   );
 
   const addNoteOnPointerDown = useCallback(
     (event: PointerEvent<HTMLButtonElement>, dateKey: string) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      if (creatingDateKeyRef.current) return;
-      event.preventDefault();
-      warmDailyCreateOpenPath();
-      hydrateDailyDateKey(dateKey);
-      void addNote(dateKey);
+      activateDailyCreate(event, dateKey);
     },
-    [addNote, hydrateDailyDateKey, warmDailyCreateOpenPath]
+    [activateDailyCreate]
   );
 
   const primeDailyNoteOpen = useCallback(
@@ -2470,6 +2482,7 @@ export default function DailyNotesShell() {
                 }
                 data-create-state={todayCreateButtonState}
                 data-create-open-mode={dailyCreateOpenMode}
+                data-create-activation="single-entry"
                 data-local-draft-created={
                   todayCreateButtonState === "local-draft-opened"
                 }
@@ -2636,6 +2649,7 @@ export default function DailyNotesShell() {
                       data-testid={`daily-add-note-${key}`}
                       data-create-state={createButtonState}
                       data-create-open-mode={dailyCreateOpenMode}
+                      data-create-activation="single-entry"
                       data-local-draft-created={
                         createButtonState === "local-draft-opened"
                       }

@@ -131,6 +131,18 @@ function run() {
       "Daily calendar must show an immediate opening chip after + is clicked.",
     ],
     [
+      "const activateDailyCreate = useCallback",
+      "Daily + must use one activation path so pointer, mouse, and click paths cannot compete under load.",
+    ],
+    [
+      'data-create-activation="single-entry"',
+      "Daily + controls must mark that create activation is consolidated into one guarded entry path.",
+    ],
+    [
+      "scheduleDailyCreateOpenWarmupAfterFeedback",
+      "Daily + must defer create-open warmup until after visible local feedback is scheduled.",
+    ],
+    [
       "const setOpeningDraftAndRef = useCallback",
       "Daily create/open fallback must keep the visible draft state and synchronous retry ref aligned.",
     ],
@@ -170,16 +182,16 @@ function run() {
     files.dailyShell,
     dailyShell,
     [
-      "warmDailyCreateOpenPath();",
       "setOpeningDraftAndRef({ pageId: optimisticNote.id, dateKey });",
       "rememberPendingPageDraft(optimisticNote);",
       "rememberPageRouteHandoff(optimisticNote, \"daily-create\");",
       "setNotes((current) => [",
       "upsertPages([optimisticNote]);",
       "void seedDailyNoteForImmediateOpen(optimisticNote);",
+      "scheduleDailyCreateOpenWarmupAfterFeedback();",
       "scheduleDailyCreatePeekReadyFallback(optimisticNote, dateKey);",
     ],
-    "Daily + must publish local feedback, route handoff, and start non-blocking local persistence before background work."
+    "Daily + must publish local feedback and route handoff before warming or doing background work."
   );
   assertOrdered(
     files.dailyShell,
@@ -197,7 +209,7 @@ function run() {
       "recordLocalPerformanceSnapshot({",
       "revealDailyNoteOnCalendar(optimisticNote);",
       "scheduleOptimisticDailyHotCacheWrite(optimisticNote",
-      "scheduleDailyIdleTask(() => {\n        void (async () => {",
+      "scheduleDailyIdleTask(() => {\n        if (!mountedRef.current) return;\n        void (async () => {",
     ],
     "Daily create must defer hot-cache, root resolution, and sync queue persistence behind visible local feedback while local cache persistence starts non-blocking."
   );
