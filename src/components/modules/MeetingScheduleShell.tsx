@@ -512,6 +512,7 @@ export default function MeetingScheduleShell() {
   const highlightTimerRef = useRef<number | null>(null);
   const metadataWarmupScheduledRef = useRef(false);
   const loadRequestRef = useRef(0);
+  const mountedRef = useRef(false);
   const meetingsRef = useRef<Page[]>([]);
   const foregroundQuietUntilRef = useRef(0);
   const hotCacheBootstrapKeyRef = useRef("");
@@ -529,6 +530,14 @@ export default function MeetingScheduleShell() {
     () => metadataRecentLimitForHotCachePreferences(hotCachePreferences),
     [hotCachePreferences]
   );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      loadRequestRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     meetingsRef.current = meetings;
@@ -599,6 +608,7 @@ export default function MeetingScheduleShell() {
       phase: MeetingCalendarLoadPhase,
       input: Partial<Omit<MeetingCalendarLoadStatusState, "phase">> = {}
     ) => {
+      if (!mountedRef.current) return;
       setCalendarLoadStatus(
         createMeetingCalendarLoadStatus({
           phase,
@@ -959,6 +969,7 @@ export default function MeetingScheduleShell() {
   }, [dismissTrace]);
 
   const load = useCallback(async (opts?: MeetingCalendarLoadOptions) => {
+    if (!mountedRef.current) return;
     const includeCloud = opts?.includeCloud !== false;
     const interruptCloud = opts?.interruptCloud ?? includeCloud;
     const includeUnindexedFallback = opts?.includeUnindexedFallback ?? false;

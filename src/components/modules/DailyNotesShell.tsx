@@ -369,6 +369,7 @@ export default function DailyNotesShell() {
     () => new Set()
   );
   const loadRequestRef = useRef(0);
+  const mountedRef = useRef(false);
   const hotCacheBootstrapKeyRef = useRef("");
   const notesRenderFingerprintRef = useRef("");
   const notesRef = useRef<DailyNote[]>([]);
@@ -391,6 +392,14 @@ export default function DailyNotesShell() {
     () => metadataRecentLimitForHotCachePreferences(hotCachePreferences),
     [hotCachePreferences]
   );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      loadRequestRef.current += 1;
+    };
+  }, []);
 
   const markDailyForegroundInteraction = useCallback(
     (durationMs: number = DAILY_FOREGROUND_QUIET_WINDOW_MS) => {
@@ -764,6 +773,7 @@ export default function DailyNotesShell() {
   }, [dbReady]);
 
   const load = useCallback(async (opts?: DailyCalendarLoadOptions) => {
+    if (!mountedRef.current) return;
     const includeCloud = opts?.includeCloud !== false;
     const interruptCloud = opts?.interruptCloud ?? includeCloud;
     const preserveVisibleNotes =
@@ -778,7 +788,9 @@ export default function DailyNotesShell() {
     let firstVisibleMs: number | null = null;
     let firstVisibleCount = 0;
     let localNoteCount = 0;
-    if (!includeCloud && interruptCloud) setCloudLoading(false);
+    if (!includeCloud && interruptCloud && mountedRef.current) {
+      setCloudLoading(false);
+    }
     const visibleRange = buildMonthGrid(viewMonth);
     const startDate = toDateKey(visibleRange[0].date);
     const endDate = toDateKey(visibleRange[visibleRange.length - 1].date);
@@ -1205,6 +1217,7 @@ export default function DailyNotesShell() {
     }, fallbackIdleTimeout);
 
     if (includeCloud) {
+      if (!mountedRef.current || loadRequestRef.current !== requestId) return;
       setCloudLoading(true);
       publishCalendarStatus("cloud-checking", Array.from(byId.values()), {
         backgroundActive: true,

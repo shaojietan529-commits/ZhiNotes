@@ -1425,7 +1425,10 @@ check(
     dailyNotesShell.includes("preserveVisibleNotes?: boolean") &&
     dailyNotesShell.includes("const interruptCloud = opts?.interruptCloud ?? includeCloud") &&
     dailyNotesShell.includes("!interruptCloud && loadRequestRef.current > 0") &&
-    dailyNotesShell.includes("if (!includeCloud && interruptCloud) setCloudLoading(false)") &&
+    dailyNotesShell.includes("const mountedRef = useRef(false)") &&
+    dailyNotesShell.includes("mountedRef.current = false") &&
+    dailyNotesShell.includes("if (!mountedRef.current) return") &&
+    dailyNotesShell.includes("if (!includeCloud && interruptCloud && mountedRef.current)") &&
     dailyNotesShell.includes("seedVisibleDailyNotesForBackgroundRefresh(") &&
     dailyNotesShell.includes("function seedVisibleDailyNotesForBackgroundRefresh(") &&
     dailyNotesShell.includes("interruptCloud: false") &&
@@ -1490,7 +1493,7 @@ check(
     dailyNotesShell.indexOf("includeUnindexedFallback: true") <
       dailyNotesShell.indexOf("await ensureDailyDateIndexBackfilled()") &&
     !dailyNotesShell.includes("getAllPageMetadata"),
-  "DailyNotesShell 首屏应本地/缓存优先，recent metadata 窗口按热缓存偏好有界扩大；首屏只能走日期索引，未索引 Notion 导入 fallback 必须后台补齐"
+  "DailyNotesShell 首屏应本地/缓存优先，recent metadata 窗口按热缓存偏好有界扩大；首屏只能走日期索引，未索引 Notion 导入 fallback 必须后台补齐；页面卸载后后台加载不能继续写 UI"
 );
 check(
   dailyHotCacheSnapshot.includes("DAILY_HOT_CACHE_FRESH_MS = 24 * 60 * 60 * 1000") &&
@@ -1819,6 +1822,9 @@ check(
       "const interruptCloud = opts?.interruptCloud ?? includeCloud"
     ) &&
     meetingScheduleShell.includes("!interruptCloud && loadRequestRef.current > 0") &&
+    meetingScheduleShell.includes("const mountedRef = useRef(false)") &&
+    meetingScheduleShell.includes("mountedRef.current = false") &&
+    meetingScheduleShell.includes("if (!mountedRef.current) return") &&
     meetingScheduleShell.includes("interruptCloud: false") &&
     meetingScheduleShell.includes("preserveVisibleMeetings: true") &&
     meetingScheduleShell.includes("await load({\n        includeCloud: false,") &&
@@ -1883,7 +1889,7 @@ check(
     !meetingScheduleShell.includes("await load();") &&
     !meetingScheduleShell.includes("void load().catch(() => undefined);") &&
     !meetingScheduleShell.includes("}, [dbReady, load, pageRevision]);"),
-  "MeetingScheduleShell 新导入和本地 revision 刷新应保留乐观结果，并只做本地 metadata 刷新；会议保存必须加入统一云端上传队列，前台打开窗口内刷新应后移，不能在后台直接等待云端 push"
+  "MeetingScheduleShell 新导入和本地 revision 刷新应保留乐观结果，并只做本地 metadata 刷新；会议保存必须加入统一云端上传队列，前台打开窗口内刷新应后移，不能在后台直接等待云端 push；页面卸载后后台加载不能继续写 UI"
 );
 check(
   meetingScheduleShell.includes('router.prefetch("/page/zhinote-route-prefetch")') &&

@@ -6503,6 +6503,18 @@ function run() {
       "Daily notes non-interrupting refreshes must reuse the current load generation.",
     ],
     [
+      "const mountedRef = useRef(false)",
+      "Daily notes must track mounted state for background load guards.",
+    ],
+    [
+      "mountedRef.current = false",
+      "Daily notes must mark the route unmounted during cleanup.",
+    ],
+    [
+      "if (!mountedRef.current) return",
+      "Daily notes background loads must stop before writing UI after unmount.",
+    ],
+    [
       "seedVisibleDailyNotesForBackgroundRefresh(",
       "Daily notes background refreshes must retain currently visible notes while local indexes catch up.",
     ],
@@ -7594,6 +7606,18 @@ function run() {
     [
       "!interruptCloud && loadRequestRef.current > 0",
       "Meeting schedule non-interrupting local refreshes must reuse the active request id.",
+    ],
+    [
+      "const mountedRef = useRef(false)",
+      "Meeting schedule must track mounted state for background load guards.",
+    ],
+    [
+      "mountedRef.current = false",
+      "Meeting schedule must mark the route unmounted during cleanup.",
+    ],
+    [
+      "if (!mountedRef.current) return",
+      "Meeting schedule background loads must stop before writing UI after unmount.",
     ],
     [
       "preserveVisibleMeetings",
