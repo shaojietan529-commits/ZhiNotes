@@ -46,6 +46,8 @@ const files = {
     "src/lib/sync/cloudUploadReliabilityReport.ts",
   cloudSyncControlPlane: "src/lib/sync/cloudSyncControlPlane.ts",
   twoDayUsabilityGate: "src/lib/sync/twoDayUsabilityGate.ts",
+  twoDeviceSyncSmokeRunbook:
+    "src/lib/sync/twoDeviceSyncSmokeRunbook.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   syncAckRetryLedgerContract:
     "src/lib/sync/syncAckRetryLedgerContract.ts",
@@ -494,6 +496,9 @@ function run() {
   );
   const cloudSyncControlPlane = readProjectFile(files.cloudSyncControlPlane);
   const twoDayUsabilityGate = readProjectFile(files.twoDayUsabilityGate);
+  const twoDeviceSyncSmokeRunbook = readProjectFile(
+    files.twoDeviceSyncSmokeRunbook
+  );
   const syncUploadDrainReceipt = readProjectFile(
     files.syncUploadDrainReceipt
   );
@@ -3498,6 +3503,75 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-two-device-sync-smoke-runbook"',
+      "Two-device sync smoke runbook must expose a stable format.",
+    ],
+    [
+      "ready_to_run_real_smoke_now",
+      "Two-device sync smoke runbook must tell whether real two-device smoke can start.",
+    ],
+    [
+      "ready_to_claim_two_device_sync_passed: false",
+      "Two-device sync smoke runbook must not claim the real two-device smoke has passed without owner evidence.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Two-device sync smoke runbook must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Two-device sync smoke runbook must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Two-device sync smoke runbook must not read file bytes.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Two-device sync smoke runbook must not upload workspace data.",
+    ],
+    [
+      "same-account-session",
+      "Two-device sync smoke runbook must include the same-account session smoke step.",
+    ],
+    [
+      "page-note-sync",
+      "Two-device sync smoke runbook must include the Page smoke step.",
+    ],
+    [
+      "daily-note-sync",
+      "Two-device sync smoke runbook must include the Daily smoke step.",
+    ],
+    [
+      "zhihui-meeting-sync",
+      "Two-device sync smoke runbook must include the ZhiHui meeting smoke step.",
+    ],
+    [
+      "database-row-sync",
+      "Two-device sync smoke runbook must include the database smoke step.",
+    ],
+    [
+      "file-report-metadata-sync",
+      "Two-device sync smoke runbook must include the file/report metadata smoke step.",
+    ],
+    [
+      "final-device-handoff",
+      "Two-device sync smoke runbook must include the final device handoff smoke step.",
+    ],
+    [
+      "Page、每日纪要、ZhiHui、数据库、文件元数据至少各跑一条测试样本",
+      "Two-device sync smoke runbook must state the required real workflow samples for the final owner receipt.",
+    ],
+  ]) {
+    assertIncludes(
+      files.twoDeviceSyncSmokeRunbook,
+      twoDeviceSyncSmokeRunbook,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       "buildTwoDayUsabilityGate",
       "Sync UI must build the two-day usability gate.",
     ],
@@ -3516,6 +3590,22 @@ function run() {
     [
       "目标是两天内保证账号不乱掉、本地输入不断、同步状态透明、跨设备交接有证据",
       "Sync UI must state the two-day P0 scope in user-facing Chinese.",
+    ],
+    [
+      "buildTwoDeviceSyncSmokeRunbook",
+      "Sync UI must build the two-device sync smoke runbook.",
+    ],
+    [
+      "TwoDeviceSyncSmokeRunbookPanel",
+      "Sync UI must render the two-device sync smoke runbook panel.",
+    ],
+    [
+      "真实两端同步验收清单",
+      "Sync UI must expose the real two-device sync smoke runbook to the user.",
+    ],
+    [
+      'data-testid="two-device-sync-smoke-runbook"',
+      "Sync UI must expose a stable test id for the two-device sync smoke runbook.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);

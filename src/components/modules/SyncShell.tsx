@@ -399,6 +399,11 @@ import {
   type TwoDayUsabilityVerdict,
 } from "@/lib/sync/twoDayUsabilityGate";
 import {
+  buildTwoDeviceSyncSmokeRunbook,
+  type TwoDeviceSyncSmokeRunbook,
+  type TwoDeviceSyncSmokeStepStatus,
+} from "@/lib/sync/twoDeviceSyncSmokeRunbook";
+import {
   buildAccountLocalUseReadiness,
   type AccountLocalUseReadiness,
   type AccountCloudSyncReadinessState,
@@ -2636,6 +2641,15 @@ function SyncDashboard() {
       cloudUploadReliabilityReport,
       pendingDomainCoverage,
     ]
+  );
+  const twoDeviceSyncSmokeRunbook = useMemo(
+    () =>
+      buildTwoDeviceSyncSmokeRunbook({
+        gate: twoDayUsabilityGate,
+        controlPlane: cloudSyncControlPlane,
+        reliability: cloudUploadReliabilityReport,
+      }),
+    [cloudSyncControlPlane, cloudUploadReliabilityReport, twoDayUsabilityGate]
   );
   const syncReplayTestApiGuard = useMemo(
     () => buildSyncReplayTestApiDisabledResponse(),
@@ -6939,6 +6953,7 @@ function SyncDashboard() {
         />
 
         <TwoDayUsabilityGatePanel gate={twoDayUsabilityGate} />
+        <TwoDeviceSyncSmokeRunbookPanel runbook={twoDeviceSyncSmokeRunbook} />
 
         <CloudAlphaPanel
           email={cloudEmail}
@@ -23617,6 +23632,194 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
         边界：{gate.privacy_boundary}
       </p>
     </section>
+  );
+}
+
+function TwoDeviceSyncSmokeRunbookPanel({
+  runbook,
+}: {
+  runbook: TwoDeviceSyncSmokeRunbook;
+}) {
+  const primaryStep =
+    runbook.steps.find((item) => item.status === "blocked") ??
+    runbook.steps.find((item) => item.status === "wait") ??
+    runbook.steps[0] ??
+    null;
+
+  return (
+    <section
+      id="two-device-sync-smoke-runbook"
+      data-testid="two-device-sync-smoke-runbook"
+      data-two-device-sync-ready-to-run={String(
+        runbook.ready_to_run_real_smoke_now
+      )}
+      data-two-device-sync-claim-passed={String(
+        runbook.ready_to_claim_two_device_sync_passed
+      )}
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Two-device smoke
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              真实两端同步验收清单
+            </h2>
+            <TwoDeviceSyncSmokeStatusPill
+              status={
+                runbook.ready_to_run_real_smoke_now ? "ready" : "blocked"
+              }
+            />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这个清单用于你正式验证“本地输入像本地一样快，真实数据最终进云端，另一台设备能接着用”。
+            它只读取同步状态，不上传、不清缓存、不读取正文或文件内容。
+          </p>
+        </div>
+        <div className="rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+          {runbook.summary.ready} ready · {runbook.summary.wait} wait ·{" "}
+          {runbook.summary.blocked} blocked
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <CacheRebuildFact
+          label="可开始"
+          value={runbook.ready_to_run_real_smoke_now ? "可以" : "等待"}
+          detail="真实两端"
+        />
+        <CacheRebuildFact
+          label="待上传"
+          value={String(runbook.summary.pending_rows)}
+          detail="先清旧队列"
+        />
+        <CacheRebuildFact
+          label="失败"
+          value={String(runbook.summary.failed_rows)}
+          detail="不能忽略"
+        />
+        <CacheRebuildFact
+          label="人工"
+          value={String(runbook.summary.manual_review_rows)}
+          detail="先复核"
+        />
+        <CacheRebuildFact
+          label="账号退避"
+          value={runbook.summary.auth_retry_active ? "有" : "无"}
+          detail="不等于登出"
+        />
+        <CacheRebuildFact
+          label="切设备"
+          value={runbook.summary.can_switch_devices_now ? "可以" : "等待"}
+          detail="ACK 后"
+        />
+      </div>
+
+      {primaryStep ? (
+        <article
+          data-testid="two-device-sync-primary-step"
+          data-two-device-sync-primary-status={primaryStep.status}
+          className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs dark:border-amber-900 dark:bg-amber-950/30"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                当前先处理：{primaryStep.title}
+              </div>
+              <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                {primaryStep.current_blocker ?? primaryStep.pass_criteria}
+              </p>
+            </div>
+            <TwoDeviceSyncSmokeStatusPill status={primaryStep.status} />
+          </div>
+        </article>
+      ) : null}
+
+      <div className="mt-4 grid gap-2 xl:grid-cols-2">
+        {runbook.steps.map((step) => (
+          <article
+            key={step.id}
+            data-testid={`two-device-sync-step-${step.id}`}
+            data-two-device-sync-step-status={step.status}
+            className="rounded-md border border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                {step.title}
+              </div>
+              <TwoDeviceSyncSmokeStatusPill status={step.status} />
+            </div>
+            <dl className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+              <div>
+                <dt className="inline text-zinc-700 dark:text-zinc-200">
+                  A：
+                </dt>{" "}
+                <dd className="inline">{step.device_a_action}</dd>
+              </div>
+              <div>
+                <dt className="inline text-zinc-700 dark:text-zinc-200">
+                  B：
+                </dt>{" "}
+                <dd className="inline">{step.device_b_action}</dd>
+              </div>
+              <div>
+                <dt className="inline text-zinc-700 dark:text-zinc-200">
+                  通过：
+                </dt>{" "}
+                <dd className="inline">{step.pass_criteria}</dd>
+              </div>
+              <div>
+                <dt className="inline text-zinc-700 dark:text-zinc-200">
+                  证据：
+                </dt>{" "}
+                <dd className="inline">{step.evidence_needed}</dd>
+              </div>
+            </dl>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          下一步
+        </div>
+        <p className="mt-1">{runbook.next_action}</p>
+        <div className="mt-3 font-semibold text-zinc-900 dark:text-zinc-100">
+          最终收据需要包含
+        </div>
+        <ul className="mt-1 space-y-1">
+          {runbook.final_owner_receipt_template.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function TwoDeviceSyncSmokeStatusPill({
+  status,
+}: {
+  status: TwoDeviceSyncSmokeStepStatus;
+}) {
+  const labels: Record<TwoDeviceSyncSmokeStepStatus, string> = {
+    ready: "ready",
+    wait: "wait",
+    blocked: "blocked",
+  };
+  const className =
+    status === "ready"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "wait"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
   );
 }
 
