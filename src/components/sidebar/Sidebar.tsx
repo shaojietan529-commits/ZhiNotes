@@ -120,13 +120,17 @@ function getAccountSyncShortLabel(state: AccountCloudSyncCoordinatorState) {
   }
 }
 
-function getAccountSyncButtonLabel(accountSync: {
-  state: AccountCloudSyncCoordinatorState;
-  pendingTotal: number;
-  localUseReadiness: AccountLocalUseReadiness;
-}) {
+function getAccountSyncButtonLabel(
+  accountSync: {
+    state: AccountCloudSyncCoordinatorState;
+    pendingTotal: number;
+    localUseReadiness: AccountLocalUseReadiness;
+  },
+  hasRecentAccount = false
+) {
   if (accountSync.localUseReadiness.status === "signed-out") {
-    return accountSync.pendingTotal > 0 ? "本地可写" : "登录同步";
+    if (accountSync.pendingTotal > 0) return "本地可写";
+    return hasRecentAccount ? "确认中" : "登录同步";
   }
   if (accountSync.localUseReadiness.status === "cloud-uncertain") {
     return "本地可写";
@@ -136,15 +140,22 @@ function getAccountSyncButtonLabel(accountSync: {
   return getAccountSyncShortLabel(accountSync.state);
 }
 
-function getAccountSyncIcon(accountSync: {
-  state: AccountCloudSyncCoordinatorState;
-  pendingTotal: number;
-  localUseReadiness: AccountLocalUseReadiness;
-}) {
+function getAccountSyncIcon(
+  accountSync: {
+    state: AccountCloudSyncCoordinatorState;
+    pendingTotal: number;
+    localUseReadiness: AccountLocalUseReadiness;
+  },
+  hasRecentAccount = false
+) {
   if (accountSync.localUseReadiness.status === "pending-upload") return "⬆️";
   if (accountSync.localUseReadiness.status === "cloud-uncertain") return "☁️";
   if (accountSync.localUseReadiness.status === "signed-out") {
-    return accountSync.pendingTotal > 0 ? "⬆️" : "🔑";
+    return accountSync.pendingTotal > 0
+      ? "⬆️"
+      : hasRecentAccount
+        ? "☁️"
+        : "🔑";
   }
   switch (accountSync.state) {
     case "checking":
@@ -474,19 +485,22 @@ function getAccountSwitchDeviceBadgeClass(safeToSwitchDeviceNow: boolean) {
     : "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300";
 }
 
-function getAccountSyncInlineSummary(accountSync: {
-  state: AccountCloudSyncCoordinatorState;
-  pendingTotal: number;
-  failedTotal: number;
-  manualReviewTotal: number;
-  pagePendingTotal: number;
-  databasePendingTotal: number;
-  filePendingTotal: number;
-  settingsPendingTotal: number;
-  knowledgePendingTotal: number;
-  globalSyncLogExtraPendingTotal: number;
-  localUseReadiness: AccountLocalUseReadiness;
-}) {
+function getAccountSyncInlineSummary(
+  accountSync: {
+    state: AccountCloudSyncCoordinatorState;
+    pendingTotal: number;
+    failedTotal: number;
+    manualReviewTotal: number;
+    pagePendingTotal: number;
+    databasePendingTotal: number;
+    filePendingTotal: number;
+    settingsPendingTotal: number;
+    knowledgePendingTotal: number;
+    globalSyncLogExtraPendingTotal: number;
+    localUseReadiness: AccountLocalUseReadiness;
+  },
+  hasRecentAccount = false
+) {
   const breakdown = getAccountSyncDomainBreakdown(accountSync);
   const breakdownSuffix = breakdown ? `（${breakdown}）` : "";
   if (accountSync.state === "queued") {
@@ -512,6 +526,9 @@ function getAccountSyncInlineSummary(accountSync: {
   if (accountSync.state === "signed-out") {
     if (accountSync.pendingTotal > 0) {
       return `本地已保留，登录后上传${breakdownSuffix}`;
+    }
+    if (hasRecentAccount) {
+      return `账号待确认，本地可继续${breakdownSuffix}`;
     }
     return `${accountSync.localUseReadiness.label}，登录后继续上传本地队列${breakdownSuffix}`;
   }
@@ -841,9 +858,16 @@ export default function Sidebar() {
               : "数据库同步：账号或网络暂不可确认，已保留本地输入，后台低频重试";
   const accountLocalUseTitle = `${accountSync.localUseReadiness.label}：${accountSync.localUseReadiness.detail}\n下一步：${accountSync.localUseReadiness.nextAction}`;
   const accountSyncTitle = `${accountSync.localUseReadiness.label}\n${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}\n${accountLocalUseTitle}`;
+  const accountHasRecentIdentity = accountLabel !== "账号";
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
-  const accountSyncButtonLabel = getAccountSyncButtonLabel(accountSync);
-  const accountSyncIcon = getAccountSyncIcon(accountSync);
+  const accountSyncButtonLabel = getAccountSyncButtonLabel(
+    accountSync,
+    accountHasRecentIdentity
+  );
+  const accountSyncIcon = getAccountSyncIcon(
+    accountSync,
+    accountHasRecentIdentity
+  );
   const accountSyncToneClass = getAccountSyncToneClass(accountSync);
   const accountSyncDomainBreakdown =
     getAccountSyncDomainBreakdown(accountSync);
@@ -863,7 +887,10 @@ export default function Sidebar() {
   const accountSwitchDeviceTitle = accountSafeToSwitchDeviceNow
     ? "当前没有 pending、failed、manual review 或账号重试，可以换到其他已登录设备继续。"
     : "当前仍有待上传、失败、人工复核或账号重试；本地可继续写，但先不要把另一台设备当作最新版本。";
-  const accountSyncInlineSummary = getAccountSyncInlineSummary(accountSync);
+  const accountSyncInlineSummary = getAccountSyncInlineSummary(
+    accountSync,
+    accountHasRecentIdentity
+  );
   const accountSyncNeedsSyncCenter =
     accountSync.failedTotal > 0 ||
     accountSync.manualReviewTotal > 0 ||
@@ -1633,6 +1660,7 @@ export default function Sidebar() {
           <Link
             href="/account"
             prefetch
+            data-account-has-recent-identity={accountHasRecentIdentity}
             className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
           >
             <span className="shrink-0 text-base">👤</span>
@@ -1662,6 +1690,7 @@ export default function Sidebar() {
             data-auth-retry-active={accountSync.authRetryActive}
             data-auth-retry-domains={accountSync.authRetryDomainLabel}
             data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}
+            data-account-has-recent-identity={accountHasRecentIdentity}
             data-local-use-status={accountSync.localUseReadiness.status}
             data-local-input-can-continue={
               accountSync.localUseReadiness.localInputCanContinue
@@ -1709,6 +1738,7 @@ export default function Sidebar() {
               data-auth-retry-active={accountSync.authRetryActive}
               data-auth-retry-domains={accountSync.authRetryDomainLabel}
               data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}
+              data-account-has-recent-identity={accountHasRecentIdentity}
               data-local-use-status={accountSync.localUseReadiness.status}
               data-local-input-can-continue={
                 accountSync.localUseReadiness.localInputCanContinue
@@ -1764,6 +1794,7 @@ export default function Sidebar() {
             data-auth-retry-active={accountSync.authRetryActive}
             data-auth-retry-domains={accountSync.authRetryDomainLabel}
             data-auth-retry-until={accountSync.authRetryUntilLabel ?? ""}
+            data-account-has-recent-identity={accountHasRecentIdentity}
             data-local-use-status={accountSync.localUseReadiness.status}
             data-local-input-can-continue={
               accountSync.localUseReadiness.localInputCanContinue

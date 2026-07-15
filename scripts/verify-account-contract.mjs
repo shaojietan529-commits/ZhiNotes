@@ -4230,12 +4230,17 @@ check(
     sidebar.includes("accountSyncShortLabel") &&
     sidebar.includes("getAccountSyncButtonLabel") &&
     sidebar.includes("accountSyncButtonLabel") &&
-    sidebar.includes("getAccountSyncIcon(accountSync)") &&
+    sidebar.includes('const accountHasRecentIdentity = accountLabel !== "账号"') &&
+    sidebar.includes("getAccountSyncButtonLabel(\n    accountSync,\n    accountHasRecentIdentity\n  )") &&
+    sidebar.includes("getAccountSyncIcon(\n    accountSync,\n    accountHasRecentIdentity\n  )") &&
+    sidebar.includes("getAccountSyncInlineSummary(\n    accountSync,\n    accountHasRecentIdentity\n  )") &&
     sidebar.includes('localUseReadiness.status === "pending-upload"') &&
-    sidebar.includes('return accountSync.pendingTotal > 0 ? "⬆️" : "🔑"') &&
+    sidebar.includes('return hasRecentAccount ? "确认中" : "登录同步"') &&
+    sidebar.includes('? "☁️"') &&
     sidebar.includes('localUseReadiness.status === "signed-out"') &&
     sidebar.includes('localUseReadiness.status === "cloud-uncertain"') &&
     sidebar.includes('"登录同步"') &&
+    sidebar.includes('"确认中"') &&
     sidebar.includes('"待重试"') &&
     sidebar.includes("accountSyncAriaLabel") &&
     sidebar.includes("accountSyncInlineSummary") &&
@@ -4275,6 +4280,7 @@ check(
     sidebar.includes("data-auth-retry-active={accountSync.authRetryActive}") &&
     sidebar.includes("data-auth-retry-domains={accountSync.authRetryDomainLabel}") &&
     sidebar.includes("data-auth-retry-until={accountSync.authRetryUntilLabel ?? \"\"}") &&
+    sidebar.includes("data-account-has-recent-identity={accountHasRecentIdentity}") &&
     sidebar.includes(
       "data-local-use-next-action={accountSync.localUseReadiness.nextAction}"
     ) &&
@@ -4300,6 +4306,7 @@ check(
     sidebar.includes("云端待确认，本地已保留${breakdownSuffix}") &&
     sidebar.includes("本地已保留，云端恢复后上传${breakdownSuffix}") &&
     sidebar.includes("本地已保留，登录后上传${breakdownSuffix}") &&
+    sidebar.includes("账号待确认，本地可继续${breakdownSuffix}") &&
     sidebar.includes("登录后继续上传本地队列${breakdownSuffix}") &&
     sidebar.includes("accountSync.localUseReadiness.label}${breakdownSuffix}") &&
     sidebar.includes("账号或网络暂不可确认，已保留本地输入，后台低频重试") &&

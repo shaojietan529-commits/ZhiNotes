@@ -11343,7 +11343,19 @@ function run() {
     files.sidebar,
     sidebar,
     '"登录同步"',
-    "Sidebar cloud-sync control must show signed-out no-pending state as an action, not as an apparent forced logout."
+    "Sidebar cloud-sync control must still show a login action when there is no remembered account identity."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    '"确认中"',
+    "Sidebar cloud-sync control must show remembered-account signed-out state as pending confirmation, not as an apparent forced logout."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    'const accountHasRecentIdentity = accountLabel !== "账号"',
+    "Sidebar cloud-sync control must distinguish a remembered account identity from a truly anonymous session."
   );
   assertIncludes(
     files.sidebar,
@@ -11390,8 +11402,8 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
-    "getAccountSyncIcon(accountSync)",
-    "Sidebar cloud-sync icon must derive from local-use readiness, not only raw signed-out state."
+    "getAccountSyncIcon(\n    accountSync,\n    accountHasRecentIdentity\n  )",
+    "Sidebar cloud-sync icon must derive from local-use readiness and remembered account identity, not only raw signed-out state."
   );
   assertIncludes(
     files.sidebar,
@@ -11402,8 +11414,20 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
-    'return accountSync.pendingTotal > 0 ? "⬆️" : "🔑"',
-    "Sidebar signed-out icon must show upload work while pending exists and only show login key when there is no local queue."
+    '? "☁️"',
+    "Sidebar remembered-account signed-out icon must show cloud confirmation instead of an immediate login key."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    ': "🔑"',
+    "Sidebar anonymous signed-out icon must still show a login key when there is no local queue and no remembered account."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "账号待确认，本地可继续",
+    "Sidebar remembered-account signed-out summary must say local use can continue while the account is confirmed."
   );
   assertIncludes(
     files.sidebar,
