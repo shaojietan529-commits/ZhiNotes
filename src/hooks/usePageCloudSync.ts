@@ -81,6 +81,7 @@ const EMPTY_PAGE_PENDING_STATUS: PendingCloudPageSyncStatus = {
   authRetryStatus: null,
   authRetryUntil: null,
   lastSyncAt: null,
+  lastOutcome: null,
 };
 
 export type PageCloudSyncState =

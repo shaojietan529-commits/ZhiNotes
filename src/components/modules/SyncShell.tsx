@@ -5128,7 +5128,7 @@ function SyncDashboard() {
           status: result.status,
           pushed: result.pushed,
           pulled: result.pulled,
-          skipped: result.skipped ? 1 : 0,
+          skipped: result.skippedRemoteNewer ?? (result.skipped ? 1 : 0),
           message: result.message,
         }))
         .catch((err) => ({
@@ -5268,7 +5268,9 @@ function SyncDashboard() {
       const nextPageQueueDetail = `当前仍有 ${nextPendingTotal} 个页面待上传，其中 sync_log 可补传 ${nextSyncLogRetryable} 条、等待退避/人工处理 ${nextSyncLogDeferred} 条。`;
       if (result.status === "ok") {
         setPagePendingMessage(
-          `补传完成：推送 ${result.pushed} 个页面，拉取 ${result.pulled} 个页面；${nextPageQueueDetail}`
+          `补传完成：推送 ${result.pushed} 个页面，拉取 ${result.pulled} 个页面，远端较新/相同跳过 ${
+            result.skippedRemoteNewer ?? 0
+          } 个；${nextPageQueueDetail}`
         );
       } else {
         setPagePendingMessage(
@@ -21754,6 +21756,19 @@ function SyncUploadSafetyPanel({
             : "页面同步关闭",
     },
     {
+      label: "页面回执",
+      value: pageStatus.lastOutcome
+        ? formatPageSyncStatus(pageStatus.lastOutcome.status)
+        : "暂无回执",
+      detail: pageStatus.lastOutcome
+        ? `${formatPageSyncOutcomeSource(
+            pageStatus.lastOutcome.source
+          )}：推送 ${pageStatus.lastOutcome.pushed}，拉取 ${
+            pageStatus.lastOutcome.pulled
+          }，远端跳过 ${pageStatus.lastOutcome.skippedRemoteNewer}。`
+        : "等待下一次页面同步结果。",
+    },
+    {
       label: "数据库队列",
       value: `${databaseWaiting} 条`,
       detail:
@@ -22499,6 +22514,7 @@ function PagePendingQueueDetails({
 }: {
   status: PendingCloudPageSyncStatus;
 }) {
+  const lastOutcome = status.lastOutcome;
   const syncLogPending = status.syncLogPending ?? 0;
   const syncLogRetryable = status.syncLogRetryable ?? syncLogPending;
   const syncLogDeferred =
@@ -22572,6 +22588,23 @@ function PagePendingQueueDetails({
       label: "最后同步",
       value: status.lastSyncAt ? formatDate(status.lastSyncAt) : "暂无记录",
       detail: status.enabled ? "最近一次页面云同步时间。" : "页面同步当前关闭。",
+    },
+    {
+      label: "最近回执",
+      value: lastOutcome ? formatPageSyncStatus(lastOutcome.status) : "暂无回执",
+      detail: lastOutcome
+        ? `${formatPageSyncOutcomeSource(lastOutcome.source)}：推送 ${
+            lastOutcome.pushed
+          }，拉取 ${lastOutcome.pulled}，远端较新/相同跳过 ${
+            lastOutcome.skippedRemoteNewer
+          }；剩余 pending ${lastOutcome.pendingAfter}。`
+        : "尚未记录页面同步结果。",
+    },
+    {
+      label: "远端跳过",
+      value: lastOutcome ? `${lastOutcome.skippedRemoteNewer} 个` : "0 个",
+      detail:
+        "表示云端已有相同或更新版本，本机不会覆盖远端较新的页面。",
     },
     {
       label: "认证退避",
@@ -22721,6 +22754,7 @@ function PagePendingQueueDetails({
       <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
         页面同步当前{status.enabled ? "已开启" : "已关闭"}。
         首次账号同步会补种本机页面基线；之后普通同步会先处理 pending queue 和已到重试时间的 sync_log。
+        最近回执只保存 counts、状态和时间戳，不保存页面正文。
       </p>
     </div>
   );
@@ -28338,9 +28372,19 @@ function formatPageSyncStatus(status: string) {
   if (status === "unauthenticated") return "账号未登录";
   if (status === "unconfigured") return "云端未配置";
   if (status === "unconfirmed") return "账号临时不可确认";
+  if (status === "ok") return "同步完成";
   if (status === "disabled") return "页面同步已关闭";
   if (status === "error") return "云端同步错误";
   return status;
+}
+
+function formatPageSyncOutcomeSource(source: string) {
+  if (source === "direct-push") return "直接上传";
+  if (source === "pending-push") return "pending 补传";
+  if (source === "sync-log-push") return "sync_log 补传";
+  if (source === "baseline-upload") return "首次基线补种";
+  if (source === "reconcile") return "页面同步对账";
+  return source;
 }
 
 function formatDatabaseSyncStatus(status: string) {

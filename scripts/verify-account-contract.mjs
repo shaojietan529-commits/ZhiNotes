@@ -1200,10 +1200,16 @@ check(
     pageSyncClient.includes("authRetryStatus: authRetry.status") &&
     pageSyncClient.includes("authRetryUntil: authRetry.until") &&
     pageSyncClient.includes("lastSyncAt: getLastPageSyncAt()") &&
+    pageSyncClient.includes("LAST_OUTCOME_KEY") &&
+    pageSyncClient.includes("export interface PageSyncLastOutcome") &&
+    pageSyncClient.includes("export function getLastPageSyncOutcome") &&
+    pageSyncClient.includes("lastOutcome: getLastPageSyncOutcome()") &&
+    pageSyncClient.includes("skippedRemoteNewer") &&
+    pageSyncClient.includes("recordReconcilePageSyncOutcome") &&
     pageSyncClient.includes("export function isCloudPagePendingSync") &&
     pageSyncClient.includes("queuedCloudPush.has(pageId)") &&
     pageSyncClient.includes("getPendingCloudPushIds().includes(pageId)"),
-  "页面同步客户端应暴露只读 pending 上传状态、sync_log pending、最早排队时间、样本 id 和当前页 pending 判断，供同步页/页面壳展示和补传前后对账"
+  "页面同步客户端应暴露只读 pending 上传状态、sync_log pending、最早排队时间、样本 id、最近同步回执和当前页 pending 判断，供同步页/页面壳展示和补传前后对账"
 );
 check(
   syncDashboardShell.includes("页面 pending 上传队列") &&
@@ -1219,8 +1225,13 @@ check(
     syncDashboardShell.includes("首次账号同步会补种本机页面基线") &&
     syncDashboardShell.includes("之后普通同步会先处理 pending queue 和已到重试时间的 sync_log") &&
     syncDashboardShell.includes("可补传 sync_log") &&
-    syncDashboardShell.includes("等待退避/人工处理"),
-  "同步页应展示页面 pending 上传队列并提供 quick 增量补传，同时说明首次基线补种和后续增量补传"
+    syncDashboardShell.includes("等待退避/人工处理") &&
+    syncDashboardShell.includes("最近回执") &&
+    syncDashboardShell.includes("页面回执") &&
+    syncDashboardShell.includes("远端跳过") &&
+    syncDashboardShell.includes("远端较新/相同跳过") &&
+    syncDashboardShell.includes("最近回执只保存 counts、状态和时间戳，不保存页面正文"),
+  "同步页应展示页面 pending 上传队列、quick 增量补传和 metadata-only 最近同步回执，同时说明首次基线补种和后续增量补传"
 );
 check(
   databaseSyncClient.includes("export interface PendingCloudDatabaseSyncStatus") &&

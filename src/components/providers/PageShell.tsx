@@ -147,6 +147,7 @@ const EMPTY_PAGE_SYNC_STATUS: PendingCloudPageSyncStatus = {
   authRetryStatus: null,
   authRetryUntil: null,
   lastSyncAt: null,
+  lastOutcome: null,
 };
 
 const Editor = dynamic(loadEditorModule, {

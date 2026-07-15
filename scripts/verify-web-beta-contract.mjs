@@ -6895,15 +6895,15 @@ function run() {
       "Daily calendar first dbReady load must render local/cache metadata before starting cloud correction.",
     ],
     [
-      "cancelCloudRecheck = scheduleDailyIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleNotes: true,\n        });\n      }, DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);",
-      "Daily calendar initial cloud metadata correction must run as a delayed idle task.",
+      "const cancelCloudRecheck = scheduleDailyForegroundAwareIdleTask(",
+      "Daily calendar initial cloud metadata correction must run as a foreground-aware delayed idle task.",
     ],
     [
-      "}, DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS);",
+      "DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS,\n      DAILY_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS",
       "Daily calendar initial cloud correction must wait briefly after local first paint.",
     ],
     [
-      "cancelCloudRecheck?.()",
+      "cancelCloudRecheck()",
       "Daily calendar initial cloud correction must be cancellable when leaving the route.",
     ],
   ]) {
@@ -6912,8 +6912,8 @@ function run() {
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "window.clearTimeout(cloudRecheckTimer)",
-    "Daily calendar delayed cloud recheck must be cleaned up with other local refresh timers."
+    "if (timer !== null) window.clearTimeout(timer);",
+    "Daily calendar delayed cloud recheck must be cleaned up with other foreground-aware timers."
   );
   assertSourceIncludes(
     files.meetingScheduleShell,
@@ -6975,11 +6975,11 @@ function run() {
       "Meeting calendar background fallback idle timeout must avoid competing with foreground page opens after large imports.",
     ],
     [
-      "const fallbackRecheckDelayMs =\n      meetingsRef.current.length === 0\n        ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n        : MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS;",
+      "const hasVisibleMeetings = meetingsRef.current.length > 0;",
       "Meeting calendar initial fallback must use the fast path only while the calendar is still empty.",
     ],
     [
-      "const fallbackIdleTimeoutMs =\n        meetingsRef.current.length === 0\n          ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n          : MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS;",
+      "const idleTimeoutMs = hasVisibleMeetings\n          ? MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS\n          : MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS;",
       "Meeting calendar fallback idle timeout must stay fast for empty first paint and conservative once entries are visible.",
     ],
     [
@@ -6987,19 +6987,19 @@ function run() {
       "Meeting calendar first dbReady load must render local/cache metadata before starting cloud correction.",
     ],
     [
-      "cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        if (!mountedRef.current) return;\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, fallbackIdleTimeoutMs);",
-      "Meeting calendar initial fallback metadata fill must run as a delayed idle task.",
+      "const cancelFallbackRecheck = scheduleMeetingFirstPaintFallbackRecheck(() => {",
+      "Meeting calendar initial fallback metadata fill must run as a delayed foreground-aware idle task.",
     ],
     [
-      "cancelCloudRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: true,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: false,\n        });\n      }, MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS);",
-      "Meeting calendar initial cloud metadata correction must run as a delayed idle task.",
+      "const cancelCloudRecheck = scheduleMeetingForegroundAwareIdleTask(",
+      "Meeting calendar initial cloud metadata correction must run as a foreground-aware delayed idle task.",
     ],
     [
-      "}, MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS);",
+      "MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS,\n      MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS",
       "Meeting calendar initial cloud correction must wait briefly after local first paint.",
     ],
     [
-      "cancelCloudRecheck?.()",
+      "cancelCloudRecheck()",
       "Meeting calendar initial cloud correction must be cancellable when leaving the route.",
     ],
   ]) {
@@ -7008,8 +7008,8 @@ function run() {
   assertSourceIncludes(
     files.meetingScheduleShell,
     meetingScheduleShell,
-    "window.clearTimeout(cloudRecheckTimer)",
-    "Meeting calendar delayed cloud recheck must be cleaned up with other local refresh timers."
+    "if (timer !== null) window.clearTimeout(timer);",
+    "Meeting calendar delayed cloud recheck must be cleaned up with other foreground-aware timers."
   );
   assertSourceIncludes(
     files.pageShell,
@@ -11694,6 +11694,26 @@ function run() {
     [
       "反复失败",
       "Sync UI must show repeated pending upload failures as a separate fact.",
+    ],
+    [
+      "最近回执",
+      "Sync UI must show the latest metadata-only page sync outcome.",
+    ],
+    [
+      "页面回执",
+      "Upload safety overview must include the latest page sync outcome.",
+    ],
+    [
+      "远端跳过",
+      "Sync UI must distinguish cloud-newer or equal skipped uploads from failures.",
+    ],
+    [
+      "远端较新/相同跳过",
+      "Manual page retry feedback must report cloud-newer or equal skipped uploads.",
+    ],
+    [
+      "最近回执只保存 counts、状态和时间戳，不保存页面正文",
+      "Sync UI must disclose that page outcome receipts are metadata-only.",
     ],
     [
       "人工处理样本",
