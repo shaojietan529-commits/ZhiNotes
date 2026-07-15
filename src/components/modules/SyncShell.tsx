@@ -21644,6 +21644,14 @@ function SyncUploadSafetyPanel({
     databaseStatus.queued +
     (databaseStatus.syncLogPending ?? 0);
   const fileWaiting = fileStatus.pending;
+  const syncLogCoveredWaiting =
+    (pageStatus.syncLogPending ?? 0) + (databaseStatus.syncLogPending ?? 0);
+  const syncLogUnclassifiedWaiting = Math.max(
+    totalSyncPending - syncLogCoveredWaiting,
+    0
+  );
+  const deduplicatedWaiting =
+    pageWaiting + databaseWaiting + fileWaiting + syncLogUnclassifiedWaiting;
   const failed = Math.max(
     pageStatus.failed + databaseStatus.failed + fileStatus.failed,
     totalSyncFailed
@@ -21698,7 +21706,7 @@ function SyncUploadSafetyPanel({
       ? "retry"
       : hasStaleQueue
         ? "stale"
-      : pageWaiting + databaseWaiting + fileWaiting + totalSyncPending > 0
+      : deduplicatedWaiting > 0
         ? "pending"
         : disabledDomains.length > 0
           ? "disabled"
@@ -21767,8 +21775,8 @@ function SyncUploadSafetyPanel({
     },
     {
       label: "全域 sync_log",
-      value: `${totalSyncPending} 条`,
-      detail: `${totalSyncFailed} 失败 / ${totalSyncManualReview} 人工；只统计表名、row id 和时间戳`,
+      value: `${syncLogUnclassifiedWaiting} 条额外`,
+      detail: `原始 ${totalSyncPending} 条；${syncLogCoveredWaiting} 条已归入页面/数据库；${totalSyncFailed} 失败 / ${totalSyncManualReview} 人工。`,
     },
     {
       label: "失败回执",
@@ -21994,13 +22002,8 @@ function SyncUploadSafetyPanel({
           />
           <CacheRebuildFact
             label="待上传"
-            value={`${
-              handoffReceipt.summary.page_pending_rows +
-              handoffReceipt.summary.database_pending_rows +
-              handoffReceipt.summary.file_pending_rows +
-              handoffReceipt.summary.total_sync_log_pending_rows
-            } 条`}
-            detail={`页面 ${handoffReceipt.summary.page_pending_rows} · 数据库 ${handoffReceipt.summary.database_pending_rows} · 文件 ${handoffReceipt.summary.file_pending_rows}`}
+            value={`${handoffReceipt.summary.deduplicated_pending_rows} 条`}
+            detail={`页面 ${handoffReceipt.summary.page_pending_rows} · 数据库 ${handoffReceipt.summary.database_pending_rows} · 文件 ${handoffReceipt.summary.file_pending_rows} · sync_log 额外 ${handoffReceipt.summary.total_sync_log_unclassified_pending_rows}`}
           />
           <CacheRebuildFact
             label="最早 pending"
@@ -22199,10 +22202,7 @@ function SyncHandoffQuickCheckPanel({
 }) {
   const summary = receipt.summary;
   const pendingTotal =
-    summary.page_pending_rows +
-    summary.database_pending_rows +
-    summary.file_pending_rows +
-    summary.total_sync_log_pending_rows;
+    summary.deduplicated_pending_rows;
   const attentionTotal = summary.failed_rows + summary.manual_review_rows;
   const primaryGate =
     receipt.gates.find((gate) => gate.status === "block") ??
@@ -22340,7 +22340,7 @@ function SyncHandoffQuickCheckPanel({
         <SyncHandoffQuickFact
           label="待上传"
           value={`${pendingTotal} 条`}
-          detail={`页面 ${summary.page_pending_rows} · 数据库 ${summary.database_pending_rows} · 文件 ${summary.file_pending_rows} · sync_log ${summary.total_sync_log_pending_rows}`}
+          detail={`页面 ${summary.page_pending_rows} · 数据库 ${summary.database_pending_rows} · 文件 ${summary.file_pending_rows} · sync_log 额外 ${summary.total_sync_log_unclassified_pending_rows}`}
         />
         <SyncHandoffQuickFact
           label="失败 / 人工"
@@ -22984,7 +22984,14 @@ function CacheRebuildSafetyPanel({
     databaseStatus.pending +
     databaseStatus.queued +
     (databaseStatus.syncLogPending ?? 0);
-  const hasPending = pagePending > 0 || databasePending > 0 || totalSyncPending > 0;
+  const syncLogCoveredPending =
+    (pageStatus.syncLogPending ?? 0) + (databaseStatus.syncLogPending ?? 0);
+  const syncLogUnclassifiedPending = Math.max(
+    totalSyncPending - syncLogCoveredPending,
+    0
+  );
+  const hasPending =
+    pagePending > 0 || databasePending > 0 || syncLogUnclassifiedPending > 0;
   const disabledDomains = [
     pageStatus.enabled ? null : "页面同步关闭",
     databaseStatus.enabled ? null : "数据库同步关闭",
@@ -23068,9 +23075,9 @@ function CacheRebuildSafetyPanel({
           }
         />
         <CacheRebuildFact
-          label="全局 sync_log"
-          value={`${totalSyncPending} 条`}
-          detail="普通同步只补传明确排队的本地修改"
+          label="全局 sync_log 额外"
+          value={`${syncLogUnclassifiedPending} 条`}
+          detail={`原始 ${totalSyncPending} 条，${syncLogCoveredPending} 条已归入页面/数据库`}
         />
         <CacheRebuildFact
           label="预检状态"
@@ -24794,12 +24801,8 @@ function CloudNativeFluidityPanel({
         />
         <CacheRebuildFact
           label="Pending"
-          value={String(
-            report.summary.page_pending_rows +
-              report.summary.database_pending_rows +
-              report.summary.sync_log_pending_rows
-          )}
-          detail="云端确认前必须保留本地队列"
+          value={String(report.summary.deduplicated_pending_rows)}
+          detail={`云端确认前必须保留本地队列；sync_log 额外 ${report.summary.sync_log_unclassified_pending_rows}`}
         />
         <CacheRebuildFact
           label="Hot cache"

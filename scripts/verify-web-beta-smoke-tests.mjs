@@ -2927,6 +2927,18 @@ function run() {
   assertIncludes(
     files.cloudNativeFluidityReport,
     cloudNativeFluidityReport,
+    "deduplicated_pending_rows",
+    "Cloud-native fluidity report must expose de-duplicated pending rows for the owner-facing health panel."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
+    "sync_log_unclassified_pending_rows",
+    "Cloud-native fluidity report must keep extra sync_log pending separate from page/database queues."
+  );
+  assertIncludes(
+    files.cloudNativeFluidityReport,
+    cloudNativeFluidityReport,
     "input.fileStatus.failed",
     "Cloud-native fluidity report must include file sync failures."
   );
@@ -15584,6 +15596,18 @@ function run() {
   assertIncludes(
     files.cacheRebuildPreflightReceipt,
     cacheRebuildPreflightReceipt,
+    "deduplicated_pending_rows",
+    "Cache rebuild preflight receipt must use a de-duplicated pending total."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
+    "total_sync_log_unclassified_pending_rows",
+    "Cache rebuild preflight receipt must keep extra sync_log pending separate from page/database queues."
+  );
+  assertIncludes(
+    files.cacheRebuildPreflightReceipt,
+    cacheRebuildPreflightReceipt,
     "file_failed_rows",
     "Cache rebuild preflight receipt must summarize file failed rows."
   );
@@ -16360,6 +16384,18 @@ function run() {
     syncHandoffReadinessReceipt,
     "file_pending_rows",
     "Handoff readiness receipt must include file pending rows."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "deduplicated_pending_rows",
+    "Handoff readiness receipt must expose a de-duplicated pending total for owner-facing UI."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "total_sync_log_unclassified_pending_rows",
+    "Handoff readiness receipt must separate extra sync_log rows from page/database sync_log rows."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,

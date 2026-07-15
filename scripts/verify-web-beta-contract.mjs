@@ -12486,6 +12486,14 @@ function run() {
       "Handoff readiness receipt must fold full-domain sync_log manual-review counts into owner gates.",
     ],
     [
+      "deduplicated_pending_rows",
+      "Handoff readiness receipt must expose a de-duplicated pending total.",
+    ],
+    [
+      "total_sync_log_unclassified_pending_rows",
+      "Handoff readiness receipt must keep extra sync_log pending separate from page/database queues.",
+    ],
+    [
       "owner_actions",
       "Handoff readiness receipt must include owner-facing next actions.",
     ],
@@ -12760,6 +12768,14 @@ function run() {
     [
       "file_manual_review_rows",
       "Cache rebuild preflight receipt must summarize file manual-review rows.",
+    ],
+    [
+      "deduplicated_pending_rows",
+      "Cache rebuild preflight receipt must expose a de-duplicated pending total.",
+    ],
+    [
+      "total_sync_log_unclassified_pending_rows",
+      "Cache rebuild preflight receipt must keep extra sync_log pending separate from page/database queues.",
     ],
     [
       "blocked-manifest-mismatch",
@@ -13408,6 +13424,14 @@ function run() {
     [
       "blocking_reasons",
       "Cloud-native fluidity report must explain Web Beta sync blockers.",
+    ],
+    [
+      "deduplicated_pending_rows",
+      "Cloud-native fluidity report must expose de-duplicated pending rows.",
+    ],
+    [
+      "sync_log_unclassified_pending_rows",
+      "Cloud-native fluidity report must keep extra sync_log pending separate from page/database queues.",
     ],
     [
       "required_before_owner_review",

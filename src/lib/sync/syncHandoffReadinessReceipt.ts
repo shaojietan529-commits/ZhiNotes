@@ -106,11 +106,15 @@ export interface SyncHandoffReadinessReceipt {
     cloud_workspace_fingerprint: string | null;
     page_pending_rows: number;
     page_in_memory_queued_rows: number;
+    page_sync_log_pending_rows: number;
     database_pending_rows: number;
     database_in_memory_queued_rows: number;
     database_sync_log_pending_rows: number;
     file_pending_rows: number;
+    deduplicated_pending_rows: number;
     total_sync_log_pending_rows: number;
+    total_sync_log_covered_pending_rows: number;
+    total_sync_log_unclassified_pending_rows: number;
     failed_rows: number;
     manual_review_rows: number;
     oldest_pending_queued_at: string | null;
@@ -130,15 +134,28 @@ export function buildSyncHandoffReadinessReceipt(
   input: SyncHandoffReadinessReceiptInput
 ): SyncHandoffReadinessReceipt {
   const generatedAt = input.generatedAt ?? new Date().toISOString();
+  const pageSyncLogPendingRows = input.pageStatus.syncLogPending ?? 0;
+  const databaseSyncLogPendingRows = input.databaseStatus.syncLogPending ?? 0;
+  const syncLogCoveredPendingRows =
+    pageSyncLogPendingRows + databaseSyncLogPendingRows;
+  const syncLogUnclassifiedPendingRows = Math.max(
+    input.totalSyncPending - syncLogCoveredPendingRows,
+    0
+  );
   const pagePendingRows =
     input.pageStatus.pending +
     input.pageStatus.queued +
-    (input.pageStatus.syncLogPending ?? 0);
+    pageSyncLogPendingRows;
   const databasePendingRows =
     input.databaseStatus.pending +
     input.databaseStatus.queued +
-    (input.databaseStatus.syncLogPending ?? 0);
+    databaseSyncLogPendingRows;
   const filePendingRows = input.fileStatus.pending;
+  const deduplicatedPendingRows =
+    pagePendingRows +
+    databasePendingRows +
+    filePendingRows +
+    syncLogUnclassifiedPendingRows;
   const failedRows = Math.max(
     input.pageStatus.failed + input.databaseStatus.failed + input.fileStatus.failed,
     input.totalSyncFailed ?? 0
@@ -156,11 +173,7 @@ export function buildSyncHandoffReadinessReceipt(
   ]);
   const oldestPendingAgeMs = getAgeMs(oldestPendingQueuedAt, generatedAt);
   const oldestPendingAgeLabel = formatAge(oldestPendingAgeMs);
-  const hasPending =
-    pagePendingRows > 0 ||
-    databasePendingRows > 0 ||
-    filePendingRows > 0 ||
-    input.totalSyncPending > 0;
+  const hasPending = deduplicatedPendingRows > 0;
   const hasStalePending =
     hasPending &&
     oldestPendingAgeMs !== null &&
@@ -224,6 +237,9 @@ export function buildSyncHandoffReadinessReceipt(
     databasePendingRows,
     filePendingRows,
     totalSyncPending: input.totalSyncPending,
+    syncLogCoveredPendingRows,
+    syncLogUnclassifiedPendingRows,
+    deduplicatedPendingRows,
     failedRows,
     manualReviewRows,
     oldestPendingQueuedAt,
@@ -246,9 +262,13 @@ export function buildSyncHandoffReadinessReceipt(
     device_fingerprint: deviceFingerprint,
     cloud_workspace_fingerprint: cloudWorkspaceFingerprint,
     page_pending_rows: pagePendingRows,
+    page_sync_log_pending_rows: pageSyncLogPendingRows,
     database_pending_rows: databasePendingRows,
     file_pending_rows: filePendingRows,
+    deduplicated_pending_rows: deduplicatedPendingRows,
     total_sync_log_pending_rows: input.totalSyncPending,
+    total_sync_log_covered_pending_rows: syncLogCoveredPendingRows,
+    total_sync_log_unclassified_pending_rows: syncLogUnclassifiedPendingRows,
     failed_rows: failedRows,
     manual_review_rows: manualReviewRows,
     oldest_pending_queued_at: oldestPendingQueuedAt,
@@ -315,11 +335,15 @@ export function buildSyncHandoffReadinessReceipt(
       cloud_workspace_fingerprint: cloudWorkspaceFingerprint,
       page_pending_rows: pagePendingRows,
       page_in_memory_queued_rows: input.pageStatus.queued,
+      page_sync_log_pending_rows: pageSyncLogPendingRows,
       database_pending_rows: input.databaseStatus.pending,
       database_in_memory_queued_rows: input.databaseStatus.queued,
-      database_sync_log_pending_rows: input.databaseStatus.syncLogPending ?? 0,
+      database_sync_log_pending_rows: databaseSyncLogPendingRows,
       file_pending_rows: filePendingRows,
+      deduplicated_pending_rows: deduplicatedPendingRows,
       total_sync_log_pending_rows: input.totalSyncPending,
+      total_sync_log_covered_pending_rows: syncLogCoveredPendingRows,
+      total_sync_log_unclassified_pending_rows: syncLogUnclassifiedPendingRows,
       failed_rows: failedRows,
       manual_review_rows: manualReviewRows,
       oldest_pending_queued_at: oldestPendingQueuedAt,
@@ -347,6 +371,9 @@ function buildGates(input: {
   databasePendingRows: number;
   filePendingRows: number;
   totalSyncPending: number;
+  syncLogCoveredPendingRows: number;
+  syncLogUnclassifiedPendingRows: number;
+  deduplicatedPendingRows: number;
   failedRows: number;
   manualReviewRows: number;
   oldestPendingQueuedAt: string | null;
@@ -443,13 +470,13 @@ function buildGates(input: {
     },
     {
       id: "full-domain-sync-log-drained",
-      title: "全域 sync_log 无待上传",
-      status: input.totalSyncPending > 0 ? "block" : "pass",
-      evidence: `全域 sync_log pending ${input.totalSyncPending} 条。`,
+      title: "全域 sync_log 无额外待上传",
+      status: input.syncLogUnclassifiedPendingRows > 0 ? "block" : "pass",
+      evidence: `全域 sync_log 原始 pending ${input.totalSyncPending} 条，其中 ${input.syncLogCoveredPendingRows} 条已归入页面/数据库队列，额外未归类 ${input.syncLogUnclassifiedPendingRows} 条。`,
       next_action:
-        input.totalSyncPending > 0
-          ? "先让所有 pending sync_log 行上传或进入人工处理。"
-          : "全域 sync_log 没有待上传行。",
+        input.syncLogUnclassifiedPendingRows > 0
+          ? "先让未归类的 pending sync_log 行上传或进入人工处理；已归入页面/数据库的行按对应业务队列处理。"
+          : "全域 sync_log 没有额外未归类待上传行。",
     },
     {
       id: "no-failed-uploads",

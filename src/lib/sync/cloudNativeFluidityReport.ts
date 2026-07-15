@@ -91,7 +91,10 @@ export interface CloudNativeFluidityReport {
     file_pending_rows: number;
     file_failed_rows: number;
     file_manual_review_rows: number;
+    deduplicated_pending_rows: number;
     sync_log_pending_rows: number;
+    sync_log_covered_pending_rows: number;
+    sync_log_unclassified_pending_rows: number;
     sync_log_failed_rows: number;
     sync_log_manual_review_rows: number;
     hot_cache_ready_jobs: number;
@@ -132,6 +135,13 @@ export function buildCloudNativeFluidityReport(
     input.databaseStatus.queued +
     (input.databaseStatus.syncLogPending ?? 0);
   const filePendingRows = input.fileStatus.pending;
+  const syncLogCoveredPendingRows =
+    (input.pageStatus.syncLogPending ?? 0) +
+    (input.databaseStatus.syncLogPending ?? 0);
+  const syncLogUnclassifiedPendingRows = Math.max(
+    (input.syncSummary?.pending ?? 0) - syncLogCoveredPendingRows,
+    0
+  );
   const failedRows = Math.max(
     input.pageStatus.failed + input.databaseStatus.failed + input.fileStatus.failed,
     input.syncSummary?.failed ?? 0
@@ -146,7 +156,7 @@ export function buildCloudNativeFluidityReport(
     pagePendingRows +
     databasePendingRows +
     filePendingRows +
-    (input.syncSummary?.pending ?? 0);
+    syncLogUnclassifiedPendingRows;
   const hotCacheIndexRows = input.hotCacheLocalIndexSummary?.summary.rows ?? 0;
   const hotCacheRouteTargets = input.hotCacheWarmupPlan.summary.route_targets;
   const hotCacheReadyJobs = input.hotCacheWarmupPlan.summary.ready;
@@ -362,7 +372,7 @@ export function buildCloudNativeFluidityReport(
     pagePendingRows,
     databasePendingRows,
     filePendingRows,
-    syncLogPendingRows: input.syncSummary?.pending ?? 0,
+    syncLogPendingRows: syncLogUnclassifiedPendingRows,
     pageFailedRows: input.pageStatus.failed,
     databaseFailedRows: input.databaseStatus.failed,
     fileFailedRows: input.fileStatus.failed,
@@ -416,7 +426,10 @@ export function buildCloudNativeFluidityReport(
       file_pending_rows: filePendingRows,
       file_failed_rows: input.fileStatus.failed,
       file_manual_review_rows: input.fileStatus.manualReviewCount,
+      deduplicated_pending_rows: totalPendingRows,
       sync_log_pending_rows: input.syncSummary?.pending ?? 0,
+      sync_log_covered_pending_rows: syncLogCoveredPendingRows,
+      sync_log_unclassified_pending_rows: syncLogUnclassifiedPendingRows,
       sync_log_failed_rows: input.syncSummary?.failed ?? 0,
       sync_log_manual_review_rows: input.syncSummary?.manualReview ?? 0,
       hot_cache_ready_jobs: hotCacheReadyJobs,
@@ -543,7 +556,7 @@ function buildWebBetaSyncGate(input: {
       `页面 pending ${input.pagePendingRows} / failed ${input.pageFailedRows}`,
       `数据库 pending ${input.databasePendingRows} / failed ${input.databaseFailedRows}`,
       `文件 pending ${input.filePendingRows} / failed ${input.fileFailedRows} / manual ${input.fileManualReviewRows}`,
-      `sync_log pending ${input.syncLogPendingRows} / failed ${input.syncLogFailedRows} / manual ${input.syncLogManualReviewRows}`,
+      `sync_log 额外 pending ${input.syncLogPendingRows} / failed ${input.syncLogFailedRows} / manual ${input.syncLogManualReviewRows}`,
       `热缓存索引 ${input.hotCacheIndexRows} 行 / ${input.hotCacheRouteTargets} 个可预热入口`,
       `本机耗时样本 ${input.performanceSamples} 条，首屏 ${formatGateMs(input.averageLocalFirstMs)}，页面打开 ${formatGateMs(input.averagePageOpenMs)}，正文补齐 ${formatGateMs(input.averagePageBodyHydrationMs)}`,
     ],

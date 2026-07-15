@@ -69,13 +69,17 @@ export interface CacheRebuildPreflightReceipt {
     file_sync_enabled: boolean;
     page_pending_rows: number;
     page_in_memory_queued_rows: number;
+    page_sync_log_pending_rows: number;
     database_pending_rows: number;
     database_in_memory_queued_rows: number;
     database_sync_log_pending_rows: number;
     file_pending_rows: number;
     file_failed_rows: number;
     file_manual_review_rows: number;
+    deduplicated_pending_rows: number;
     total_sync_log_pending_rows: number;
+    total_sync_log_covered_pending_rows: number;
+    total_sync_log_unclassified_pending_rows: number;
     total_sync_log_failed_rows: number;
     total_sync_log_manual_review_rows: number;
     blockers: number;
@@ -101,20 +105,29 @@ export function buildCacheRebuildPreflightReceipt(
   input: CacheRebuildPreflightReceiptInput
 ): CacheRebuildPreflightReceipt {
   const generatedAt = input.generatedAt ?? new Date().toISOString();
+  const pageSyncLogPendingRows = input.pageStatus.syncLogPending ?? 0;
+  const databaseSyncLogPendingRows = input.databaseStatus.syncLogPending ?? 0;
+  const syncLogCoveredPendingRows =
+    pageSyncLogPendingRows + databaseSyncLogPendingRows;
+  const syncLogUnclassifiedPendingRows = Math.max(
+    input.totalSyncPending - syncLogCoveredPendingRows,
+    0
+  );
   const pagePendingRows =
     input.pageStatus.pending +
     input.pageStatus.queued +
-    (input.pageStatus.syncLogPending ?? 0);
+    pageSyncLogPendingRows;
   const databasePendingRows =
     input.databaseStatus.pending +
     input.databaseStatus.queued +
-    (input.databaseStatus.syncLogPending ?? 0);
+    databaseSyncLogPendingRows;
   const filePendingRows = input.fileStatus.pending;
-  const hasPending =
-    pagePendingRows > 0 ||
-    databasePendingRows > 0 ||
-    filePendingRows > 0 ||
-    input.totalSyncPending > 0;
+  const deduplicatedPendingRows =
+    pagePendingRows +
+    databasePendingRows +
+    filePendingRows +
+    syncLogUnclassifiedPendingRows;
+  const hasPending = deduplicatedPendingRows > 0;
   const failedRows = Math.max(
     input.pageStatus.failed +
       input.databaseStatus.failed +
@@ -165,7 +178,7 @@ export function buildCacheRebuildPreflightReceipt(
       id: "pending-queues-empty",
       title: "本地待上传队列已清空",
       status: hasPending ? "block" : "pass",
-      evidence: `页面 pending ${pagePendingRows} 条；数据库 pending ${databasePendingRows} 条；文件 pending ${filePendingRows} 条；全局 sync_log pending ${input.totalSyncPending} 条。`,
+      evidence: `页面 pending ${pagePendingRows} 条；数据库 pending ${databasePendingRows} 条；文件 pending ${filePendingRows} 条；全局 sync_log 原始 ${input.totalSyncPending} 条，其中 ${syncLogCoveredPendingRows} 条已归入页面/数据库，额外未归类 ${syncLogUnclassifiedPendingRows} 条。`,
       next_action: hasPending
         ? "先补传或明确处理待上传变更；pending 未清空前不要清理本地缓存。"
         : "待上传队列为空，可以继续检查 manifest 对账结果。",
@@ -229,7 +242,10 @@ export function buildCacheRebuildPreflightReceipt(
     file_pending_rows: filePendingRows,
     file_failed_rows: input.fileStatus.failed,
     file_manual_review_rows: input.fileStatus.manualReviewCount,
+    deduplicated_pending_rows: deduplicatedPendingRows,
     total_sync_log_pending_rows: input.totalSyncPending,
+    total_sync_log_covered_pending_rows: syncLogCoveredPendingRows,
+    total_sync_log_unclassified_pending_rows: syncLogUnclassifiedPendingRows,
     total_sync_log_failed_rows: input.totalSyncFailed ?? 0,
     total_sync_log_manual_review_rows: input.totalSyncManualReview ?? 0,
     local_manifest_hash: input.localMetadataManifest.summary.manifest_hash,
@@ -275,13 +291,17 @@ export function buildCacheRebuildPreflightReceipt(
       file_sync_enabled: input.fileStatus.enabled,
       page_pending_rows: pagePendingRows,
       page_in_memory_queued_rows: input.pageStatus.queued,
+      page_sync_log_pending_rows: pageSyncLogPendingRows,
       database_pending_rows: input.databaseStatus.pending,
       database_in_memory_queued_rows: input.databaseStatus.queued,
-      database_sync_log_pending_rows: input.databaseStatus.syncLogPending ?? 0,
+      database_sync_log_pending_rows: databaseSyncLogPendingRows,
       file_pending_rows: filePendingRows,
       file_failed_rows: input.fileStatus.failed,
       file_manual_review_rows: input.fileStatus.manualReviewCount,
+      deduplicated_pending_rows: deduplicatedPendingRows,
       total_sync_log_pending_rows: input.totalSyncPending,
+      total_sync_log_covered_pending_rows: syncLogCoveredPendingRows,
+      total_sync_log_unclassified_pending_rows: syncLogUnclassifiedPendingRows,
       total_sync_log_failed_rows: input.totalSyncFailed ?? 0,
       total_sync_log_manual_review_rows: input.totalSyncManualReview ?? 0,
       blockers,
