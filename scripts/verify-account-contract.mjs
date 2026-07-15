@@ -3821,7 +3821,14 @@ check(
     ) &&
     syncDashboardShell.includes(
       'data-auth-retry-until={authRetryUntilLabel ?? ""}'
-    ),
+    ) &&
+    syncDashboardShell.includes('data-testid="sync-file-queue-readiness-note"') &&
+    syncDashboardShell.includes('data-file-queue-auto-retry="manual-gated"') &&
+    syncDashboardShell.includes(
+      'data-file-queue-cross-device-blocked="true"'
+    ) &&
+    syncDashboardShell.includes("大文件不会被账号级后台循环自动带跑") &&
+    syncDashboardShell.includes("成功前，其他设备可能还不是最新附件状态"),
   "同步中心顶部应提供 P0 使用安全状态条：一眼显示能否继续写、待上传/失败/人工处理、账号重试、缓存重建阻断和详细队列入口"
 );
 check(

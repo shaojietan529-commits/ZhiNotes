@@ -720,6 +720,18 @@ function run() {
       "Sync center must include file embed account retry timing in the visible auth retry status.",
     ],
     [
+      files.syncShell,
+      syncShell,
+      'data-file-queue-auto-retry="manual-gated"',
+      "Sync center must explicitly show that file uploads stay manual-gated outside the account background loop.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "成功前，其他设备可能还不是最新附件状态",
+      "Sync center must warn that unresolved file uploads can leave other devices behind.",
+    ],
+    [
       files.syncPendingDomainRegistry,
       syncPendingDomainRegistry,
       "file_embed_sync_queue",

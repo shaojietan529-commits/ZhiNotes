@@ -12088,6 +12088,24 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    'data-file-queue-auto-retry="manual-gated"',
+    "Sync UI must show that file queues are protected but manual-gated outside the account background loop."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-file-queue-cross-device-blocked="true"',
+    "Sync UI must expose that unresolved file queues block treating another device as fully current."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "成功前，其他设备可能还不是最新附件状态",
+    "Sync UI must tell the user that unresolved file uploads can leave other devices behind."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "getSidebarReadinessMirrorLabel",
     "Sync UI must derive a single sidebar-compatible readiness label."
   );

@@ -20709,12 +20709,15 @@ function SyncOperationalStatusStrip({
           {fileQueueTotal > 0 ? (
             <p
               data-testid="sync-file-queue-readiness-note"
+              data-file-queue-auto-retry="manual-gated"
+              data-file-queue-cross-device-blocked="true"
               className="mt-2 max-w-3xl rounded-md bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
             >
               文件队列已计入本地可用性和缓存重建保护：文件{" "}
               {readiness.queueBreakdown.filePendingTotal} 待上传 /{" "}
               {readiness.queueBreakdown.fileFailedTotal} 失败 /{" "}
-              {readiness.queueBreakdown.fileManualReviewTotal} 需确认。
+              {readiness.queueBreakdown.fileManualReviewTotal}
+              需确认。大文件不会被账号级后台循环自动带跑；请点“补传待上传”或在上传安全总览手动补传。成功前，其他设备可能还不是最新附件状态。
             </p>
           ) : null}
           {authRetryDomainLabel ? (
