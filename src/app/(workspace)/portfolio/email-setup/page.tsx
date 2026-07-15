@@ -5,6 +5,38 @@ import Link from "next/link";
 
 type Phase = "idle" | "waiting" | "done" | "error";
 
+const PORTFOLIO_EMAIL_SETUP_ACTION_TIMEOUT_MS = 12000;
+
+async function fetchPortfolioEmailSetupActionWithTimeout(
+  body: Record<string, unknown>
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(
+    () => controller.abort(),
+    PORTFOLIO_EMAIL_SETUP_ACTION_TIMEOUT_MS
+  );
+  try {
+    return await fetch("/api/portfolio/email-setup", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify(body),
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
 // One-time wizard: signs in to the Outlook mailbox via Microsoft's
 // device-code flow and shows the two values to paste into Vercel env vars.
 // The refresh token is displayed once for manual copy and never stored here.
@@ -17,10 +49,12 @@ export default function EmailSetupPage() {
   const [refreshToken, setRefreshToken] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
+  const pollInFlightRef = useRef(false);
 
   useEffect(() => {
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current);
+      pollInFlightRef.current = false;
     };
   }, []);
 
@@ -31,12 +65,13 @@ export default function EmailSetupPage() {
       return;
     }
     setError(null);
+    if (pollRef.current) window.clearInterval(pollRef.current);
+    pollRef.current = null;
+    pollInFlightRef.current = false;
     try {
-      const res = await fetch("/api/portfolio/email-setup", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "start", clientId: id }),
+      const res = await fetchPortfolioEmailSetupActionWithTimeout({
+        action: "start",
+        clientId: id,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -52,35 +87,49 @@ export default function EmailSetupPage() {
       const deadline = Date.now() + (data.expiresIn ?? 900) * 1000;
 
       pollRef.current = window.setInterval(async () => {
+        if (pollInFlightRef.current) return;
         if (Date.now() > deadline) {
           if (pollRef.current) window.clearInterval(pollRef.current);
+          pollRef.current = null;
           setPhase("error");
           setError("授权超时，请点「开始授权」重试。");
           return;
         }
+        pollInFlightRef.current = true;
         try {
-          const pollRes = await fetch("/api/portfolio/email-setup", {
-            method: "POST",
-            cache: "no-store",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ action: "poll", clientId: id, deviceCode }),
+          const pollRes = await fetchPortfolioEmailSetupActionWithTimeout({
+            action: "poll",
+            clientId: id,
+            deviceCode,
           });
           const poll = await pollRes.json();
           if (poll.status === "ok") {
             if (pollRef.current) window.clearInterval(pollRef.current);
+            pollRef.current = null;
             setRefreshToken(poll.refreshToken);
             setPhase("done");
           } else if (poll.status === "error") {
             if (pollRef.current) window.clearInterval(pollRef.current);
+            pollRef.current = null;
             setPhase("error");
             setError(poll.error ?? "授权失败，请重试。");
           }
-        } catch {
-          // transient network error — keep polling until deadline
+        } catch (error) {
+          setError(
+            isAbortError(error)
+              ? "授权检查请求超时；本地组合数据不受影响，会继续轮询。"
+              : "授权检查暂时失败；本地组合数据不受影响，会继续轮询。"
+          );
+        } finally {
+          pollInFlightRef.current = false;
         }
       }, intervalMs);
-    } catch {
-      setError("网络错误，请重试。");
+    } catch (error) {
+      setError(
+        isAbortError(error)
+          ? "启动邮箱授权请求超时；本地组合数据不受影响，可稍后重试。"
+          : "网络错误，请重试。"
+      );
     }
   };
 

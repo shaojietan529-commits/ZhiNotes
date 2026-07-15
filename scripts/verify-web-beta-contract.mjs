@@ -193,6 +193,7 @@ const files = {
   accountMeRoute: "src/app/api/account/me/route.ts",
   portfolioPasscodeSync: "src/lib/portfolio/cloudSync.ts",
   portfolioPasscodeSyncRoute: "src/app/api/portfolio/sync/route.ts",
+  portfolioEmailSetupPage: "src/app/(workspace)/portfolio/email-setup/page.tsx",
   portfolioEmailSetupRoute: "src/app/api/portfolio/email-setup/route.ts",
   portfolioEmailPositionRoute: "src/app/api/portfolio/email-position/route.ts",
   accountPortfolioSync: "src/lib/portfolio/accountSync.ts",
@@ -770,6 +771,9 @@ function run() {
   const portfolioPasscodeSync = readProjectFile(files.portfolioPasscodeSync);
   const portfolioPasscodeSyncRoute = readProjectFile(
     files.portfolioPasscodeSyncRoute
+  );
+  const portfolioEmailSetupPage = readProjectFile(
+    files.portfolioEmailSetupPage
   );
   const portfolioEmailSetupRoute = readProjectFile(
     files.portfolioEmailSetupRoute
@@ -5822,6 +5826,55 @@ function run() {
   if ((portfolioEmailSetupRoute.match(/\bfetch\(/g) ?? []).length !== 1) {
     fail(
       "Portfolio email setup must keep fetch usage centralized in fetchPortfolioEmailRequestWithTimeout."
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "PORTFOLIO_EMAIL_SETUP_ACTION_TIMEOUT_MS = 12000",
+      "Portfolio email setup page browser actions must have a bounded timeout.",
+    ],
+    [
+      "async function fetchPortfolioEmailSetupActionWithTimeout",
+      "Portfolio email setup page must route start and poll requests through one timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Portfolio email setup page browser requests must be abortable.",
+    ],
+    [
+      'cache: "no-store"',
+      "Portfolio email setup page browser requests must bypass stale browser responses.",
+    ],
+    [
+      "signal: controller.signal",
+      "Portfolio email setup page browser requests must pass the abort signal.",
+    ],
+    [
+      "window.clearTimeout(timeout)",
+      "Portfolio email setup page timeout timers must be cleared after fetch settles.",
+    ],
+    [
+      "pollInFlightRef",
+      "Portfolio email setup page polling must avoid overlapping browser requests when the network is slow.",
+    ],
+    [
+      "if (pollInFlightRef.current) return;",
+      "Portfolio email setup page polling must skip a tick while a previous poll is still running.",
+    ],
+    [
+      "启动邮箱授权请求超时；本地组合数据不受影响，可稍后重试。",
+      "Portfolio email setup start timeout copy must reassure users that local portfolio data is preserved.",
+    ],
+    [
+      "授权检查请求超时；本地组合数据不受影响，会继续轮询。",
+      "Portfolio email setup poll timeout copy must reassure users that polling continues without affecting local portfolio data.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.portfolioEmailSetupPage,
+      portfolioEmailSetupPage,
+      snippet,
+      message
     );
   }
   for (const [snippet, message] of [
