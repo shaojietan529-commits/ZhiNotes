@@ -15620,6 +15620,24 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "recoverAuthRetryForForcedMetadataSync",
+    "Forced page metadata recovery must be able to clear stale auth retry after the account is confirmed."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "checkAccountCloudSyncGate({ force: true })",
+    "Forced page metadata recovery must recheck the account instead of waiting for an old auth retry backoff."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "if (forcedAuthRetryRecovery) return forcedAuthRetryRecovery",
+    "Forced page metadata recovery must short-circuit with a visible retry state when the account still cannot be confirmed."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "shouldRecoverPageMetadataCoverageBeforeIncrementalPull",
     "Page quick sync must verify local metadata coverage before trusting a stored cloud cursor."
   );

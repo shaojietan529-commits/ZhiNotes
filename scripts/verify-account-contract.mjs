@@ -944,6 +944,28 @@ check(
     pageSyncClient.includes("云端会议日历索引读取较慢；已先使用本地缓存，稍后自动重试。"),
   "Daily/ZhiHui 日历 metadata 读取必须走短超时；短超时只降级到本地缓存，不能写入账号失败退避"
 );
+const pageMetadataDeltaAuthRecoveryBody = pageSyncClient.slice(
+  pageSyncClient.indexOf("export async function syncCloudPageMetadataDelta"),
+  pageSyncClient.indexOf("function shouldBackOffAuthRetry")
+);
+check(
+  pageMetadataDeltaAuthRecoveryBody.includes(
+    "const forcedAuthRetryRecovery = await recoverAuthRetryForForcedMetadataSync"
+  ) &&
+    pageMetadataDeltaAuthRecoveryBody.includes("Boolean(options.force)") &&
+    pageMetadataDeltaAuthRecoveryBody.includes(
+      "if (forcedAuthRetryRecovery) return forcedAuthRetryRecovery"
+    ) &&
+    pageMetadataDeltaAuthRecoveryBody.indexOf(
+      "const forcedAuthRetryRecovery = await recoverAuthRetryForForcedMetadataSync"
+    ) < pageMetadataDeltaAuthRecoveryBody.indexOf("if (shouldBackOffAuthRetry())") &&
+    pageSyncClient.includes("recoverAuthRetryForForcedMetadataSync") &&
+    pageSyncClient.includes("checkAccountCloudSyncGate({ force: true })") &&
+    pageSyncClient.includes('accountGate.status === "ready"') &&
+    pageSyncClient.includes('rememberAuthRetryStatus("ok")') &&
+    pageSyncClient.includes("getAccountGatePageSyncMessage(accountGate.status)"),
+  "页面云端 metadata 强制恢复必须先重新确认账号并清理旧 auth retry，避免新设备登录后仍被旧退避挡住云端目录"
+);
 check(
   databaseSyncClient.includes("ACCOUNT_DATABASE_SYNC_REQUEST_TIMEOUT_MS = 12000") &&
     databaseSyncClient.includes("async function fetchAccountDatabaseSync") &&
