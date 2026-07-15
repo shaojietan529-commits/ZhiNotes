@@ -201,10 +201,10 @@ function run() {
     files.dailyShell,
     dailyShell,
     [
-      "await waitForDailyCreateFeedbackFrame();",
+      "if (!mountedRef.current) {\n            releaseCreatingDate();\n            return;\n          }",
       "openPage(optimisticNote, { source: \"daily-create\" });",
     ],
-    "Daily full-page create must let the opening chip paint before navigating."
+    "Daily full-page create must route immediately after local draft handoff while still guarding unmount."
   );
   assertOrdered(
     files.dailyShell,

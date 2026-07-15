@@ -1870,7 +1870,6 @@ export default function DailyNotesShell() {
           setPeekInitialPage(null);
           setOpeningNoteId(null);
           setPeekPageId(null);
-          await waitForDailyCreateFeedbackFrame();
           if (!mountedRef.current) {
             releaseCreatingDate();
             return;
@@ -2429,7 +2428,7 @@ export default function DailyNotesShell() {
                 <span>📅</span> 每日纪要
               </h1>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                按日历浏览每天的纪要。鼠标悬停某一天，点 + 即可弹出一篇新纪要。
+                按日历浏览每天的纪要。鼠标悬停某一天，点 + 即可进入一篇新纪要。
               </p>
               {cloudNotice && (
                 <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">

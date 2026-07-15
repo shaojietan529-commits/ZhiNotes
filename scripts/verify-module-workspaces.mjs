@@ -1229,7 +1229,7 @@ check(
     shells.daily.includes("window.setTimeout(() =>") &&
     shells.daily.includes("DAILY_CREATE_FEEDBACK_FRAME_TIMEOUT_MS") &&
     shells.daily.includes("waitForDailyCreateFeedbackFrame") &&
-    shells.daily.indexOf("await waitForDailyCreateFeedbackFrame();") <
+    shells.daily.indexOf("if (!mountedRef.current) {\n            releaseCreatingDate();\n            return;\n          }") <
       shells.daily.indexOf('openPage(optimisticNote, { source: "daily-create" })') &&
     shells.daily.includes("current === dateKey ? null : current") &&
     shells.daily.indexOf("setPeekPageId(optimisticNote.id)") <

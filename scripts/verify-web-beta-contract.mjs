@@ -7416,8 +7416,8 @@ function run() {
       "Daily + background persistence must stop before writing UI after the daily route unmounts.",
     ],
     [
-      "await waitForDailyCreateFeedbackFrame();\n          if (!mountedRef.current) {",
-      "Daily + full-page creation must stop after unmount before retrying navigation.",
+      "if (!mountedRef.current) {\n            releaseCreatingDate();\n            return;\n          }\n          openPage(optimisticNote, { source: \"daily-create\" });",
+      "Daily + full-page creation must enter the local-first page immediately after the local draft is seeded while still guarding unmount.",
     ],
     [
       "DAILY_PEEK_CREATE_READY_RETRY_MS",
@@ -7717,8 +7717,8 @@ function run() {
   assertSourceIncludes(
     files.dailyCreateOpenModeWorkspaceSettings,
     dailyCreateOpenModeWorkspaceSettings,
-    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "peek";',
-    "Daily + creation must default to same-page peek opening so + gives immediate local-first feedback before any full-page route load."
+    'export const DEFAULT_DAILY_CREATE_OPEN_MODE: DailyCreateOpenMode =\n  "full-page";',
+    "Daily + creation must default to full-page opening so + follows the Notion-like create-and-enter workflow while explicit peek remains available."
   );
   for (const [snippet, message] of [
     [
