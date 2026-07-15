@@ -5,6 +5,7 @@ import type { LocalWorkspaceIdentity } from "@/lib/sync/workspaceIdentity";
 
 const HANDOFF_STALE_PENDING_MS = 30 * 60 * 1000;
 const HANDOFF_CRITICAL_PENDING_MS = 6 * 60 * 60 * 1000;
+const HANDOFF_OUTCOME_STALE_MS = 24 * 60 * 60 * 1000;
 
 export type SyncHandoffReadinessStatus =
   | "ready"
@@ -12,10 +13,16 @@ export type SyncHandoffReadinessStatus =
   | "blocked-sync-disabled"
   | "blocked-pending"
   | "blocked-stale-pending"
+  | "blocked-stale-outcome"
   | "blocked-failed"
   | "blocked-manual-review";
 
 export type SyncHandoffReadinessGateStatus = "pass" | "warn" | "block";
+export type SyncOutcomeEvidenceStatus =
+  | "fresh"
+  | "warning"
+  | "missing-required"
+  | "stale-required";
 
 export type SyncHandoffMode =
   | "cloud-workspace"
@@ -38,6 +45,19 @@ type DatabaseLastSyncOutcome = NonNullable<
   PendingCloudDatabaseSyncStatus["lastOutcome"]
 >;
 type FileLastSyncOutcome = NonNullable<PendingFileEmbedSyncStatus["lastOutcome"]>;
+
+interface SyncOutcomeEvidenceSummary {
+  status: SyncOutcomeEvidenceStatus;
+  requiredReady: boolean;
+  missingRequiredCount: number;
+  staleRequiredCount: number;
+  missingOptionalCount: number;
+  staleOptionalCount: number;
+  oldestOutcomeAt: string | null;
+  oldestOutcomeAgeMs: number | null;
+  oldestOutcomeAgeLabel: string;
+  newestOutcomeAt: string | null;
+}
 
 export interface SyncHandoffReadinessGate {
   id: string;
@@ -76,6 +96,7 @@ export interface SyncHandoffReadinessReceipt {
     reads_page_sync_outcome_summary: true;
     reads_database_sync_outcome_summary: true;
     reads_file_sync_outcome_summary: true;
+    evaluates_sync_outcome_freshness: true;
     reads_page_sync_failure_messages: false;
     reads_database_sync_failure_messages: false;
     reads_file_sync_failure_messages: false;
@@ -103,6 +124,7 @@ export interface SyncHandoffReadinessReceipt {
     includes_page_sync_outcome_counts_status_source_and_timestamps: true;
     includes_database_sync_outcome_counts_status_source_and_timestamps: true;
     includes_file_sync_outcome_counts_status_source_and_timestamps: true;
+    includes_sync_outcome_freshness_counts: true;
   };
   summary: {
     handoff_mode: SyncHandoffMode;
@@ -142,6 +164,16 @@ export interface SyncHandoffReadinessReceipt {
     file_last_sync_outcome_missing_local_files: number;
     file_last_sync_outcome_auth_deferred: number;
     file_last_sync_outcome_pending_after: number;
+    sync_outcome_evidence_status: SyncOutcomeEvidenceStatus;
+    required_sync_outcome_domains_ready: boolean;
+    sync_outcome_missing_required_domains: number;
+    sync_outcome_stale_required_domains: number;
+    sync_outcome_missing_optional_domains: number;
+    sync_outcome_stale_optional_domains: number;
+    oldest_sync_outcome_at: string | null;
+    oldest_sync_outcome_age_ms: number | null;
+    oldest_sync_outcome_age_label: string;
+    newest_sync_outcome_at: string | null;
     workspace_fingerprint: string | null;
     device_fingerprint: string | null;
     cloud_workspace_fingerprint: string | null;
@@ -178,6 +210,15 @@ export function buildSyncHandoffReadinessReceipt(
   const pageLastOutcome = input.pageStatus.lastOutcome;
   const databaseLastOutcome = input.databaseStatus.lastOutcome;
   const fileLastOutcome = input.fileStatus.lastOutcome;
+  const syncOutcomeEvidence = buildSyncOutcomeEvidence({
+    pageSyncEnabled: input.pageStatus.enabled,
+    databaseSyncEnabled: input.databaseStatus.enabled,
+    fileSyncEnabled: input.fileStatus.enabled,
+    pageLastOutcomeAt: pageLastOutcome?.at ?? null,
+    databaseLastOutcomeAt: databaseLastOutcome?.at ?? null,
+    fileLastOutcomeAt: fileLastOutcome?.at ?? null,
+    generatedAt,
+  });
   const pageSyncLogPendingRows = input.pageStatus.syncLogPending ?? 0;
   const databaseSyncLogPendingRows = input.databaseStatus.syncLogPending ?? 0;
   const syncLogCoveredPendingRows =
@@ -238,7 +279,8 @@ export function buildSyncHandoffReadinessReceipt(
     !hasPending &&
     failedRows === 0 &&
     manualReviewRows === 0 &&
-    !hasStalePending;
+    !hasStalePending &&
+    syncOutcomeEvidence.requiredReady;
   const cloudMasterReady = cloudWorkspaceLinked && accountBridgeReady;
   const handoffMode: SyncHandoffMode = cloudMasterReady
     ? "cloud-workspace"
@@ -253,6 +295,8 @@ export function buildSyncHandoffReadinessReceipt(
     fileSyncEnabled,
     hasPending,
     hasStalePending,
+    hasRequiredSyncOutcomeEvidenceIssue:
+      !syncOutcomeEvidence.requiredReady,
     failedRows,
     manualReviewRows,
   });
@@ -277,6 +321,7 @@ export function buildSyncHandoffReadinessReceipt(
     pageSyncEnabled,
     databaseSyncEnabled,
     fileSyncEnabled,
+    syncOutcomeEvidence,
     pagePendingRows,
     databasePendingRows,
     filePendingRows,
@@ -334,6 +379,19 @@ export function buildSyncHandoffReadinessReceipt(
       fileLastOutcome?.missingLocalFiles ?? 0,
     file_last_sync_outcome_auth_deferred: fileLastOutcome?.authDeferred ?? 0,
     file_last_sync_outcome_pending_after: fileLastOutcome?.pendingAfter ?? 0,
+    sync_outcome_evidence_status: syncOutcomeEvidence.status,
+    required_sync_outcome_domains_ready: syncOutcomeEvidence.requiredReady,
+    sync_outcome_missing_required_domains:
+      syncOutcomeEvidence.missingRequiredCount,
+    sync_outcome_stale_required_domains:
+      syncOutcomeEvidence.staleRequiredCount,
+    sync_outcome_missing_optional_domains:
+      syncOutcomeEvidence.missingOptionalCount,
+    sync_outcome_stale_optional_domains:
+      syncOutcomeEvidence.staleOptionalCount,
+    oldest_sync_outcome_at: syncOutcomeEvidence.oldestOutcomeAt,
+    oldest_sync_outcome_age_ms: syncOutcomeEvidence.oldestOutcomeAgeMs,
+    newest_sync_outcome_at: syncOutcomeEvidence.newestOutcomeAt,
     page_pending_rows: pagePendingRows,
     page_sync_log_pending_rows: pageSyncLogPendingRows,
     database_pending_rows: databasePendingRows,
@@ -361,7 +419,7 @@ export function buildSyncHandoffReadinessReceipt(
     generated_at: generatedAt,
     status,
     privacy_boundary:
-      "Generated locally to decide whether this browser can safely hand work to another device through either the full cloud workspace or the account-level sync bridge. It records only counts, sync flags, hashed workspace/device fingerprints, queue timestamps, page/database/file sync outcome status/source/counts, gate statuses, and gate-derived owner next steps. It does not read or export page ids, database keys, account emails, page bodies, Yjs payloads, database values, comments, file names, file bytes, page/database/file sync failure messages, failure messages, secrets, tokens, credentials, raw workspace ids, or raw cache dumps; it does not send network requests, upload workspace data, clear local cache, mutate local cache records, or enable sync/AI.",
+      "Generated locally to decide whether this browser can safely hand work to another device through either the full cloud workspace or the account-level sync bridge. It records only counts, sync flags, hashed workspace/device fingerprints, queue timestamps, page/database/file sync outcome status/source/counts/timestamps, sync outcome freshness counts, gate statuses, and gate-derived owner next steps. It does not read or export page ids, database keys, account emails, page bodies, Yjs payloads, database values, comments, file names, file bytes, page/database/file sync failure messages, failure messages, secrets, tokens, credentials, raw workspace ids, or raw cache dumps; it does not send network requests, upload workspace data, clear local cache, mutate local cache records, or enable sync/AI.",
     boundary: {
       local_receipt_only: true,
       reads_queue_counts: true,
@@ -372,6 +430,7 @@ export function buildSyncHandoffReadinessReceipt(
       reads_page_sync_outcome_summary: true,
       reads_database_sync_outcome_summary: true,
       reads_file_sync_outcome_summary: true,
+      evaluates_sync_outcome_freshness: true,
       reads_page_sync_failure_messages: false,
       reads_database_sync_failure_messages: false,
       reads_file_sync_failure_messages: false,
@@ -399,6 +458,7 @@ export function buildSyncHandoffReadinessReceipt(
       includes_page_sync_outcome_counts_status_source_and_timestamps: true,
       includes_database_sync_outcome_counts_status_source_and_timestamps: true,
       includes_file_sync_outcome_counts_status_source_and_timestamps: true,
+      includes_sync_outcome_freshness_counts: true,
     },
     summary: {
       handoff_mode: handoffMode,
@@ -444,6 +504,20 @@ export function buildSyncHandoffReadinessReceipt(
         fileLastOutcome?.authDeferred ?? 0,
       file_last_sync_outcome_pending_after:
         fileLastOutcome?.pendingAfter ?? 0,
+      sync_outcome_evidence_status: syncOutcomeEvidence.status,
+      required_sync_outcome_domains_ready: syncOutcomeEvidence.requiredReady,
+      sync_outcome_missing_required_domains:
+        syncOutcomeEvidence.missingRequiredCount,
+      sync_outcome_stale_required_domains:
+        syncOutcomeEvidence.staleRequiredCount,
+      sync_outcome_missing_optional_domains:
+        syncOutcomeEvidence.missingOptionalCount,
+      sync_outcome_stale_optional_domains:
+        syncOutcomeEvidence.staleOptionalCount,
+      oldest_sync_outcome_at: syncOutcomeEvidence.oldestOutcomeAt,
+      oldest_sync_outcome_age_ms: syncOutcomeEvidence.oldestOutcomeAgeMs,
+      oldest_sync_outcome_age_label: syncOutcomeEvidence.oldestOutcomeAgeLabel,
+      newest_sync_outcome_at: syncOutcomeEvidence.newestOutcomeAt,
       workspace_fingerprint: workspaceFingerprint,
       device_fingerprint: deviceFingerprint,
       cloud_workspace_fingerprint: cloudWorkspaceFingerprint,
@@ -474,6 +548,84 @@ export function buildSyncHandoffReadinessReceipt(
   };
 }
 
+function buildSyncOutcomeEvidence(input: {
+  pageSyncEnabled: boolean;
+  databaseSyncEnabled: boolean;
+  fileSyncEnabled: boolean;
+  pageLastOutcomeAt: string | null;
+  databaseLastOutcomeAt: string | null;
+  fileLastOutcomeAt: string | null;
+  generatedAt: string;
+}): SyncOutcomeEvidenceSummary {
+  const domains = [
+    {
+      id: "page",
+      enabled: input.pageSyncEnabled,
+      required: true,
+      outcomeAt: input.pageLastOutcomeAt,
+    },
+    {
+      id: "database",
+      enabled: input.databaseSyncEnabled,
+      required: true,
+      outcomeAt: input.databaseLastOutcomeAt,
+    },
+    {
+      id: "file",
+      enabled: input.fileSyncEnabled,
+      required: false,
+      outcomeAt: input.fileLastOutcomeAt,
+    },
+  ];
+  const enabledDomains = domains.filter((domain) => domain.enabled);
+  const missingRequiredCount = enabledDomains.filter(
+    (domain) => domain.required && !domain.outcomeAt
+  ).length;
+  const missingOptionalCount = enabledDomains.filter(
+    (domain) => !domain.required && !domain.outcomeAt
+  ).length;
+  const staleRequiredCount = enabledDomains.filter((domain) => {
+    if (!domain.required || !domain.outcomeAt) return false;
+    const ageMs = getAgeMs(domain.outcomeAt, input.generatedAt);
+    return ageMs !== null && ageMs >= HANDOFF_OUTCOME_STALE_MS;
+  }).length;
+  const staleOptionalCount = enabledDomains.filter((domain) => {
+    if (domain.required || !domain.outcomeAt) return false;
+    const ageMs = getAgeMs(domain.outcomeAt, input.generatedAt);
+    return ageMs !== null && ageMs >= HANDOFF_OUTCOME_STALE_MS;
+  }).length;
+  const requiredReady =
+    missingRequiredCount === 0 && staleRequiredCount === 0;
+  const oldestOutcomeAt = getOldestTimestamp(
+    enabledDomains.map((domain) => domain.outcomeAt)
+  );
+  const newestOutcomeAt = getNewestTimestamp(
+    enabledDomains.map((domain) => domain.outcomeAt)
+  );
+  const oldestOutcomeAgeMs = getAgeMs(oldestOutcomeAt, input.generatedAt);
+  const status: SyncOutcomeEvidenceStatus =
+    missingRequiredCount > 0
+      ? "missing-required"
+      : staleRequiredCount > 0
+        ? "stale-required"
+        : missingOptionalCount > 0 || staleOptionalCount > 0
+          ? "warning"
+          : "fresh";
+
+  return {
+    status,
+    requiredReady,
+    missingRequiredCount,
+    staleRequiredCount,
+    missingOptionalCount,
+    staleOptionalCount,
+    oldestOutcomeAt,
+    oldestOutcomeAgeMs,
+    oldestOutcomeAgeLabel: formatAge(oldestOutcomeAgeMs),
+    newestOutcomeAt,
+  };
+}
+
 function buildGates(input: {
   cloudWorkspaceLinked: boolean;
   accountBridgeReady: boolean;
@@ -481,6 +633,7 @@ function buildGates(input: {
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
   fileSyncEnabled: boolean;
+  syncOutcomeEvidence: SyncOutcomeEvidenceSummary;
   pagePendingRows: number;
   databasePendingRows: number;
   filePendingRows: number;
@@ -551,6 +704,30 @@ function buildGates(input: {
       next_action: input.fileSyncEnabled
         ? "继续检查文件 pending 队列。"
         : "先恢复文件嵌入队列状态；否则文件和报告不会可靠出现在其他设备。",
+    },
+    {
+      id: "recent-sync-outcome-evidence",
+      title: "页面/数据库最近同步回执有效",
+      status:
+        input.syncOutcomeEvidence.status === "missing-required" ||
+        input.syncOutcomeEvidence.status === "stale-required"
+          ? "block"
+          : input.syncOutcomeEvidence.status === "warning"
+            ? "warn"
+            : "pass",
+      evidence:
+        input.syncOutcomeEvidence.status === "fresh"
+          ? `页面/数据库必需回执有效；最老回执 ${input.syncOutcomeEvidence.oldestOutcomeAgeLabel}。`
+          : input.syncOutcomeEvidence.status === "warning"
+            ? `页面/数据库必需回执有效，但文件回执缺失 ${input.syncOutcomeEvidence.missingOptionalCount} 个、过期 ${input.syncOutcomeEvidence.staleOptionalCount} 个。`
+            : input.syncOutcomeEvidence.status === "missing-required"
+              ? `页面/数据库必需回执缺失 ${input.syncOutcomeEvidence.missingRequiredCount} 个；不能只凭空队列判断另一台设备已经能看到数据。`
+              : `页面/数据库必需回执过期 ${input.syncOutcomeEvidence.staleRequiredCount} 个；最老回执 ${input.syncOutcomeEvidence.oldestOutcomeAgeLabel}。`,
+      next_action: input.syncOutcomeEvidence.requiredReady
+        ? input.syncOutcomeEvidence.status === "warning"
+          ? "可以继续接力判断；如这台设备使用了文件或报告，先补传文件队列取得最新文件回执。"
+          : "继续检查 pending、失败和人工处理队列。"
+        : "先点击补传全部或分别补传页面/数据库，让同步系统生成新的 metadata-only 回执，再换设备。",
     },
     {
       id: "page-pending-drained",
@@ -644,6 +821,7 @@ function getHandoffStatus(input: {
   fileSyncEnabled: boolean;
   hasPending: boolean;
   hasStalePending: boolean;
+  hasRequiredSyncOutcomeEvidenceIssue: boolean;
   failedRows: number;
   manualReviewRows: number;
 }): SyncHandoffReadinessStatus {
@@ -654,6 +832,9 @@ function getHandoffStatus(input: {
   if (input.failedRows > 0) return "blocked-failed";
   if (input.hasStalePending) return "blocked-stale-pending";
   if (input.hasPending) return "blocked-pending";
+  if (input.hasRequiredSyncOutcomeEvidenceIssue) {
+    return "blocked-stale-outcome";
+  }
   if (input.accountBridgeReady) return "ready";
   if (!input.cloudWorkspaceLinked) return "blocked-local-only";
   return "ready";
@@ -679,6 +860,8 @@ function getNextAction(
       return "先补传失败队列；如果继续失败，导出处理包排查。";
     case "blocked-stale-pending":
       return "先处理长时间 pending 队列；滞留队列说明本地输入还没有可靠上云。";
+    case "blocked-stale-outcome":
+      return "先补传页面/数据库并取得新的 metadata-only 同步回执；队列为空但回执缺失或过期时，不要换设备接力。";
     case "blocked-pending":
       return "先补传或等待 pending 队列清空；未上传输入不会可靠出现在另一台设备。";
   }
@@ -713,6 +896,11 @@ function buildOwnerActions(
   }
   if (status === "blocked-failed") {
     return ["Run one manual retry from the Sync UI; if it repeats, export the manual review packet."];
+  }
+  if (status === "blocked-stale-outcome") {
+    return [
+      "Run a manual page/database sync retry to produce fresh metadata-only receipts before device handoff.",
+    ];
   }
   return [
     "Let pending queues drain or trigger manual retry.",
@@ -764,6 +952,18 @@ function getOldestTimestamp(values: Array<string | null>) {
     if (Number.isNaN(valueTime)) return oldest;
     if (Number.isNaN(oldestTime)) return value;
     return valueTime < oldestTime ? value : oldest;
+  }, null);
+}
+
+function getNewestTimestamp(values: Array<string | null>) {
+  return values.reduce<string | null>((newest, value) => {
+    if (!value) return newest;
+    if (!newest) return value;
+    const valueTime = Date.parse(value);
+    const newestTime = Date.parse(newest);
+    if (Number.isNaN(valueTime)) return newest;
+    if (Number.isNaN(newestTime)) return value;
+    return valueTime > newestTime ? value : newest;
   }, null);
 }
 

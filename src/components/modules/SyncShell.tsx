@@ -347,6 +347,7 @@ import {
 } from "@/lib/sync/cacheRebuildPreflightReceipt";
 import {
   buildSyncHandoffReadinessReceipt,
+  type SyncOutcomeEvidenceStatus,
   type SyncHandoffReadinessGateStatus,
   type SyncHandoffReadinessNextStepStatus,
   type SyncHandoffReadinessReceipt,
@@ -22125,6 +22126,17 @@ function SyncUploadSafetyPanel({
             }
           />
           <CacheRebuildFact
+            label="回执证据"
+            value={formatSyncOutcomeEvidenceStatus(
+              handoffReceipt.summary.sync_outcome_evidence_status
+            )}
+            detail={
+              handoffReceipt.summary.required_sync_outcome_domains_ready
+                ? `页面/数据库有效；最老 ${handoffReceipt.summary.oldest_sync_outcome_age_label}`
+                : `缺失 ${handoffReceipt.summary.sync_outcome_missing_required_domains} · 过期 ${handoffReceipt.summary.sync_outcome_stale_required_domains}`
+            }
+          />
+          <CacheRebuildFact
             label="最早 pending"
             value={handoffReceipt.summary.oldest_pending_age_label}
             detail={
@@ -22337,6 +22349,8 @@ function SyncHandoffQuickCheckPanel({
         ? "border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/20"
         : receipt.status === "blocked-stale-pending"
           ? "border-orange-200 bg-orange-50/70 dark:border-orange-900 dark:bg-orange-950/20"
+          : receipt.status === "blocked-stale-outcome"
+            ? "border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20"
           : "border-red-200 bg-red-50/70 dark:border-red-900 dark:bg-red-950/20";
   const primaryMessage =
     receipt.status === "ready"
@@ -22353,6 +22367,8 @@ function SyncHandoffQuickCheckPanel({
               ? "存在同步失败；先补传失败队列，避免另一台设备看不到最新内容。"
               : receipt.status === "blocked-stale-pending"
                 ? "有 pending 停留过久；先补传或导出处理包排查。"
+                : receipt.status === "blocked-stale-outcome"
+                  ? "队列看起来已清空，但页面/数据库缺少近期同步回执；先补传取得新回执后再换设备。"
                 : "还有本地输入等待上传；可以继续写，但先不要换设备接力。";
 
   return (
@@ -22389,6 +22405,16 @@ function SyncHandoffQuickCheckPanel({
       }
       data-file-last-sync-outcome-failed={
         summary.file_last_sync_outcome_failed
+      }
+      data-sync-outcome-evidence-status={summary.sync_outcome_evidence_status}
+      data-required-sync-outcome-domains-ready={String(
+        summary.required_sync_outcome_domains_ready
+      )}
+      data-sync-outcome-missing-required-domains={
+        summary.sync_outcome_missing_required_domains
+      }
+      data-sync-outcome-stale-required-domains={
+        summary.sync_outcome_stale_required_domains
       }
       className={`rounded-lg border px-4 py-3 ${panelClass}`}
     >
@@ -22535,6 +22561,17 @@ function SyncHandoffQuickCheckPanel({
           }
         />
         <SyncHandoffQuickFact
+          label="回执证据"
+          value={formatSyncOutcomeEvidenceStatus(
+            summary.sync_outcome_evidence_status
+          )}
+          detail={
+            summary.required_sync_outcome_domains_ready
+              ? `必需回执有效；最老 ${summary.oldest_sync_outcome_age_label}`
+              : `缺失 ${summary.sync_outcome_missing_required_domains} · 过期 ${summary.sync_outcome_stale_required_domains}`
+          }
+        />
+        <SyncHandoffQuickFact
           label="失败 / 人工"
           value={`${attentionTotal} 条`}
           detail={`${summary.failed_rows} 失败 · ${summary.manual_review_rows} 人工处理`}
@@ -22625,10 +22662,18 @@ function formatSyncHandoffReadinessStatus(
     "blocked-sync-disabled": "同步未开启",
     "blocked-pending": "等待补传",
     "blocked-stale-pending": "滞留阻断",
+    "blocked-stale-outcome": "回执待确认",
     "blocked-failed": "失败阻断",
     "blocked-manual-review": "需人工处理",
   };
   return labels[status];
+}
+
+function formatSyncOutcomeEvidenceStatus(status: SyncOutcomeEvidenceStatus) {
+  if (status === "fresh") return "有效";
+  if (status === "warning") return "文件提醒";
+  if (status === "missing-required") return "缺必需回执";
+  return "必需回执过期";
 }
 
 function syncHandoffReadinessStatusClass(
@@ -22642,6 +22687,9 @@ function syncHandoffReadinessStatusClass(
   }
   if (status === "blocked-stale-pending") {
     return "bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300";
+  }
+  if (status === "blocked-stale-outcome") {
+    return "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
   }
   return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 }

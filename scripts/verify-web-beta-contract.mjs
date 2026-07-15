@@ -12120,6 +12120,18 @@ function run() {
       "Sync UI handoff readiness summary must show file pending rows.",
     ],
     [
+      "handoffReceipt.summary.sync_outcome_evidence_status",
+      "Sync UI handoff readiness summary must show required sync outcome freshness from the same export receipt.",
+    ],
+    [
+      "data-sync-outcome-evidence-status",
+      "Sync UI quick check must expose sync outcome freshness for read-only browser checks.",
+    ],
+    [
+      "回执证据",
+      "Sync UI must label the required sync outcome evidence in Chinese.",
+    ],
+    [
       "safe_to_open_other_device",
       "Sync UI must show whether another device can safely open cloud data.",
     ],
@@ -12398,6 +12410,26 @@ function run() {
       "Handoff readiness receipt must include missing-local-copy counts without file names or bytes.",
     ],
     [
+      "sync_outcome_evidence_status",
+      "Handoff readiness receipt must expose page/database/file outcome freshness status.",
+    ],
+    [
+      "required_sync_outcome_domains_ready",
+      "Handoff readiness receipt must separate required page/database outcome evidence from optional file outcome evidence.",
+    ],
+    [
+      "sync_outcome_missing_required_domains",
+      "Handoff readiness receipt must count missing required page/database outcome evidence.",
+    ],
+    [
+      "sync_outcome_stale_required_domains",
+      "Handoff readiness receipt must count stale required page/database outcome evidence.",
+    ],
+    [
+      '"recent-sync-outcome-evidence"',
+      "Handoff readiness receipt must include a visible sync outcome freshness gate.",
+    ],
+    [
       "file-pending-drained",
       "Handoff readiness receipt must block cross-device handoff while file rows are pending.",
     ],
@@ -12448,6 +12480,10 @@ function run() {
     [
       "reads_file_sync_outcome_summary: true",
       "Handoff readiness receipt may read metadata-only file sync outcome summaries.",
+    ],
+    [
+      "evaluates_sync_outcome_freshness: true",
+      "Handoff readiness receipt may evaluate metadata-only sync outcome freshness.",
     ],
     [
       "reads_page_sync_failure_messages: false",
@@ -12554,6 +12590,10 @@ function run() {
       "Handoff readiness receipt must keep file sync outcome receipts limited to counts, status, source, and timestamps.",
     ],
     [
+      "includes_sync_outcome_freshness_counts: true",
+      "Handoff readiness receipt must limit sync outcome freshness to counts and timestamps.",
+    ],
+    [
       "blocked-local-only",
       "Handoff readiness receipt must block local-only workspaces.",
     ],
@@ -12568,6 +12608,10 @@ function run() {
     [
       "blocked-stale-pending",
       "Handoff readiness receipt must block stale pending queues.",
+    ],
+    [
+      "blocked-stale-outcome",
+      "Handoff readiness receipt must block handoff when required page/database sync outcome evidence is missing or stale.",
     ],
     [
       "blocked-failed",

@@ -16318,6 +16318,24 @@ function run() {
     "Sync UI handoff readiness summary must show the latest file sync outcome from the same export receipt."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handoffReceipt.summary.sync_outcome_evidence_status",
+    "Sync UI handoff readiness summary must show required sync outcome freshness from the same export receipt."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-sync-outcome-evidence-status",
+    "Sync UI quick check must expose sync outcome freshness for read-only browser checks."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "回执证据",
+    "Sync UI must label the required sync outcome evidence in Chinese."
+  );
+  assertIncludes(
     files.authCallback,
     authCallback,
     "recoverCloudHandoffFromSession",
@@ -16464,6 +16482,12 @@ function run() {
   assertIncludes(
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
+    "evaluates_sync_outcome_freshness: true",
+    "Handoff readiness receipt may evaluate metadata-only sync outcome freshness."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
     "reads_page_sync_failure_messages: false",
     "Handoff readiness receipt must not read page sync failure messages."
   );
@@ -16514,6 +16538,36 @@ function run() {
     syncHandoffReadinessReceipt,
     "file_last_sync_outcome_missing_local_files",
     "Handoff readiness receipt must include file missing-local-copy counts without file names or bytes."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "sync_outcome_evidence_status",
+    "Handoff readiness receipt must expose sync outcome freshness status."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "required_sync_outcome_domains_ready",
+    "Handoff readiness receipt must require page/database sync outcome evidence before device handoff."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "sync_outcome_missing_required_domains",
+    "Handoff readiness receipt must count missing required sync outcome evidence."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "sync_outcome_stale_required_domains",
+    "Handoff readiness receipt must count stale required sync outcome evidence."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    '"recent-sync-outcome-evidence"',
+    "Handoff readiness receipt must expose a visible sync outcome freshness gate."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,
@@ -16617,6 +16671,12 @@ function run() {
     "includes_file_sync_outcome_counts_status_source_and_timestamps: true",
     "Handoff readiness receipt must declare that file sync outcomes are limited to counts, status, source, and timestamps."
   );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "includes_sync_outcome_freshness_counts: true",
+    "Handoff readiness receipt must limit sync outcome freshness to counts and timestamps."
+  );
   assertExcludes(
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
@@ -16646,6 +16706,12 @@ function run() {
     syncHandoffReadinessReceipt,
     "blocked-pending",
     "Handoff readiness receipt must block cross-device handoff while pending queues exist."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "blocked-stale-outcome",
+    "Handoff readiness receipt must block handoff when required page/database outcome evidence is missing or stale."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,
