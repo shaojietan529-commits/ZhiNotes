@@ -3579,6 +3579,26 @@ function run() {
       "Two-day usability gate must distinguish scoped beta feasibility from full-platform readiness.",
     ],
     [
+      "accountSyncBridgeProbe?:",
+      "Two-day usability gate must accept the account sync bridge read-only probe receipt.",
+    ],
+    [
+      "account-sync-bridge-probe",
+      "Two-day usability gate must include an account sync bridge readability gate.",
+    ],
+    [
+      "account_sync_bridge_probe_status",
+      "Two-day usability gate summary must expose the account sync bridge probe status.",
+    ],
+    [
+      "account_sync_bridge_readable_domains",
+      "Two-day usability gate summary must expose readable account sync bridge domains.",
+    ],
+    [
+      "账号同步桥只读检查显示页面、每日纪要、会议、数据库四个核心 metadata 域均可读。",
+      "Two-day usability gate must require account bridge probe evidence before claiming sync is usable.",
+    ],
+    [
       "primary_blocker",
       "Two-day usability gate must expose the current primary blocker.",
     ],
@@ -3934,6 +3954,22 @@ function run() {
     [
       "gate.summary.ack_ledger_remaining_blockers",
       "Sync UI must show ack ledger blocker count in the two-day usability gate summary.",
+    ],
+    [
+      "accountSyncBridgeProbe: accountBridgeProbeReceipt",
+      "Sync UI must pass the account sync bridge probe receipt into the two-day usability gate.",
+    ],
+    [
+      "data-account-sync-bridge-probe-status",
+      "Sync UI must expose the account bridge probe status on the two-day gate.",
+    ],
+    [
+      "gate.summary.account_sync_bridge_readable_domains",
+      "Sync UI must show the account bridge readable domain count in the two-day gate summary.",
+    ],
+    [
+      "同步桥",
+      "Sync UI must surface account bridge readiness in the two-day gate facts.",
     ],
     [
       "data-two-device-sync-ack-ledger-server-readiness-blockers",

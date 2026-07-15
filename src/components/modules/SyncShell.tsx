@@ -3176,9 +3176,17 @@ function SyncDashboard() {
         cloudUploadReliabilityReport,
         cloudNativeFluidityReport,
         pendingDomainCoverage,
+        accountSyncBridgeProbe: accountBridgeProbeReceipt
+          ? {
+              status: accountBridgeProbeReceipt.status,
+              readable_domains: accountBridgeProbeReceipt.readable_domains,
+              blocked_domains: accountBridgeProbeReceipt.blocked_domains,
+            }
+          : null,
         ackLedgerServerReadiness: syncAckLedgerServerReadiness,
       }),
     [
+      accountBridgeProbeReceipt,
       cloudNativeFluidityReport,
       cloudSyncControlPlane,
       cloudUploadReliabilityReport,
@@ -24709,6 +24717,15 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
       data-can-target-two-day-sync-beta={String(
         gate.can_target_two_day_sync_beta
       )}
+      data-account-sync-bridge-probe-status={
+        gate.summary.account_sync_bridge_probe_status
+      }
+      data-account-sync-bridge-readable-domains={
+        gate.summary.account_sync_bridge_readable_domains
+      }
+      data-account-sync-bridge-blocked-domains={
+        gate.summary.account_sync_bridge_blocked_domains
+      }
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -24768,6 +24785,13 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
           label="账号退避"
           value={gate.summary.auth_retry_active ? "等待恢复" : "正常"}
           detail="不等于登出"
+        />
+        <CacheRebuildFact
+          label="同步桥"
+          value={formatAccountSyncBridgeProbeStatus(
+            gate.summary.account_sync_bridge_probe_status
+          )}
+          detail={`${gate.summary.account_sync_bridge_readable_domains}/4 域可读`}
         />
         <CacheRebuildFact
           label="ACK账本"

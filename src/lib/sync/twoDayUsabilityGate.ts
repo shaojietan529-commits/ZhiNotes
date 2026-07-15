@@ -19,6 +19,11 @@ export interface TwoDayUsabilityGateInput {
   cloudNativeFluidityReport: CloudNativeFluidityReport;
   pendingDomainCoverage: PendingDomainCoverageReport;
   ackLedgerServerReadiness: SyncAckLedgerServerReadiness;
+  accountSyncBridgeProbe?: {
+    status: "not-run" | "ready" | "blocked" | "partial";
+    readable_domains: number;
+    blocked_domains: number;
+  } | null;
   generatedAt?: string;
 }
 
@@ -29,6 +34,7 @@ export interface TwoDayUsabilityGateItem {
     | "cloud-workspace-and-core-sync"
     | "queue-clear-or-draining"
     | "auth-retry-clear"
+    | "account-sync-bridge-probe"
     | "sync-domain-coverage"
     | "ack-ledger-readiness"
     | "first-paint-fluidity";
@@ -90,6 +96,13 @@ export interface TwoDayUsabilityGate {
     ack_ledger_ready: boolean;
     ack_ledger_remaining_blockers: number;
     ack_ledger_next_action: string;
+    account_sync_bridge_probe_status:
+      | "not-run"
+      | "ready"
+      | "blocked"
+      | "partial";
+    account_sync_bridge_readable_domains: number;
+    account_sync_bridge_blocked_domains: number;
     performance_samples: number;
   };
   primary_blocker: TwoDayUsabilityGateItem | null;
@@ -113,6 +126,9 @@ export function buildTwoDayUsabilityGate(
   const plane = input.cloudSyncControlPlane;
   const fluidity = input.cloudNativeFluidityReport.summary;
   const coverage = input.pendingDomainCoverage;
+  const accountBridgeProbe = input.accountSyncBridgeProbe ?? null;
+  const accountBridgeProbeStatus = accountBridgeProbe?.status ?? "not-run";
+  const accountBridgeProbeReady = accountBridgeProbeStatus === "ready";
   const ackLedgerReady =
     input.ackLedgerServerReadiness.can_query_server_ledger_now &&
     input.ackLedgerServerReadiness.summary.remaining_blockers === 0;
@@ -122,6 +138,7 @@ export function buildTwoDayUsabilityGate(
     plane.can_switch_device_now && reliability.safe_to_switch_device_now;
   const allPlatformSyncMinimumReady =
     canSwitchDevicesNow &&
+    accountBridgeProbeReady &&
     coverage.coverageComplete &&
     reliability.cloud_workspace_linked &&
     reliability.page_sync_enabled &&
@@ -140,6 +157,11 @@ export function buildTwoDayUsabilityGate(
     reliability,
     fluidity,
     coverage,
+    accountBridgeProbeStatus,
+    accountBridgeProbeReadableDomains:
+      accountBridgeProbe?.readable_domains ?? 0,
+    accountBridgeProbeBlockedDomains:
+      accountBridgeProbe?.blocked_domains ?? 0,
     ackLedgerServerReadiness: input.ackLedgerServerReadiness,
   });
   const blockers = gates.filter((gate) => gate.status === "block").length;
@@ -209,6 +231,11 @@ export function buildTwoDayUsabilityGate(
         input.ackLedgerServerReadiness.summary.remaining_blockers,
       ack_ledger_next_action:
         input.ackLedgerServerReadiness.summary.next_action,
+      account_sync_bridge_probe_status: accountBridgeProbeStatus,
+      account_sync_bridge_readable_domains:
+        accountBridgeProbe?.readable_domains ?? 0,
+      account_sync_bridge_blocked_domains:
+        accountBridgeProbe?.blocked_domains ?? 0,
       performance_samples: fluidity.performance_samples,
     },
     primary_blocker: primaryBlocker,
@@ -220,6 +247,7 @@ export function buildTwoDayUsabilityGate(
     evidence_required_before_claim: [
       "同步中心显示 pending、failed、manual review 全部清零。",
       "账号认证退避为无，临时接口失败不会自动登出任一设备。",
+      "账号同步桥只读检查显示页面、每日纪要、会议、数据库四个核心 metadata 域均可读。",
       "页面、每日纪要、ZhiHui、数据库、文件元数据至少各完成一条真实两设备样本。",
       "设备 B 刷新后能看到设备 A 的新增和编辑结果。",
       "ACK ledger 服务端就绪报告显示 remaining_blockers=0 且可以查询 server ledger。",
@@ -263,6 +291,9 @@ function buildGateItems(input: {
   reliability: CloudUploadReliabilityReport["summary"];
   fluidity: CloudNativeFluidityReport["summary"];
   coverage: PendingDomainCoverageReport;
+  accountBridgeProbeStatus: "not-run" | "ready" | "blocked" | "partial";
+  accountBridgeProbeReadableDomains: number;
+  accountBridgeProbeBlockedDomains: number;
   ackLedgerServerReadiness: SyncAckLedgerServerReadiness;
 }): TwoDayUsabilityGateItem[] {
   const ackLedgerReady =
@@ -344,6 +375,28 @@ function buildGateItems(input: {
       nextAction: input.reliability.auth_retry_active
         ? "本地可继续写；等待账号自动重试恢复，期间不要清缓存或切设备。"
         : "保持临时账号失败不登出的策略。",
+    }),
+    gate({
+      id: "account-sync-bridge-probe",
+      title: "账号同步桥可读性",
+      status:
+        input.accountBridgeProbeStatus === "ready"
+          ? "pass"
+          : input.accountBridgeProbeStatus === "blocked"
+            ? "block"
+            : "warn",
+      evidence:
+        input.accountBridgeProbeStatus === "ready"
+          ? "页面、每日纪要、会议和数据库四个核心 metadata 域均已通过只读检查。"
+          : input.accountBridgeProbeStatus === "not-run"
+            ? "账号同步桥还没有运行只读检查；不能声称真实两设备同步已准备好。"
+            : `账号同步桥只读检查为 ${input.accountBridgeProbeStatus}：${input.accountBridgeProbeReadableDomains} 个域可读，${input.accountBridgeProbeBlockedDomains} 个域不可读。`,
+      nextAction:
+        input.accountBridgeProbeStatus === "ready"
+          ? "继续跑真实两设备 smoke，并保留 owner receipt。"
+          : input.accountBridgeProbeStatus === "not-run"
+            ? "先在同步中心运行“只读检查账号同步桥”，确认核心 metadata 域能被当前账号读到。"
+            : "先处理不可读域的登录、同步开关或云接口状态；本地输入和 pending 队列继续保留。",
     }),
     gate({
       id: "sync-domain-coverage",
