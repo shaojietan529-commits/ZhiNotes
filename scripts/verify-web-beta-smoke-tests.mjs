@@ -3531,6 +3531,14 @@ function run() {
       "Two-device sync smoke owner receipt builder must be exported.",
     ],
     [
+      'import type { SyncAckRetryLedgerContract }',
+      "Two-device sync smoke runbook must depend on the ack/retry ledger contract.",
+    ],
+    [
+      "ackRetryLedger: SyncAckRetryLedgerContract",
+      "Two-device sync smoke runbook input must include the ack/retry ledger contract.",
+    ],
+    [
       'receipt_status: "owner-evidence-required"',
       "Two-device sync smoke owner receipt must require owner evidence.",
     ],
@@ -3563,6 +3571,18 @@ function run() {
       "Two-device sync smoke runbook must expose whether sync-domain coverage is complete before real two-device smoke starts.",
     ],
     [
+      "ack_ledger_ready",
+      "Two-device sync smoke runbook must expose ack ledger readiness before real two-device smoke starts.",
+    ],
+    [
+      "ack_ledger_blocked_gates",
+      "Two-device sync smoke runbook must expose remaining ack ledger blockers.",
+    ],
+    [
+      "full_platform_sync_claim_blocked",
+      "Two-device sync smoke runbook must block full-platform sync claims until ack ledger is ready.",
+    ],
+    [
       "reads_page_body_text: false",
       "Two-device sync smoke runbook must not read page body text.",
     ],
@@ -3589,6 +3609,10 @@ function run() {
     [
       "sync-domain-coverage-check",
       "Two-device sync smoke runbook must include a sync-domain coverage check before workflow samples.",
+    ],
+    [
+      "ack-ledger-readiness",
+      "Two-device sync smoke runbook must include an ack/retry ledger readiness gate before workflow samples.",
     ],
     [
       "page-note-sync",
@@ -3621,6 +3645,14 @@ function run() {
     [
       "sync-domain coverage complete",
       "Two-device sync smoke runbook final receipt must require complete sync-domain coverage evidence.",
+    ],
+    [
+      "remote ACK cursor",
+      "Two-device sync smoke runbook final receipt must require durable remote ack cursor evidence.",
+    ],
+    [
+      "ack-ledger-evidence",
+      "Two-device sync owner receipt must include an owner-filled ack ledger evidence field.",
     ],
   ]) {
     assertIncludes(
@@ -3656,6 +3688,10 @@ function run() {
       "Sync UI must build the two-device sync smoke runbook.",
     ],
     [
+      "ackRetryLedger: syncAckRetryLedgerContract",
+      "Sync UI must pass the ack/retry ledger contract into the two-device smoke runbook.",
+    ],
+    [
       "buildTwoDeviceSyncSmokeOwnerReceipt",
       "Sync UI must build the two-device sync smoke owner receipt.",
     ],
@@ -3674,6 +3710,18 @@ function run() {
     [
       "data-two-device-sync-domain-coverage-complete",
       "Sync UI must expose two-device sync-domain coverage readiness.",
+    ],
+    [
+      "data-two-device-sync-ack-ledger-ready",
+      "Sync UI must expose two-device ack ledger readiness.",
+    ],
+    [
+      "data-two-device-sync-full-platform-claim-blocked",
+      "Sync UI must expose that full-platform sync claims remain blocked until ack ledger readiness.",
+    ],
+    [
+      "ACK账本",
+      "Sync UI must show the ack ledger gate in the two-device smoke summary.",
     ],
     [
       "data-two-device-sync-owner-receipt-status",

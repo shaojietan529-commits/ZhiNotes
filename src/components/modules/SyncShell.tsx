@@ -2671,8 +2671,14 @@ function SyncDashboard() {
         gate: twoDayUsabilityGate,
         controlPlane: cloudSyncControlPlane,
         reliability: cloudUploadReliabilityReport,
+        ackRetryLedger: syncAckRetryLedgerContract,
       }),
-    [cloudSyncControlPlane, cloudUploadReliabilityReport, twoDayUsabilityGate]
+    [
+      cloudSyncControlPlane,
+      cloudUploadReliabilityReport,
+      syncAckRetryLedgerContract,
+      twoDayUsabilityGate,
+    ]
   );
   const twoDeviceSyncSmokeOwnerReceipt = useMemo(
     () =>
@@ -24061,6 +24067,15 @@ function TwoDeviceSyncSmokeRunbookPanel({
       data-two-device-sync-domain-coverage-complete={String(
         runbook.summary.sync_domain_coverage_complete
       )}
+      data-two-device-sync-ack-ledger-ready={String(
+        runbook.summary.ack_ledger_ready
+      )}
+      data-two-device-sync-ack-ledger-blocked-gates={String(
+        runbook.summary.ack_ledger_blocked_gates
+      )}
+      data-two-device-sync-full-platform-claim-blocked={String(
+        runbook.summary.full_platform_sync_claim_blocked
+      )}
       data-two-device-sync-owner-receipt-status={ownerReceipt.receipt_status}
       data-two-device-sync-owner-receipt-claim-passed={String(
         ownerReceipt.can_claim_two_device_sync_passed_now
@@ -24113,7 +24128,7 @@ function TwoDeviceSyncSmokeRunbookPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-9">
         <CacheRebuildFact
           label="可开始"
           value={runbook.ready_to_run_real_smoke_now ? "可以" : "等待"}
@@ -24145,6 +24160,21 @@ function TwoDeviceSyncSmokeRunbookPanel({
             runbook.summary.sync_domain_coverage_complete ? "完整" : "缺口"
           }
           detail="同步域"
+        />
+        <CacheRebuildFact
+          label="ACK账本"
+          value={runbook.summary.ack_ledger_ready ? "通过" : "未过"}
+          detail={`${runbook.summary.ack_ledger_blocked_gates} 个阻塞`}
+        />
+        <CacheRebuildFact
+          label="push/pull"
+          value={
+            runbook.summary.sync_push_route_enabled &&
+            runbook.summary.sync_pull_route_enabled
+              ? "启用"
+              : "关闭"
+          }
+          detail="等 ACK"
         />
         <CacheRebuildFact
           label="切设备"
