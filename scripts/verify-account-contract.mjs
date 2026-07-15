@@ -257,6 +257,7 @@ check(
     shell.includes("PAGE_SYNC_STORAGE_KEY_PREFIX") &&
     shell.includes("DATABASE_SYNC_STORAGE_KEY_PREFIX") &&
     shell.includes("FILE_EMBED_SYNC_QUEUE_STORAGE_KEY") &&
+    shell.includes("FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY") &&
     shell.includes("event.key?.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)") &&
     shell.includes("event.key?.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)") &&
     shell.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
@@ -830,9 +831,14 @@ check(
     fileEmbedSyncQueue.includes('status: "pending"') &&
     fileEmbedSyncQueue.includes("failureCount") &&
     fileEmbedSyncQueue.includes("FILE_EMBED_SYNC_AUTH_RETRY_STORAGE_KEY") &&
+    fileEmbedSyncQueue.includes("FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY") &&
+    fileEmbedSyncQueue.includes("export interface FileEmbedSyncLastOutcome") &&
+    fileEmbedSyncQueue.includes("getLastFileEmbedSyncOutcome") &&
+    fileEmbedSyncQueue.includes("lastOutcome: getLastFileEmbedSyncOutcome()") &&
+    fileEmbedSyncQueue.includes("recordFileEmbedSyncOutcome") &&
     filePreviewUpload.includes("classifyFileEmbedCloudSyncAuthDeferral") &&
     filePreviewUpload.includes("markFileEmbedCloudSyncDeferred"),
-  "文件云同步遇到未登录、未配置或 session 暂不可确认时必须继续保留 pending，并单独记录账号重试，不能增加失败次数或推入人工处理"
+  "文件云同步遇到未登录、未配置或 session 暂不可确认时必须继续保留 pending，并单独记录账号重试和 metadata-only 最近回执，不能增加失败次数或推入人工处理"
 );
 check(
   fileEmbedSyncStatusHook.includes(
@@ -859,6 +865,7 @@ check(
       "if (event.newValue) {\n          refreshAndMaybeRetry();\n        } else {\n          refreshAndMaybeForegroundRetry();\n        }"
     ) &&
     fileEmbedSyncStatusHook.includes("scheduleAutoRetry") &&
+    fileEmbedSyncStatusHook.includes("FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY") &&
     fileEmbedSyncStatusHook.includes("FILE_EMBED_QUEUE_RETRY_DELAY_MS"),
   "文件云同步队列必须在账号恢复、前台恢复、联网恢复和队列变化后做有上限、低频、跨 tab 合并的小批量重试，且卸载后不能继续写入 UI，避免用户登录恢复后仍长时间看不到补传进展，也避免多标签重复上传"
 );

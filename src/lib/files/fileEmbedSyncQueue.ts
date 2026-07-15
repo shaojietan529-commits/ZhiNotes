@@ -11,6 +11,8 @@ export const FILE_EMBED_SYNC_QUEUE_STORAGE_KEY =
 export const FILE_EMBED_SYNC_QUEUE_EVENT = "zhinote:fileembed-sync-queue";
 export const FILE_EMBED_SYNC_AUTH_RETRY_STORAGE_KEY =
   "zhinote.fileembed.sync.auth-retry.v1";
+export const FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY =
+  "zhinote.fileembed.sync.lastOutcome.v1";
 const FILE_EMBED_MANUAL_REVIEW_FAILURE_THRESHOLD = 3;
 const FILE_EMBED_AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 
@@ -22,6 +24,11 @@ export type FileEmbedSyncAuthRetryStatus =
   | "unauthenticated"
   | "unconfigured"
   | "unconfirmed";
+export type FileEmbedSyncLastOutcomeStatus =
+  | "ok"
+  | "partial"
+  | "failed"
+  | "deferred";
 
 export interface FileEmbedSyncQueueEntry {
   fileId: string;
@@ -55,6 +62,7 @@ export interface PendingFileEmbedSyncStatus {
   manualReviewSampleIds: string[];
   authRetryStatus: FileEmbedSyncAuthRetryStatus | null;
   authRetryUntil: string | null;
+  lastOutcome: FileEmbedSyncLastOutcome | null;
   storesFileBytes: false;
 }
 
@@ -66,6 +74,20 @@ export interface DrainFileEmbedSyncQueueResult {
   missingLocalFiles: number;
   authDeferred: number;
   message?: string;
+}
+
+export interface FileEmbedSyncLastOutcome {
+  status: FileEmbedSyncLastOutcomeStatus;
+  source: "queue-drain";
+  at: string;
+  attempted: number;
+  synced: number;
+  failed: number;
+  manualReview: number;
+  missingLocalFiles: number;
+  authDeferred: number;
+  pendingAfter: number;
+  message: string | null;
 }
 
 export function markFileEmbedCloudSyncAttempt(file: StoredPageFile): void {
@@ -171,8 +193,20 @@ export function getPendingFileEmbedSyncStatus(): PendingFileEmbedSyncStatus {
       .map((entry) => entry.fileId),
     authRetryStatus: authRetry.status,
     authRetryUntil: authRetry.until,
+    lastOutcome: getLastFileEmbedSyncOutcome(),
     storesFileBytes: false,
   };
+}
+
+export function getLastFileEmbedSyncOutcome(): FileEmbedSyncLastOutcome | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return normalizeFileEmbedSyncLastOutcome(
+      window.localStorage.getItem(FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY)
+    );
+  } catch {
+    return null;
+  }
 }
 
 export function classifyFileEmbedCloudSyncAuthDeferral(
@@ -266,7 +300,7 @@ export async function drainPendingFileEmbedSyncQueue(
     }
   }
 
-  return {
+  const result = {
     attempted,
     synced,
     failed,
@@ -274,6 +308,99 @@ export async function drainPendingFileEmbedSyncQueue(
     missingLocalFiles,
     authDeferred,
   };
+  recordFileEmbedSyncOutcome(result);
+  return result;
+}
+
+function recordFileEmbedSyncOutcome(
+  result: DrainFileEmbedSyncQueueResult
+): void {
+  if (typeof window === "undefined") return;
+  const pendingAfterStatus = getPendingFileEmbedSyncStatus();
+  const pendingAfter =
+    pendingAfterStatus.pending +
+    pendingAfterStatus.failed +
+    pendingAfterStatus.manualReviewCount;
+  const status: FileEmbedSyncLastOutcomeStatus =
+    result.authDeferred > 0
+      ? "deferred"
+      : result.failed > 0 || result.manualReview > 0 || result.missingLocalFiles > 0
+        ? result.synced > 0
+          ? "partial"
+          : "failed"
+        : "ok";
+  const outcome: FileEmbedSyncLastOutcome = {
+    status,
+    source: "queue-drain",
+    at: new Date().toISOString(),
+    attempted: result.attempted,
+    synced: result.synced,
+    failed: result.failed,
+    manualReview: result.manualReview,
+    missingLocalFiles: result.missingLocalFiles,
+    authDeferred: result.authDeferred,
+    pendingAfter,
+    message: result.message ?? null,
+  };
+  try {
+    window.localStorage.setItem(
+      FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY,
+      JSON.stringify(outcome)
+    );
+    window.dispatchEvent(
+      new CustomEvent(FILE_EMBED_SYNC_QUEUE_EVENT, {
+        detail: getPendingFileEmbedSyncStatus(),
+      })
+    );
+  } catch {
+    // Outcome visibility is best-effort; the queue itself remains authoritative.
+  }
+}
+
+function normalizeFileEmbedSyncLastOutcome(
+  raw: string | null
+): FileEmbedSyncLastOutcome | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") return null;
+    const status = parsed.status;
+    if (
+      status !== "ok" &&
+      status !== "partial" &&
+      status !== "failed" &&
+      status !== "deferred"
+    ) {
+      return null;
+    }
+    if (parsed.source !== "queue-drain" || typeof parsed.at !== "string") {
+      return null;
+    }
+    return {
+      status,
+      source: "queue-drain",
+      at: parsed.at,
+      attempted: normalizeNonNegativeCount(parsed.attempted),
+      synced: normalizeNonNegativeCount(parsed.synced),
+      failed: normalizeNonNegativeCount(parsed.failed),
+      manualReview: normalizeNonNegativeCount(parsed.manualReview),
+      missingLocalFiles: normalizeNonNegativeCount(parsed.missingLocalFiles),
+      authDeferred: normalizeNonNegativeCount(parsed.authDeferred),
+      pendingAfter: normalizeNonNegativeCount(parsed.pendingAfter),
+      message:
+        typeof parsed.message === "string" && parsed.message.trim()
+          ? parsed.message
+          : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function normalizeNonNegativeCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : 0;
 }
 
 function entryFromStoredFile(

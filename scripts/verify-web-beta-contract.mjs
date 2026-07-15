@@ -11708,6 +11708,10 @@ function run() {
       "Upload safety overview must include the latest database sync outcome.",
     ],
     [
+      "文件回执",
+      "Upload safety overview must include the latest file sync outcome.",
+    ],
+    [
       "远端跳过",
       "Sync UI must distinguish cloud-newer or equal skipped uploads from failures.",
     ],
@@ -12382,6 +12386,18 @@ function run() {
       "Handoff readiness receipt must include database skip counts without database keys or row values.",
     ],
     [
+      "file_last_sync_outcome_status",
+      "Handoff readiness receipt must include the latest metadata-only file sync outcome status.",
+    ],
+    [
+      "file_last_sync_outcome_source",
+      "Handoff readiness receipt must include the latest file sync outcome source without file names.",
+    ],
+    [
+      "file_last_sync_outcome_missing_local_files",
+      "Handoff readiness receipt must include missing-local-copy counts without file names or bytes.",
+    ],
+    [
       "file-pending-drained",
       "Handoff readiness receipt must block cross-device handoff while file rows are pending.",
     ],
@@ -12430,12 +12446,20 @@ function run() {
       "Handoff readiness receipt may read metadata-only database sync outcome summaries.",
     ],
     [
+      "reads_file_sync_outcome_summary: true",
+      "Handoff readiness receipt may read metadata-only file sync outcome summaries.",
+    ],
+    [
       "reads_page_sync_failure_messages: false",
       "Handoff readiness receipt must not read page sync failure messages.",
     ],
     [
       "reads_database_sync_failure_messages: false",
       "Handoff readiness receipt must not read database sync failure messages.",
+    ],
+    [
+      "reads_file_sync_failure_messages: false",
+      "Handoff readiness receipt must not read file sync failure messages.",
     ],
     [
       "reads_page_ids: false",
@@ -12526,6 +12550,10 @@ function run() {
       "Handoff readiness receipt must keep database sync outcome receipts limited to counts, status, source, and timestamps.",
     ],
     [
+      "includes_file_sync_outcome_counts_status_source_and_timestamps: true",
+      "Handoff readiness receipt must keep file sync outcome receipts limited to counts, status, source, and timestamps.",
+    ],
+    [
       "blocked-local-only",
       "Handoff readiness receipt must block local-only workspaces.",
     ],
@@ -12593,6 +12621,12 @@ function run() {
     syncHandoffReadinessReceipt,
     "database_last_sync_outcome_message",
     "Handoff readiness receipt must not export database sync status or failure messages."
+  );
+  assertSourceExcludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "file_last_sync_outcome_message",
+    "Handoff readiness receipt must not export file sync status or failure messages."
   );
 
   for (const [snippet, message] of [

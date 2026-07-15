@@ -6,6 +6,7 @@ import { ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY } from "@/lib/account/cl
 import {
   drainPendingFileEmbedSyncQueue,
   FILE_EMBED_SYNC_AUTH_RETRY_STORAGE_KEY,
+  FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY,
   FILE_EMBED_SYNC_QUEUE_EVENT,
   FILE_EMBED_SYNC_QUEUE_STORAGE_KEY,
   getPendingFileEmbedSyncStatus,
@@ -170,7 +171,8 @@ export function useFileEmbedCloudSyncStatus() {
       }
       if (
         event.key !== FILE_EMBED_SYNC_QUEUE_STORAGE_KEY &&
-        event.key !== FILE_EMBED_SYNC_AUTH_RETRY_STORAGE_KEY
+        event.key !== FILE_EMBED_SYNC_AUTH_RETRY_STORAGE_KEY &&
+        event.key !== FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY
       ) {
         return;
       }

@@ -52,6 +52,7 @@ import {
   type PendingCloudDatabaseSyncStatus,
 } from "@/lib/database/accountDatabaseSync";
 import {
+  FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY,
   FILE_EMBED_SYNC_QUEUE_EVENT,
   FILE_EMBED_SYNC_QUEUE_STORAGE_KEY,
   getPendingFileEmbedSyncStatus,
@@ -250,6 +251,7 @@ function isAccountCloudUploadStatusStorageEvent(event: StorageEvent): boolean {
     Boolean(event.key?.startsWith(PAGE_SYNC_STORAGE_KEY_PREFIX)) ||
     Boolean(event.key?.startsWith(DATABASE_SYNC_STORAGE_KEY_PREFIX)) ||
     event.key === FILE_EMBED_SYNC_QUEUE_STORAGE_KEY ||
+    event.key === FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY ||
     event.key === SYNC_LOG_STATUS_STORAGE_KEY ||
     event.key === SETTINGS_SYNC_STATUS_STORAGE_KEY ||
     event.key === KNOWLEDGE_SYNC_STATUS_STORAGE_KEY

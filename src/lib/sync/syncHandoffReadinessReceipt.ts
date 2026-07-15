@@ -37,6 +37,7 @@ type PageLastSyncOutcome = NonNullable<PendingCloudPageSyncStatus["lastOutcome"]
 type DatabaseLastSyncOutcome = NonNullable<
   PendingCloudDatabaseSyncStatus["lastOutcome"]
 >;
+type FileLastSyncOutcome = NonNullable<PendingFileEmbedSyncStatus["lastOutcome"]>;
 
 export interface SyncHandoffReadinessGate {
   id: string;
@@ -74,8 +75,10 @@ export interface SyncHandoffReadinessReceipt {
     reads_queue_timestamps: true;
     reads_page_sync_outcome_summary: true;
     reads_database_sync_outcome_summary: true;
+    reads_file_sync_outcome_summary: true;
     reads_page_sync_failure_messages: false;
     reads_database_sync_failure_messages: false;
+    reads_file_sync_failure_messages: false;
     reads_page_ids: false;
     reads_database_keys: false;
     reads_failure_messages: false;
@@ -99,6 +102,7 @@ export interface SyncHandoffReadinessReceipt {
     includes_only_counts_booleans_hashes_timestamps_gates_and_steps: true;
     includes_page_sync_outcome_counts_status_source_and_timestamps: true;
     includes_database_sync_outcome_counts_status_source_and_timestamps: true;
+    includes_file_sync_outcome_counts_status_source_and_timestamps: true;
   };
   summary: {
     handoff_mode: SyncHandoffMode;
@@ -128,6 +132,16 @@ export interface SyncHandoffReadinessReceipt {
     database_last_sync_outcome_skipped: number;
     database_last_sync_outcome_pending_after: number;
     file_sync_enabled: boolean;
+    file_last_sync_outcome_status: FileLastSyncOutcome["status"] | null;
+    file_last_sync_outcome_source: FileLastSyncOutcome["source"] | null;
+    file_last_sync_outcome_at: string | null;
+    file_last_sync_outcome_attempted: number;
+    file_last_sync_outcome_synced: number;
+    file_last_sync_outcome_failed: number;
+    file_last_sync_outcome_manual_review: number;
+    file_last_sync_outcome_missing_local_files: number;
+    file_last_sync_outcome_auth_deferred: number;
+    file_last_sync_outcome_pending_after: number;
     workspace_fingerprint: string | null;
     device_fingerprint: string | null;
     cloud_workspace_fingerprint: string | null;
@@ -163,6 +177,7 @@ export function buildSyncHandoffReadinessReceipt(
   const generatedAt = input.generatedAt ?? new Date().toISOString();
   const pageLastOutcome = input.pageStatus.lastOutcome;
   const databaseLastOutcome = input.databaseStatus.lastOutcome;
+  const fileLastOutcome = input.fileStatus.lastOutcome;
   const pageSyncLogPendingRows = input.pageStatus.syncLogPending ?? 0;
   const databaseSyncLogPendingRows = input.databaseStatus.syncLogPending ?? 0;
   const syncLogCoveredPendingRows =
@@ -308,6 +323,17 @@ export function buildSyncHandoffReadinessReceipt(
     database_last_sync_outcome_skipped: databaseLastOutcome?.skipped ?? 0,
     database_last_sync_outcome_pending_after:
       databaseLastOutcome?.pendingAfter ?? 0,
+    file_last_sync_outcome_status: fileLastOutcome?.status ?? null,
+    file_last_sync_outcome_source: fileLastOutcome?.source ?? null,
+    file_last_sync_outcome_at: fileLastOutcome?.at ?? null,
+    file_last_sync_outcome_attempted: fileLastOutcome?.attempted ?? 0,
+    file_last_sync_outcome_synced: fileLastOutcome?.synced ?? 0,
+    file_last_sync_outcome_failed: fileLastOutcome?.failed ?? 0,
+    file_last_sync_outcome_manual_review: fileLastOutcome?.manualReview ?? 0,
+    file_last_sync_outcome_missing_local_files:
+      fileLastOutcome?.missingLocalFiles ?? 0,
+    file_last_sync_outcome_auth_deferred: fileLastOutcome?.authDeferred ?? 0,
+    file_last_sync_outcome_pending_after: fileLastOutcome?.pendingAfter ?? 0,
     page_pending_rows: pagePendingRows,
     page_sync_log_pending_rows: pageSyncLogPendingRows,
     database_pending_rows: databasePendingRows,
@@ -335,7 +361,7 @@ export function buildSyncHandoffReadinessReceipt(
     generated_at: generatedAt,
     status,
     privacy_boundary:
-      "Generated locally to decide whether this browser can safely hand work to another device through either the full cloud workspace or the account-level sync bridge. It records only counts, sync flags, hashed workspace/device fingerprints, queue timestamps, page/database sync outcome status/source/counts, gate statuses, and gate-derived owner next steps. It does not read or export page ids, database keys, account emails, page bodies, Yjs payloads, database values, comments, file names, file bytes, page/database sync failure messages, failure messages, secrets, tokens, credentials, raw workspace ids, or raw cache dumps; it does not send network requests, upload workspace data, clear local cache, mutate local cache records, or enable sync/AI.",
+      "Generated locally to decide whether this browser can safely hand work to another device through either the full cloud workspace or the account-level sync bridge. It records only counts, sync flags, hashed workspace/device fingerprints, queue timestamps, page/database/file sync outcome status/source/counts, gate statuses, and gate-derived owner next steps. It does not read or export page ids, database keys, account emails, page bodies, Yjs payloads, database values, comments, file names, file bytes, page/database/file sync failure messages, failure messages, secrets, tokens, credentials, raw workspace ids, or raw cache dumps; it does not send network requests, upload workspace data, clear local cache, mutate local cache records, or enable sync/AI.",
     boundary: {
       local_receipt_only: true,
       reads_queue_counts: true,
@@ -345,8 +371,10 @@ export function buildSyncHandoffReadinessReceipt(
       reads_queue_timestamps: true,
       reads_page_sync_outcome_summary: true,
       reads_database_sync_outcome_summary: true,
+      reads_file_sync_outcome_summary: true,
       reads_page_sync_failure_messages: false,
       reads_database_sync_failure_messages: false,
+      reads_file_sync_failure_messages: false,
       reads_page_ids: false,
       reads_database_keys: false,
       reads_failure_messages: false,
@@ -370,6 +398,7 @@ export function buildSyncHandoffReadinessReceipt(
       includes_only_counts_booleans_hashes_timestamps_gates_and_steps: true,
       includes_page_sync_outcome_counts_status_source_and_timestamps: true,
       includes_database_sync_outcome_counts_status_source_and_timestamps: true,
+      includes_file_sync_outcome_counts_status_source_and_timestamps: true,
     },
     summary: {
       handoff_mode: handoffMode,
@@ -401,6 +430,20 @@ export function buildSyncHandoffReadinessReceipt(
       database_last_sync_outcome_pending_after:
         databaseLastOutcome?.pendingAfter ?? 0,
       file_sync_enabled: fileSyncEnabled,
+      file_last_sync_outcome_status: fileLastOutcome?.status ?? null,
+      file_last_sync_outcome_source: fileLastOutcome?.source ?? null,
+      file_last_sync_outcome_at: fileLastOutcome?.at ?? null,
+      file_last_sync_outcome_attempted: fileLastOutcome?.attempted ?? 0,
+      file_last_sync_outcome_synced: fileLastOutcome?.synced ?? 0,
+      file_last_sync_outcome_failed: fileLastOutcome?.failed ?? 0,
+      file_last_sync_outcome_manual_review:
+        fileLastOutcome?.manualReview ?? 0,
+      file_last_sync_outcome_missing_local_files:
+        fileLastOutcome?.missingLocalFiles ?? 0,
+      file_last_sync_outcome_auth_deferred:
+        fileLastOutcome?.authDeferred ?? 0,
+      file_last_sync_outcome_pending_after:
+        fileLastOutcome?.pendingAfter ?? 0,
       workspace_fingerprint: workspaceFingerprint,
       device_fingerprint: deviceFingerprint,
       cloud_workspace_fingerprint: cloudWorkspaceFingerprint,

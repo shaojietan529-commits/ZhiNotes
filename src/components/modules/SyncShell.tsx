@@ -21803,6 +21803,21 @@ function SyncUploadSafetyPanel({
             : "文件队列不可用",
     },
     {
+      label: "文件回执",
+      value: fileStatus.lastOutcome
+        ? formatFileEmbedSyncOutcomeStatus(fileStatus.lastOutcome.status)
+        : "暂无回执",
+      detail: fileStatus.lastOutcome
+        ? `${formatFileEmbedSyncOutcomeSource(
+            fileStatus.lastOutcome.source
+          )}：尝试 ${fileStatus.lastOutcome.attempted}，完成 ${
+            fileStatus.lastOutcome.synced
+          }，失败 ${fileStatus.lastOutcome.failed}，人工 ${
+            fileStatus.lastOutcome.manualReview
+          }。`
+        : "等待下一次文件补传结果。",
+    },
+    {
       label: "全域 sync_log",
       value: `${syncLogUnclassifiedWaiting} 条额外`,
       detail: `原始 ${totalSyncPending} 条；${syncLogCoveredWaiting} 条已归入页面/数据库；${totalSyncFailed} 失败 / ${totalSyncManualReview} 人工。`,
@@ -22084,6 +22099,32 @@ function SyncUploadSafetyPanel({
             }
           />
           <CacheRebuildFact
+            label="文件回执"
+            value={
+              handoffReceipt.summary.file_last_sync_outcome_status
+                ? formatFileEmbedSyncOutcomeStatus(
+                    handoffReceipt.summary.file_last_sync_outcome_status
+                  )
+                : "暂无回执"
+            }
+            detail={
+              handoffReceipt.summary.file_last_sync_outcome_status
+                ? `${formatFileEmbedSyncOutcomeSource(
+                    handoffReceipt.summary.file_last_sync_outcome_source ??
+                      "unknown"
+                  )}：尝试 ${
+                    handoffReceipt.summary.file_last_sync_outcome_attempted
+                  } · 完成 ${
+                    handoffReceipt.summary.file_last_sync_outcome_synced
+                  } · 失败 ${
+                    handoffReceipt.summary.file_last_sync_outcome_failed
+                  } · 人工 ${
+                    handoffReceipt.summary.file_last_sync_outcome_manual_review
+                  }`
+                : "还没有文件补传回执。"
+            }
+          />
+          <CacheRebuildFact
             label="最早 pending"
             value={handoffReceipt.summary.oldest_pending_age_label}
             detail={
@@ -22343,6 +22384,12 @@ function SyncHandoffQuickCheckPanel({
       data-database-last-sync-outcome-skipped={
         summary.database_last_sync_outcome_skipped
       }
+      data-file-last-sync-outcome-status={
+        summary.file_last_sync_outcome_status ?? "none"
+      }
+      data-file-last-sync-outcome-failed={
+        summary.file_last_sync_outcome_failed
+      }
       className={`rounded-lg border px-4 py-3 ${panelClass}`}
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -22466,6 +22513,25 @@ function SyncHandoffQuickCheckPanel({
                   summary.database_last_sync_outcome_pulled
                 } · 跳过 ${summary.database_last_sync_outcome_skipped}`
               : "队列清空仍是主判断；回执会在下一次数据库同步后出现。"
+          }
+        />
+        <SyncHandoffQuickFact
+          label="文件回执"
+          value={
+            summary.file_last_sync_outcome_status
+              ? formatFileEmbedSyncOutcomeStatus(
+                  summary.file_last_sync_outcome_status
+                )
+              : "暂无回执"
+          }
+          detail={
+            summary.file_last_sync_outcome_status
+              ? `${formatFileEmbedSyncOutcomeSource(
+                  summary.file_last_sync_outcome_source ?? "unknown"
+                )}：尝试 ${summary.file_last_sync_outcome_attempted} · 完成 ${
+                  summary.file_last_sync_outcome_synced
+                } · 失败 ${summary.file_last_sync_outcome_failed}`
+              : "队列清空仍是主判断；回执会在下一次文件补传后出现。"
           }
         />
         <SyncHandoffQuickFact
@@ -28528,6 +28594,19 @@ function formatDatabaseSyncOutcomeSource(source: string) {
   if (source === "sync-log-push") return "sync_log 补传";
   if (source === "baseline-upload") return "首次基线补种";
   if (source === "reconcile") return "数据库同步对账";
+  return source;
+}
+
+function formatFileEmbedSyncOutcomeStatus(status: string) {
+  if (status === "ok") return "补传完成";
+  if (status === "partial") return "部分完成";
+  if (status === "failed") return "补传失败";
+  if (status === "deferred") return "等待账号确认";
+  return status;
+}
+
+function formatFileEmbedSyncOutcomeSource(source: string) {
+  if (source === "queue-drain") return "文件队列补传";
   return source;
 }
 
