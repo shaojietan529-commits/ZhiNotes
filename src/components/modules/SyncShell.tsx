@@ -27515,6 +27515,7 @@ async function fetchSyncCloudApiWithTimeout(
   try {
     return await fetch(input, {
       ...freshInit,
+      cache: freshInit?.cache ?? "no-store",
       signal: controller.signal,
     });
   } catch (error) {

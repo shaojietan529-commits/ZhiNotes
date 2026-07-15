@@ -11095,6 +11095,10 @@ function run() {
       "SyncShell cloud API fetches must pass the abort signal.",
     ],
     [
+      'cache: freshInit?.cache ?? "no-store"',
+      "SyncShell cloud API fetches must bypass browser caches so sync/account/workspace status reflects the current server response.",
+    ],
+    [
       "云端请求超时；本地输入和待上传队列已保留，可稍后重试。",
       "SyncShell cloud API timeout copy must tell users local input and pending queues are preserved.",
     ],
