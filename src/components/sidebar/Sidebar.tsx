@@ -448,6 +448,32 @@ function getAccountCacheSafetyBadgeLabel(readiness: AccountLocalUseReadiness) {
   return "本地缓存安全";
 }
 
+function getAccountSafeToSwitchDeviceNow(accountSync: {
+  pendingTotal: number;
+  failedTotal: number;
+  manualReviewTotal: number;
+  authRetryActive: boolean;
+  localUseReadiness: AccountLocalUseReadiness;
+}) {
+  return (
+    accountSync.localUseReadiness.cloudHandoffReady &&
+    accountSync.pendingTotal === 0 &&
+    accountSync.failedTotal === 0 &&
+    accountSync.manualReviewTotal === 0 &&
+    !accountSync.authRetryActive
+  );
+}
+
+function getAccountSwitchDeviceBadgeLabel(safeToSwitchDeviceNow: boolean) {
+  return safeToSwitchDeviceNow ? "可换设备" : "先等同步";
+}
+
+function getAccountSwitchDeviceBadgeClass(safeToSwitchDeviceNow: boolean) {
+  return safeToSwitchDeviceNow
+    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+    : "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300";
+}
+
 function getAccountSyncInlineSummary(accountSync: {
   state: AccountCloudSyncCoordinatorState;
   pendingTotal: number;
@@ -829,6 +855,14 @@ export default function Sidebar() {
   const accountCacheSafetyBadgeLabel = getAccountCacheSafetyBadgeLabel(
     accountSync.localUseReadiness
   );
+  const accountSafeToSwitchDeviceNow =
+    getAccountSafeToSwitchDeviceNow(accountSync);
+  const accountSwitchDeviceBadgeLabel = getAccountSwitchDeviceBadgeLabel(
+    accountSafeToSwitchDeviceNow
+  );
+  const accountSwitchDeviceTitle = accountSafeToSwitchDeviceNow
+    ? "当前没有 pending、failed、manual review 或账号重试，可以换到其他已登录设备继续。"
+    : "当前仍有待上传、失败、人工复核或账号重试；本地可继续写，但先不要把另一台设备当作最新版本。";
   const accountSyncInlineSummary = getAccountSyncInlineSummary(accountSync);
   const accountSyncNeedsSyncCenter =
     accountSync.failedTotal > 0 ||
@@ -1638,6 +1672,7 @@ export default function Sidebar() {
             data-cache-rebuild-blocked={
               accountSync.localUseReadiness.cacheRebuildBlocked
             }
+            data-safe-to-switch-device-now={accountSafeToSwitchDeviceNow}
             data-sync-action={
               accountSyncShouldOpenSyncCenter ? "open-sync-center" : "quick-sync"
             }
@@ -1684,6 +1719,7 @@ export default function Sidebar() {
               data-cache-rebuild-blocked={
                 accountSync.localUseReadiness.cacheRebuildBlocked
               }
+              data-safe-to-switch-device-now={accountSafeToSwitchDeviceNow}
               data-sync-action={
                 accountSyncShouldOpenSyncCenter ? "open-sync-center" : "quick-sync"
               }
@@ -1738,6 +1774,7 @@ export default function Sidebar() {
             data-cache-rebuild-blocked={
               accountSync.localUseReadiness.cacheRebuildBlocked
             }
+            data-safe-to-switch-device-now={accountSafeToSwitchDeviceNow}
             data-sync-inline-summary={accountSyncInlineSummary}
             data-sync-domain-breakdown={accountSyncDomainBreakdown}
             className="mt-0.5 truncate px-3 text-[10px] leading-4 text-zinc-500 dark:text-zinc-400"
@@ -1761,6 +1798,7 @@ export default function Sidebar() {
           data-cache-rebuild-blocked={
             accountSync.localUseReadiness.cacheRebuildBlocked
           }
+          data-safe-to-switch-device-now={accountSafeToSwitchDeviceNow}
           data-file-queue-total={
             accountSync.localUseReadiness.queueBreakdown.fileQueueTotal
           }
@@ -1775,7 +1813,7 @@ export default function Sidebar() {
           }
           data-local-use-next-action={accountSync.localUseReadiness.nextAction}
           className="mt-1 flex flex-wrap gap-1 px-3"
-          title={`${accountSync.localUseReadiness.detail} ${accountSync.localUseReadiness.nextAction}`}
+          title={`${accountSync.localUseReadiness.detail} ${accountSync.localUseReadiness.nextAction} ${accountSwitchDeviceTitle}`}
         >
           <span
             className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] leading-3 ${getAccountLocalUseBadgeClass(
@@ -1794,6 +1832,16 @@ export default function Sidebar() {
             }`}
           >
             {accountCacheSafetyBadgeLabel}
+          </span>
+          <span
+            data-testid="account-safe-to-switch-device-badge"
+            data-safe-to-switch-device-now={accountSafeToSwitchDeviceNow}
+            className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] leading-3 ${getAccountSwitchDeviceBadgeClass(
+              accountSafeToSwitchDeviceNow
+            )}`}
+            title={accountSwitchDeviceTitle}
+          >
+            {accountSwitchDeviceBadgeLabel}
           </span>
         </div>
         {accountSyncDomainBreakdownItems.length > 0 && (

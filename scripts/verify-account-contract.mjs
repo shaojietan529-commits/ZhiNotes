@@ -4241,6 +4241,10 @@ check(
     sidebar.includes("getAccountLocalUseBadgeLabel") &&
     sidebar.includes("getAccountLocalUseBadgeClass") &&
     sidebar.includes("getAccountCacheSafetyBadgeLabel") &&
+    sidebar.includes("getAccountSafeToSwitchDeviceNow") &&
+    sidebar.includes("getAccountSwitchDeviceBadgeLabel") &&
+    sidebar.includes("getAccountSwitchDeviceBadgeClass") &&
+    sidebar.includes("accountSafeToSwitchDeviceNow") &&
     sidebar.includes("accountSyncDomainBreakdownItems") &&
     sidebar.includes("accountSyncDomainBreakdown") &&
     sidebar.includes("getAccountSyncToneClass") &&
@@ -4277,6 +4281,12 @@ check(
     sidebar.includes("云端就绪") &&
     sidebar.includes("先处理队列") &&
     sidebar.includes("先别重建缓存") &&
+    sidebar.includes("可换设备") &&
+    sidebar.includes("先等同步") &&
+    sidebar.includes('data-testid="account-safe-to-switch-device-badge"') &&
+    sidebar.includes("data-safe-to-switch-device-now={accountSafeToSwitchDeviceNow}") &&
+    sidebar.includes("当前没有 pending、failed、manual review 或账号重试") &&
+    sidebar.includes("先不要把另一台设备当作最新版本") &&
     sidebar.includes("页面 ${accountSync.pagePendingTotal}") &&
     sidebar.includes("数据库 ${accountSync.databasePendingTotal}") &&
     sidebar.includes("设置 ${accountSync.settingsPendingTotal}") &&
@@ -4349,6 +4359,7 @@ check(
     sidebar.includes("data-local-input-can-continue=") &&
     sidebar.includes("data-cloud-handoff-ready=") &&
     sidebar.includes("data-cache-rebuild-blocked=") &&
+    sidebar.includes("data-safe-to-switch-device-now=") &&
     sidebar.includes("accountLocalUseTitle") &&
     sidebar.includes('pageSync.pendingStatus.enabled') &&
     sidebar.includes('databaseSync.pendingStatus.enabled') &&

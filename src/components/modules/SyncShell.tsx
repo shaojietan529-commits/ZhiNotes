@@ -20488,6 +20488,12 @@ function SyncOperationalStatusStrip({
   onOpenAccount: () => void;
 }) {
   const actionableTotal = pendingTotal + failedTotal + manualReviewTotal;
+  const safeToSwitchDeviceNow =
+    readiness.cloudHandoffReady &&
+    pendingTotal === 0 &&
+    failedTotal === 0 &&
+    manualReviewTotal === 0 &&
+    !authRetryDomainLabel;
   const sidebarReadinessMirrorLabel =
     getSidebarReadinessMirrorLabel(readiness);
   const sidebarReadinessMirrorDetail =
@@ -20529,6 +20535,7 @@ function SyncOperationalStatusStrip({
       data-local-input-can-continue={String(readiness.localInputCanContinue)}
       data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
+      data-safe-to-switch-device-now={String(safeToSwitchDeviceNow)}
       data-local-performance-status={performanceDiagnosis.status}
       data-local-performance-samples={performanceDiagnosis.sampleCount}
       data-local-performance-slowest={performanceDiagnosis.slowestLabel}
@@ -20556,6 +20563,22 @@ function SyncOperationalStatusStrip({
               )}`}
             >
               {readiness.localInputCanContinue ? "可以继续写" : "先暂停"}
+            </span>
+            <span
+              data-testid="sync-safe-to-switch-device-badge"
+              data-safe-to-switch-device-now={String(safeToSwitchDeviceNow)}
+              className={`rounded-md px-2 py-1 text-[10px] font-medium ${
+                safeToSwitchDeviceNow
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "bg-blue-500/10 text-blue-700 dark:text-blue-300"
+              }`}
+              title={
+                safeToSwitchDeviceNow
+                  ? "没有 pending、failed、manual review 或账号重试，可以换到其他已登录设备继续。"
+                  : "本地可继续写；等 pending/failed/manual review 清零且账号重试恢复后，再把其他设备当作最新版本。"
+              }
+            >
+              {safeToSwitchDeviceNow ? "可换设备" : "先等同步"}
             </span>
           </div>
           <h2 className="mt-2 text-base font-semibold text-zinc-950 dark:text-zinc-50">
