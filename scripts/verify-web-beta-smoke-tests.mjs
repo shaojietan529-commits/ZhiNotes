@@ -3551,6 +3551,22 @@ function run() {
       "Two-day usability gate must distinguish scoped beta feasibility from full-platform readiness.",
     ],
     [
+      "primary_blocker",
+      "Two-day usability gate must expose the current primary blocker.",
+    ],
+    [
+      "primary_warning",
+      "Two-day usability gate must expose the current primary warning.",
+    ],
+    [
+      "next_best_action",
+      "Two-day usability gate must expose a single next best action.",
+    ],
+    [
+      "evidence_required_before_claim",
+      "Two-day usability gate must list evidence required before claiming sync is usable.",
+    ],
+    [
       "scoped_sync_beta_surfaces",
       "Two-day usability gate must list the 48-hour scoped sync beta surfaces.",
     ],
@@ -3814,6 +3830,18 @@ function run() {
     [
       "data-can-target-two-day-sync-beta",
       "Sync UI must expose whether scoped two-day sync beta is targetable.",
+    ],
+    [
+      "data-two-day-next-best-action",
+      "Sync UI must expose the single next best action for the two-day gate.",
+    ],
+    [
+      "data-testid=\"two-day-claim-evidence\"",
+      "Sync UI must render the evidence required before claiming sync is usable.",
+    ],
+    [
+      "声称可同步前必须有",
+      "Sync UI must tell the user what evidence is required before a sync-readiness claim.",
     ],
     [
       "48小时交付范围",

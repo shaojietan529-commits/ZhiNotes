@@ -86,6 +86,10 @@ export interface TwoDayUsabilityGate {
     sync_domain_coverage_complete: boolean;
     performance_samples: number;
   };
+  primary_blocker: TwoDayUsabilityGateItem | null;
+  primary_warning: TwoDayUsabilityGateItem | null;
+  next_best_action: string;
+  evidence_required_before_claim: string[];
   gates: TwoDayUsabilityGateItem[];
   scoped_sync_beta_surfaces: string[];
   two_day_acceleration_rules: string[];
@@ -131,6 +135,8 @@ export function buildTwoDayUsabilityGate(
   const blockers = gates.filter((gate) => gate.status === "block").length;
   const warnings = gates.filter((gate) => gate.status === "warn").length;
   const passed = gates.filter((gate) => gate.status === "pass").length;
+  const primaryBlocker = gates.find((gate) => gate.status === "block") ?? null;
+  const primaryWarning = gates.find((gate) => gate.status === "warn") ?? null;
   const verdict: TwoDayUsabilityVerdict =
     allPlatformSyncMinimumReady && blockers === 0
       ? "ready-for-cross-device-beta"
@@ -190,6 +196,19 @@ export function buildTwoDayUsabilityGate(
       sync_domain_coverage_complete: coverage.coverageComplete,
       performance_samples: fluidity.performance_samples,
     },
+    primary_blocker: primaryBlocker,
+    primary_warning: primaryWarning,
+    next_best_action:
+      primaryBlocker?.next_action ??
+      primaryWarning?.next_action ??
+      "保持 P0 冻结，只修阻断可用性的同步、登录和性能问题；然后跑真实两设备 smoke。",
+    evidence_required_before_claim: [
+      "同步中心显示 pending、failed、manual review 全部清零。",
+      "账号认证退避为无，临时接口失败不会自动登出任一设备。",
+      "页面、每日纪要、ZhiHui、数据库、文件元数据至少各完成一条真实两设备样本。",
+      "设备 B 刷新后能看到设备 A 的新增和编辑结果。",
+      "remote ACK cursor 或等价 ACK ledger 证明本地 rows 已被云端确认。",
+    ],
     gates,
     scoped_sync_beta_surfaces: [
       "账号会话稳定：临时云端失败不能自动登出。",

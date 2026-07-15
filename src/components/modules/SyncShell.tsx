@@ -24122,8 +24122,8 @@ function CloudManifestOwnerReviewStatusPill({
 
 function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
   const primaryGate =
-    gate.gates.find((item) => item.status === "block") ??
-    gate.gates.find((item) => item.status === "warn") ??
+    gate.primary_blocker ??
+    gate.primary_warning ??
     gate.gates[0] ??
     null;
 
@@ -24212,6 +24212,7 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
         <article
           data-testid="two-day-usability-primary-gate"
           data-two-day-usability-primary-status={primaryGate.status}
+          data-two-day-next-best-action={gate.next_best_action}
           className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs dark:border-amber-900 dark:bg-amber-950/30"
         >
           <div className="flex items-start justify-between gap-3">
@@ -24226,7 +24227,7 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
             <TwoDayUsabilityGatePill status={primaryGate.status} />
           </div>
           <p className="mt-2 leading-5 text-zinc-600 dark:text-zinc-300">
-            下一步：{primaryGate.next_action}
+            唯一下一步：{gate.next_best_action}
           </p>
         </article>
       ) : null}
@@ -24266,6 +24267,22 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
           </div>
           <p className="mt-1">{gate.next_48h_action}</p>
         </div>
+        <div
+          data-testid="two-day-claim-evidence"
+          data-two-day-claim-evidence-count={
+            gate.evidence_required_before_claim.length
+          }
+          className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300"
+        >
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            声称可同步前必须有
+          </div>
+          <ul className="mt-1 space-y-1">
+            {gate.evidence_required_before_claim.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
         <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
             48小时交付范围
@@ -24284,7 +24301,7 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
             ))}
           </ul>
         </div>
-        <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+        <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 lg:col-span-3">
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
             48小时内先不做
           </div>
