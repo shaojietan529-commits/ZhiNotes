@@ -300,7 +300,11 @@ check(
     cloudUploadReliabilityReport.includes("auth_retry_state_label") &&
     cloudUploadReliabilityReport.includes("account-auth-retry-visible") &&
     cloudUploadReliabilityReport.includes("临时账号确认失败不等于登出") &&
-    cloudUploadReliabilityReport.includes("!authRetryActive"),
+    cloudUploadReliabilityReport.includes("!authRetryActive") &&
+    cloudUploadReliabilityReport.includes("syncLogCoveredPendingRows") &&
+    cloudUploadReliabilityReport.includes(
+      "(input.syncSummary?.pending ?? 0) - syncLogCoveredPendingRows"
+    ),
   "本地输入上云健康报告应把账号认证退避作为可见黄灯：本地可继续写，但云端 ACK 前不能显示为安全切设备"
 );
 check(

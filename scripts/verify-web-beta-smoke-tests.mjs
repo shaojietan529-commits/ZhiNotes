@@ -44,6 +44,7 @@ const files = {
     "src/lib/sync/localFirstCloudInputPlan.ts",
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
+  cloudSyncControlPlane: "src/lib/sync/cloudSyncControlPlane.ts",
   twoDayUsabilityGate: "src/lib/sync/twoDayUsabilityGate.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   syncAckRetryLedgerContract:
@@ -491,6 +492,7 @@ function run() {
   const cloudUploadReliabilityReport = readProjectFile(
     files.cloudUploadReliabilityReport
   );
+  const cloudSyncControlPlane = readProjectFile(files.cloudSyncControlPlane);
   const twoDayUsabilityGate = readProjectFile(files.twoDayUsabilityGate);
   const syncUploadDrainReceipt = readProjectFile(
     files.syncUploadDrainReceipt
@@ -3393,6 +3395,30 @@ function run() {
     cloudUploadReliabilityReport,
     "!authRetryActive",
     "Cloud upload reliability report must not mark cross-device handoff safe while auth retry is active."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "syncLogCoveredPendingRows",
+    "Cloud upload reliability report must track page/database sync_log pending rows already covered by their domains."
+  );
+  assertIncludes(
+    files.cloudUploadReliabilityReport,
+    cloudUploadReliabilityReport,
+    "(input.syncSummary?.pending ?? 0) - syncLogCoveredPendingRows",
+    "Cloud upload reliability report must not double-count page/database sync_log pending rows in the global pending total."
+  );
+  assertIncludes(
+    files.cloudSyncControlPlane,
+    cloudSyncControlPlane,
+    "syncLogCoveredPendingRows",
+    "Cloud sync control plane must track page/database sync_log pending rows already covered by their domains."
+  );
+  assertIncludes(
+    files.cloudSyncControlPlane,
+    cloudSyncControlPlane,
+    "(input.syncSummary?.pending ?? 0) - syncLogCoveredPendingRows",
+    "Cloud sync control plane must not double-count page/database sync_log pending rows in the global pending total."
   );
   assertIncludes(
     files.cloudUploadReliabilityReport,

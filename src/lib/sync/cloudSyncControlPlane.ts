@@ -154,16 +154,21 @@ export function buildCloudSyncControlPlane(
   input: CloudSyncControlPlaneInput
 ): CloudSyncControlPlane {
   const generatedAt = input.generatedAt ?? new Date().toISOString();
+  const pageSyncLogPendingRows = input.pageStatus.syncLogPending ?? 0;
+  const databaseSyncLogPendingRows = input.databaseStatus.syncLogPending ?? 0;
+  const syncLogCoveredPendingRows =
+    pageSyncLogPendingRows + databaseSyncLogPendingRows;
   const pageWaitingRows =
-    input.pageStatus.pending +
-    input.pageStatus.queued +
-    (input.pageStatus.syncLogPending ?? 0);
+    input.pageStatus.pending + input.pageStatus.queued + pageSyncLogPendingRows;
   const databaseWaitingRows =
     input.databaseStatus.pending +
     input.databaseStatus.queued +
-    (input.databaseStatus.syncLogPending ?? 0);
+    databaseSyncLogPendingRows;
   const fileWaitingRows = input.fileStatus.pending;
-  const syncLogPendingRows = input.syncSummary?.pending ?? 0;
+  const syncLogPendingRows = Math.max(
+    (input.syncSummary?.pending ?? 0) - syncLogCoveredPendingRows,
+    0
+  );
   const totalWaitingRows =
     pageWaitingRows +
     databaseWaitingRows +
