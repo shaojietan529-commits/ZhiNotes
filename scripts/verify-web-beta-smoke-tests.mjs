@@ -4088,6 +4088,26 @@ function run() {
       "Account sync bridge probe must build a metadata-only receipt.",
     ],
     [
+      "ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY",
+      "Account sync bridge probe must keep a short local receipt key for refresh continuity.",
+    ],
+    [
+      "readStoredAccountSyncBridgeProbeReceipt",
+      "Sync UI must restore an unexpired account sync bridge receipt after refresh.",
+    ],
+    [
+      "persistAccountSyncBridgeProbeReceipt",
+      "Sync UI must persist the account sync bridge receipt after a probe run.",
+    ],
+    [
+      "expires_at",
+      "Account sync bridge probe receipts must expire instead of becoming permanent sync evidence.",
+    ],
+    [
+      "过期后不作为同步可用证据",
+      "Sync UI must tell users an expired account bridge receipt is not sync-ready evidence.",
+    ],
+    [
       'data-testid="account-sync-bridge-probe"',
       "Sync UI must expose a stable account sync bridge probe panel.",
     ],
@@ -4102,6 +4122,10 @@ function run() {
     [
       "data-account-sync-bridge-readable-domains",
       "Sync UI must expose readable account sync bridge domains.",
+    ],
+    [
+      "data-account-sync-bridge-probe-expires-at",
+      "Sync UI must expose the account bridge receipt expiry for smoke checks.",
     ],
     [
       "只读检查账号同步桥",

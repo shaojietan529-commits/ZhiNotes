@@ -5527,6 +5527,26 @@ function run() {
       "Sync UI must expose blocked account sync bridge domains.",
     ],
     [
+      "ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY",
+      "Account sync bridge probe must use a local receipt key for refresh continuity.",
+    ],
+    [
+      "readStoredAccountSyncBridgeProbeReceipt",
+      "Sync UI must restore an unexpired account bridge probe receipt after page refresh.",
+    ],
+    [
+      "persistAccountSyncBridgeProbeReceipt",
+      "Sync UI must persist account bridge probe receipts after read-only checks.",
+    ],
+    [
+      "data-account-sync-bridge-probe-expires-at",
+      "Sync UI must expose account bridge probe receipt expiry.",
+    ],
+    [
+      "过期后不作为同步可用证据",
+      "Sync UI must disclose that expired account bridge receipts are not sync-ready evidence.",
+    ],
+    [
       'data-testid="account-sync-bridge-probe-run"',
       "Sync UI must expose the account sync bridge read-only probe action.",
     ],
