@@ -33,6 +33,13 @@ export interface AccountSessionResult {
   confirmedSignedOut?: boolean;
 }
 
+export function isAccountSessionStorageKey(key: string | null): boolean {
+  return (
+    key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||
+    key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY
+  );
+}
+
 let accountSessionInFlight: Promise<AccountSessionResult> | null = null;
 let cachedAccountSession: AccountSessionResult | null = null;
 let cachedAccountSessionAt = 0;

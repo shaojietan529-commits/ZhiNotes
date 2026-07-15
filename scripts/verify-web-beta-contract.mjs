@@ -4976,6 +4976,18 @@ function run() {
       "Account session helper must expose the cross-tab stale authenticated storage key to UI listeners.",
     ],
     [
+      "export function isAccountSessionStorageKey",
+      "Account session helper must centralize login/logout storage-event filtering for sync hooks.",
+    ],
+    [
+      "key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||",
+      "Account session storage helper must treat last-authenticated changes as sync wakeups.",
+    ],
+    [
+      "key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
+      "Account session storage helper must treat explicit logout markers as sync wakeups.",
+    ],
+    [
       "window.localStorage.setItem",
       "Account session helper must preserve the masked last-authenticated fallback across tabs without storing tokens.",
     ],
@@ -5575,8 +5587,14 @@ function run() {
   assertSourceIncludes(
     files.pageCloudSync,
     pageCloudSync,
-    "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
-    "Page cloud sync must wake for cross-tab account fallback removal as well as writes."
+    "isAccountSessionStorageKey",
+    "Page cloud sync must use the shared account-session storage filter so login and logout both wake sync."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "if (isAccountSessionStorageKey(event.key)) {",
+    "Page cloud sync must wake for cross-tab account fallback writes/removals and explicit logout markers."
   );
   assertSourceExcludes(
     files.pageCloudSync,
@@ -6164,8 +6182,14 @@ function run() {
   assertSourceIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
-    "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
-    "Database cloud sync must wake for cross-tab account fallback removal as well as writes."
+    "isAccountSessionStorageKey",
+    "Database cloud sync must use the shared account-session storage filter so login and logout both wake sync."
+  );
+  assertSourceIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "if (isAccountSessionStorageKey(event.key)) {",
+    "Database cloud sync must wake for cross-tab account fallback writes/removals and explicit logout markers."
   );
   assertSourceExcludes(
     files.databaseCloudSync,

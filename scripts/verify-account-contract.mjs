@@ -411,6 +411,13 @@ check(
     accountClientSession.includes("clearLastAuthenticated") &&
     accountClientSession.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
     accountClientSession.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
+    accountClientSession.includes("export function isAccountSessionStorageKey") &&
+    accountClientSession.includes(
+      "key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||"
+    ) &&
+    accountClientSession.includes(
+      "key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY"
+    ) &&
     accountClientSession.includes("getLastAuthenticatedAccount") &&
     accountClientSession.includes("rememberLastAuthenticatedAccount") &&
     accountClientSession.includes("withStoredAuthenticatedFallback") &&
@@ -2500,12 +2507,9 @@ check(
   "页面同步前台切换默认只接管租约；如果已处于账号重试退避，应以 10 秒成本边界强制重新确认账号，避免登录恢复后仍卡住"
 );
 check(
-  pageCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
-    pageCloudSyncHook.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
-    pageCloudSyncHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
-    pageCloudSyncHook.includes(
-      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||\n        event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY"
-    ) &&
+  pageCloudSyncHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
+    pageCloudSyncHook.includes("isAccountSessionStorageKey") &&
+    pageCloudSyncHook.includes("if (isAccountSessionStorageKey(event.key)) {") &&
     !pageCloudSyncHook.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue"
     ) &&
@@ -2722,11 +2726,10 @@ check(
   "数据库同步在用户切回页面/窗口聚焦时，如果正处于账号重试退避，应以 10 秒成本边界强制重新确认账号；联网恢复/配置变化仍应立即强制确认"
 );
 check(
-  databaseCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
-    databaseCloudSyncHook.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
-    databaseCloudSyncHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
+  databaseCloudSyncHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
+    databaseCloudSyncHook.includes("isAccountSessionStorageKey") &&
     databaseCloudSyncHook.includes(
-      "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY ||\n        event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY"
+      "if (isAccountSessionStorageKey(event.key)) {"
     ) &&
     !databaseCloudSyncHook.includes(
       "event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&\n        event.newValue"
