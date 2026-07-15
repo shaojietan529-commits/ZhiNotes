@@ -529,6 +529,7 @@ check(
 check(
   shell.includes("showStoredAccountFallback") &&
     shell.includes("const lastAuthenticatedAccount = getLastAuthenticatedAccount()") &&
+    shell.includes("session.staleReason ??") &&
     shell.includes("正在确认账号云端状态") &&
     shell.includes("本机已先保留最近一次登录状态") &&
     shell.includes("账号检查暂时失败，已保留最近一次登录状态") &&

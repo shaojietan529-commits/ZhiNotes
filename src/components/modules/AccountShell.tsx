@@ -506,7 +506,8 @@ export default function AccountShell() {
         setPhase("signed-in");
         if (session.stale) {
           setNotice(
-            "账号会话暂时无法向云端确认，已保留最近一次登录状态；本地输入可继续保存，同步会稍后重试。"
+            session.staleReason ??
+              "账号会话暂时无法向云端确认，已保留最近一次登录状态；本地输入可继续保存，同步会稍后重试。"
           );
         } else {
           setNotice(null);
