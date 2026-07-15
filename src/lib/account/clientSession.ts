@@ -325,6 +325,9 @@ function withStoredAuthenticatedFallback(
 function getStoredAuthenticatedFallbackReason(
   result: AccountSessionResult
 ): string {
+  if (result.confirmedSignedOut) {
+    return "当前浏览器没有确认到有效云端登录；已先显示上次登录用户名。请在账号页重新登录确认，只有手动退出登录才会清除本机账号显示。";
+  }
   if (result.status === "ok") {
     return "账号云端暂不可确认；只有手动退出登录才会清除本机账号显示。";
   }

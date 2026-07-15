@@ -447,6 +447,10 @@ check(
     ) &&
     accountClientSession.includes("confirmedSignedOut?: boolean") &&
     accountClientSession.includes("getStoredAuthenticatedFallbackReason") &&
+    accountClientSession.includes("当前浏览器没有确认到有效云端登录") &&
+    accountClientSession.includes(
+      'if (result.confirmedSignedOut) {\n    return "当前浏览器没有确认到有效云端登录；已先显示上次登录用户名。请在账号页重新登录确认，只有手动退出登录才会清除本机账号显示。";\n  }\n  if (result.status === "ok")'
+    ) &&
     accountClientSession.includes("只有手动退出登录才会清除本机账号显示"),
   "账号状态查询应集中到共享 helper，支持短缓存、in-flight 去重、未配置退避和跨标签页最近登录账号降级保护"
 );
@@ -502,6 +506,9 @@ check(
       '} else if (result.confirmedSignedOut && !result.authenticated) {\n    clearStoredAuthenticatedAccount();\n  }'
     ) &&
     accountClientSession.includes("getStoredAuthenticatedFallbackReason") &&
+    accountClientSession.includes(
+      "当前浏览器没有确认到有效云端登录"
+    ) &&
     accountClientSession.includes(
       "只有手动退出登录才会清除本机账号显示"
     ) &&

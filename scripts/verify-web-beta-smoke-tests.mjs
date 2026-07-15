@@ -9906,6 +9906,10 @@ function run() {
       "Account session helper must preserve the account label through transient missing-session checks without storing tokens.",
     ],
     [
+      "当前浏览器没有确认到有效云端登录",
+      "Account session helper must explain cookie-missing stale fallback without making it look like an automatic logout.",
+    ],
+    [
       "confirmedSignedOut?: boolean",
       "Account session helper must mark explicit empty /me responses separately from retryable uncertainty.",
     ],
@@ -9932,6 +9936,16 @@ function run() {
   ]) {
     assertIncludes(files.accountClientSession, accountClientSession, snippet, message);
   }
+  assertOrderedSnippets(
+    files.accountClientSession,
+    accountClientSession,
+    [
+      "function getStoredAuthenticatedFallbackReason",
+      "if (result.confirmedSignedOut)",
+      'if (result.status === "ok")',
+    ],
+    "Account session helper must prefer the explicit cookie-missing stale fallback explanation before the generic ok/unauthenticated copy."
+  );
   assertIncludes(
     files.accountMeRoute,
     accountMeRoute,
