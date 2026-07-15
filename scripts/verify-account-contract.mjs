@@ -555,6 +555,23 @@ check(
     accountCloudSyncGate.includes("upload_block_does_not_block_writing: true"),
   "账号云同步 gate 必须复用账号会话检查，临时错误时保持身份可见但同步保持可重试错误，并声明不读取/上传/修改 workspace 数据；同步门禁失败只能阻止上传，不能阻止本地写作或清除登录"
 );
+const staleUnconfiguredGateHandler = accountCloudSyncGate.slice(
+  accountCloudSyncGate.indexOf(
+    'session.status === "unconfigured" && session.authenticated'
+  ),
+  accountCloudSyncGate.indexOf(
+    'if (session.status === "unconfirmed" && session.authenticated'
+  )
+);
+check(
+  staleUnconfiguredGateHandler.includes('status: "unconfigured"') &&
+    staleUnconfiguredGateHandler.includes("authenticated: true") &&
+    staleUnconfiguredGateHandler.includes('reason: "account-unconfigured"') &&
+    staleUnconfiguredGateHandler.includes("retryable: true") &&
+    !staleUnconfiguredGateHandler.includes('status: "error"') &&
+    !staleUnconfiguredGateHandler.includes('reason: "account-check-failed"'),
+  "账号云同步 gate 遇到最近登录兜底 + 暂时未配置时必须保留更具体的 unconfigured/retryable 状态，不能折成 generic error"
+);
 check(
   accountCloudSyncGate.indexOf(
     'session.status === "unconfigured" && session.authenticated'

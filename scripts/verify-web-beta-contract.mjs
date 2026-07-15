@@ -4830,6 +4830,26 @@ function run() {
       "Account cloud sync gate must check stale authenticated unconfigured sessions before the generic unconfigured branch."
     );
   }
+  const staleUnconfiguredGateHandler = accountCloudSyncGate.slice(
+    accountCloudSyncGate.indexOf(
+      'session.status === "unconfigured" && session.authenticated'
+    ),
+    accountCloudSyncGate.indexOf(
+      'if (session.status === "unconfirmed" && session.authenticated'
+    )
+  );
+  if (
+    !staleUnconfiguredGateHandler.includes('status: "unconfigured"') ||
+    !staleUnconfiguredGateHandler.includes("authenticated: true") ||
+    !staleUnconfiguredGateHandler.includes('reason: "account-unconfigured"') ||
+    !staleUnconfiguredGateHandler.includes("retryable: true") ||
+    staleUnconfiguredGateHandler.includes('status: "error"') ||
+    staleUnconfiguredGateHandler.includes('reason: "account-check-failed"')
+  ) {
+    fail(
+      "Account cloud sync gate must keep stale authenticated unconfigured sessions visible as unconfigured/retryable instead of generic error."
+    );
+  }
   assertSourceIncludes(
     files.accountCloudSyncGate,
     accountCloudSyncGate,

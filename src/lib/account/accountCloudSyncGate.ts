@@ -58,9 +58,9 @@ export async function checkAccountCloudSyncGate(
   const session = await fetchAccountSession(options);
   if (session.status === "unconfigured" && session.authenticated) {
     return {
-      status: "error",
+      status: "unconfigured",
       authenticated: true,
-      reason: "account-check-failed",
+      reason: "account-unconfigured",
       retryable: true,
       local_use_policy: ACCOUNT_SYNC_GATE_LOCAL_USE_POLICY,
       boundary: ACCOUNT_SYNC_GATE_BOUNDARY,
