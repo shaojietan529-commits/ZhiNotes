@@ -5483,6 +5483,14 @@ function run() {
       "Sync UI must label the cloud setup diagnostics in Chinese.",
     ],
     [
+      'data-testid="cloud-alpha-sync-path-boundary"',
+      "Sync UI must distinguish the future Supabase cloud master from the current account sync bridge.",
+    ],
+    [
+      "现有账号同步桥失败",
+      "Sync UI must avoid implying that missing Supabase setup means the current account bridge is broken.",
+    ],
+    [
       'data-testid="cloud-setup-environment-gaps"',
       "Sync UI must render a stable environment gap list.",
     ],

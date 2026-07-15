@@ -12048,6 +12048,14 @@ function CloudAlphaPanel({
             连接 Supabase 登录并创建空云工作区。本地页面、文件、数据库、
             备份和同步队列仍保留在这个浏览器里；只有单独启用同步推送后才会外发。
           </p>
+          <p
+            className="mt-2 max-w-3xl rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] leading-5 text-blue-800 dark:border-blue-950 dark:bg-blue-950/30 dark:text-blue-200"
+            data-testid="cloud-alpha-sync-path-boundary"
+          >
+            这里检查的是未来完整 Supabase 云主库；它暂不可用不等于现有账号同步桥失败。
+            页面和数据库的短期多端接力，以页面顶部“换设备前检查”的账号同步桥、
+            pending 队列和同步回执为准。
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <CloudAlphaButton

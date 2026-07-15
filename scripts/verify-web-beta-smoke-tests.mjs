@@ -4192,6 +4192,14 @@ function run() {
       "Sync UI must expose owner smoke readiness.",
     ],
     [
+      'data-testid="cloud-alpha-sync-path-boundary"',
+      "Sync UI must distinguish the future Supabase cloud master from the current account sync bridge.",
+    ],
+    [
+      "现有账号同步桥失败",
+      "Sync UI must avoid implying that missing Supabase setup means the current account bridge is broken.",
+    ],
+    [
       'data-testid="cloud-setup-environment-gaps"',
       "Sync UI must expose the cloud setup environment gap list.",
     ],
@@ -4206,11 +4214,13 @@ function run() {
   ]) {
     const source = snippet.startsWith("data-") ||
       snippet.includes("data-testid") ||
+      snippet.includes("现有账号同步桥") ||
       snippet.includes("只显示变量名")
       ? syncShell
       : cloudSetupDiagnostics;
     const sourceLabel = snippet.startsWith("data-") ||
       snippet.includes("data-testid") ||
+      snippet.includes("现有账号同步桥") ||
       snippet.includes("只显示变量名")
       ? files.syncShell
       : files.cloudSetupDiagnostics;
