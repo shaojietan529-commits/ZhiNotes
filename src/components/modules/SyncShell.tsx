@@ -64,6 +64,7 @@ import {
   getPendingCloudDatabaseSyncStatus,
   isDatabaseSyncEnabled,
   reconcileDatabaseSync,
+  type CloudDatabaseManifestSummaryResult,
   type PendingCloudDatabaseSyncStatus,
 } from "@/lib/database/accountDatabaseSync";
 import {
@@ -78,6 +79,8 @@ import {
   fetchMeetingCloudMetadata,
   isPageSyncEnabled,
   reconcilePageSync,
+  type CloudPageDomainManifestSummaryResult,
+  type CloudPageManifestSummaryResult,
   type PendingCloudPageSyncStatus,
 } from "@/lib/pages/accountPageSync";
 import {
@@ -693,7 +696,28 @@ type SyncQueueAction =
   | "development-stability-handoff"
   | "two-device-smoke-runbook"
   | "two-device-smoke-owner-receipt"
+  | "account-bridge-probe"
   | "replay-test-plan";
+type AccountSyncBridgeProbeStatus = "not-run" | "ready" | "blocked" | "partial";
+type AccountSyncBridgeProbeDomainId = "pages" | "daily" | "meetings" | "databases";
+type AccountSyncBridgeProbeDomain = {
+  id: AccountSyncBridgeProbeDomainId;
+  label: string;
+  status: string;
+  count: number | null;
+  deleted: number | null;
+  watermark: string | null;
+  message: string | null;
+};
+type AccountSyncBridgeProbeReceipt = {
+  checked_at: string;
+  status: AccountSyncBridgeProbeStatus;
+  readable_domains: number;
+  blocked_domains: number;
+  domains: AccountSyncBridgeProbeDomain[];
+  next_action: string;
+  privacy_note: string;
+};
 type CoreManifestCompareStatus =
   | "matched"
   | "needs-sync"
@@ -852,6 +876,120 @@ interface CloudAlphaWorkspace {
 const CORE_MANIFEST_DATE_START_DATE = "2000-01-01";
 const CORE_MANIFEST_DATE_END_DATE = "2099-12-31";
 const CORE_MANIFEST_DATE_DIFF_ROW_LIMIT = 40;
+const ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE =
+  "只读取云端 manifest summary 的 count、deleted、watermark 和状态；不读取页面正文、数据库行值、评论、文件名、文件字节、token 或凭据，也不上传数据、不修改 pending 队列。";
+
+function buildAccountSyncBridgeProbeDomain(input: {
+  id: AccountSyncBridgeProbeDomainId;
+  label: string;
+  result:
+    | CloudPageManifestSummaryResult
+    | CloudPageDomainManifestSummaryResult
+    | CloudDatabaseManifestSummaryResult;
+}): AccountSyncBridgeProbeDomain {
+  const { summary } = input.result;
+  return {
+    id: input.id,
+    label: input.label,
+    status: input.result.status,
+    count: summary?.count ?? null,
+    deleted: summary?.deleted ?? null,
+    watermark: summary?.watermark ?? null,
+    message:
+      input.result.status === "ok" && summary
+        ? null
+        : input.result.message ??
+          `云端 ${input.label} manifest summary 暂不可读：${input.result.status}`,
+  };
+}
+
+function buildAccountSyncBridgeProbeReceipt(input: {
+  pages: CloudPageManifestSummaryResult;
+  daily: CloudPageDomainManifestSummaryResult;
+  meetings: CloudPageDomainManifestSummaryResult;
+  databases: CloudDatabaseManifestSummaryResult;
+}): AccountSyncBridgeProbeReceipt {
+  const domains: AccountSyncBridgeProbeDomain[] = [
+    buildAccountSyncBridgeProbeDomain({
+      id: "pages",
+      label: "页面",
+      result: input.pages,
+    }),
+    buildAccountSyncBridgeProbeDomain({
+      id: "daily",
+      label: "每日纪要",
+      result: input.daily,
+    }),
+    buildAccountSyncBridgeProbeDomain({
+      id: "meetings",
+      label: "会议日历",
+      result: input.meetings,
+    }),
+    buildAccountSyncBridgeProbeDomain({
+      id: "databases",
+      label: "数据库",
+      result: input.databases,
+    }),
+  ];
+  const readableDomains = domains.filter(
+    (domain) => domain.status === "ok" && domain.count !== null
+  ).length;
+  const blockedDomains = domains.length - readableDomains;
+  const status: AccountSyncBridgeProbeStatus =
+    readableDomains === domains.length
+      ? "ready"
+      : readableDomains === 0
+        ? "blocked"
+        : "partial";
+
+  return {
+    checked_at: new Date().toISOString(),
+    status,
+    readable_domains: readableDomains,
+    blocked_domains: blockedDomains,
+    domains,
+    next_action:
+      status === "ready"
+        ? "账号同步桥的核心 metadata 均可读；可以继续跑真实两设备 smoke，在另一台设备登录同账号后核对页面、每日、会议和数据库。"
+        : "先处理不可读的数据域：通常是未登录、会话过期、同步开关未开、云环境未配置或接口错误；本地输入和 pending 队列会保留。",
+    privacy_note: ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE,
+  };
+}
+
+function buildAccountSyncBridgeProbeErrorReceipt(
+  message: string
+): AccountSyncBridgeProbeReceipt {
+  return {
+    checked_at: new Date().toISOString(),
+    status: "blocked",
+    readable_domains: 0,
+    blocked_domains: 4,
+    domains: [
+      "pages",
+      "daily",
+      "meetings",
+      "databases",
+    ].map((id) => ({
+      id: id as AccountSyncBridgeProbeDomainId,
+      label:
+        id === "pages"
+          ? "页面"
+          : id === "daily"
+            ? "每日纪要"
+            : id === "meetings"
+              ? "会议日历"
+              : "数据库",
+      status: "error",
+      count: null,
+      deleted: null,
+      watermark: null,
+      message,
+    })),
+    next_action:
+      "只读检查没有完成；先确认账号仍登录、同步接口可访问，再重新运行。这个失败不会上传数据，也不会清空本地队列。",
+    privacy_note: ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE,
+  };
+}
 
 function buildEmptyCoreDateManifestDiffReport(): CoreDateManifestDiffReport {
   return {
@@ -1483,6 +1621,8 @@ function SyncDashboard() {
   const [syncDrainReceipt, setSyncDrainReceipt] =
     useState<SyncUploadDrainReceipt | null>(null);
   const [syncDrainMessage, setSyncDrainMessage] = useState<string | null>(null);
+  const [accountBridgeProbeReceipt, setAccountBridgeProbeReceipt] =
+    useState<AccountSyncBridgeProbeReceipt | null>(null);
   const [coreManifestCompareReport, setCoreManifestCompareReport] =
     useState<CoreManifestCompareReport | null>(null);
   const [coreManifestCompareBusy, setCoreManifestCompareBusy] =
@@ -5379,6 +5519,42 @@ function SyncDashboard() {
     }
   };
 
+  const handleRunAccountBridgeProbe = async () => {
+    setBusyQueueAction("account-bridge-probe");
+    try {
+      const [pageSummary, dailySummary, meetingSummary, databaseSummary] =
+        await Promise.all([
+          getCloudPageManifestSummary(),
+          getCloudDailyManifestSummary(),
+          getCloudMeetingManifestSummary(),
+          getCloudDatabaseManifestSummary(),
+        ]);
+      setAccountBridgeProbeReceipt(
+        buildAccountSyncBridgeProbeReceipt({
+          pages: pageSummary,
+          daily: dailySummary,
+          meetings: meetingSummary,
+          databases: databaseSummary,
+        })
+      );
+      const [nextPagePending, nextDatabasePending] = await Promise.all([
+        getPendingCloudPageSyncStatusWithSyncLog(),
+        getPendingCloudDatabaseSyncStatus(),
+      ]);
+      setPagePendingStatus(nextPagePending);
+      setDatabasePendingStatus(nextDatabasePending);
+    } catch (err) {
+      console.error("[Zhinote] Failed to probe account sync bridge:", err);
+      setAccountBridgeProbeReceipt(
+        buildAccountSyncBridgeProbeErrorReceipt(
+          err instanceof Error ? err.message : "未知错误"
+        )
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleRunCoreManifestCompare = async () => {
     setCoreManifestCompareBusy(true);
     try {
@@ -7061,6 +7237,12 @@ function SyncDashboard() {
               ?.scrollIntoView({ behavior: "smooth", block: "start" })
           }
           onOpenAccount={() => router.push("/account")}
+        />
+
+        <AccountSyncBridgeProbePanel
+          receipt={accountBridgeProbeReceipt}
+          busy={busyQueueAction === "account-bridge-probe"}
+          onRun={() => void handleRunAccountBridgeProbe()}
         />
 
         <SyncOperationalStatusStrip
@@ -23130,6 +23312,138 @@ function SyncHandoffQuickFact({
         {detail}
       </div>
     </div>
+  );
+}
+
+function formatAccountSyncBridgeProbeStatus(
+  status: AccountSyncBridgeProbeStatus
+) {
+  if (status === "ready") return "可读";
+  if (status === "partial") return "部分可读";
+  if (status === "blocked") return "不可读";
+  return "未检查";
+}
+
+function accountSyncBridgeProbeStatusClass(
+  status: AccountSyncBridgeProbeStatus
+) {
+  if (status === "ready") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  if (status === "partial") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  if (status === "blocked") {
+    return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+  }
+  return "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300";
+}
+
+function AccountSyncBridgeProbePanel({
+  receipt,
+  busy,
+  onRun,
+}: {
+  receipt: AccountSyncBridgeProbeReceipt | null;
+  busy: boolean;
+  onRun: () => void;
+}) {
+  const status = receipt?.status ?? "not-run";
+  return (
+    <section
+      data-testid="account-sync-bridge-probe"
+      data-account-sync-bridge-probe-status={status}
+      data-account-sync-bridge-readable-domains={receipt?.readable_domains ?? 0}
+      data-account-sync-bridge-blocked-domains={receipt?.blocked_domains ?? 0}
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+              真实同步前检查
+            </p>
+            <span
+              className={`rounded-md px-2 py-1 text-[10px] font-medium ${accountSyncBridgeProbeStatusClass(
+                status
+              )}`}
+            >
+              {formatAccountSyncBridgeProbeStatus(status)}
+            </span>
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-zinc-950 dark:text-zinc-50">
+            账号同步桥只读检查
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            不上传、不改队列，只读取云端 manifest summary 的 count / deleted /
+            watermark，用来判断当前登录账号在另一台设备是否能读到同一份核心
+            metadata。
+          </p>
+        </div>
+        <button
+          type="button"
+          data-testid="account-sync-bridge-probe-run"
+          onClick={onRun}
+          disabled={busy}
+          className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+        >
+          {busy ? "检查中..." : "只读检查账号同步桥"}
+        </button>
+      </div>
+
+      {receipt ? (
+        <div className="mt-3 space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {receipt.domains.map((domain) => (
+              <div
+                key={domain.id}
+                data-testid="account-sync-bridge-probe-domain"
+                data-account-sync-bridge-probe-domain-id={domain.id}
+                data-account-sync-bridge-probe-domain-status={domain.status}
+                className="rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {domain.label}
+                  </span>
+                  <span
+                    className={`rounded-md px-2 py-1 text-[10px] ${
+                      domain.status === "ok"
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                    }`}
+                  >
+                    {domain.status}
+                  </span>
+                </div>
+                <div className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+                  {domain.count === null ? "未读" : `${domain.count} 条`}
+                </div>
+                <p className="mt-1 break-words text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+                  删除 {domain.deleted ?? "未读"} · watermark{" "}
+                  {domain.watermark ?? "未读"}
+                </p>
+                {domain.message ? (
+                  <p className="mt-1 text-[11px] leading-4 text-amber-700 dark:text-amber-300">
+                    {domain.message}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            下一步：{receipt.next_action}
+          </p>
+          <p className="rounded-md bg-blue-50 px-3 py-2 text-[11px] leading-4 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+            {receipt.privacy_note}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          还没有运行只读检查。这个检查不会读取正文，也不会改变本地或云端数据。
+        </p>
+      )}
+    </section>
   );
 }
 

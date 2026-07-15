@@ -5510,6 +5510,34 @@ function run() {
       "只显示变量名和状态，不读取密钥值",
       "Sync UI must tell users that environment diagnostics do not reveal secret values.",
     ],
+    [
+      'data-testid="account-sync-bridge-probe"',
+      "Sync UI must expose a stable account sync bridge read-only probe panel.",
+    ],
+    [
+      "data-account-sync-bridge-probe-status",
+      "Sync UI must expose account sync bridge probe status.",
+    ],
+    [
+      "data-account-sync-bridge-readable-domains",
+      "Sync UI must expose readable account sync bridge domains.",
+    ],
+    [
+      "data-account-sync-bridge-blocked-domains",
+      "Sync UI must expose blocked account sync bridge domains.",
+    ],
+    [
+      'data-testid="account-sync-bridge-probe-run"',
+      "Sync UI must expose the account sync bridge read-only probe action.",
+    ],
+    [
+      "只读检查账号同步桥",
+      "Sync UI must label the account sync bridge read-only probe in Chinese.",
+    ],
+    [
+      "不上传、不改队列",
+      "Account sync bridge probe must say it does not upload or mutate queues.",
+    ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);
   }

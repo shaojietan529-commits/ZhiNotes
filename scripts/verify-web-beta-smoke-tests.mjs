@@ -4027,6 +4027,54 @@ function run() {
       'busyQueueAction === "two-device-smoke-owner-receipt"',
       "Sync UI must track the two-device smoke owner receipt export as its own busy state.",
     ],
+    [
+      'busyQueueAction === "account-bridge-probe"',
+      "Sync UI must track the account sync bridge read-only probe as its own busy state.",
+    ],
+    [
+      "getCloudPageManifestSummary()",
+      "Account sync bridge probe must read the page manifest summary.",
+    ],
+    [
+      "getCloudDailyManifestSummary()",
+      "Account sync bridge probe must read the daily manifest summary.",
+    ],
+    [
+      "getCloudMeetingManifestSummary()",
+      "Account sync bridge probe must read the meeting manifest summary.",
+    ],
+    [
+      "getCloudDatabaseManifestSummary()",
+      "Account sync bridge probe must read the database manifest summary.",
+    ],
+    [
+      "buildAccountSyncBridgeProbeReceipt",
+      "Account sync bridge probe must build a metadata-only receipt.",
+    ],
+    [
+      'data-testid="account-sync-bridge-probe"',
+      "Sync UI must expose a stable account sync bridge probe panel.",
+    ],
+    [
+      'data-testid="account-sync-bridge-probe-run"',
+      "Sync UI must expose the account sync bridge probe action.",
+    ],
+    [
+      "data-account-sync-bridge-probe-status",
+      "Sync UI must expose the account sync bridge probe status.",
+    ],
+    [
+      "data-account-sync-bridge-readable-domains",
+      "Sync UI must expose readable account sync bridge domains.",
+    ],
+    [
+      "只读检查账号同步桥",
+      "Sync UI must label the account sync bridge probe in Chinese.",
+    ],
+    [
+      "不上传、不改队列",
+      "Account sync bridge probe must state that it does not upload or mutate queues.",
+    ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);
   }
