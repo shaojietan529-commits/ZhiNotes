@@ -12132,6 +12132,58 @@ function CloudAlphaPanel({
             value={setupFirstBlocker?.title ?? "无"}
           />
         </div>
+
+        {setupDiagnostics.environment_gaps.length > 0 && (
+          <div
+            className="mt-3 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
+            data-testid="cloud-setup-environment-gaps"
+            data-cloud-setup-runtime-gap-count={
+              setupDiagnostics.summary.environment_runtime_blockers
+            }
+            data-cloud-setup-launch-gap-count={
+              setupDiagnostics.summary.environment_launch_blockers
+            }
+          >
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">
+                云配置缺口
+              </div>
+              <div className="text-[10px] text-zinc-400">
+                只显示变量名和状态，不读取密钥值
+              </div>
+            </div>
+            <div className="mt-2 grid gap-2 lg:grid-cols-2">
+              {setupDiagnostics.environment_gaps.slice(0, 6).map((gap) => (
+                <div
+                  key={gap.key}
+                  className="rounded-md bg-zinc-50 px-2 py-2 text-[11px] dark:bg-zinc-900"
+                  data-testid="cloud-setup-environment-gap"
+                  data-cloud-setup-environment-gap-key={gap.key}
+                  data-cloud-setup-environment-gap-scope={gap.scope}
+                  data-cloud-setup-environment-gap-status={gap.status}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-100">
+                      {gap.key}
+                    </span>
+                    <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                      {formatCloudSetupEnvironmentGapScope(gap.scope)}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-zinc-500 dark:text-zinc-400">
+                    {gap.label} · {gap.reason}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {setupDiagnostics.environment_gaps.length > 6 && (
+              <div className="mt-2 text-[11px] text-zinc-400">
+                还有 {setupDiagnostics.environment_gaps.length - 6} 项在完整 Web
+                Beta 预检区查看。
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-5">
@@ -12491,6 +12543,20 @@ function cloudSetupDiagnosticToneClass(status: CloudSetupDiagnostics["status"]) 
     return "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200";
   }
   return "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200";
+}
+
+function formatCloudSetupEnvironmentGapScope(
+  scope: CloudSetupDiagnostics["environment_gaps"][number]["scope"]
+) {
+  const labels: Record<
+    CloudSetupDiagnostics["environment_gaps"][number]["scope"],
+    string
+  > = {
+    "account-workspace-runtime": "账号/workspace",
+    "cloud-write-gate": "写入开关",
+    "web-beta-launch": "上线项",
+  };
+  return labels[scope];
 }
 
 function formatCloudRole(role: CloudAlphaWorkspace["role"]) {

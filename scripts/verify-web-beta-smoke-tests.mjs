@@ -4144,6 +4144,14 @@ function run() {
       "Cloud setup diagnostics must keep local writing unblocked.",
     ],
     [
+      "environment_gaps",
+      "Cloud setup diagnostics must expose concrete environment gaps.",
+    ],
+    [
+      "runtime_environment_gaps",
+      "Cloud setup diagnostics must identify runtime blockers before broader launch blockers.",
+    ],
+    [
       "reads_page_body_text: false",
       "Cloud setup diagnostics must not read page bodies.",
     ],
@@ -4183,11 +4191,27 @@ function run() {
       "data-cloud-setup-ready-for-owner-smoke",
       "Sync UI must expose owner smoke readiness.",
     ],
+    [
+      'data-testid="cloud-setup-environment-gaps"',
+      "Sync UI must expose the cloud setup environment gap list.",
+    ],
+    [
+      "data-cloud-setup-environment-gap-key",
+      "Sync UI must expose environment gap keys without secret values.",
+    ],
+    [
+      "只显示变量名和状态，不读取密钥值",
+      "Sync UI must tell users that environment gaps do not reveal secret values.",
+    ],
   ]) {
-    const source = snippet.startsWith("data-") || snippet.includes("data-testid")
+    const source = snippet.startsWith("data-") ||
+      snippet.includes("data-testid") ||
+      snippet.includes("只显示变量名")
       ? syncShell
       : cloudSetupDiagnostics;
-    const sourceLabel = snippet.startsWith("data-") || snippet.includes("data-testid")
+    const sourceLabel = snippet.startsWith("data-") ||
+      snippet.includes("data-testid") ||
+      snippet.includes("只显示变量名")
       ? files.syncShell
       : files.cloudSetupDiagnostics;
     assertIncludes(sourceLabel, source, snippet, message);

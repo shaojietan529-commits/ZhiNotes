@@ -5378,6 +5378,22 @@ function run() {
       "Cloud setup diagnostics must expose two-device smoke readiness.",
     ],
     [
+      "environment_gaps: CloudSetupEnvironmentGap[]",
+      "Cloud setup diagnostics must expose concrete environment gaps.",
+    ],
+    [
+      "runtime_environment_gaps: CloudSetupEnvironmentGap[]",
+      "Cloud setup diagnostics must separate runtime blockers from broader launch blockers.",
+    ],
+    [
+      "CLOUD_SETUP_RUNTIME_ENV_KEYS",
+      "Cloud setup diagnostics must classify account/workspace runtime environment keys.",
+    ],
+    [
+      "formatEnvironmentGapNextAction",
+      "Cloud setup diagnostics must convert environment gaps into a direct next action.",
+    ],
+    [
       "reads_session_metadata: true",
       "Cloud setup diagnostics may read session metadata for status only.",
     ],
@@ -5465,6 +5481,26 @@ function run() {
     [
       "云同步体检",
       "Sync UI must label the cloud setup diagnostics in Chinese.",
+    ],
+    [
+      'data-testid="cloud-setup-environment-gaps"',
+      "Sync UI must render a stable environment gap list.",
+    ],
+    [
+      "data-cloud-setup-runtime-gap-count",
+      "Sync UI must expose runtime environment gap count.",
+    ],
+    [
+      "data-cloud-setup-launch-gap-count",
+      "Sync UI must expose launch environment gap count.",
+    ],
+    [
+      "data-cloud-setup-environment-gap-key",
+      "Sync UI must expose environment variable names only.",
+    ],
+    [
+      "只显示变量名和状态，不读取密钥值",
+      "Sync UI must tell users that environment diagnostics do not reveal secret values.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);

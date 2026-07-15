@@ -22,6 +22,23 @@ export type CloudSetupDiagnosticStatus =
 
 export type CloudSetupDiagnosticGateStatus = "pass" | "warn" | "block";
 
+export type CloudSetupEnvironmentGapScope =
+  | "account-workspace-runtime"
+  | "cloud-write-gate"
+  | "web-beta-launch";
+
+export interface CloudSetupEnvironmentGap {
+  key: string;
+  label: string;
+  group: WebBetaEnvironmentPreflight["checks"][number]["group"];
+  scope: CloudSetupEnvironmentGapScope;
+  status: WebBetaEnvironmentPreflight["checks"][number]["status"];
+  present: boolean;
+  active: boolean;
+  required_value_hint: string | null;
+  reason: string;
+}
+
 export interface CloudSetupDiagnosticGate {
   id:
     | "environment"
@@ -50,6 +67,8 @@ export interface CloudSetupDiagnostics {
     environment_required_active: number;
     environment_required_total: number;
     environment_missing_or_inactive_required: number;
+    environment_runtime_blockers: number;
+    environment_launch_blockers: number;
     cloud_writes_enabled: boolean;
     session_present: boolean;
     workspace_linked: boolean;
@@ -61,6 +80,8 @@ export interface CloudSetupDiagnostics {
     total_failed_rows: number;
     total_manual_review_rows: number;
   };
+  environment_gaps: CloudSetupEnvironmentGap[];
+  runtime_environment_gaps: CloudSetupEnvironmentGap[];
   gates: CloudSetupDiagnosticGate[];
   next_actions: string[];
   privacy_note: string;
@@ -83,6 +104,14 @@ export interface CloudSetupDiagnostics {
   };
 }
 
+const CLOUD_SETUP_RUNTIME_ENV_KEYS = new Set([
+  "ZHINOTES_CLOUD_ENABLED",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+]);
+
+const CLOUD_SETUP_WRITE_ENV_KEY = "ZHINOTES_ALLOW_CLOUD_WRITES";
+
 export interface BuildCloudSetupDiagnosticsInput {
   environmentPreflight: WebBetaEnvironmentPreflight | null;
   environmentPreflightError?: string | null;
@@ -100,6 +129,10 @@ export function buildCloudSetupDiagnostics(
   input: BuildCloudSetupDiagnosticsInput
 ): CloudSetupDiagnostics {
   const environment = summarizeEnvironment(input.environmentPreflight);
+  const environmentGaps = buildEnvironmentGaps(input.environmentPreflight);
+  const runtimeEnvironmentGaps = environmentGaps.filter(
+    (gap) => gap.scope !== "web-beta-launch"
+  );
   const cloudWritesEnabled = isEnvironmentCheckActive(
     input.environmentPreflight,
     "ZHINOTES_ALLOW_CLOUD_WRITES"
@@ -157,11 +190,13 @@ export function buildCloudSetupDiagnostics(
           : "pass",
       evidence: input.environmentPreflightError
         ? `环境预检失败：${input.environmentPreflightError}`
-        : `${environment.activeRequired}/${environment.requiredTotal} 个必需配置已启用`,
+        : environmentGaps.length > 0
+          ? `${environment.activeRequired}/${environment.requiredTotal} 个必需配置已启用；仍有 ${environmentGaps.length} 个缺口`
+          : `${environment.activeRequired}/${environment.requiredTotal} 个必需配置已启用`,
       next_action:
         environment.missingOrInactiveRequired > 0 ||
         input.environmentPreflightError
-          ? "先补齐云端环境变量；本地写作和 pending 队列不受影响。"
+          ? formatEnvironmentGapNextAction(runtimeEnvironmentGaps)
           : "云端基础配置已通过，可以继续检查登录和工作区。",
     },
     {
@@ -281,6 +316,10 @@ export function buildCloudSetupDiagnostics(
       environment_required_total: environment.requiredTotal,
       environment_missing_or_inactive_required:
         environment.missingOrInactiveRequired,
+      environment_runtime_blockers: runtimeEnvironmentGaps.length,
+      environment_launch_blockers: environmentGaps.filter(
+        (gap) => gap.scope === "web-beta-launch"
+      ).length,
       cloud_writes_enabled: cloudWritesEnabled,
       session_present: sessionPresent,
       workspace_linked: workspaceLinked,
@@ -292,6 +331,8 @@ export function buildCloudSetupDiagnostics(
       total_failed_rows: totalFailedRows,
       total_manual_review_rows: totalManualReviewRows,
     },
+    environment_gaps: environmentGaps,
+    runtime_environment_gaps: runtimeEnvironmentGaps,
     gates,
     next_actions: buildNextActions(gates),
     privacy_note:
@@ -314,6 +355,67 @@ export function buildCloudSetupDiagnostics(
       enables_ai: false,
     },
   };
+}
+
+function buildEnvironmentGaps(preflight: WebBetaEnvironmentPreflight | null) {
+  if (!preflight) {
+    return [
+      {
+        key: "environment-preflight",
+        label: "云配置预检",
+        group: "deployment" as const,
+        scope: "account-workspace-runtime" as const,
+        status: "missing" as const,
+        present: false,
+        active: false,
+        required_value_hint: null,
+        reason: "环境预检还没有返回结果；先保持本地写作，等待同步中心重新检查。",
+      },
+    ];
+  }
+
+  return preflight.checks
+    .filter((check) => check.required && !check.active)
+    .map((check): CloudSetupEnvironmentGap => ({
+      key: check.key,
+      label: check.label,
+      group: check.group,
+      scope: getEnvironmentGapScope(check.key),
+      status: check.status,
+      present: check.present,
+      active: check.active,
+      required_value_hint: check.required_value_hint,
+      reason: formatEnvironmentGapReason(check),
+    }));
+}
+
+function getEnvironmentGapScope(key: string): CloudSetupEnvironmentGapScope {
+  if (CLOUD_SETUP_RUNTIME_ENV_KEYS.has(key)) {
+    return "account-workspace-runtime";
+  }
+  if (key === CLOUD_SETUP_WRITE_ENV_KEY) {
+    return "cloud-write-gate";
+  }
+  return "web-beta-launch";
+}
+
+function formatEnvironmentGapReason(
+  check: WebBetaEnvironmentPreflight["checks"][number]
+) {
+  if (!check.present) return "缺失；只暴露变量名，不读取或显示实际值。";
+  if (check.required_value_hint) {
+    return `已配置但未启用；需要 ${check.required_value_hint}。`;
+  }
+  return "已配置但当前不可用；只检查存在性和公开布尔开关。";
+}
+
+function formatEnvironmentGapNextAction(gaps: CloudSetupEnvironmentGap[]) {
+  if (gaps.length === 0) {
+    return "先补齐剩余 Web Beta 环境变量；本地写作和 pending 队列不受影响。";
+  }
+  const shown = gaps.slice(0, 3).map((gap) => gap.key).join("、");
+  const remaining = gaps.length - Math.min(gaps.length, 3);
+  return `先补齐 ${shown}${remaining > 0 ? ` 等 ${remaining} 项` : ""}；本地写作和 pending 队列不受影响。`;
 }
 
 function summarizeEnvironment(preflight: WebBetaEnvironmentPreflight | null) {
