@@ -2656,21 +2656,6 @@ function SyncDashboard() {
       syncSummary,
     ]
   );
-  const twoDayUsabilityGate = useMemo(
-    () =>
-      buildTwoDayUsabilityGate({
-        cloudSyncControlPlane,
-        cloudUploadReliabilityReport,
-        cloudNativeFluidityReport,
-        pendingDomainCoverage,
-      }),
-    [
-      cloudNativeFluidityReport,
-      cloudSyncControlPlane,
-      cloudUploadReliabilityReport,
-      pendingDomainCoverage,
-    ]
-  );
   const syncReplayTestApiGuard = useMemo(
     () => buildSyncReplayTestApiDisabledResponse(),
     []
@@ -3013,6 +2998,23 @@ function SyncDashboard() {
       syncAckRetryLedgerContract,
       syncPullApiGuard,
       syncPushApiGuard,
+    ]
+  );
+  const twoDayUsabilityGate = useMemo(
+    () =>
+      buildTwoDayUsabilityGate({
+        cloudSyncControlPlane,
+        cloudUploadReliabilityReport,
+        cloudNativeFluidityReport,
+        pendingDomainCoverage,
+        ackLedgerServerReadiness: syncAckLedgerServerReadiness,
+      }),
+    [
+      cloudNativeFluidityReport,
+      cloudSyncControlPlane,
+      cloudUploadReliabilityReport,
+      pendingDomainCoverage,
+      syncAckLedgerServerReadiness,
     ]
   );
   const twoDeviceSyncSmokeRunbook = useMemo(
@@ -24200,6 +24202,11 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
           label="账号退避"
           value={gate.summary.auth_retry_active ? "等待恢复" : "正常"}
           detail="不等于登出"
+        />
+        <CacheRebuildFact
+          label="ACK账本"
+          value={gate.summary.ack_ledger_ready ? "就绪" : "未就绪"}
+          detail={`${gate.summary.ack_ledger_remaining_blockers} 阻塞`}
         />
         <CacheRebuildFact
           label="性能样本"

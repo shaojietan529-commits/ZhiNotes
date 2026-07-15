@@ -3618,6 +3618,26 @@ function run() {
       "sync-domain-coverage",
       "Two-day usability gate must include sync-domain coverage.",
     ],
+    [
+      "ackLedgerServerReadiness: SyncAckLedgerServerReadiness",
+      "Two-day usability gate must accept the ack ledger server-readiness report.",
+    ],
+    [
+      "ack_ledger_ready",
+      "Two-day usability gate summary must expose whether the ack ledger is ready.",
+    ],
+    [
+      "ack_ledger_remaining_blockers",
+      "Two-day usability gate summary must expose ack ledger blockers.",
+    ],
+    [
+      "ack-ledger-readiness",
+      "Two-day usability gate must include an ack-ledger readiness gate.",
+    ],
+    [
+      "不能声称完整全平台同步通过",
+      "Two-day usability gate must prevent overclaiming full-platform sync before ack ledger readiness.",
+    ],
   ]) {
     assertIncludes(files.twoDayUsabilityGate, twoDayUsabilityGate, snippet, message);
   }
@@ -3862,6 +3882,18 @@ function run() {
     [
       "ackLedgerServerReadiness: syncAckLedgerServerReadiness",
       "Sync UI must pass the ack ledger server-readiness report into the two-device smoke runbook.",
+    ],
+    [
+      "ackLedgerServerReadiness: syncAckLedgerServerReadiness",
+      "Sync UI must pass the ack ledger server-readiness report into the two-day usability gate.",
+    ],
+    [
+      "ACK账本",
+      "Sync UI must show ack ledger readiness in the two-day usability gate summary.",
+    ],
+    [
+      "gate.summary.ack_ledger_remaining_blockers",
+      "Sync UI must show ack ledger blocker count in the two-day usability gate summary.",
     ],
     [
       "data-two-device-sync-ack-ledger-server-readiness-blockers",

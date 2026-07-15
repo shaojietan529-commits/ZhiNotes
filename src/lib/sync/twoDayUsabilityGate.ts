@@ -1,6 +1,7 @@
 import type { CloudNativeFluidityReport } from "@/lib/sync/cloudNativeFluidityReport";
 import type { CloudSyncControlPlane } from "@/lib/sync/cloudSyncControlPlane";
 import type { CloudUploadReliabilityReport } from "@/lib/sync/cloudUploadReliabilityReport";
+import type { SyncAckLedgerServerReadiness } from "@/lib/sync/syncAckLedgerServerReadiness";
 import type { PendingDomainCoverageReport } from "@/lib/sync/syncPendingDomainRegistry";
 
 export type TwoDayUsabilityVerdict =
@@ -17,6 +18,7 @@ export interface TwoDayUsabilityGateInput {
   cloudUploadReliabilityReport: CloudUploadReliabilityReport;
   cloudNativeFluidityReport: CloudNativeFluidityReport;
   pendingDomainCoverage: PendingDomainCoverageReport;
+  ackLedgerServerReadiness: SyncAckLedgerServerReadiness;
   generatedAt?: string;
 }
 
@@ -28,6 +30,7 @@ export interface TwoDayUsabilityGateItem {
     | "queue-clear-or-draining"
     | "auth-retry-clear"
     | "sync-domain-coverage"
+    | "ack-ledger-readiness"
     | "first-paint-fluidity";
   title: string;
   status: TwoDayUsabilityGateStatus;
@@ -84,6 +87,9 @@ export interface TwoDayUsabilityGate {
     safe_to_keep_typing: boolean;
     safe_to_switch_device_now: boolean;
     sync_domain_coverage_complete: boolean;
+    ack_ledger_ready: boolean;
+    ack_ledger_remaining_blockers: number;
+    ack_ledger_next_action: string;
     performance_samples: number;
   };
   primary_blocker: TwoDayUsabilityGateItem | null;
@@ -107,6 +113,9 @@ export function buildTwoDayUsabilityGate(
   const plane = input.cloudSyncControlPlane;
   const fluidity = input.cloudNativeFluidityReport.summary;
   const coverage = input.pendingDomainCoverage;
+  const ackLedgerReady =
+    input.ackLedgerServerReadiness.can_query_server_ledger_now &&
+    input.ackLedgerServerReadiness.summary.remaining_blockers === 0;
   const canKeepUsingNow =
     plane.can_keep_typing_now && reliability.safe_to_keep_typing;
   const canSwitchDevicesNow =
@@ -131,6 +140,7 @@ export function buildTwoDayUsabilityGate(
     reliability,
     fluidity,
     coverage,
+    ackLedgerServerReadiness: input.ackLedgerServerReadiness,
   });
   const blockers = gates.filter((gate) => gate.status === "block").length;
   const warnings = gates.filter((gate) => gate.status === "warn").length;
@@ -194,6 +204,11 @@ export function buildTwoDayUsabilityGate(
       safe_to_keep_typing: reliability.safe_to_keep_typing,
       safe_to_switch_device_now: reliability.safe_to_switch_device_now,
       sync_domain_coverage_complete: coverage.coverageComplete,
+      ack_ledger_ready: ackLedgerReady,
+      ack_ledger_remaining_blockers:
+        input.ackLedgerServerReadiness.summary.remaining_blockers,
+      ack_ledger_next_action:
+        input.ackLedgerServerReadiness.summary.next_action,
       performance_samples: fluidity.performance_samples,
     },
     primary_blocker: primaryBlocker,
@@ -207,6 +222,7 @@ export function buildTwoDayUsabilityGate(
       "账号认证退避为无，临时接口失败不会自动登出任一设备。",
       "页面、每日纪要、ZhiHui、数据库、文件元数据至少各完成一条真实两设备样本。",
       "设备 B 刷新后能看到设备 A 的新增和编辑结果。",
+      "ACK ledger 服务端就绪报告显示 remaining_blockers=0 且可以查询 server ledger。",
       "remote ACK cursor 或等价 ACK ledger 证明本地 rows 已被云端确认。",
     ],
     gates,
@@ -247,7 +263,12 @@ function buildGateItems(input: {
   reliability: CloudUploadReliabilityReport["summary"];
   fluidity: CloudNativeFluidityReport["summary"];
   coverage: PendingDomainCoverageReport;
+  ackLedgerServerReadiness: SyncAckLedgerServerReadiness;
 }): TwoDayUsabilityGateItem[] {
+  const ackLedgerReady =
+    input.ackLedgerServerReadiness.can_query_server_ledger_now &&
+    input.ackLedgerServerReadiness.summary.remaining_blockers === 0;
+
   return [
     gate({
       id: "local-use-not-blocked",
@@ -338,6 +359,17 @@ function buildGateItems(input: {
         : `补齐缺失同步域：${input.coverage.missingRegisteredDomainIds.join(
             " / "
           )}。`,
+    }),
+    gate({
+      id: "ack-ledger-readiness",
+      title: "ACK 账本可证明云端确认",
+      status: ackLedgerReady ? "pass" : "warn",
+      evidence: ackLedgerReady
+        ? "ACK ledger 服务端就绪，可以用 durable ACK cursor 证明本地 rows 已被云端确认。"
+        : `ACK ledger 仍有 ${input.ackLedgerServerReadiness.summary.remaining_blockers} 个阻塞/确认项；当前 scoped beta 可继续推进，但不能声称完整全平台同步通过。`,
+      nextAction: ackLedgerReady
+        ? "继续跑真实两设备 smoke，并保留 ACK cursor 证据。"
+        : input.ackLedgerServerReadiness.summary.next_action,
     }),
     gate({
       id: "first-paint-fluidity",
