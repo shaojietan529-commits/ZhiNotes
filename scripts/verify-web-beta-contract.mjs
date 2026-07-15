@@ -5172,6 +5172,20 @@ function run() {
       "Cloud access token helper must not clear an expired session; sync requests should refresh first so users are not logged out."
     );
   }
+  const syncShellClearCloudSessionCount =
+    syncShell.match(/clearCloudSession\(\);/g)?.length ?? 0;
+  const explicitCloudSessionClearHandler = syncShell.slice(
+    syncShell.indexOf("const handleClearCloudSession"),
+    syncShell.indexOf("const runExport")
+  );
+  if (
+    syncShellClearCloudSessionCount !== 1 ||
+    !explicitCloudSessionClearHandler.includes("clearCloudSession();")
+  ) {
+    fail(
+      "Sync UI must only clear the local cloud session from the explicit clear-session handler, not from expired-session or failed-sync guards."
+    );
+  }
   for (const [snippet, message] of [
     [
       'format: "zhinote-cloud-auth-refresh"',
@@ -5232,6 +5246,10 @@ function run() {
     [
       "const latestSession = readCloudSession() ?? activeSession;",
       "Cloud handoff recovery must preserve freshly refreshed tokens while adding user metadata.",
+    ],
+    [
+      "当前本地 session 信息会保留",
+      "Sync UI must tell users expired or missing cloud session checks preserve local session metadata until explicit clear.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);

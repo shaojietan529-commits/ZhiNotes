@@ -3456,12 +3456,11 @@ function SyncDashboard() {
 
   const handleCloudSessionCheck = async () => {
     if (!cloudSession || cloudSessionExpired) {
-      clearCloudSession();
-      setCloudSession(null);
       setCloudMessage({
         tone: "warning",
         title: "没有可用的云 session",
-        detail: "请先发送登录链接，并从邮件完成一次 magic link 登录。",
+        detail:
+          "请先发送登录链接，并从邮件完成一次 magic link 登录。当前本地 session 信息会保留，只有点击“清除本地会话”才会删除。",
       });
       return;
     }
@@ -3528,12 +3527,11 @@ function SyncDashboard() {
 
   const handleCloudWorkspaceList = async () => {
     if (!cloudSession || cloudSessionExpired) {
-      clearCloudSession();
-      setCloudSession(null);
       setCloudMessage({
         tone: "warning",
         title: "需要先登录",
-        detail: "列出云 workspace 需要一个有效的本地云 session。",
+        detail:
+          "列出云 workspace 需要一个有效的本地云 session。当前本地 session 信息会保留，重新登录后可继续恢复云接力。",
       });
       return;
     }
@@ -3595,12 +3593,11 @@ function SyncDashboard() {
 
   const handleCloudWorkspaceCreate = async () => {
     if (!cloudSession || cloudSessionExpired) {
-      clearCloudSession();
-      setCloudSession(null);
       setCloudMessage({
         tone: "warning",
         title: "需要先登录",
-        detail: "创建云 workspace 需要一个有效的本地云 session。",
+        detail:
+          "创建云 workspace 需要一个有效的本地云 session。当前本地 session 信息会保留，不会因为这次操作被清除。",
       });
       return;
     }
@@ -3660,12 +3657,11 @@ function SyncDashboard() {
 
   const handleCloudWorkspaceBootstrap = async () => {
     if (!cloudSession || cloudSessionExpired) {
-      clearCloudSession();
-      setCloudSession(null);
       setCloudMessage({
         tone: "warning",
         title: "需要先登录",
-        detail: "启动检查需要一个有效的本地云会话。",
+        detail:
+          "启动检查需要一个有效的本地云会话。当前本地 session 信息会保留，避免误把过期 token 当作手动退出。",
       });
       return;
     }
@@ -3761,15 +3757,11 @@ function SyncDashboard() {
   const handleRecoverCloudHandoff = useCallback(
     async (source: "manual" | "auto" = "manual") => {
       if (!cloudSession || cloudSessionExpired) {
-        if (cloudSessionExpired) {
-          clearCloudSession();
-          setCloudSession(null);
-        }
         setCloudMessage({
           tone: "warning",
           title: "需要先登录",
           detail:
-            "恢复云接力需要一个有效的本地云 session；这个动作不会上传本地内容。",
+            "恢复云接力需要一个有效的本地云 session；这个动作不会上传本地内容，也不会自动清除本地 session。",
         });
         return;
       }
@@ -4412,11 +4404,9 @@ function SyncDashboard() {
 
   const handleHotCachePreferencesCloudSync = async () => {
     if (!cloudSession || cloudSessionExpired) {
-      if (cloudSessionExpired) {
-        clearCloudSession();
-        setCloudSession(null);
-      }
-      setHotCacheSaveMessage("需要先完成云端登录，再同步待上传设置。");
+      setHotCacheSaveMessage(
+        "需要先完成云端登录，再同步待上传设置；当前本地 session 信息会保留。"
+      );
       return;
     }
 
@@ -4549,12 +4539,8 @@ function SyncDashboard() {
 
   const handleAccountModuleSettingsCloudSync = async () => {
     if (!cloudSession || cloudSessionExpired) {
-      if (cloudSessionExpired) {
-        clearCloudSession();
-        setCloudSession(null);
-      }
       setAccountModuleSettingsSyncMessage(
-        "需要先完成云端登录，再同步账号/模块设置。"
+        "需要先完成云端登录，再同步账号/模块设置；当前本地 session 信息会保留。"
       );
       return;
     }
@@ -4773,12 +4759,8 @@ function SyncDashboard() {
 
   const handleAccountModuleSettingsCloudPull = async () => {
     if (!cloudSession || cloudSessionExpired) {
-      if (cloudSessionExpired) {
-        clearCloudSession();
-        setCloudSession(null);
-      }
       setAccountModuleSettingsSyncMessage(
-        "需要先完成云端登录，再从云端恢复账号/模块设置。"
+        "需要先完成云端登录，再从云端恢复账号/模块设置；当前本地 session 信息会保留。"
       );
       return;
     }
@@ -4899,11 +4881,9 @@ function SyncDashboard() {
 
   const handleHotCachePreferencesCloudPull = async () => {
     if (!cloudSession || cloudSessionExpired) {
-      if (cloudSessionExpired) {
-        clearCloudSession();
-        setCloudSession(null);
-      }
-      setHotCacheSaveMessage("需要先完成云端登录，再从云端恢复工作区设置。");
+      setHotCacheSaveMessage(
+        "需要先完成云端登录，再从云端恢复工作区设置；当前本地 session 信息会保留。"
+      );
       return;
     }
 
