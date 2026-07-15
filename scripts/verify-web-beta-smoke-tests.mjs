@@ -9742,6 +9742,10 @@ function run() {
       "Account shell user actions must be able to abort slow account and account-adjacent requests.",
     ],
     [
+      'cache: init?.cache ?? "no-store"',
+      "Account shell user actions must bypass browser caches so login/profile/API-key state is not based on stale responses.",
+    ],
+    [
       "signal: controller.signal",
       "Account shell user actions must pass the abort signal to fetch.",
     ],

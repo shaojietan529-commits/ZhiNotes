@@ -206,6 +206,7 @@ check(
   shell.includes("ACCOUNT_ACTION_REQUEST_TIMEOUT_MS = 12000") &&
     shell.includes("async function fetchAccountActionWithTimeout") &&
     shell.includes("const controller = new AbortController();") &&
+    shell.includes('cache: init?.cache ?? "no-store"') &&
     shell.includes("signal: controller.signal") &&
     shell.includes("window.clearTimeout(timeout)") &&
     shell.includes('fetchAccountActionWithTimeout("/api/account/login/start"') &&
@@ -230,7 +231,7 @@ check(
     !shell.includes('await fetch("/api/account/login/verify"') &&
     !shell.includes('await fetch("/api/account/me"') &&
     !shell.includes('await fetch("/api/account/logout"'),
-  "AccountShell 账号操作请求必须统一走可超时取消的 helper，接口慢不能让登录、改名、密钥、归档修复或退出操作长期卡住"
+  "AccountShell 账号操作请求必须统一走 no-store 且可超时取消的 helper，接口慢或旧缓存不能让登录、改名、密钥、归档修复或退出操作长期卡住"
 );
 check(
   accountClientProfile.includes("export function formatClientAccountLabel") &&

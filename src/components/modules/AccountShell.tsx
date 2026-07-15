@@ -165,6 +165,7 @@ async function fetchAccountActionWithTimeout(
   try {
     return await fetch(input, {
       ...init,
+      cache: init?.cache ?? "no-store",
       signal: controller.signal,
     });
   } finally {
