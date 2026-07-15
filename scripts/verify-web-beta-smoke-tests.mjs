@@ -16336,6 +16336,24 @@ function run() {
     "Sync UI must label the required sync outcome evidence in Chinese."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    'data-testid="sync-outcome-evidence-refresh-callout"',
+    "Sync UI must expose a receipt evidence refresh callout when page/database receipts are missing or stale."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "刷新回执证据",
+    "Sync UI must expose a direct receipt evidence refresh action."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "quick reconcile 生成新的 metadata-only 回执",
+    "Sync UI receipt evidence refresh must explain that it uses quick reconcile metadata-only receipts."
+  );
+  assertIncludes(
     files.authCallback,
     authCallback,
     "recoverCloudHandoffFromSession",

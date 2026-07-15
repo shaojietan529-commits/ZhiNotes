@@ -5236,8 +5236,8 @@ function SyncDashboard() {
       );
       setSyncDrainMessage(
         allQueuesClear
-          ? `补传全部完成：页面、数据库和文件待上传队列已清空，当前适合切换设备。`
-          : `补传全部已运行：仍有 ${receipt.summary.waiting_rows_after} 条待上传、${receipt.summary.failed_rows_after} 条失败、${receipt.summary.manual_review_rows_after} 条需人工处理；其中文件待上传 ${receipt.summary.file_waiting_rows_after} 个、失败 ${receipt.summary.file_failed_rows_after} 个、人工处理 ${receipt.summary.file_manual_review_rows_after} 个。文件补传成功 ${fileResult.synced} 个。${receipt.next_action}`
+          ? `补传全部完成：页面、数据库和文件待上传队列已清空，页面/数据库 metadata-only 回执已刷新，当前适合切换设备。`
+          : `补传全部已运行：页面/数据库 metadata-only 回执已刷新；仍有 ${receipt.summary.waiting_rows_after} 条待上传、${receipt.summary.failed_rows_after} 条失败、${receipt.summary.manual_review_rows_after} 条需人工处理；其中文件待上传 ${receipt.summary.file_waiting_rows_after} 个、失败 ${receipt.summary.file_failed_rows_after} 个、人工处理 ${receipt.summary.file_manual_review_rows_after} 个。文件补传成功 ${fileResult.synced} 个。${receipt.next_action}`
       );
     } catch (err) {
       console.error("[Zhinote] Failed to drain pending sync queues:", err);
@@ -21856,6 +21856,9 @@ function SyncUploadSafetyPanel({
     handoffReceipt.gates.find((gate) => gate.status === "warn") ??
     handoffReceipt.gates[0] ??
     null;
+  const needsSyncOutcomeEvidenceRefresh =
+    primaryHandoffGate?.id === "recent-sync-outcome-evidence" &&
+    primaryHandoffGate.status !== "pass";
 
   return (
     <div
@@ -21946,6 +21949,35 @@ function SyncUploadSafetyPanel({
           </button>
         </div>
       </div>
+
+      {needsSyncOutcomeEvidenceRefresh ? (
+        <div
+          data-testid="sync-outcome-evidence-refresh-callout"
+          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <span className="font-semibold">回执证据待刷新：</span>
+              队列为空还不等于另一台设备一定看得见；先刷新页面/数据库
+              metadata-only 回执，再换设备接力。
+            </div>
+            <button
+              type="button"
+              onClick={onDrainAll}
+              disabled={busyQueueAction === "drain-all-pending"}
+              className="w-fit rounded-md bg-amber-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-amber-800 disabled:cursor-wait disabled:opacity-60 dark:bg-amber-200 dark:text-amber-950 dark:hover:bg-amber-100"
+            >
+              {busyQueueAction === "drain-all-pending"
+                ? "刷新中..."
+                : "刷新回执证据"}
+            </button>
+          </div>
+          <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+            这个按钮复用“补传全部”流程：只补传 pending queue，同时通过页面/数据库
+            quick reconcile 生成新的 metadata-only 回执；不读取页面正文、数据库行值或文件字节。
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {facts.map((fact) => (
@@ -22273,8 +22305,8 @@ function SyncUploadSafetyPanel({
             />
           </div>
           <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-            边界：补传全部只触发现有 pending queue 的普通上传；收据只记录
-            counts、状态、失败原因和动作结果，不读取页面正文、数据库行值、评论正文或文件字节。
+            边界：补传全部只上传 pending queue，并刷新页面/数据库 metadata-only
+            回执；收据只记录 counts、状态、失败原因和动作结果，不读取页面正文、数据库行值、评论正文或文件字节。
           </p>
         </div>
       ) : null}

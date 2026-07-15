@@ -11668,8 +11668,20 @@ function run() {
       "Upload safety overview must let the user export the latest drain receipt.",
     ],
     [
-      "补传全部只触发现有 pending queue 的普通上传",
-      "Upload safety overview must disclose that unified drain only uploads explicit pending queue rows.",
+      "补传全部只上传 pending queue，并刷新页面/数据库 metadata-only",
+      "Upload safety overview must disclose that unified drain only uploads explicit pending queue rows while refreshing metadata-only receipts.",
+    ],
+    [
+      'data-testid="sync-outcome-evidence-refresh-callout"',
+      "Upload safety overview must expose a visible refresh callout when required sync outcome evidence is missing or stale.",
+    ],
+    [
+      "刷新回执证据",
+      "Upload safety overview must offer a direct receipt evidence refresh action for device handoff.",
+    ],
+    [
+      "quick reconcile 生成新的 metadata-only 回执",
+      "Upload safety overview must explain that receipt refresh uses quick reconcile metadata-only receipts.",
     ],
     [
       "页面 pending 上传队列",
