@@ -93,6 +93,7 @@ async function fetchPortfolioPasscodeSync(
   try {
     return await fetch("/api/portfolio/sync", {
       method: "POST",
+      cache: "no-store",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
       signal: controller.signal,

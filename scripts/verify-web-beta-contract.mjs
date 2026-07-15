@@ -5143,6 +5143,10 @@ function run() {
       "Cloud client sessions must refresh through the local privacy-scoped auth refresh route.",
     ],
     [
+      'cache: "no-store"',
+      "Cloud client session refresh must bypass browser caches so expired-session recovery uses the current server response.",
+    ],
+    [
       "writeCloudSession(nextSession);",
       "Cloud client session refresh must persist the refreshed token for future tabs and requests.",
     ],
@@ -5645,6 +5649,12 @@ function run() {
   assertSourceIncludes(
     files.accountPortfolioSync,
     accountPortfolioSync,
+    'cache: "no-store"',
+    "Portfolio account-sync fetches must bypass browser caches so multi-device portfolio state uses the current server response."
+  );
+  assertSourceIncludes(
+    files.accountPortfolioSync,
+    accountPortfolioSync,
     "clearTimeout(timeout)",
     "Portfolio account-sync request timeout timers must be cleared after fetch settles."
   );
@@ -5677,6 +5687,12 @@ function run() {
     portfolioPasscodeSync,
     "signal: controller.signal",
     "Legacy portfolio passcode sync must pass the abort signal to the browser fetch call."
+  );
+  assertSourceIncludes(
+    files.portfolioPasscodeSync,
+    portfolioPasscodeSync,
+    'cache: "no-store"',
+    "Legacy portfolio passcode sync must bypass browser caches so shared portfolio state uses the current server response."
   );
   assertSourceIncludes(
     files.portfolioPasscodeSync,
@@ -8762,6 +8778,10 @@ function run() {
       "Meeting import fetch must be abortable when the intake API is slow or unavailable.",
     ],
     [
+      'fetch("/api/meetings/intake", {\n      method: "POST",\n      cache: "no-store"',
+      "Meeting import fetch must bypass browser caches so parsed meeting data uses the current server response.",
+    ],
+    [
       "controller.abort();",
       "Meeting import timeout must actively abort the slow intake request.",
     ],
@@ -8780,6 +8800,10 @@ function run() {
     [
       "fetchMeetingAgentQueueWithTimeout({",
       "Meeting runner handoff must use the bounded queue helper instead of waiting on a direct fetch.",
+    ],
+    [
+      'fetch("/api/meetings/agent/jobs", {\n      method: "POST",\n      cache: "no-store"',
+      "Meeting runner queue fetch must bypass browser caches so recording handoff uses the current server response.",
     ],
     [
       "getMeetingAgentQueueFailureMessage(error)",
@@ -29504,6 +29528,12 @@ function run() {
       fileEmbedSyncClient,
       "signal: controller.signal",
       "File embed cloud sync fetches must pass the abort signal.",
+    ],
+    [
+      files.fileEmbedSyncClient,
+      fileEmbedSyncClient,
+      'cache: "no-store"',
+      "File embed cloud sync fetches must bypass browser caches so file upload/download state uses the current server response.",
     ],
     [
       files.fileEmbedSyncClient,

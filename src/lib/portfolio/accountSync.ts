@@ -76,6 +76,7 @@ async function fetchAccountPortfolioSync(
   try {
     return await fetch("/api/portfolio/account-sync", {
       method: "POST",
+      cache: "no-store",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
       signal: controller.signal,

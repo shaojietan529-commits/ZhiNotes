@@ -243,6 +243,7 @@ async function fetchMeetingIntakeWithTimeout(
   try {
     const res = await fetch("/api/meetings/intake", {
       method: "POST",
+      cache: "no-store",
       headers: { "content-type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({ input }),
@@ -282,6 +283,7 @@ async function fetchMeetingAgentQueueWithTimeout(
   try {
     return await fetch("/api/meetings/agent/jobs", {
       method: "POST",
+      cache: "no-store",
       headers: { "content-type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify(body),

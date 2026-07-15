@@ -34,6 +34,7 @@ export default function EmailSetupPage() {
     try {
       const res = await fetch("/api/portfolio/email-setup", {
         method: "POST",
+        cache: "no-store",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "start", clientId: id }),
       });
@@ -60,6 +61,7 @@ export default function EmailSetupPage() {
         try {
           const pollRes = await fetch("/api/portfolio/email-setup", {
             method: "POST",
+            cache: "no-store",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ action: "poll", clientId: id, deviceCode }),
           });

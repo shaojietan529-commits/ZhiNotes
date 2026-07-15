@@ -153,6 +153,7 @@ async function runCloudSessionRefresh(
   try {
     const response = await fetch("/api/auth/refresh", {
       method: "POST",
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
       },

@@ -40,6 +40,7 @@ for (const token of [
   "CLOUD_MODULE_ROOT_REQUEST_TIMEOUT_MS = 3500",
   "const controller = new AbortController();",
   'fetch("/api/pages/account-sync"',
+  'cache: "no-store"',
   'body: JSON.stringify({ action: "module-roots" })',
   "signal: controller.signal",
   "clearTimeout(timeout)",
