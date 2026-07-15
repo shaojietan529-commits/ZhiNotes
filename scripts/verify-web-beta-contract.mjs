@@ -26945,6 +26945,18 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "const accountLabelRefreshRequestRef = useRef(0)",
+      "Sidebar account label refresh must sequence async account probes so old responses cannot overwrite newer login state.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "accountLabelRefreshRequestRef.current !== requestId",
+      "Sidebar account label refresh must ignore stale account probe responses.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "if (!accountLabelMountedRef.current) return;",
       "Sidebar account label refresh must avoid writing stale account state after navigation or unmount.",
     ],

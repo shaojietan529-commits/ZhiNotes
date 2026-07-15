@@ -801,6 +801,7 @@ export default function Sidebar() {
     label: string;
   } | null>(null);
   const accountLabelMountedRef = useRef(true);
+  const accountLabelRefreshRequestRef = useRef(0);
   const primaryPointerDragRef = useRef<SidebarPrimaryPointerDrag | null>(null);
   const suppressPrimaryClickRef = useRef(false);
   const accountSync = useAccountCloudSyncCoordinator();
@@ -963,6 +964,8 @@ export default function Sidebar() {
       } = {}
     ) => {
       if (!accountLabelMountedRef.current) return;
+      const requestId = accountLabelRefreshRequestRef.current + 1;
+      accountLabelRefreshRequestRef.current = requestId;
       if (options.preferStored) {
         const lastKnownLabel = getLastKnownAccountLabel();
         if (lastKnownLabel !== "账号") {
@@ -977,7 +980,12 @@ export default function Sidebar() {
       }
       try {
         const session = await fetchAccountSession({ force: options.force });
-        if (!accountLabelMountedRef.current) return;
+        if (
+          !accountLabelMountedRef.current ||
+          accountLabelRefreshRequestRef.current !== requestId
+        ) {
+          return;
+        }
         if (session.authenticated && session.account) {
           setAccountLabel(formatClientAccountLabel(session.account));
           setAccountSessionFallback(
@@ -1007,7 +1015,12 @@ export default function Sidebar() {
           reason: getAccountSessionFallbackReason(session.status),
         });
       } catch {
-        if (!accountLabelMountedRef.current) return;
+        if (
+          !accountLabelMountedRef.current ||
+          accountLabelRefreshRequestRef.current !== requestId
+        ) {
+          return;
+        }
         const lastKnownLabel = getLastKnownAccountLabel();
         setAccountLabel((currentLabel) =>
           currentLabel === "账号" ? lastKnownLabel : currentLabel
@@ -1025,6 +1038,7 @@ export default function Sidebar() {
     accountLabelMountedRef.current = true;
     return () => {
       accountLabelMountedRef.current = false;
+      accountLabelRefreshRequestRef.current += 1;
     };
   }, []);
 

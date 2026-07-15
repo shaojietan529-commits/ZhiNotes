@@ -4260,6 +4260,11 @@ check(
     sidebar.includes('status === "unconfirmed"') &&
     sidebar.includes("session.stale") &&
     sidebar.includes("session.staleReason") &&
+    sidebar.includes("const accountLabelRefreshRequestRef = useRef(0)") &&
+    sidebar.includes("const requestId = accountLabelRefreshRequestRef.current + 1") &&
+    sidebar.includes("accountLabelRefreshRequestRef.current = requestId") &&
+    sidebar.includes("accountLabelRefreshRequestRef.current !== requestId") &&
+    sidebar.includes("accountLabelRefreshRequestRef.current += 1") &&
     sidebar.includes("setAccountLabel(formatClientAccountLabel(session.account))") &&
     sidebar.includes('data-testid="account-session-stale-fallback"') &&
     sidebar.includes('data-account-session-fallback="stale"') &&
