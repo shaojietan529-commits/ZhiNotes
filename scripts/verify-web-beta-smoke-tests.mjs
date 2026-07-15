@@ -17194,6 +17194,30 @@ function run() {
     "Smoke verifier must keep database pending queue status events available."
   );
   assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "MISSING_DATABASE_SYNC_LOG_RECORD_MESSAGE",
+    "Database sync-log pushes must keep missing local database records visible instead of reporting false success."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "const foundKeys = new Set(pending.records.map(getRemoteDatabaseRecordKey));",
+    "Database sync-log pushes must compare pending log entries against found local records."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "missingLogIds",
+    "Database sync-log pushes must isolate missing local records for explicit failed status."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "数据库同步日志指向的本地数据库记录不存在，已保留为待处理。",
+    "Database sync-log pushes must use a clear owner-facing message when local records are missing."
+  );
+  assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
     "PENDING_STATUS_SYNC_DELAY_MS",

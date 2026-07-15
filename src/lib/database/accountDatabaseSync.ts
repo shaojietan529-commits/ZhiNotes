@@ -244,6 +244,8 @@ type PendingCloudDatabasePushMeta = Record<
   PendingCloudDatabasePushMetaEntry
 >;
 const PENDING_CLOUD_DATABASE_MANUAL_REVIEW_FAILURE_COUNT = 3;
+const MISSING_DATABASE_SYNC_LOG_RECORD_MESSAGE =
+  "数据库同步日志指向的本地数据库记录不存在，已保留为待处理。";
 
 export interface DatabaseReconcileResult {
   status: DatabaseSyncStatus;
@@ -1981,7 +1983,7 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
     return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
   }
   const pending = await getPendingDatabaseSyncRecords(200);
-  if (pending.entries.length === 0 || pending.records.length === 0) {
+  if (pending.entries.length === 0) {
     recordDatabaseSyncOutcome({
       status: "ok",
       source: "sync-log-push",
@@ -1994,6 +1996,35 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
     return { status: "ok", pushed: 0, skipped: 0, total: pending.entries.length };
   }
   const pendingLogIds = pending.entries.map((entry) => entry.logId);
+  const foundKeys = new Set(pending.records.map(getRemoteDatabaseRecordKey));
+  const missingLogIds = pending.entries
+    .filter((entry) => !foundKeys.has(entry.key))
+    .map((entry) => entry.logId);
+  if (pending.records.length === 0) {
+    await markDatabaseSyncLogEntriesFailed(
+      missingLogIds,
+      MISSING_DATABASE_SYNC_LOG_RECORD_MESSAGE
+    );
+    emitDatabaseSyncStatusChanged();
+    const next: PushLocalDatabasesResult = {
+      status: "error",
+      pushed: 0,
+      skipped: 0,
+      total: pending.entries.length,
+      message: MISSING_DATABASE_SYNC_LOG_RECORD_MESSAGE,
+    };
+    recordDatabaseSyncOutcome({
+      status: next.status,
+      source: "sync-log-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+      message: next.message ?? null,
+    });
+    return next;
+  }
   await markDatabaseSyncLogEntriesAttempted(pendingLogIds);
   emitDatabaseSyncStatusChanged();
   const result = await pushCloudDatabaseRecordsInBatches(pending.records);
@@ -2007,11 +2038,15 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
       .map((entry) => entry.logId);
     const marked = await markDatabaseSyncLogEntriesSynced(acknowledgedLogIds);
     const failedLogIds = pending.entries
-      .filter((entry) => !acknowledged.has(entry.key))
+      .filter((entry) => !acknowledged.has(entry.key) && foundKeys.has(entry.key))
       .map((entry) => entry.logId);
     await markDatabaseSyncLogEntriesFailed(
       failedLogIds,
       result.message ?? result.status
+    );
+    await markDatabaseSyncLogEntriesFailed(
+      missingLogIds,
+      MISSING_DATABASE_SYNC_LOG_RECORD_MESSAGE
     );
     emitDatabaseSyncStatusChanged();
     const next: PushLocalDatabasesResult = { ...result, marked };
@@ -2037,6 +2072,34 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
       .map((entry) => entry.logId)
   );
   emitDatabaseSyncStatusChanged();
+  if (missingLogIds.length > 0) {
+    await markDatabaseSyncLogEntriesFailed(
+      missingLogIds,
+      MISSING_DATABASE_SYNC_LOG_RECORD_MESSAGE
+    );
+    emitDatabaseSyncStatusChanged();
+    const next: PushLocalDatabasesResult = {
+      status: "error",
+      pushed: result.pushed,
+      skipped: result.skipped,
+      total: pending.entries.length,
+      marked,
+      acceptedKeys: result.acceptedKeys,
+      skippedKeys: result.skippedKeys,
+      message: MISSING_DATABASE_SYNC_LOG_RECORD_MESSAGE,
+    };
+    recordDatabaseSyncOutcome({
+      status: next.status,
+      source: "sync-log-push",
+      pulled: 0,
+      pushed: next.pushed,
+      accepted: next.acceptedKeys?.length ?? next.pushed,
+      skipped: next.skipped,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+      message: next.message ?? null,
+    });
+    return next;
+  }
   const next: PushLocalDatabasesResult = {
     status: "ok",
     pushed: result.pushed,
