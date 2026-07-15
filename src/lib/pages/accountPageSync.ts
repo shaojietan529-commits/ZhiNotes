@@ -2802,12 +2802,7 @@ export async function reconcilePageSync(
     const pendingPush = await flushPendingCloudPushes({
       includeManualReview: options.includeManualReview,
     });
-    if (
-      pendingPush.status === "unauthenticated" ||
-      pendingPush.status === "unconfigured" ||
-      pendingPush.status === "disabled" ||
-      pendingPush.status === "error"
-    ) {
+    if (pendingPush.status !== "ok") {
       return {
         status: pendingPush.status,
         pulled: 0,
@@ -2816,12 +2811,7 @@ export async function reconcilePageSync(
       };
     }
     const pendingSyncLogPush = await pushPendingLocalPageChangesToCloud();
-    if (
-      pendingSyncLogPush.status === "unauthenticated" ||
-      pendingSyncLogPush.status === "unconfigured" ||
-      pendingSyncLogPush.status === "disabled" ||
-      pendingSyncLogPush.status === "error"
-    ) {
+    if (pendingSyncLogPush.status !== "ok") {
       return {
         status: pendingSyncLogPush.status,
         pulled: 0,

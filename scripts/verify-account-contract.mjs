@@ -2481,6 +2481,13 @@ check(
   "页面同步应短期退避；只有共享账号 gate 明确 signed-out 才能显示未登录，具体同步接口认证失败必须显示成云端暂不可确认，避免误导用户以为账号掉线"
 );
 check(
+  pageSyncClient.includes('if (pendingPush.status !== "ok") {') &&
+    pageSyncClient.includes('status: pendingPush.status') &&
+    pageSyncClient.includes('if (pendingSyncLogPush.status !== "ok") {') &&
+    pageSyncClient.includes('status: pendingSyncLogPush.status'),
+  "页面 reconcile 必须把 pending queue 和 sync_log 的任何非 ok 状态都直接保留并退避，不能漏掉 session-unconfirmed 后继续 baseline/pull"
+);
+check(
   pageCloudSyncHook.includes("INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS = 10 * 1000") &&
     pageCloudSyncHook.includes("interactiveAuthRetryRecheckAfterRef") &&
     pageCloudSyncHook.includes("shouldForceAccountGateForInteractiveRetry") &&
