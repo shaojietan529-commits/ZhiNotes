@@ -16993,6 +16993,38 @@ function run() {
   );
   for (const [snippet, message] of [
     [
+      "PAGE_PROPERTY_AI_TAG_REQUEST_TIMEOUT_MS = 12000",
+      "Page property AI tag analysis must have a bounded browser-side timeout.",
+    ],
+    [
+      "async function fetchAiAnalyzeTagsWithTimeout",
+      "Page property AI tag analysis must route through one shared timeout wrapper.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Page property AI tag analysis must be abortable.",
+    ],
+    [
+      'cache: "no-store"',
+      "Page property AI tag analysis must bypass browser caches so it never applies stale AI responses.",
+    ],
+    [
+      "signal: controller.signal",
+      "Page property AI tag analysis must pass the abort signal.",
+    ],
+    [
+      "window.clearTimeout(timeout)",
+      "Page property AI tag analysis must clear timeout timers after fetch settles.",
+    ],
+    [
+      "AI 识别请求超时；本地页面没有变化，可稍后重试。",
+      "Page property AI timeout copy must tell users the local page is unchanged.",
+    ],
+  ]) {
+    assertSourceIncludes(files.pageProperties, pageProperties, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
       "ANTHROPIC_REQUEST_TIMEOUT_MS = 8000",
       "Anthropic provider calls must have a bounded server-side timeout.",
     ],

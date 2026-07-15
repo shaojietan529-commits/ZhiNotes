@@ -18,6 +18,7 @@ const files = {
   outputReview: "src/lib/ai/aiOutputReview.ts",
   anthropicRequest: "src/lib/ai/anthropicRequest.ts",
   aiShell: "src/components/modules/AiWorkbenchShell.tsx",
+  pageProperties: "src/components/page/PageProperties.tsx",
   aiRoute: "src/app/api/ai/run/route.ts",
   aiAnalyzeTagsRoute: "src/app/api/ai/analyze-tags/route.ts",
   aiSuggestPositionTagsRoute: "src/app/api/ai/suggest-position-tags/route.ts",
@@ -92,6 +93,7 @@ function run() {
   const outputReview = readProjectFile(files.outputReview);
   const anthropicRequest = readProjectFile(files.anthropicRequest);
   const aiShell = readProjectFile(files.aiShell);
+  const pageProperties = readProjectFile(files.pageProperties);
   const aiRoute = readProjectFile(files.aiRoute);
   const aiAnalyzeTagsRoute = readProjectFile(files.aiAnalyzeTagsRoute);
   const aiSuggestPositionTagsRoute = readProjectFile(
@@ -246,6 +248,22 @@ function run() {
     "@/lib/ai/aiWorkbench",
     "AI Workbench shell must consume the local AI workbench packet."
   );
+  for (const snippet of [
+    "PAGE_PROPERTY_AI_TAG_REQUEST_TIMEOUT_MS = 12000",
+    "async function fetchAiAnalyzeTagsWithTimeout",
+    "const controller = new AbortController();",
+    'cache: "no-store"',
+    "signal: controller.signal",
+    "window.clearTimeout(timeout)",
+    "AI 识别请求超时；本地页面没有变化，可稍后重试。",
+  ]) {
+    assertIncludes(
+      files.pageProperties,
+      pageProperties,
+      snippet,
+      "Page property AI tag analysis must be bounded, retryable, and preserve local page edits."
+    );
+  }
   for (const snippet of [
     "buildAiWorkbenchPacket",
     "handleExportAiWorkbench",

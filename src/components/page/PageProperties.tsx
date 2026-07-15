@@ -17,11 +17,41 @@ import {
 import { getPage } from "@/lib/db/local/queries";
 import { findIndustryChainPageId } from "@/lib/pages/industryChainSearch";
 
+const PAGE_PROPERTY_AI_TAG_REQUEST_TIMEOUT_MS = 12000;
+
 export interface PagePropertiesProps {
   properties: PageProperty[];
   disabled?: boolean;
   pageId?: string;
   onChange: (next: PageProperty[]) => void;
+}
+
+async function fetchAiAnalyzeTagsWithTimeout(content: string): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(
+    () => controller.abort(),
+    PAGE_PROPERTY_AI_TAG_REQUEST_TIMEOUT_MS
+  );
+  try {
+    return await fetch("/api/ai/analyze-tags", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({ content }),
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
 }
 
 // Notion-style properties block shown directly under the page title.
@@ -48,11 +78,7 @@ export default function PageProperties({
         return;
       }
 
-      const res = await fetch("/api/ai/analyze-tags", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
+      const res = await fetchAiAnalyzeTagsWithTimeout(content);
 
       if (res.status === 501) {
         window.alert(
@@ -89,8 +115,12 @@ export default function PageProperties({
       }
 
       onChange(next);
-    } catch {
-      window.alert("AI 识别出错，请检查网络连接。");
+    } catch (error) {
+      window.alert(
+        isAbortError(error)
+          ? "AI 识别请求超时；本地页面没有变化，可稍后重试。"
+          : "AI 识别出错，请检查网络连接。"
+      );
     } finally {
       setAiLoading(false);
     }
