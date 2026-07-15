@@ -434,19 +434,20 @@ export function usePages(options: UsePagesOptions = {}) {
         if (!includeContent || metadataFirstContent) {
           const hotPages = await loadHotCachePageMetadataSnapshot();
           if (hotPages.length > 0) {
-            all = hotPages;
+            const hotMergedPages = mergeFullMetadataWithCurrentStore(hotPages);
+            all = hotMergedPages;
             localSnapshotLoaded = true;
             if (!isCurrentRefresh()) return false;
-            setPages(hotPages);
+            setPages(hotMergedPages);
             writePageListHotCacheSnapshot({
-              pages: hotPages,
+              pages: hotMergedPages,
               source: "hot-cache-metadata",
             });
             setPageListLoadStatus(
-              createPageListStatusFromPages("local-hot-cache", hotPages, {
+              createPageListStatusFromPages("local-hot-cache", hotMergedPages, {
                 backgroundActive: true,
                 message:
-                  "已先显示常用页面 metadata，完整页面目录和云端校正在后台继续。",
+                  "已先合并常用页面 metadata，当前页面列表不会被较小热缓存覆盖；完整目录和云端校正在后台继续。",
               })
             );
             scheduleDeferredMetadataHydration(setPages);

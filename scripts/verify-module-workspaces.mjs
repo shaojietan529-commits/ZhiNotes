@@ -962,6 +962,13 @@ check(
     usePagesHook.includes("const refreshRequestRef = useRef(0)") &&
     usePagesHook.includes("const isCurrentRefresh = () => refreshRequestRef.current === requestId") &&
     usePagesHook.includes("const hasUsableLocalFirstPaint = localSnapshotLoaded && all.length > 0") &&
+    usePagesHook.includes("const hotMergedPages = mergeFullMetadataWithCurrentStore(hotPages)") &&
+    usePagesHook.includes("all = hotMergedPages") &&
+    usePagesHook.includes("setPages(hotMergedPages)") &&
+    usePagesHook.includes("pages: hotMergedPages") &&
+    usePagesHook.includes("当前页面列表不会被较小热缓存覆盖") &&
+    !usePagesHook.includes("all = hotPages;") &&
+    !usePagesHook.includes("setPages(hotPages)") &&
     usePagesHook.includes("void applyCloudMetadataDelta({") &&
     usePagesHook.includes("includeContent && !localSnapshotLoaded && all.length === 0") &&
     usePagesHook.indexOf("await renderLocalPagesSnapshot()") <
