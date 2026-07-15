@@ -124,6 +124,8 @@ const files = {
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   syncAckRetryLedgerContract:
     "src/lib/sync/syncAckRetryLedgerContract.ts",
+  syncAckLedgerServerReadiness:
+    "src/lib/sync/syncAckLedgerServerReadiness.ts",
   syncAckLedgerReplayPreflight:
     "src/lib/sync/syncAckLedgerReplayPreflight.ts",
   syncAckLedgerReplayProof: "src/lib/sync/syncAckLedgerReplayProof.ts",
@@ -663,6 +665,9 @@ function run() {
   const syncAckRetryLedgerContract = readProjectFile(
     files.syncAckRetryLedgerContract
   );
+  const syncAckLedgerServerReadiness = readProjectFile(
+    files.syncAckLedgerServerReadiness
+  );
   const syncAckLedgerReplayPreflight = readProjectFile(
     files.syncAckLedgerReplayPreflight
   );
@@ -1027,6 +1032,7 @@ function run() {
     [files.cloudSyncControlPlane, cloudSyncControlPlane],
     [files.developmentStabilityPlan, developmentStabilityPlan],
     [files.syncAckRetryLedgerContract, syncAckRetryLedgerContract],
+    [files.syncAckLedgerServerReadiness, syncAckLedgerServerReadiness],
     [files.syncAckLedgerReplayPreflight, syncAckLedgerReplayPreflight],
     [files.syncAckLedgerReplayProof, syncAckLedgerReplayProof],
     [files.syncAckLedgerReplayEnablement, syncAckLedgerReplayEnablement],
@@ -14802,6 +14808,107 @@ function run() {
   }
   for (const [snippet, message] of [
     [
+      'format: "zhinote-sync-ack-ledger-server-readiness"',
+      "Sync ack ledger server readiness must expose a stable format.",
+    ],
+    [
+      'readiness_status: "local-readiness-only"',
+      "Sync ack ledger server readiness must remain local-only.",
+    ],
+    [
+      "can_enable_sync_push_now: false",
+      "Sync ack ledger server readiness must not enable real sync push.",
+    ],
+    [
+      "can_query_server_ledger_now: false",
+      "Sync ack ledger server readiness must not query server ledger tables.",
+    ],
+    [
+      "can_apply_migration_now: false",
+      "Sync ack ledger server readiness must not apply migrations.",
+    ],
+    [
+      "reads_sql_draft_metadata: true",
+      "Sync ack ledger server readiness may read local SQL draft metadata.",
+    ],
+    [
+      "reads_route_disabled_guards: true",
+      "Sync ack ledger server readiness must read disabled route guards.",
+    ],
+    [
+      "reads_replay_enablement_gates: true",
+      "Sync ack ledger server readiness must read replay enablement gates.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Sync ack ledger server readiness must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Sync ack ledger server readiness must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Sync ack ledger server readiness must not read file bytes.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Sync ack ledger server readiness must not send network requests.",
+    ],
+    [
+      "connects_cloud_services: false",
+      "Sync ack ledger server readiness must not connect cloud services.",
+    ],
+    [
+      "applies_sql: false",
+      "Sync ack ledger server readiness must not apply SQL.",
+    ],
+    [
+      "writes_server_data: false",
+      "Sync ack ledger server readiness must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Sync ack ledger server readiness must not upload workspace data.",
+    ],
+    [
+      "mutates_local_sync_log: false",
+      "Sync ack ledger server readiness must not mutate local sync_log.",
+    ],
+    [
+      "marks_local_rows_synced: false",
+      "Sync ack ledger server readiness must not mark rows synced.",
+    ],
+    [
+      "ledger-sql-draft-complete",
+      "Sync ack ledger server readiness must check SQL draft completeness.",
+    ],
+    [
+      "push-pull-routes-still-disabled",
+      "Sync ack ledger server readiness must check push/pull route guards.",
+    ],
+    [
+      "disposable-cloud-replay-required",
+      "Sync ack ledger server readiness must keep disposable cloud replay as a blocker.",
+    ],
+    [
+      "no-local-synced-before-ack",
+      "Sync ack ledger server readiness must enforce no local synced state before remote ack cursor.",
+    ],
+    [
+      "production-sync-still-refused",
+      "Sync ack ledger server readiness must refuse production sync until gates pass.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.syncAckLedgerServerReadiness,
+      syncAckLedgerServerReadiness,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
       'format: "zhinote-sync-ack-ledger-replay-preflight"',
       "Sync ack ledger replay preflight must expose a stable format.",
     ],
@@ -15823,16 +15930,36 @@ function run() {
       "Sync UI must build the ack/retry ledger contract.",
     ],
     [
+      "buildSyncAckLedgerServerReadiness",
+      "Sync UI must build the ack ledger server readiness report.",
+    ],
+    [
       "sync-ack-retry-ledger-contract",
       "Sync UI must render the ack/retry ledger panel.",
+    ],
+    [
+      "sync-ack-ledger-server-readiness",
+      "Sync UI must render the ack ledger server readiness panel.",
     ],
     [
       "服务端确认与重试账本",
       "Sync UI must expose the server ack/retry ledger section.",
     ],
     [
+      "ACK ledger 服务端就绪",
+      "Sync UI must expose the ack ledger server readiness section.",
+    ],
+    [
       "导出 ack/retry 账本合约",
       "Sync UI must expose the ack/retry ledger export.",
+    ],
+    [
+      "导出服务端就绪小票",
+      "Sync UI must expose the ack ledger server readiness export.",
+    ],
+    [
+      "data-sync-ack-ledger-server-readiness-blockers",
+      "Sync UI must expose ack ledger server readiness blockers as a stable data attribute.",
     ],
     [
       "不是上传按钮",

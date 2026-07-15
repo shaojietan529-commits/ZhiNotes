@@ -543,6 +543,11 @@ import {
   type SyncAckRetryLedgerContract,
 } from "@/lib/sync/syncAckRetryLedgerContract";
 import {
+  buildSyncAckLedgerServerReadiness,
+  type SyncAckLedgerServerReadiness,
+  type SyncAckLedgerServerReadinessStatus,
+} from "@/lib/sync/syncAckLedgerServerReadiness";
+import {
   buildSyncAckLedgerReplayPreflight,
   type SyncAckLedgerReplayAssertion,
   type SyncAckLedgerReplayPreflight,
@@ -662,6 +667,7 @@ type SyncQueueAction =
   | "sync-push-api-guard"
   | "sync-pull-api-guard"
   | "sync-ack-retry-ledger"
+  | "sync-ack-ledger-server-readiness"
   | "sync-ack-ledger-replay-preflight"
   | "sync-ack-ledger-replay-proof"
   | "sync-ack-ledger-replay-enablement"
@@ -3012,6 +3018,23 @@ function SyncDashboard() {
       auditTrailPolicy,
       cloudSchemaMigrationPlan,
       permissionDecisionReport,
+    ]
+  );
+  const syncAckLedgerServerReadiness = useMemo(
+    () =>
+      buildSyncAckLedgerServerReadiness({
+        ackLedgerContract: syncAckRetryLedgerContract,
+        replayEnablement: syncAckLedgerReplayEnablement,
+        cloudMigrationSqlDraft,
+        syncPushApiGuard,
+        syncPullApiGuard,
+      }),
+    [
+      cloudMigrationSqlDraft,
+      syncAckLedgerReplayEnablement,
+      syncAckRetryLedgerContract,
+      syncPullApiGuard,
+      syncPushApiGuard,
     ]
   );
   const cloudManifestCompareApiGuard = useMemo(
@@ -5870,6 +5893,27 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportSyncAckLedgerServerReadiness = () => {
+    setBusyQueueAction("sync-ack-ledger-server-readiness");
+    try {
+      downloadJsonFile(
+        `zhinote-sync-ack-ledger-server-readiness-${fileSafeTimestamp()}.json`,
+        {
+          ...syncAckLedgerServerReadiness,
+          exported_at: new Date().toISOString(),
+        }
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export sync ack ledger server readiness:",
+        err
+      );
+      window.alert("ACK ledger 服务端就绪小票导出失败，请查看控制台。");
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncAckLedgerReplayPreflight = () => {
     setBusyQueueAction("sync-ack-ledger-replay-preflight");
     try {
@@ -7721,6 +7765,11 @@ function SyncDashboard() {
             contract={syncAckRetryLedgerContract}
             busy={busyQueueAction === "sync-ack-retry-ledger"}
             onExport={handleExportSyncAckRetryLedgerContract}
+          />
+          <SyncAckLedgerServerReadinessPanel
+            readiness={syncAckLedgerServerReadiness}
+            busy={busyQueueAction === "sync-ack-ledger-server-readiness"}
+            onExport={handleExportSyncAckLedgerServerReadiness}
           />
           <ApiGuardPanel
             title="同步拉取 API 防护"
@@ -15028,6 +15077,199 @@ function SyncAckRetryLedgerStatusPill({
       }`}
     >
       {pass ? "pass" : "blocked"}
+    </span>
+  );
+}
+
+function SyncAckLedgerServerReadinessPanel({
+  readiness,
+  busy,
+  onExport,
+}: {
+  readiness: SyncAckLedgerServerReadiness;
+  busy: boolean;
+  onExport: () => void;
+}) {
+  return (
+    <section
+      id="sync-ack-ledger-server-readiness"
+      data-testid="sync-ack-ledger-server-readiness"
+      data-sync-ack-ledger-server-readiness-status={
+        readiness.readiness_status
+      }
+      data-sync-ack-ledger-server-readiness-blockers={String(
+        readiness.summary.remaining_blockers
+      )}
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              ACK ledger 服务端就绪
+            </h2>
+            <SyncAckLedgerServerReadinessStatusPill
+              status={
+                readiness.summary.remaining_blockers > 0 ? "blocked" : "pass"
+              }
+            />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            这张小票把本地 SQL draft、push/pull route 门卫和一次性回放启用包对齐。
+            它不会连接云端、不会应用 SQL、不会上传 workspace，也不会把本地
+            sync_log 标成 synced。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={busy}
+          className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          {busy ? "导出中..." : "导出服务端就绪小票"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <PayloadSummaryCard
+          label="账本表"
+          value={`${readiness.summary.ledger_sql_tables_drafted}/${readiness.summary.ledger_tables_required}`}
+          detail="SQL draft"
+          tone={
+            readiness.summary.ledger_sql_tables_drafted ===
+            readiness.summary.ledger_tables_required
+              ? "low"
+              : "high"
+          }
+        />
+        <PayloadSummaryCard
+          label="route 门卫"
+          value={`${readiness.summary.route_guards_disabled}/2`}
+          detail="push/pull 关闭"
+          tone={readiness.summary.route_guards_disabled === 2 ? "low" : "high"}
+        />
+        <PayloadSummaryCard
+          label="本地回放"
+          value={readiness.summary.local_replay_ready_gates}
+          detail="ready gates"
+          tone="medium"
+        />
+        <PayloadSummaryCard
+          label="需确认"
+          value={readiness.summary.manual_confirmation_gates}
+          detail="owner gate"
+          tone={
+            readiness.summary.manual_confirmation_gates > 0 ? "medium" : "low"
+          }
+        />
+        <PayloadSummaryCard
+          label="阻塞"
+          value={readiness.summary.blocked_gates}
+          detail="上线前处理"
+          tone={readiness.summary.blocked_gates > 0 ? "high" : "low"}
+        />
+        <PayloadSummaryCard
+          label="可启用"
+          value={readiness.can_enable_sync_push_now ? "是" : "否"}
+          detail="真实 push"
+          tone="high"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+        <ContractPanel title="账本 SQL 覆盖">
+          <div className="space-y-2">
+            {readiness.ledger_tables.map((table) => (
+              <SyncAckLedgerServerTableRow key={table.table} table={table} />
+            ))}
+          </div>
+        </ContractPanel>
+        <ContractPanel title="启用前服务端 gate">
+          <div className="space-y-2">
+            {readiness.gates.map((gate) => (
+              <SyncAckLedgerServerGateRow key={gate.id} gate={gate} />
+            ))}
+          </div>
+        </ContractPanel>
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        下一步：{readiness.summary.next_action}
+      </p>
+    </section>
+  );
+}
+
+function SyncAckLedgerServerTableRow({
+  table,
+}: {
+  table: SyncAckLedgerServerReadiness["ledger_tables"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+            {table.table}
+          </div>
+          <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+            {table.privacy_boundary}
+          </p>
+        </div>
+        <SyncAckLedgerServerReadinessStatusPill
+          status={table.sql_drafted ? "pass" : "blocked"}
+        />
+      </div>
+      <p className="mt-2 border-t border-zinc-100 pt-2 font-mono text-[10px] text-zinc-400 dark:border-zinc-800">
+        fields={table.contract_fields}; sql_drafted={String(table.sql_drafted)}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckLedgerServerGateRow({
+  gate,
+}: {
+  gate: SyncAckLedgerServerReadiness["gates"][number];
+}) {
+  return (
+    <article className="rounded-md bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-900">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {gate.title}
+          </div>
+          <div className="mt-1 font-mono text-[10px] text-zinc-400">
+            {gate.id}
+          </div>
+        </div>
+        <SyncAckLedgerServerReadinessStatusPill status={gate.status} />
+      </div>
+      <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+        {gate.evidence}
+      </p>
+      <p className="mt-2 border-t border-zinc-100 pt-2 leading-5 text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        {gate.required_before_enablement}
+      </p>
+    </article>
+  );
+}
+
+function SyncAckLedgerServerReadinessStatusPill({
+  status,
+}: {
+  status: SyncAckLedgerServerReadinessStatus;
+}) {
+  const className =
+    status === "pass"
+      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : status === "manual-confirmation"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {status}
     </span>
   );
 }
