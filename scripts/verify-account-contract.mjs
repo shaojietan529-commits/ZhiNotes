@@ -4350,8 +4350,10 @@ check(
     ) &&
     settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_EVENT") &&
     settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
+    settingsCloudSyncStatusHook.includes("isAccountSessionStorageKey") &&
     settingsCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
     settingsCloudSyncStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
+    settingsCloudSyncStatusHook.includes("if (isAccountSessionStorageKey(event.key)) {") &&
     settingsCloudSyncStatusHook.includes("event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
     !settingsCloudSyncStatusHook.includes(
       "event.key !== SETTINGS_SYNC_STATUS_STORAGE_KEY || !event.newValue"
@@ -4379,11 +4381,13 @@ check(
   "设置类同步状态必须只暴露 sync_log metadata 计数，不能读取设置值、上传数据或修改 sync_log"
 );
 check(
-  knowledgeCloudSyncStatusHook.includes("getPendingKnowledgeSyncLogEntries") &&
+    knowledgeCloudSyncStatusHook.includes("getPendingKnowledgeSyncLogEntries") &&
     knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
     knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
+    knowledgeCloudSyncStatusHook.includes("isAccountSessionStorageKey") &&
     knowledgeCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
     knowledgeCloudSyncStatusHook.includes('window.removeEventListener("storage", handleStorage)') &&
+    knowledgeCloudSyncStatusHook.includes("if (isAccountSessionStorageKey(event.key)) {") &&
     knowledgeCloudSyncStatusHook.includes("event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
     !knowledgeCloudSyncStatusHook.includes(
       "event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY || !event.newValue"

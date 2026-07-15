@@ -6546,8 +6546,20 @@ function run() {
   assertSourceIncludes(
     files.settingsCloudSyncStatusHook,
     settingsCloudSyncStatusHook,
+    "isAccountSessionStorageKey",
+    "Settings cloud sync status hook must refresh promptly when account login/logout state changes."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
     'window.addEventListener("storage", handleStorage)',
     "Settings cloud sync status hook must refresh when another tab changes settings sync metadata."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "if (isAccountSessionStorageKey(event.key)) {",
+    "Settings cloud sync status hook must handle account-session storage changes without waiting for the next polling tick."
   );
   assertSourceIncludes(
     files.settingsCloudSyncStatusHook,
@@ -6612,8 +6624,20 @@ function run() {
   assertSourceIncludes(
     files.knowledgeCloudSyncStatusHook,
     knowledgeCloudSyncStatusHook,
+    "isAccountSessionStorageKey",
+    "Knowledge sync status hook must refresh promptly when account login/logout state changes."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
     'window.addEventListener("storage", handleStorage)',
     "Knowledge sync status hook must refresh when another tab changes knowledge sync metadata."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "if (isAccountSessionStorageKey(event.key)) {",
+    "Knowledge sync status hook must handle account-session storage changes without waiting for the next polling tick."
   );
   assertSourceIncludes(
     files.knowledgeCloudSyncStatusHook,

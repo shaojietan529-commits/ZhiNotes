@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isAccountSessionStorageKey } from "@/lib/account/clientSession";
 import { getPendingKnowledgeSyncLogEntries } from "@/lib/db/local/queries";
 import {
   buildEmptyKnowledgeCloudSyncStatus,
@@ -105,6 +106,10 @@ export function useKnowledgeCloudSyncStatus() {
       void refresh();
     };
     const handleStorage = (event: StorageEvent) => {
+      if (isAccountSessionStorageKey(event.key)) {
+        void refresh();
+        return;
+      }
       if (event.key !== KNOWLEDGE_SYNC_STATUS_STORAGE_KEY) return;
       void refresh();
     };
