@@ -65,6 +65,54 @@ export interface TwoDeviceSyncSmokeRunbook {
   final_owner_receipt_template: string[];
 }
 
+export interface TwoDeviceSyncSmokeOwnerReceipt {
+  format: "zhinote-two-device-sync-smoke-owner-receipt";
+  format_version: 1;
+  receipt_status: "owner-evidence-required";
+  generated_at: string;
+  source_runbook_generated_at: string;
+  ready_to_collect_owner_evidence: boolean;
+  can_claim_two_device_sync_passed_now: false;
+  boundary: {
+    owner_fills_results: true;
+    reads_queue_counts: true;
+    reads_sync_flags: true;
+    reads_auth_retry_state: true;
+    reads_page_body_text: false;
+    reads_database_row_values: false;
+    reads_file_names: false;
+    reads_file_bytes: false;
+    sends_network_requests: false;
+    writes_server_data: false;
+    uploads_workspace_data: false;
+    clears_local_cache: false;
+    stores_private_content: false;
+  };
+  summary: TwoDeviceSyncSmokeRunbook["summary"] & {
+    runbook_ready_to_run: boolean;
+    runbook_ready_to_claim_passed: false;
+  };
+  owner_evidence_fields: Array<{
+    id: string;
+    label: string;
+    placeholder: string;
+    required: boolean;
+    privacy_note: string;
+  }>;
+  checklist: Array<{
+    id: string;
+    surface: TwoDeviceSyncSmokeSurface;
+    title: string;
+    runbook_status: TwoDeviceSyncSmokeStepStatus;
+    owner_result: "not-recorded";
+    pass_criteria: string;
+    evidence_needed: string;
+    current_blocker: string | null;
+  }>;
+  final_pass_claim_requirements: string[];
+  next_action: string;
+}
+
 export function buildTwoDeviceSyncSmokeRunbook(input: {
   gate: TwoDayUsabilityGate;
   controlPlane: CloudSyncControlPlane;
@@ -302,6 +350,110 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
       "测试结束时 pending=0、failed=0、manual review=0、auth retry=无。",
       "两端刷新后都能看到对方最后一次编辑。",
     ],
+  };
+}
+
+export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
+  runbook: TwoDeviceSyncSmokeRunbook;
+  generatedAt?: string;
+}): TwoDeviceSyncSmokeOwnerReceipt {
+  const generatedAt = input.generatedAt ?? new Date().toISOString();
+  const runbook = input.runbook;
+
+  return {
+    format: "zhinote-two-device-sync-smoke-owner-receipt",
+    format_version: 1,
+    receipt_status: "owner-evidence-required",
+    generated_at: generatedAt,
+    source_runbook_generated_at: runbook.generated_at,
+    ready_to_collect_owner_evidence: runbook.ready_to_run_real_smoke_now,
+    can_claim_two_device_sync_passed_now: false,
+    boundary: {
+      owner_fills_results: true,
+      reads_queue_counts: true,
+      reads_sync_flags: true,
+      reads_auth_retry_state: true,
+      reads_page_body_text: false,
+      reads_database_row_values: false,
+      reads_file_names: false,
+      reads_file_bytes: false,
+      sends_network_requests: false,
+      writes_server_data: false,
+      uploads_workspace_data: false,
+      clears_local_cache: false,
+      stores_private_content: false,
+    },
+    summary: {
+      ...runbook.summary,
+      runbook_ready_to_run: runbook.ready_to_run_real_smoke_now,
+      runbook_ready_to_claim_passed:
+        runbook.ready_to_claim_two_device_sync_passed,
+    },
+    owner_evidence_fields: [
+      {
+        id: "device-a",
+        label: "设备 A",
+        placeholder: "例如：MacBook / Chrome / zhi-note.com",
+        required: true,
+        privacy_note: "只填设备和浏览器，不填正文、文件名或账号验证码。",
+      },
+      {
+        id: "device-b",
+        label: "设备 B",
+        placeholder: "例如：Windows / Edge / zhi-note.com",
+        required: true,
+        privacy_note: "只填设备和浏览器，不填正文、文件名或账号验证码。",
+      },
+      {
+        id: "workspace-account",
+        label: "账号和 workspace",
+        placeholder: "确认两端同一账号、同一 workspace。",
+        required: true,
+        privacy_note: "可以写脱敏邮箱，不写登录码、cookie 或 token。",
+      },
+      {
+        id: "test-sample-ids",
+        label: "测试样本 ID",
+        placeholder: "Page / Daily / ZhiHui / Database / File metadata 的非敏感 ID。",
+        required: true,
+        privacy_note: "只写 ID 或脱敏标题，不粘贴正文、数据库行值或文件内容。",
+      },
+      {
+        id: "pending-drain-time",
+        label: "pending 清零时间",
+        placeholder: "例如：设备 A 输入后 8 秒清零，设备 B 刷新后可见。",
+        required: true,
+        privacy_note: "只写时间和状态，不写私密内容。",
+      },
+      {
+        id: "screenshots-or-notes",
+        label: "截图或说明",
+        placeholder: "记录截图文件名或一句话说明；截图由 owner 自己保管。",
+        required: false,
+        privacy_note: "导出的 JSON 不嵌入截图，也不上传截图。",
+      },
+    ],
+    checklist: runbook.steps.map((step) => ({
+      id: step.id,
+      surface: step.surface,
+      title: step.title,
+      runbook_status: step.status,
+      owner_result: "not-recorded",
+      pass_criteria: step.pass_criteria,
+      evidence_needed: step.evidence_needed,
+      current_blocker: step.current_blocker,
+    })),
+    final_pass_claim_requirements: [
+      "owner 手动完成 checklist 中每一项，并把 owner_result 从 not-recorded 改为 pass。",
+      "同步中心显示 pending=0、failed=0、manual review=0。",
+      "账号退避为无；临时接口失败没有导致任一设备被登出。",
+      "sync-domain coverage complete，所有同步域都有可见队列状态。",
+      "设备 A 创建/编辑后设备 B 可见；设备 B 再编辑后设备 A 可见。",
+      "没有使用真实私密正文、数据库行值、文件 bytes 或验证码作为验收样本。",
+    ],
+    next_action: runbook.ready_to_run_real_smoke_now
+      ? "用两台真实设备跑 checklist，然后由 owner 填写这张结果收据；未填前不能声称两设备同步已通过。"
+      : runbook.next_action,
   };
 }
 

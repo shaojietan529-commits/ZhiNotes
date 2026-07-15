@@ -399,7 +399,9 @@ import {
   type TwoDayUsabilityVerdict,
 } from "@/lib/sync/twoDayUsabilityGate";
 import {
+  buildTwoDeviceSyncSmokeOwnerReceipt,
   buildTwoDeviceSyncSmokeRunbook,
+  type TwoDeviceSyncSmokeOwnerReceipt,
   type TwoDeviceSyncSmokeRunbook,
   type TwoDeviceSyncSmokeStepStatus,
 } from "@/lib/sync/twoDeviceSyncSmokeRunbook";
@@ -679,6 +681,7 @@ type SyncQueueAction =
   | "cloud-sync-control-plane"
   | "development-stability-handoff"
   | "two-device-smoke-runbook"
+  | "two-device-smoke-owner-receipt"
   | "replay-test-plan";
 type CoreManifestCompareStatus =
   | "matched"
@@ -2668,6 +2671,13 @@ function SyncDashboard() {
         reliability: cloudUploadReliabilityReport,
       }),
     [cloudSyncControlPlane, cloudUploadReliabilityReport, twoDayUsabilityGate]
+  );
+  const twoDeviceSyncSmokeOwnerReceipt = useMemo(
+    () =>
+      buildTwoDeviceSyncSmokeOwnerReceipt({
+        runbook: twoDeviceSyncSmokeRunbook,
+      }),
+    [twoDeviceSyncSmokeRunbook]
   );
   const syncReplayTestApiGuard = useMemo(
     () => buildSyncReplayTestApiDisabledResponse(),
@@ -5063,6 +5073,26 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportTwoDeviceSyncSmokeOwnerReceipt = () => {
+    setBusyQueueAction("two-device-smoke-owner-receipt");
+    try {
+      downloadJsonFile(
+        `zhinote-two-device-sync-smoke-owner-receipt-${fileSafeTimestamp()}.json`,
+        twoDeviceSyncSmokeOwnerReceipt
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export two-device sync smoke owner receipt:",
+        err
+      );
+      window.alert(
+        "Two-device sync smoke owner receipt export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncDrainReceipt = () => {
     if (!syncDrainReceipt) return;
     downloadJsonFile(
@@ -6993,8 +7023,13 @@ function SyncDashboard() {
         <TwoDayUsabilityGatePanel gate={twoDayUsabilityGate} />
         <TwoDeviceSyncSmokeRunbookPanel
           runbook={twoDeviceSyncSmokeRunbook}
+          ownerReceipt={twoDeviceSyncSmokeOwnerReceipt}
           exportBusy={busyQueueAction === "two-device-smoke-runbook"}
+          receiptExportBusy={
+            busyQueueAction === "two-device-smoke-owner-receipt"
+          }
           onExport={handleExportTwoDeviceSyncSmokeRunbook}
+          onExportOwnerReceipt={handleExportTwoDeviceSyncSmokeOwnerReceipt}
         />
 
         <CloudAlphaPanel
@@ -23679,12 +23714,18 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
 
 function TwoDeviceSyncSmokeRunbookPanel({
   runbook,
+  ownerReceipt,
   exportBusy,
+  receiptExportBusy,
   onExport,
+  onExportOwnerReceipt,
 }: {
   runbook: TwoDeviceSyncSmokeRunbook;
+  ownerReceipt: TwoDeviceSyncSmokeOwnerReceipt;
   exportBusy: boolean;
+  receiptExportBusy: boolean;
   onExport: () => void;
+  onExportOwnerReceipt: () => void;
 }) {
   const primaryStep =
     runbook.steps.find((item) => item.status === "blocked") ??
@@ -23704,6 +23745,10 @@ function TwoDeviceSyncSmokeRunbookPanel({
       )}
       data-two-device-sync-domain-coverage-complete={String(
         runbook.summary.sync_domain_coverage_complete
+      )}
+      data-two-device-sync-owner-receipt-status={ownerReceipt.receipt_status}
+      data-two-device-sync-owner-receipt-claim-passed={String(
+        ownerReceipt.can_claim_two_device_sync_passed_now
       )}
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
@@ -23736,6 +23781,15 @@ function TwoDeviceSyncSmokeRunbookPanel({
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {exportBusy ? "导出中..." : "导出验收清单"}
+          </button>
+          <button
+            type="button"
+            onClick={onExportOwnerReceipt}
+            disabled={receiptExportBusy}
+            data-testid="two-device-sync-smoke-owner-receipt-export"
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {receiptExportBusy ? "导出中..." : "导出结果收据模板"}
           </button>
           <div className="rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
             {runbook.summary.ready} ready · {runbook.summary.wait} wait ·{" "}
@@ -23782,6 +23836,18 @@ function TwoDeviceSyncSmokeRunbookPanel({
           value={runbook.summary.can_switch_devices_now ? "可以" : "等待"}
           detail="ACK 后"
         />
+      </div>
+
+      <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          结果收据
+        </div>
+        <p className="mt-1">
+          状态：{ownerReceipt.receipt_status}；可收集证据：
+          {ownerReceipt.ready_to_collect_owner_evidence ? "是" : "否"}；自动宣称通过：
+          {ownerReceipt.can_claim_two_device_sync_passed_now ? "是" : "否"}。
+          收据模板只留测试证据字段，不嵌入正文、数据库行值、文件名或文件内容。
+        </p>
       </div>
 
       {primaryStep ? (

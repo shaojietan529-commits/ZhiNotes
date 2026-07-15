@@ -3511,12 +3511,40 @@ function run() {
       "Two-device sync smoke runbook must expose a stable format.",
     ],
     [
+      'format: "zhinote-two-device-sync-smoke-owner-receipt"',
+      "Two-device sync smoke owner receipt must expose a stable receipt format.",
+    ],
+    [
+      "buildTwoDeviceSyncSmokeOwnerReceipt",
+      "Two-device sync smoke owner receipt builder must be exported.",
+    ],
+    [
+      'receipt_status: "owner-evidence-required"',
+      "Two-device sync smoke owner receipt must require owner evidence.",
+    ],
+    [
       "ready_to_run_real_smoke_now",
       "Two-device sync smoke runbook must tell whether real two-device smoke can start.",
     ],
     [
       "ready_to_claim_two_device_sync_passed: false",
       "Two-device sync smoke runbook must not claim the real two-device smoke has passed without owner evidence.",
+    ],
+    [
+      "can_claim_two_device_sync_passed_now: false",
+      "Two-device sync smoke owner receipt must not claim the real two-device smoke has passed without owner-filled evidence.",
+    ],
+    [
+      "owner_evidence_fields",
+      "Two-device sync smoke owner receipt must list owner-filled evidence fields.",
+    ],
+    [
+      "final_pass_claim_requirements",
+      "Two-device sync smoke owner receipt must list final pass requirements.",
+    ],
+    [
+      "owner_result: \"not-recorded\"",
+      "Two-device sync smoke owner receipt must keep every checklist item unrecorded until owner review.",
     ],
     [
       "sync_domain_coverage_complete",
@@ -3537,6 +3565,10 @@ function run() {
     [
       "uploads_workspace_data: false",
       "Two-device sync smoke runbook must not upload workspace data.",
+    ],
+    [
+      "stores_private_content: false",
+      "Two-device sync smoke owner receipt must not store private content.",
     ],
     [
       "same-account-session",
@@ -3612,6 +3644,10 @@ function run() {
       "Sync UI must build the two-device sync smoke runbook.",
     ],
     [
+      "buildTwoDeviceSyncSmokeOwnerReceipt",
+      "Sync UI must build the two-device sync smoke owner receipt.",
+    ],
+    [
       "TwoDeviceSyncSmokeRunbookPanel",
       "Sync UI must render the two-device sync smoke runbook panel.",
     ],
@@ -3628,16 +3664,36 @@ function run() {
       "Sync UI must expose two-device sync-domain coverage readiness.",
     ],
     [
+      "data-two-device-sync-owner-receipt-status",
+      "Sync UI must expose the two-device owner receipt status.",
+    ],
+    [
+      "data-two-device-sync-owner-receipt-claim-passed",
+      "Sync UI must expose that the owner receipt does not auto-claim pass.",
+    ],
+    [
       'data-testid="two-device-sync-smoke-runbook-export"',
       "Sync UI must expose a local export action for the real two-device smoke runbook.",
+    ],
+    [
+      'data-testid="two-device-sync-smoke-owner-receipt-export"',
+      "Sync UI must expose a local export action for the two-device owner receipt template.",
     ],
     [
       "zhinote-two-device-sync-smoke-runbook-",
       "Sync UI must export the real two-device smoke runbook under a stable filename.",
     ],
     [
+      "zhinote-two-device-sync-smoke-owner-receipt-",
+      "Sync UI must export the real two-device owner receipt under a stable filename.",
+    ],
+    [
       'busyQueueAction === "two-device-smoke-runbook"',
       "Sync UI must track the two-device smoke runbook export as its own busy state.",
+    ],
+    [
+      'busyQueueAction === "two-device-smoke-owner-receipt"',
+      "Sync UI must track the two-device smoke owner receipt export as its own busy state.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);
