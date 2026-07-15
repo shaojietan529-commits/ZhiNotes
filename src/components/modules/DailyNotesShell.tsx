@@ -184,6 +184,9 @@ const DAILY_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS = 1800;
 const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900;
 const DAILY_FOREGROUND_QUIET_WINDOW_MS = 3200;
 const DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400;
+// Opening a note is the user's foreground workflow; delay background index
+// refreshes longer so large imports cannot make the target page feel stuck.
+const DAILY_NOTE_OPEN_QUIET_WINDOW_MS = 7000;
 const DAILY_FULL_PAGE_CREATE_NAVIGATION_RETRY_MS = 650;
 const DAILY_CREATE_FEEDBACK_FRAME_TIMEOUT_MS = 80;
 const DAILY_INITIAL_CLOUD_RECHECK_DELAY_MS = 120;
@@ -1858,7 +1861,7 @@ export default function DailyNotesShell() {
       const createStartedAtIso = new Date().toISOString();
       loadRequestRef.current += 1;
       creatingDateKeyRef.current = dateKey;
-      markDailyForegroundInteraction();
+      markDailyForegroundInteraction(DAILY_NOTE_OPEN_QUIET_WINDOW_MS);
       setCreatingDateKey(dateKey);
       const releaseCreatingDate = () => {
         if (creatingDateKeyRef.current === dateKey) {
@@ -2154,7 +2157,7 @@ export default function DailyNotesShell() {
         source === "daily-create" && note.content_text === ""
           ? toDailyNoteSeed(note, note)
           : toDailyNoteMetadataSeed(note, note);
-      markDailyForegroundInteraction();
+      markDailyForegroundInteraction(DAILY_NOTE_OPEN_QUIET_WINDOW_MS);
       warmDailyPeekOpen();
       upsertPages([initialSeed]);
       rememberPendingPageDraft(initialSeed);

@@ -8340,14 +8340,20 @@ function run() {
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "markDailyForegroundInteraction();",
-    "Daily + creation must mark the calendar foreground-active before local optimistic writes trigger metadata refreshes."
+    "const DAILY_NOTE_OPEN_QUIET_WINDOW_MS = 7000;",
+    "Daily note opening must keep a longer foreground quiet window so large imports do not make the target page feel stuck."
   );
   assertSourceIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "markDailyForegroundInteraction();\n      warmDailyPeekOpen();",
-    "Daily existing-note opens must mark the calendar foreground-active before local route priming triggers metadata refreshes."
+    "markDailyForegroundInteraction(DAILY_NOTE_OPEN_QUIET_WINDOW_MS);",
+    "Daily + creation must mark the calendar foreground-active with the note-open quiet window before local optimistic writes trigger metadata refreshes."
+  );
+  assertSourceIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "markDailyForegroundInteraction(DAILY_NOTE_OPEN_QUIET_WINDOW_MS);\n      warmDailyPeekOpen();",
+    "Daily existing-note opens must mark the calendar foreground-active with the note-open quiet window before local route priming triggers metadata refreshes."
   );
   assertSourceOrderedSnippets(
     files.dailyNotesShell,

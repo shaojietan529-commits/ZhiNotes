@@ -1694,8 +1694,13 @@ check(
 check(
   dailyNotesShell.indexOf("seedDailyNoteForImmediateOpen(optimisticNote)") <
     dailyNotesShell.indexOf("persistOptimisticDailyNote") &&
-    dailyNotesShell.includes("markDailyForegroundInteraction();") &&
-    dailyNotesShell.includes("markDailyForegroundInteraction();\n      warmDailyPeekOpen();") &&
+    dailyNotesShell.includes("const DAILY_NOTE_OPEN_QUIET_WINDOW_MS = 7000;") &&
+    dailyNotesShell.includes(
+      "markDailyForegroundInteraction(DAILY_NOTE_OPEN_QUIET_WINDOW_MS);"
+    ) &&
+    dailyNotesShell.includes(
+      "markDailyForegroundInteraction(DAILY_NOTE_OPEN_QUIET_WINDOW_MS);\n      warmDailyPeekOpen();"
+    ) &&
     dailyNotesShell.indexOf("rememberPendingPageDraft(optimisticNote)") <
       dailyNotesShell.indexOf("upsertPages([optimisticNote])") &&
     dailyNotesShell.indexOf("upsertPages([optimisticNote])") <
