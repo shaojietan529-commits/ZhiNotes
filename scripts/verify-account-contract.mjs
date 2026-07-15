@@ -3593,6 +3593,30 @@ check(
     syncDashboardShell.includes('"page_comments"') &&
     syncDashboardShell.includes("settingsPendingTotal: settingsWaiting") &&
     syncDashboardShell.includes("knowledgePendingTotal: knowledgeWaiting") &&
+    syncDashboardShell.includes("const classifiedPendingTotal =") &&
+    syncDashboardShell.includes("const classifiedFailedTotal =") &&
+    syncDashboardShell.includes("const classifiedManualReviewTotal =") &&
+    syncDashboardShell.includes(
+      "(syncSummary?.pending ?? 0) - classifiedPendingTotal"
+    ) &&
+    syncDashboardShell.includes(
+      "(syncSummary?.failed ?? 0) - classifiedFailedTotal"
+    ) &&
+    syncDashboardShell.includes(
+      "(syncSummary?.manualReview ?? 0) - classifiedManualReviewTotal"
+    ) &&
+    syncDashboardShell.includes("otherPendingTotal,") &&
+    syncDashboardShell.includes("otherFailedTotal,") &&
+    syncDashboardShell.includes("otherManualReviewTotal,") &&
+    syncDashboardShell.includes(
+      "otherPendingTotal: syncLocalUseQueueSnapshot.otherPendingTotal"
+    ) &&
+    syncDashboardShell.includes(
+      "otherFailedTotal: syncLocalUseQueueSnapshot.otherFailedTotal"
+    ) &&
+    syncDashboardShell.includes(
+      "otherManualReviewTotal:\n        syncLocalUseQueueSnapshot.otherManualReviewTotal"
+    ) &&
     syncDashboardShell.includes("@/lib/sync/syncPendingDomainRegistry") &&
     syncDashboardShell.includes('id="sync-local-use-readiness-panel"') &&
     syncDashboardShell.includes('data-testid="sync-local-use-readiness-panel"') &&
@@ -3973,6 +3997,15 @@ check(
     accountCloudSyncCoordinator.includes("retryableFailedTotal") &&
     accountCloudSyncCoordinator.includes("enabledDomainCount") &&
     accountCloudSyncCoordinator.includes("filePendingTotal") &&
+    accountCloudSyncCoordinator.includes(
+      "otherPendingTotal: globalSyncLogExtraPendingTotal"
+    ) &&
+    accountCloudSyncCoordinator.includes(
+      "otherFailedTotal: globalSyncLogExtraFailedTotal"
+    ) &&
+    accountCloudSyncCoordinator.includes(
+      "otherManualReviewTotal: globalSyncLogExtraManualReviewTotal"
+    ) &&
     accountCloudSyncCoordinator.includes("fileFailedTotal: fileSync.status.failed") &&
     accountCloudSyncCoordinator.includes(
       "fileManualReviewTotal: fileSync.status.manualReviewCount"
@@ -4092,6 +4125,9 @@ check(
     accountLocalUseReadiness.includes("queueBreakdown") &&
     accountLocalUseReadiness.includes("AccountLocalUseQueueBreakdown") &&
     accountLocalUseReadiness.includes("filePendingTotal") &&
+    accountLocalUseReadiness.includes("otherPendingTotal") &&
+    accountLocalUseReadiness.includes("otherFailedTotal") &&
+    accountLocalUseReadiness.includes("otherManualReviewTotal") &&
     accountLocalUseReadiness.includes("fileFailedTotal") &&
     accountLocalUseReadiness.includes("fileManualReviewTotal") &&
     accountLocalUseReadiness.includes("fileQueueBlocksCloudHandoff") &&
@@ -4110,6 +4146,9 @@ check(
     accountLocalUseReadiness.includes("可继续写作，云端暂不可确认") &&
     accountLocalUseReadiness.includes("可继续写作，云端交接已就绪") &&
     accountLocalUseReadiness.includes("文件队列：") &&
+    accountLocalUseReadiness.includes("其他队列：") &&
+    accountLocalUseReadiness.includes("其他失败") &&
+    accountLocalUseReadiness.includes("其他需确认") &&
     accountLocalUseReadiness.includes("清零前不要重建本地缓存或做云端交接"),
   "账号本地可用性判定应是共享 metadata-only 规则，侧边栏和同步中心必须复用同一套可继续输入、云端交接和缓存重建阻断口径"
 );

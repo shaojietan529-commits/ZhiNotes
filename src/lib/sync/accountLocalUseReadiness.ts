@@ -43,6 +43,8 @@ export interface AccountLocalUseQueueBreakdown {
   settingsPendingTotal: number;
   knowledgePendingTotal: number;
   otherPendingTotal: number;
+  otherFailedTotal: number;
+  otherManualReviewTotal: number;
   fileFailedTotal: number;
   fileManualReviewTotal: number;
   fileQueueTotal: number;
@@ -70,6 +72,8 @@ interface AccountLocalUseReadinessInput {
   settingsPendingTotal?: number;
   knowledgePendingTotal?: number;
   otherPendingTotal?: number;
+  otherFailedTotal?: number;
+  otherManualReviewTotal?: number;
   fileFailedTotal?: number;
   fileManualReviewTotal?: number;
   authRetryDomainLabel?: string;
@@ -102,6 +106,8 @@ function buildAccountLocalUseQueueBreakdown(
     Math.max(safeCount(input.pendingTotal) - classifiedPendingTotal, 0);
   const fileFailedTotal = safeCount(input.fileFailedTotal);
   const fileManualReviewTotal = safeCount(input.fileManualReviewTotal);
+  const otherFailedTotal = safeCount(input.otherFailedTotal);
+  const otherManualReviewTotal = safeCount(input.otherManualReviewTotal);
   const fileQueueTotal =
     filePendingTotal + fileFailedTotal + fileManualReviewTotal;
 
@@ -112,6 +118,8 @@ function buildAccountLocalUseQueueBreakdown(
     settingsPendingTotal,
     knowledgePendingTotal,
     otherPendingTotal,
+    otherFailedTotal,
+    otherManualReviewTotal,
     fileFailedTotal,
     fileManualReviewTotal,
     fileQueueTotal,
@@ -146,10 +154,21 @@ function formatQueueBreakdown(breakdown: AccountLocalUseQueueBreakdown) {
       ? `文件需确认 ${breakdown.fileManualReviewTotal}`
       : null,
   ].filter(Boolean);
+  const otherAttentionParts = [
+    breakdown.otherFailedTotal > 0
+      ? `其他失败 ${breakdown.otherFailedTotal}`
+      : null,
+    breakdown.otherManualReviewTotal > 0
+      ? `其他需确认 ${breakdown.otherManualReviewTotal}`
+      : null,
+  ].filter(Boolean);
   const parts = [
     pendingParts.length > 0 ? `队列分布：${pendingParts.join(" / ")}` : null,
     fileAttentionParts.length > 0
       ? `文件队列：${fileAttentionParts.join(" / ")}`
+      : null,
+    otherAttentionParts.length > 0
+      ? `其他队列：${otherAttentionParts.join(" / ")}`
       : null,
   ].filter(Boolean);
   return parts.join("；");

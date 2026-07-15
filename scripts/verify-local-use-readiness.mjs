@@ -75,12 +75,18 @@ check(
 check(
   readiness.includes("queueBreakdown: AccountLocalUseQueueBreakdown") &&
     readiness.includes("filePendingTotal") &&
+    readiness.includes("otherPendingTotal") &&
+    readiness.includes("otherFailedTotal") &&
+    readiness.includes("otherManualReviewTotal") &&
     readiness.includes("fileFailedTotal") &&
     readiness.includes("fileManualReviewTotal") &&
     readiness.includes("fileQueueBlocksCloudHandoff") &&
     readiness.includes("队列分布：") &&
-    readiness.includes("文件队列："),
-  "本地可用性规则必须显式拆分文件队列，并把文件 pending/failed/manual review 纳入云端交接和缓存重建保护"
+    readiness.includes("文件队列：") &&
+    readiness.includes("其他队列：") &&
+    readiness.includes("其他失败") &&
+    readiness.includes("其他需确认"),
+  "本地可用性规则必须显式拆分文件队列和其他全域队列，并把 pending/failed/manual review 纳入云端交接和缓存重建保护"
 );
 check(
   readiness.includes("input.failedTotal > 0 || input.manualReviewTotal > 0") &&

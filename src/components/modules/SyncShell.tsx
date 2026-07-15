@@ -2143,30 +2143,40 @@ function SyncDashboard() {
       fileEmbedPendingStatus.pending > 0 ||
       fileEmbedPendingStatus.failed > 0 ||
       fileEmbedPendingStatus.manualReviewCount > 0;
-    const pendingTotal = Math.max(
+    const classifiedPendingTotal =
       pageWaiting +
-        databaseWaiting +
-        fileWaiting +
-        settingsWaiting +
-        knowledgeWaiting,
-      syncSummary?.pending ?? 0
-    );
-    const failedTotal = Math.max(
+      databaseWaiting +
+      fileWaiting +
+      settingsWaiting +
+      knowledgeWaiting;
+    const classifiedFailedTotal =
       pagePendingStatus.failed +
-        databasePendingStatus.failed +
-        fileEmbedPendingStatus.failed +
-        settingsQueue.failed +
-        knowledgeQueue.failed,
-      syncSummary?.failed ?? 0
-    );
-    const manualReviewTotal = Math.max(
+      databasePendingStatus.failed +
+      fileEmbedPendingStatus.failed +
+      settingsQueue.failed +
+      knowledgeQueue.failed;
+    const classifiedManualReviewTotal =
       pagePendingStatus.manualReviewCount +
-        databasePendingStatus.manualReviewCount +
-        fileEmbedPendingStatus.manualReviewCount +
-        settingsQueue.manualReview +
-        knowledgeQueue.manualReview,
-      syncSummary?.manualReview ?? 0
+      databasePendingStatus.manualReviewCount +
+      fileEmbedPendingStatus.manualReviewCount +
+      settingsQueue.manualReview +
+      knowledgeQueue.manualReview;
+    const otherPendingTotal = Math.max(
+      (syncSummary?.pending ?? 0) - classifiedPendingTotal,
+      0
     );
+    const otherFailedTotal = Math.max(
+      (syncSummary?.failed ?? 0) - classifiedFailedTotal,
+      0
+    );
+    const otherManualReviewTotal = Math.max(
+      (syncSummary?.manualReview ?? 0) - classifiedManualReviewTotal,
+      0
+    );
+    const pendingTotal = classifiedPendingTotal + otherPendingTotal;
+    const failedTotal = classifiedFailedTotal + otherFailedTotal;
+    const manualReviewTotal =
+      classifiedManualReviewTotal + otherManualReviewTotal;
     const enabledDomainCount =
       (pagePendingStatus.enabled ? 1 : 0) +
       (databasePendingStatus.enabled ? 1 : 0) +
@@ -2219,6 +2229,9 @@ function SyncDashboard() {
       filePendingTotal: fileWaiting,
       settingsPendingTotal: settingsWaiting,
       knowledgePendingTotal: knowledgeWaiting,
+      otherPendingTotal,
+      otherFailedTotal,
+      otherManualReviewTotal,
       fileFailedTotal: fileEmbedPendingStatus.failed,
       fileManualReviewTotal: fileEmbedPendingStatus.manualReviewCount,
       authRetryDomainLabel,
@@ -2261,6 +2274,10 @@ function SyncDashboard() {
       filePendingTotal: syncLocalUseQueueSnapshot.filePendingTotal,
       settingsPendingTotal: syncLocalUseQueueSnapshot.settingsPendingTotal,
       knowledgePendingTotal: syncLocalUseQueueSnapshot.knowledgePendingTotal,
+      otherPendingTotal: syncLocalUseQueueSnapshot.otherPendingTotal,
+      otherFailedTotal: syncLocalUseQueueSnapshot.otherFailedTotal,
+      otherManualReviewTotal:
+        syncLocalUseQueueSnapshot.otherManualReviewTotal,
       fileFailedTotal: syncLocalUseQueueSnapshot.fileFailedTotal,
       fileManualReviewTotal: syncLocalUseQueueSnapshot.fileManualReviewTotal,
       authRetryDomainLabel: syncLocalUseQueueSnapshot.authRetryDomainLabel,

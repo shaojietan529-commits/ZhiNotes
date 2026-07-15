@@ -203,6 +203,7 @@ const files = {
   quickSearch: "src/components/sidebar/QuickSearch.tsx",
   wikiSuggestion: "src/components/editor/extensions/WikiLinkSuggestion.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
+  accountLocalUseReadiness: "src/lib/sync/accountLocalUseReadiness.ts",
   authCallback: "src/app/auth/callback/page.tsx",
   syncPendingDomainRegistry: "src/lib/sync/syncPendingDomainRegistry.ts",
   developmentStabilityPlan: "src/lib/sync/developmentStabilityPlan.ts",
@@ -726,6 +727,9 @@ function run() {
   const quickSearch = readProjectFile(files.quickSearch);
   const wikiSuggestion = readProjectFile(files.wikiSuggestion);
   const syncShell = readProjectFile(files.syncShell);
+  const accountLocalUseReadiness = readProjectFile(
+    files.accountLocalUseReadiness
+  );
   const authCallback = readProjectFile(files.authCallback);
   const syncPendingDomainRegistry = readProjectFile(
     files.syncPendingDomainRegistry
@@ -11925,6 +11929,38 @@ function run() {
     "authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}",
     "Sync UI must pass account auth-retry domains into the first-screen readiness mirror."
   );
+  for (const snippet of [
+    "const classifiedPendingTotal =",
+    "const classifiedFailedTotal =",
+    "const classifiedManualReviewTotal =",
+    "(syncSummary?.pending ?? 0) - classifiedPendingTotal",
+    "(syncSummary?.failed ?? 0) - classifiedFailedTotal",
+    "(syncSummary?.manualReview ?? 0) - classifiedManualReviewTotal",
+    "otherPendingTotal: syncLocalUseQueueSnapshot.otherPendingTotal",
+    "otherFailedTotal: syncLocalUseQueueSnapshot.otherFailedTotal",
+    "otherManualReviewTotal:\n        syncLocalUseQueueSnapshot.otherManualReviewTotal",
+  ]) {
+    assertIncludes(
+      files.syncShell,
+      syncShell,
+      snippet,
+      "Sync UI must surface unclassified pending/failed/manual-review totals in local-use readiness instead of hiding them behind aggregate counts."
+    );
+  }
+  for (const snippet of [
+    "otherFailedTotal",
+    "otherManualReviewTotal",
+    "其他队列：",
+    "其他失败",
+    "其他需确认",
+  ]) {
+    assertIncludes(
+      files.accountLocalUseReadiness,
+      accountLocalUseReadiness,
+      snippet,
+      "Shared local-use readiness must describe unclassified failed/manual-review queues in user-visible metadata-only copy."
+    );
+  }
   assertIncludes(
     files.syncShell,
     syncShell,
