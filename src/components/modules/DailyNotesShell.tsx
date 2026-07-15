@@ -178,7 +178,8 @@ const DAILY_PEEK_CREATE_READY_RETRY_MS = 450;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120;
-const DAILY_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS = 450;
+const DAILY_BACKGROUND_FALLBACK_RECHECK_DELAY_MS = 2200;
+const DAILY_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS = 1800;
 const DAILY_CLOUD_METADATA_RECHECK_DELAY_MS = 900;
 const DAILY_FOREGROUND_QUIET_WINDOW_MS = 3200;
 const DAILY_FOREGROUND_REFRESH_MAX_DELAY_MS = 2400;
@@ -1151,6 +1152,10 @@ export default function DailyNotesShell() {
         local_pages: localMetadata.length,
       });
     }
+    const fallbackRecheckDelay =
+      firstVisibleMs === null
+        ? DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS
+        : DAILY_BACKGROUND_FALLBACK_RECHECK_DELAY_MS;
     const fallbackIdleTimeout =
       firstVisibleMs === null
         ? DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS
@@ -1163,65 +1168,69 @@ export default function DailyNotesShell() {
           "当前月热缓存和日期索引暂未命中，正在优先补齐旧导入 metadata。",
       });
     }
-    scheduleDailyIdleTask(() => {
-      void (async () => {
-        const fallbackMetadata = await listDailyPageMetadataForCalendar({
-          rootId: dailyRootId,
-          startDate,
-          endDate,
-          recentLimit: recentMetadataLimit,
-          includeUnindexedFallback: true,
-        });
-        if (loadRequestRef.current !== requestId) return;
-        const fallbackById = new Map(byId);
-        for (const note of collectDailyNotes(fallbackMetadata, dailyRootId)) {
-          fallbackById.set(note.id, note);
-          byId.set(note.id, note);
-        }
-        publishNotes(Array.from(fallbackById.values()), {
-          phase: "local-fallback",
-          backgroundActive: true,
-          cloudLoading: includeCloud,
-          message: "后台已补齐旧导入/未索引 metadata，正在分批校正日期索引。",
-        });
-        writeDailyHotCacheSnapshot({
-          startDate,
-          endDate,
-          rootId: dailyRootId,
-          pages: selectRenderableNotes(Array.from(fallbackById.values())).notes,
-          source: "local-fallback-metadata",
-        });
+    window.setTimeout(() => {
+      if (!mountedRef.current || loadRequestRef.current !== requestId) return;
+      scheduleDailyIdleTask(() => {
+        if (!mountedRef.current || loadRequestRef.current !== requestId) return;
+        void (async () => {
+          const fallbackMetadata = await listDailyPageMetadataForCalendar({
+            rootId: dailyRootId,
+            startDate,
+            endDate,
+            recentLimit: recentMetadataLimit,
+            includeUnindexedFallback: true,
+          });
+          if (loadRequestRef.current !== requestId) return;
+          const fallbackById = new Map(byId);
+          for (const note of collectDailyNotes(fallbackMetadata, dailyRootId)) {
+            fallbackById.set(note.id, note);
+            byId.set(note.id, note);
+          }
+          publishNotes(Array.from(fallbackById.values()), {
+            phase: "local-fallback",
+            backgroundActive: true,
+            cloudLoading: includeCloud,
+            message: "后台已补齐旧导入/未索引 metadata，正在分批校正日期索引。",
+          });
+          writeDailyHotCacheSnapshot({
+            startDate,
+            endDate,
+            rootId: dailyRootId,
+            pages: selectRenderableNotes(Array.from(fallbackById.values())).notes,
+            source: "local-fallback-metadata",
+          });
 
-        await ensureDailyDateIndexBackfilled();
-        if (loadRequestRef.current !== requestId) return;
-        publishCalendarStatus("index-backfill", Array.from(byId.values()), {
-          backgroundActive: true,
-          cloudLoading: includeCloud,
-          message: "日期索引已完成一轮分批校正，正在复查当前月目录。",
-        });
-        const refreshed = await listDailyPageMetadataForCalendar({
-          rootId: dailyRootId,
-          startDate,
-          endDate,
-          recentLimit: recentMetadataLimit,
-          includeUnindexedFallback: false,
-        });
-        if (loadRequestRef.current !== requestId) return;
-        const nextById = new Map(byId);
-        for (const note of collectDailyNotes(refreshed, dailyRootId)) {
-          nextById.set(note.id, note);
-        }
-        publishNotes(Array.from(nextById.values()), {
-          phase: includeCloud ? "cloud-checking" : "local-index",
-          backgroundActive: includeCloud,
-          cloudLoading: includeCloud,
-          message: includeCloud
-            ? "本地补齐完成，正在等待云端 metadata 校正。"
-            : "本地补齐完成，当前月目录已稳定。",
-        });
-      })()
-        .catch(() => undefined);
-    }, fallbackIdleTimeout);
+          await ensureDailyDateIndexBackfilled();
+          if (loadRequestRef.current !== requestId) return;
+          publishCalendarStatus("index-backfill", Array.from(byId.values()), {
+            backgroundActive: true,
+            cloudLoading: includeCloud,
+            message: "日期索引已完成一轮分批校正，正在复查当前月目录。",
+          });
+          const refreshed = await listDailyPageMetadataForCalendar({
+            rootId: dailyRootId,
+            startDate,
+            endDate,
+            recentLimit: recentMetadataLimit,
+            includeUnindexedFallback: false,
+          });
+          if (loadRequestRef.current !== requestId) return;
+          const nextById = new Map(byId);
+          for (const note of collectDailyNotes(refreshed, dailyRootId)) {
+            nextById.set(note.id, note);
+          }
+          publishNotes(Array.from(nextById.values()), {
+            phase: includeCloud ? "cloud-checking" : "local-index",
+            backgroundActive: includeCloud,
+            cloudLoading: includeCloud,
+            message: includeCloud
+              ? "本地补齐完成，正在等待云端 metadata 校正。"
+              : "本地补齐完成，当前月目录已稳定。",
+          });
+        })()
+          .catch(() => undefined);
+      }, fallbackIdleTimeout);
+    }, fallbackRecheckDelay);
 
     if (includeCloud) {
       if (!mountedRef.current || loadRequestRef.current !== requestId) return;

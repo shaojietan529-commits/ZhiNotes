@@ -156,6 +156,8 @@ const MEETING_AGENT_QUEUE_TIMEOUT_MS = 12000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120;
 const MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
+const MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS = 2200;
+const MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS = 1800;
 const MEETING_CLOUD_METADATA_RECHECK_DELAY_MS = 1800;
 const MEETING_INITIAL_CLOUD_RECHECK_DELAY_MS = 120;
 const MEETING_INITIAL_CLOUD_RECHECK_IDLE_TIMEOUT_MS = 900;
@@ -1413,14 +1415,15 @@ export default function MeetingScheduleShell() {
     const fallbackRecheckDelayMs =
       meetingsRef.current.length === 0
         ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS
-        : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;
+        : MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS;
     let cancelFallbackRecheck: (() => void) | null = null;
     const fallbackRecheckTimer = window.setTimeout(() => {
       const fallbackIdleTimeoutMs =
         meetingsRef.current.length === 0
           ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS
-          : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;
+          : MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS;
       cancelFallbackRecheck = scheduleMeetingIdleTask(() => {
+        if (!mountedRef.current) return;
         void load({
           includeCloud: false,
           interruptCloud: false,

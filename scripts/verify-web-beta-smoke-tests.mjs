@@ -7544,11 +7544,19 @@ function run() {
       "Meeting schedule empty first paint fallback must start quickly when no calendar metadata is visible.",
     ],
     [
-      "const fallbackRecheckDelayMs =\n      meetingsRef.current.length === 0\n        ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n        : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;",
+      "const MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS = 2200",
+      "Meeting schedule background fallback must wait until visible entries have had time to paint and open.",
+    ],
+    [
+      "const MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS = 1800",
+      "Meeting schedule background fallback idle timeout must avoid competing with foreground page opens after large imports.",
+    ],
+    [
+      "const fallbackRecheckDelayMs =\n      meetingsRef.current.length === 0\n        ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n        : MEETING_BACKGROUND_FALLBACK_RECHECK_DELAY_MS;",
       "Meeting schedule initial fallback must use the fast path only while the calendar is still empty.",
     ],
     [
-      "const fallbackIdleTimeoutMs =\n        meetingsRef.current.length === 0\n          ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n          : MEETING_LOCAL_METADATA_FALLBACK_DELAY_MS;",
+      "const fallbackIdleTimeoutMs =\n        meetingsRef.current.length === 0\n          ? MEETING_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS\n          : MEETING_BACKGROUND_FALLBACK_IDLE_TIMEOUT_MS;",
       "Meeting schedule fallback idle timeout must stay fast for empty first paint and conservative once entries are visible.",
     ],
     [
@@ -7556,7 +7564,7 @@ function run() {
       "Meeting schedule first dbReady load must render local/cache metadata before starting cloud correction.",
     ],
     [
-      "cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, fallbackIdleTimeoutMs);",
+      "cancelFallbackRecheck = scheduleMeetingIdleTask(() => {\n        if (!mountedRef.current) return;\n        void load({\n          includeCloud: false,\n          interruptCloud: false,\n          preserveVisibleMeetings: true,\n          includeUnindexedFallback: true,\n        });\n      }, fallbackIdleTimeoutMs);",
       "Meeting schedule initial fallback metadata fill must run as a delayed idle task.",
     ],
     [
