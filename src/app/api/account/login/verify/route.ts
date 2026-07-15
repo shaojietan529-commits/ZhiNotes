@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { maskEmail } from "@/lib/cloud/api";
 import {
   SESSION_COOKIE_NAME,
-  SESSION_TTL_SECONDS,
   accountDisplayName,
   accountMissingEnv,
+  accountSessionCookieOptions,
   getAccountConfig,
   normalizeEmail,
   verifyLoginCode,
@@ -69,13 +69,11 @@ export async function POST(request: Request) {
         createdAt: result.account.createdAt,
       },
     });
-    response.cookies.set(SESSION_COOKIE_NAME, result.sessionToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: SESSION_TTL_SECONDS,
-    });
+    response.cookies.set(
+      SESSION_COOKIE_NAME,
+      result.sessionToken,
+      accountSessionCookieOptions(request)
+    );
     return response;
   } catch {
     return NextResponse.json(

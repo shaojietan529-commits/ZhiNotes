@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   SESSION_COOKIE_NAME,
+  accountSessionCookieDeleteOptions,
   deleteSession,
   getAccountConfig,
   readSessionToken,
@@ -20,6 +21,10 @@ export async function POST(request: Request) {
     }
   }
   const response = NextResponse.json({ status: "signed-out" });
+  const deleteOptions = accountSessionCookieDeleteOptions(request);
   response.cookies.delete(SESSION_COOKIE_NAME);
+  if (deleteOptions.domain) {
+    response.cookies.set(SESSION_COOKIE_NAME, "", deleteOptions);
+  }
   return response;
 }

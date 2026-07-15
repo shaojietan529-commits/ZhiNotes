@@ -16,11 +16,31 @@ const SEND_LIMIT_KEY_PREFIX = "zhinotes:account:sendlimit:";
 
 export const SESSION_COOKIE_NAME = "zhinote_session";
 export const SESSION_TTL_SECONDS = 90 * 24 * 60 * 60; // 90 days
+const DEFAULT_SHARED_SESSION_COOKIE_DOMAIN = ".zhi-note.com";
+const SHARED_SESSION_COOKIE_HOSTS = new Set([
+  "zhi-note.com",
+  "www.zhi-note.com",
+]);
 const CODE_TTL_SECONDS = 10 * 60; // 10 minutes
 const MAX_VERIFY_ATTEMPTS = 5;
 const MAX_SENDS_PER_WINDOW = 3;
 const SEND_WINDOW_SECONDS = 10 * 60;
 const ACCOUNT_SERVER_REQUEST_TIMEOUT_MS = 8000;
+
+export interface AccountSessionCookieOptions {
+  httpOnly: true;
+  sameSite: "lax";
+  secure: boolean;
+  path: "/";
+  maxAge: number;
+  domain?: string;
+}
+
+export interface AccountSessionCookieDeleteOptions
+  extends Omit<AccountSessionCookieOptions, "maxAge"> {
+  maxAge: 0;
+  expires: Date;
+}
 
 export interface AccountRecord {
   id: string;
@@ -81,6 +101,84 @@ export function accountMissingEnv(): string[] {
     missing.push("ZHINOTES_ACCOUNT_ALLOWED_EMAILS");
   }
   return missing;
+}
+
+export function accountSessionCookieDomainForRequest(
+  request: Request
+): string | undefined {
+  const host = requestHostname(request);
+  const configuredDomain = normalizeCookieDomain(
+    process.env.ZHINOTES_ACCOUNT_COOKIE_DOMAIN
+  );
+  if (configuredDomain && hostMatchesCookieDomain(host, configuredDomain)) {
+    return configuredDomain;
+  }
+  if (SHARED_SESSION_COOKIE_HOSTS.has(host)) {
+    return DEFAULT_SHARED_SESSION_COOKIE_DOMAIN;
+  }
+  return undefined;
+}
+
+export function accountSessionCookieOptions(
+  request: Request
+): AccountSessionCookieOptions {
+  const domain = accountSessionCookieDomainForRequest(request);
+  const options: AccountSessionCookieOptions = {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_TTL_SECONDS,
+  };
+  if (domain) options.domain = domain;
+  return options;
+}
+
+export function accountSessionCookieDeleteOptions(
+  request: Request
+): AccountSessionCookieDeleteOptions {
+  const domain = accountSessionCookieDomainForRequest(request);
+  const options: AccountSessionCookieDeleteOptions = {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  };
+  if (domain) options.domain = domain;
+  return options;
+}
+
+function requestHostname(request: Request): string {
+  try {
+    return new URL(request.url).hostname.toLowerCase();
+  } catch {
+    const host = request.headers.get("host") ?? "";
+    return host.split(":")[0]?.trim().toLowerCase() ?? "";
+  }
+}
+
+function normalizeCookieDomain(value: string | undefined): string | undefined {
+  const trimmed = value?.trim().toLowerCase();
+  if (
+    !trimmed ||
+    trimmed.includes("/") ||
+    trimmed.includes(":") ||
+    /\s/.test(trimmed)
+  ) {
+    return undefined;
+  }
+  const root = trimmed.replace(/^\.+/, "");
+  if (!root || root === "localhost" || !root.includes(".")) {
+    return undefined;
+  }
+  return `.${root}`;
+}
+
+function hostMatchesCookieDomain(host: string, domain: string): boolean {
+  const root = domain.replace(/^\.+/, "");
+  return host === root || host.endsWith(`.${root}`);
 }
 
 async function fetchAccountServerRequestWithTimeout(

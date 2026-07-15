@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { maskEmail } from "@/lib/cloud/api";
 import {
   SESSION_COOKIE_NAME,
-  SESSION_TTL_SECONDS,
   accountDisplayName,
   accountMissingEnv,
+  accountSessionCookieOptions,
   getAccountConfig,
   getSessionAccount,
   normalizeDisplayName,
@@ -48,13 +48,11 @@ export async function GET(request: Request) {
       },
     });
     // Slide the cookie expiry alongside the KV session expiry.
-    response.cookies.set(SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: SESSION_TTL_SECONDS,
-    });
+    response.cookies.set(
+      SESSION_COOKIE_NAME,
+      token,
+      accountSessionCookieOptions(request)
+    );
     return response;
   } catch {
     return accountSessionUnconfirmedResponse(
@@ -117,13 +115,11 @@ export async function PATCH(request: Request) {
         createdAt: nextAccount.createdAt,
       },
     });
-    response.cookies.set(SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: SESSION_TTL_SECONDS,
-    });
+    response.cookies.set(
+      SESSION_COOKIE_NAME,
+      token,
+      accountSessionCookieOptions(request)
+    );
     return response;
   } catch {
     return accountSessionUnconfirmedResponse(

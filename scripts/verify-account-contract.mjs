@@ -72,6 +72,20 @@ check(
     sessionResponses.includes("accountSessionUnconfirmedResponse"),
   "账号 session-unconfirmed 响应必须有共享 helper：返回 503 可重试、明确保留 cookie，避免同步接口把临时失败误判成登出"
 );
+check(
+  server.includes('DEFAULT_SHARED_SESSION_COOKIE_DOMAIN = ".zhi-note.com"') &&
+    server.includes("SHARED_SESSION_COOKIE_HOSTS") &&
+    server.includes('"www.zhi-note.com"') &&
+    server.includes("ZHINOTES_ACCOUNT_COOKIE_DOMAIN") &&
+    server.includes("accountSessionCookieDomainForRequest") &&
+    server.includes("accountSessionCookieOptions") &&
+    server.includes("accountSessionCookieDeleteOptions") &&
+    server.includes("hostMatchesCookieDomain") &&
+    server.includes("httpOnly: true") &&
+    server.includes('sameSite: "lax"') &&
+    server.includes("maxAge: SESSION_TTL_SECONDS"),
+  "账号 cookie 必须集中到共享 helper：生产域名 zhi-note.com / www.zhi-note.com 共享会话，避免多端/多域名像不同账号"
+);
 
 // 2. Routes: all gated, none log, cookie httpOnly
 const routes = [
@@ -89,7 +103,10 @@ const start = read(routes[0]);
 check(start.includes("501"), "login/start 未配置时应返回 501");
 check(start.includes("maskEmail"), "login/start 响应应使用掩码邮箱");
 const verify = read(routes[1]);
-check(verify.includes("httpOnly: true"), "verify 的会话 cookie 必须 httpOnly");
+check(
+  verify.includes("accountSessionCookieOptions(request)"),
+  "verify 的会话 cookie 必须走统一 accountSessionCookieOptions helper，不能只设置当前 host"
+);
 check(verify.includes("maskEmail"), "verify 响应应使用掩码邮箱");
 const me = read(routes[2]);
 check(me.includes("maskEmail"), "me 响应应使用掩码邮箱");
@@ -98,6 +115,18 @@ check(me.includes("export async function PATCH"), "me route 应支持修改用�
 check(
   me.includes("normalizeDisplayName"),
   "me route 修改用户名前必须做长度和空值校验"
+);
+check(
+  (me.match(/accountSessionCookieOptions\(request\)/g) ?? []).length >= 2,
+  "me route GET/PATCH 续期 cookie 必须走统一 accountSessionCookieOptions helper"
+);
+const logout = read(routes[3]);
+check(
+  logout.includes("accountSessionCookieDeleteOptions(request)") &&
+    logout.includes("response.cookies.delete(SESSION_COOKIE_NAME)") &&
+    logout.includes("if (deleteOptions.domain)") &&
+    logout.includes('response.cookies.set(SESSION_COOKIE_NAME, "", deleteOptions)'),
+  "logout 必须同时清理旧 host-only cookie 和共享 domain cookie，避免退出后跨域名残留登录态"
 );
 const meGetTransientFailureHandler = me.slice(
   me.indexOf("  } catch {"),

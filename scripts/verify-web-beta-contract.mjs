@@ -5026,6 +5026,38 @@ function run() {
     "云端存储暂时无法确认登录状态；不会清除当前登录，请稍后重试。",
     "Account /me GET must mark cloud read failures as retryable so the UI can keep stale signed-in fallback visible."
   );
+  for (const [snippet, message] of [
+    [
+      'DEFAULT_SHARED_SESSION_COOKIE_DOMAIN = ".zhi-note.com"',
+      "Account session cookies must share login across the production apex and www domains.",
+    ],
+    [
+      '"www.zhi-note.com"',
+      "Account session cookie host allowlist must include the www production domain.",
+    ],
+    [
+      "ZHINOTES_ACCOUNT_COOKIE_DOMAIN",
+      "Account session cookie sharing must support an explicit deploy-time domain override.",
+    ],
+    [
+      "accountSessionCookieDomainForRequest",
+      "Account session cookie domain selection must be centralized in the server helper.",
+    ],
+    [
+      "accountSessionCookieOptions",
+      "Account login and session refresh routes must use centralized session cookie options.",
+    ],
+    [
+      "accountSessionCookieDeleteOptions",
+      "Account logout must be able to clear shared domain cookies as well as host-only cookies.",
+    ],
+    [
+      "hostMatchesCookieDomain",
+      "Account cookie domain override must be scoped to matching request hosts.",
+    ],
+  ]) {
+    assertSourceIncludes(files.accountServer, accountServer, snippet, message);
+  }
   const accountMeGetSessionUnconfirmedHandler = accountMeRoute.slice(
     accountMeRoute.indexOf("if (!account) {"),
     accountMeRoute.indexOf("const response = NextResponse.json({\n      authenticated: true")
