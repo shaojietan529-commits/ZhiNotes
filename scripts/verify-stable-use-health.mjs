@@ -160,6 +160,11 @@ function verifySourceContracts() {
   assertIncludes(healthSource, 'delivery_status: "private-alpha-sync-stabilization"', "two-day sync policy must preserve private alpha stabilization status");
   assertIncludes(healthSource, "can_claim_full_platform_sync_from_health_check: false", "health check must not be able to claim full platform sync");
   assertIncludes(healthSource, "can_claim_two_device_sync_without_owner_smoke: false", "two-device sync must require owner smoke evidence");
+  assertIncludes(healthSource, "health_check_can_claim_scoped_sync_ready: false", "health check must not claim scoped sync readiness by itself");
+  assertIncludes(healthSource, "scoped_owner_evidence_supported: true", "two-day policy must expose scoped owner evidence support");
+  assertIncludes(healthSource, 'scoped_owner_evidence_source: "sync-center-two-device-smoke-owner-receipt"', "two-day policy must point scoped evidence to the sync-center owner receipt");
+  assertIncludes(healthSource, 'scoped_owner_evidence_route: "/modules/sync#two-device-sync-smoke-runbook"', "two-day policy must expose the sync-center scoped evidence route");
+  assertIncludes(healthSource, "scoped_owner_evidence_requires_runbook_ready: true", "two-day policy must require the sync-center runbook before scoped evidence collection");
   assertIncludes(healthSource, "cloud_master_requires_real_ack: true", "cloud master claims must require real ACK evidence");
   assertIncludes(healthSource, "local_hot_cache_can_mask_cloud_failure: false", "hot cache must not mask cloud sync failures");
   assertIncludes(healthSource, "must_stay_usable_while_developing: true", "two-day policy must preserve use-while-developing");
@@ -621,6 +626,31 @@ function verifyRouteResult(result) {
     "two_day_sync_policy.can_claim_two_device_sync_without_owner_smoke"
   );
   assertEqual(
+    twoDaySyncPolicy.health_check_can_claim_scoped_sync_ready,
+    false,
+    "two_day_sync_policy.health_check_can_claim_scoped_sync_ready"
+  );
+  assertEqual(
+    twoDaySyncPolicy.scoped_owner_evidence_supported,
+    true,
+    "two_day_sync_policy.scoped_owner_evidence_supported"
+  );
+  assertEqual(
+    twoDaySyncPolicy.scoped_owner_evidence_source,
+    "sync-center-two-device-smoke-owner-receipt",
+    "two_day_sync_policy.scoped_owner_evidence_source"
+  );
+  assertEqual(
+    twoDaySyncPolicy.scoped_owner_evidence_route,
+    "/modules/sync#two-device-sync-smoke-runbook",
+    "two_day_sync_policy.scoped_owner_evidence_route"
+  );
+  assertEqual(
+    twoDaySyncPolicy.scoped_owner_evidence_requires_runbook_ready,
+    true,
+    "two_day_sync_policy.scoped_owner_evidence_requires_runbook_ready"
+  );
+  assertEqual(
     twoDaySyncPolicy.cloud_master_requires_real_ack,
     true,
     "two_day_sync_policy.cloud_master_requires_real_ack"
@@ -690,6 +720,16 @@ function verifyRouteResult(result) {
   if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("真实两设备 smoke")) {
     failures.push(
       "two_day_sync_policy.user_facing_copy must require real two-device smoke evidence"
+    );
+  }
+  if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("health check 只提供 scoped 验收入口")) {
+    failures.push(
+      "two_day_sync_policy.user_facing_copy must explain that the health check only exposes the scoped evidence entrypoint"
+    );
+  }
+  if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("不能直接宣称 scoped 或完整同步 ready")) {
+    failures.push(
+      "two_day_sync_policy.user_facing_copy must prevent health-check-only scoped or full sync claims"
     );
   }
   if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("pendingAfter=0")) {
@@ -991,6 +1031,19 @@ function printReceipt(result, status, port, devServer) {
     two_day_sync_full_claim_allowed:
       result?.body?.two_day_sync_policy
         ?.can_claim_full_platform_sync_from_health_check ?? null,
+    two_day_sync_scoped_claim_allowed_by_health_check:
+      result?.body?.two_day_sync_policy
+        ?.health_check_can_claim_scoped_sync_ready ?? null,
+    two_day_sync_scoped_owner_evidence_supported:
+      result?.body?.two_day_sync_policy?.scoped_owner_evidence_supported ??
+      null,
+    two_day_sync_scoped_owner_evidence_source:
+      result?.body?.two_day_sync_policy?.scoped_owner_evidence_source ?? null,
+    two_day_sync_scoped_owner_evidence_route:
+      result?.body?.two_day_sync_policy?.scoped_owner_evidence_route ?? null,
+    two_day_sync_scoped_owner_evidence_requires_runbook_ready:
+      result?.body?.two_day_sync_policy
+        ?.scoped_owner_evidence_requires_runbook_ready ?? null,
     two_day_sync_owner_smoke_required:
       result?.body?.two_day_sync_policy
         ?.owner_smoke_required_before_full_sync_claim ?? null,

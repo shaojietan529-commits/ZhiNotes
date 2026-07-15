@@ -104,6 +104,11 @@ export interface StableUseTwoDaySyncPolicy {
   delivery_status: "private-alpha-sync-stabilization";
   can_claim_full_platform_sync_from_health_check: false;
   can_claim_two_device_sync_without_owner_smoke: false;
+  health_check_can_claim_scoped_sync_ready: false;
+  scoped_owner_evidence_supported: true;
+  scoped_owner_evidence_source: "sync-center-two-device-smoke-owner-receipt";
+  scoped_owner_evidence_route: "/modules/sync#two-device-sync-smoke-runbook";
+  scoped_owner_evidence_requires_runbook_ready: true;
   cloud_master_requires_real_ack: true;
   local_hot_cache_can_mask_cloud_failure: false;
   minimum_stable_surfaces: Array<
@@ -254,6 +259,11 @@ const STABLE_USE_TWO_DAY_SYNC_POLICY: StableUseTwoDaySyncPolicy = {
   delivery_status: "private-alpha-sync-stabilization",
   can_claim_full_platform_sync_from_health_check: false,
   can_claim_two_device_sync_without_owner_smoke: false,
+  health_check_can_claim_scoped_sync_ready: false,
+  scoped_owner_evidence_supported: true,
+  scoped_owner_evidence_source: "sync-center-two-device-smoke-owner-receipt",
+  scoped_owner_evidence_route: "/modules/sync#two-device-sync-smoke-runbook",
+  scoped_owner_evidence_requires_runbook_ready: true,
   cloud_master_requires_real_ack: true,
   local_hot_cache_can_mask_cloud_failure: false,
   minimum_stable_surfaces: [
@@ -274,7 +284,7 @@ const STABLE_USE_TWO_DAY_SYNC_POLICY: StableUseTwoDaySyncPolicy = {
   failed_required_receipt_blocks_device_handoff: true,
   uncleared_required_receipt_blocks_device_handoff: true,
   user_facing_copy:
-    "48 小时目标是私有 beta 可稳定使用：写作先本地保存，页面/每日纪要/ZhiHui/数据库/文件元数据/设置的同步状态必须可见；页面/数据库必需回执必须 ok 且 pendingAfter=0，失败回执或 pendingAfter 未清不能换设备；只有真实两设备 smoke 跑通并且 pending、failed、manual review 清零后，才能声称全平台同步可用。",
+    "48 小时目标是私有 beta 可稳定使用：写作先本地保存，页面/每日纪要/ZhiHui/数据库/文件元数据/设置的同步状态必须可见；health check 只提供 scoped 验收入口，不能直接宣称 scoped 或完整同步 ready；页面/数据库必需回执必须 ok 且 pendingAfter=0，失败回执或 pendingAfter 未清不能换设备；只有同步中心 runbook 显示 ready、真实两设备 smoke 跑通并且 pending、failed、manual review 清零后，才能声称全平台同步可用。",
 };
 
 function buildStableUseDevelopmentLanePolicy(input: {

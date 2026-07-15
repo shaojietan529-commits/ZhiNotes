@@ -21796,6 +21796,26 @@ function run() {
       "Stable-use hot cache warmup must not upload data.",
     ],
     [
+      "health_check_can_claim_scoped_sync_ready: false",
+      "Stable-use health response must not claim scoped sync readiness by itself.",
+    ],
+    [
+      "scoped_owner_evidence_supported: true",
+      "Stable-use health response must expose scoped owner evidence support.",
+    ],
+    [
+      'scoped_owner_evidence_source: "sync-center-two-device-smoke-owner-receipt"',
+      "Stable-use health response must point scoped evidence to the sync-center owner receipt.",
+    ],
+    [
+      'scoped_owner_evidence_route: "/modules/sync#two-device-sync-smoke-runbook"',
+      "Stable-use health response must expose the sync-center scoped evidence route.",
+    ],
+    [
+      "scoped_owner_evidence_requires_runbook_ready: true",
+      "Stable-use health response must require the sync-center runbook before scoped evidence collection.",
+    ],
+    [
       "cloud_sync_can_be_enabled_by_health_check: false",
       "Stable-use health response must not enable cloud sync.",
     ],
@@ -22102,6 +22122,18 @@ function run() {
     [
       "coverage_complete",
       "Stable-use health verifier must assert sync-domain coverage completeness.",
+    ],
+    [
+      "two_day_sync_scoped_claim_allowed_by_health_check",
+      "Stable-use health verifier receipt must expose that health check cannot claim scoped sync readiness.",
+    ],
+    [
+      "two_day_sync_scoped_owner_evidence_supported",
+      "Stable-use health verifier receipt must expose scoped owner evidence support.",
+    ],
+    [
+      "two_day_sync_scoped_owner_evidence_route",
+      "Stable-use health verifier receipt must expose the sync-center scoped owner evidence route.",
     ],
   ]) {
     assertSourceIncludes(
