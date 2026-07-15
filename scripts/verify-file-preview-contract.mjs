@@ -578,6 +578,12 @@ function run() {
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
+      ".catch(() => {\n            setStatusIfMounted(getPendingFileEmbedSyncStatus());\n          })\n          .finally(() => {",
+      "File embed auto-retry must catch unexpected queue drain errors before finally so background upload failures do not surface as unhandled promises.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
       "scheduleAutoRetry",
       "File embed queue changes must schedule bounded auto-retry instead of only refreshing status.",
     ],

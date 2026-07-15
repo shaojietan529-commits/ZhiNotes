@@ -105,10 +105,14 @@ export function useFileEmbedCloudSyncStatus() {
         void syncNow({
           includeManualReview: false,
           limit: options.limit ?? FILE_EMBED_FOREGROUND_RETRY_LIMIT,
-        }).finally(() => {
-          autoRetryRunningRef.current = false;
-          setStatusIfMounted(getPendingFileEmbedSyncStatus());
-        });
+        })
+          .catch(() => {
+            setStatusIfMounted(getPendingFileEmbedSyncStatus());
+          })
+          .finally(() => {
+            autoRetryRunningRef.current = false;
+            setStatusIfMounted(getPendingFileEmbedSyncStatus());
+          });
       }, delayMs);
     },
     [setStatusIfMounted, syncNow]

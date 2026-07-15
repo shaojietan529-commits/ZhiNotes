@@ -10594,6 +10594,12 @@ function run() {
     "File embed queue status refresh must disable UI writes during cleanup."
   );
   assertIncludes(
+    files.fileEmbedSyncStatusHook,
+    fileEmbedSyncStatusHook,
+    ".catch(() => {\n            setStatusIfMounted(getPendingFileEmbedSyncStatus());\n          })\n          .finally(() => {",
+    "File embed queue auto-retry must catch unexpected drain errors before finally so background upload failures do not become unhandled promises."
+  );
+  assertIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
     "Promise.allSettled",
