@@ -48,6 +48,7 @@ const files = {
   syncManualReviewPacket: "src/lib/sync/syncManualReviewPacket.ts",
   syncHandoffReadinessReceipt:
     "src/lib/sync/syncHandoffReadinessReceipt.ts",
+  cloudSetupDiagnostics: "src/lib/sync/cloudSetupDiagnostics.ts",
   privateFileStoragePolicy: "src/lib/sync/privateFileStoragePolicy.ts",
   filePresignApiStub: "src/lib/sync/filePresignApiStub.ts",
   filePresignRoute: "src/app/api/files/presign/route.ts",
@@ -546,6 +547,7 @@ function run() {
   const syncHandoffReadinessReceipt = readProjectFile(
     files.syncHandoffReadinessReceipt
   );
+  const cloudSetupDiagnostics = readProjectFile(files.cloudSetupDiagnostics);
   const privateFileStoragePolicy = readProjectFile(files.privateFileStoragePolicy);
   const filePresignApiStub = readProjectFile(files.filePresignApiStub);
   const filePresignRoute = readProjectFile(files.filePresignRoute);
@@ -5352,6 +5354,117 @@ function run() {
     [
       "当前本地 session 信息会保留",
       "Sync UI must tell users expired or missing cloud session checks preserve local session metadata until explicit clear.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
+  assertSourceIncludes(
+    files.cloudSetupDiagnostics,
+    cloudSetupDiagnostics,
+    'format: "zhinote-cloud-setup-diagnostics"',
+    "Cloud setup diagnostics must keep a stable contract format."
+  );
+  for (const [snippet, message] of [
+    [
+      "can_keep_typing_now: true",
+      "Cloud setup diagnostics must explicitly keep local writing unblocked.",
+    ],
+    [
+      "cloud_data_can_sync_now",
+      "Cloud setup diagnostics must separate cloud sync trust from local writing.",
+    ],
+    [
+      "ready_for_owner_smoke",
+      "Cloud setup diagnostics must expose two-device smoke readiness.",
+    ],
+    [
+      "reads_session_metadata: true",
+      "Cloud setup diagnostics may read session metadata for status only.",
+    ],
+    [
+      "reads_workspace_link_metadata: true",
+      "Cloud setup diagnostics may read workspace link metadata for status only.",
+    ],
+    [
+      "reads_queue_counts: true",
+      "Cloud setup diagnostics may read queue counts for status only.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud setup diagnostics must not read page body text.",
+    ],
+    [
+      "reads_database_values: false",
+      "Cloud setup diagnostics must not read database values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Cloud setup diagnostics must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud setup diagnostics must not read file bytes.",
+    ],
+    [
+      "reads_secret_values: false",
+      "Cloud setup diagnostics must not read secret values.",
+    ],
+    [
+      "reads_tokens_or_cookies: false",
+      "Cloud setup diagnostics must not read tokens or cookies.",
+    ],
+    [
+      "writes_server_data: false",
+      "Cloud setup diagnostics must not write server data.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud setup diagnostics must not upload workspace data.",
+    ],
+    [
+      "enables_cloud_sync: false",
+      "Cloud setup diagnostics must not enable cloud sync.",
+    ],
+    [
+      "enables_ai: false",
+      "Cloud setup diagnostics must not enable AI.",
+    ],
+  ]) {
+    assertSourceIncludes(
+      files.cloudSetupDiagnostics,
+      cloudSetupDiagnostics,
+      snippet,
+      message
+    );
+  }
+  for (const [snippet, message] of [
+    [
+      "buildCloudSetupDiagnostics",
+      "Sync UI must build the visible cloud setup diagnostics from existing metadata.",
+    ],
+    [
+      'data-testid="cloud-setup-diagnostics"',
+      "Sync UI must render a stable cloud setup diagnostics panel.",
+    ],
+    [
+      "data-cloud-setup-status",
+      "Sync UI must expose cloud setup status for browser checks.",
+    ],
+    [
+      "data-cloud-setup-can-keep-typing",
+      "Sync UI must expose local writing safety separately from cloud sync.",
+    ],
+    [
+      "data-cloud-setup-data-can-sync-now",
+      "Sync UI must expose whether cloud data can currently sync.",
+    ],
+    [
+      "data-cloud-setup-ready-for-owner-smoke",
+      "Sync UI must expose two-device owner smoke readiness.",
+    ],
+    [
+      "云同步体检",
+      "Sync UI must label the cloud setup diagnostics in Chinese.",
     ],
   ]) {
     assertSourceIncludes(files.syncShell, syncShell, snippet, message);

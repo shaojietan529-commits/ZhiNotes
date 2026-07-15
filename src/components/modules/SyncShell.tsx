@@ -394,6 +394,10 @@ import {
   type CloudSyncControlPlaneVerdict,
 } from "@/lib/sync/cloudSyncControlPlane";
 import {
+  buildCloudSetupDiagnostics,
+  type CloudSetupDiagnostics,
+} from "@/lib/sync/cloudSetupDiagnostics";
+import {
   buildTwoDayUsabilityGate,
   type TwoDayUsabilityGate,
   type TwoDayUsabilityGateStatus,
@@ -2123,6 +2127,31 @@ function SyncDashboard() {
       syncSummary?.failed,
       syncSummary?.manualReview,
       syncSummary?.pending,
+      workspaceIdentity,
+    ]
+  );
+  const cloudSetupDiagnostics = useMemo(
+    () =>
+      buildCloudSetupDiagnostics({
+        environmentPreflight,
+        environmentPreflightError,
+        cloudSession,
+        workspaceIdentity,
+        bootstrapProof: cloudBootstrapProof,
+        pageStatus: pagePendingStatus,
+        databaseStatus: databasePendingStatus,
+        fileStatus: fileEmbedPendingStatus,
+        syncSummary,
+      }),
+    [
+      cloudBootstrapProof,
+      cloudSession,
+      databasePendingStatus,
+      environmentPreflight,
+      environmentPreflightError,
+      fileEmbedPendingStatus,
+      pagePendingStatus,
+      syncSummary,
       workspaceIdentity,
     ]
   );
@@ -7083,6 +7112,7 @@ function SyncDashboard() {
           selectedWorkspaceId={selectedCloudWorkspaceId}
           bootstrapProof={cloudBootstrapProof}
           localIdentity={workspaceIdentity}
+          setupDiagnostics={cloudSetupDiagnostics}
           busyAction={busyCloudAction}
           message={cloudMessage}
           onEmailChange={setCloudEmail}
@@ -11930,6 +11960,7 @@ function CloudAlphaPanel({
   selectedWorkspaceId,
   bootstrapProof,
   localIdentity,
+  setupDiagnostics,
   busyAction,
   message,
   onEmailChange,
@@ -11958,6 +11989,7 @@ function CloudAlphaPanel({
   selectedWorkspaceId: string;
   bootstrapProof: CloudWorkspaceBootstrapProof | null;
   localIdentity: LocalWorkspaceIdentity | null;
+  setupDiagnostics: CloudSetupDiagnostics;
   busyAction: CloudAlphaAction | null;
   message: CloudAlphaMessage | null;
   onEmailChange: (value: string) => void;
@@ -11994,6 +12026,7 @@ function CloudAlphaPanel({
     localIdentity?.cloud_status === "linked-alpha" &&
       localIdentity.cloud_bootstrap_checked_at
   );
+  const setupFirstBlocker = setupDiagnostics.first_blocker;
 
   return (
     <section
@@ -12035,6 +12068,68 @@ function CloudAlphaPanel({
             disabled={!session || Boolean(busyAction)}
             onClick={onClearSession}
             variant="secondary"
+          />
+        </div>
+      </div>
+
+      <div
+        className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60"
+        data-testid="cloud-setup-diagnostics"
+        data-cloud-setup-status={setupDiagnostics.status}
+        data-cloud-setup-can-keep-typing={String(
+          setupDiagnostics.can_keep_typing_now
+        )}
+        data-cloud-setup-data-can-sync-now={String(
+          setupDiagnostics.cloud_data_can_sync_now
+        )}
+        data-cloud-setup-ready-for-owner-smoke={String(
+          setupDiagnostics.ready_for_owner_smoke
+        )}
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+              云同步体检
+            </div>
+            <p className="mt-1 max-w-3xl text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+              {setupFirstBlocker
+                ? setupFirstBlocker.next_action
+                : "云端、登录、工作区和队列暂未发现阻塞。"}
+            </p>
+          </div>
+          <span
+            className={`w-fit rounded-md px-2 py-1 text-[10px] font-medium uppercase tracking-wide ${cloudSetupDiagnosticToneClass(
+              setupDiagnostics.status
+            )}`}
+          >
+            {formatCloudSetupDiagnosticStatus(setupDiagnostics.status)}
+          </span>
+        </div>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <CloudAlphaSmallRow
+            label="本地写作"
+            value={
+              setupDiagnostics.can_keep_typing_now
+                ? "可继续，失败只进队列"
+                : "需要检查"
+            }
+          />
+          <CloudAlphaSmallRow
+            label="云端同步"
+            value={
+              setupDiagnostics.cloud_data_can_sync_now
+                ? "可尝试同步"
+                : "暂不可确认"
+            }
+          />
+          <CloudAlphaSmallRow
+            label="待处理队列"
+            value={`${setupDiagnostics.summary.total_pending_rows} 待传 / ${setupDiagnostics.summary.total_failed_rows} 失败 / ${setupDiagnostics.summary.total_manual_review_rows} 人工`}
+          />
+          <CloudAlphaSmallRow
+            label="首个卡点"
+            value={setupFirstBlocker?.title ?? "无"}
           />
         </div>
       </div>
@@ -12366,6 +12461,36 @@ function CloudAlphaSmallRow({
       </div>
     </div>
   );
+}
+
+function formatCloudSetupDiagnosticStatus(
+  status: CloudSetupDiagnostics["status"]
+) {
+  const labels: Record<CloudSetupDiagnostics["status"], string> = {
+    "ready-for-owner-smoke": "可做两设备测试",
+    "blocked-environment": "环境未就绪",
+    "blocked-writes-disabled": "写入未开启",
+    "blocked-session": "需要登录",
+    "blocked-workspace": "未连 workspace",
+    "blocked-bootstrap": "缺启动检查",
+    "blocked-sync-disabled": "同步域未开",
+    "blocked-local-queues": "队列未清",
+    watch: "观察中",
+  };
+  return labels[status];
+}
+
+function cloudSetupDiagnosticToneClass(status: CloudSetupDiagnostics["status"]) {
+  if (status === "ready-for-owner-smoke") {
+    return "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200";
+  }
+  if (status === "watch") {
+    return "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200";
+  }
+  if (status === "blocked-local-queues") {
+    return "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200";
+  }
+  return "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200";
 }
 
 function formatCloudRole(role: CloudAlphaWorkspace["role"]) {

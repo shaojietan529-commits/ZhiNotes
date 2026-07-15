@@ -72,6 +72,7 @@ const files = {
   syncManualReviewPacket: "src/lib/sync/syncManualReviewPacket.ts",
   syncHandoffReadinessReceipt:
     "src/lib/sync/syncHandoffReadinessReceipt.ts",
+  cloudSetupDiagnostics: "src/lib/sync/cloudSetupDiagnostics.ts",
   hotCachePolicyPlan: "src/lib/sync/hotCachePolicyPlan.ts",
   hotCacheWarmupPlan: "src/lib/sync/hotCacheWarmupPlan.ts",
   hotCacheWarmupReceipt: "src/lib/sync/hotCacheWarmupReceipt.ts",
@@ -540,6 +541,9 @@ function run() {
   const syncManualReviewPacket = readProjectFile(files.syncManualReviewPacket);
   const syncHandoffReadinessReceipt = readProjectFile(
     files.syncHandoffReadinessReceipt
+  );
+  const cloudSetupDiagnostics = readProjectFile(
+    files.cloudSetupDiagnostics
   );
   const hotCachePolicyPlan = readProjectFile(files.hotCachePolicyPlan);
   const hotCacheWarmupPlan = readProjectFile(files.hotCacheWarmupPlan);
@@ -4128,6 +4132,66 @@ function run() {
     "file_waiting_rows_after",
     "Sync upload drain receipt must summarize file waiting rows after drain."
   );
+  assertIncludes(
+    files.cloudSetupDiagnostics,
+    cloudSetupDiagnostics,
+    'format: "zhinote-cloud-setup-diagnostics"',
+    "Cloud setup diagnostics must keep a stable machine-readable format."
+  );
+  for (const [snippet, message] of [
+    [
+      "can_keep_typing_now: true",
+      "Cloud setup diagnostics must keep local writing unblocked.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Cloud setup diagnostics must not read page bodies.",
+    ],
+    [
+      "reads_database_values: false",
+      "Cloud setup diagnostics must not read database values.",
+    ],
+    [
+      "reads_file_names: false",
+      "Cloud setup diagnostics must not read file names.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Cloud setup diagnostics must not read file bytes.",
+    ],
+    [
+      "reads_tokens_or_cookies: false",
+      "Cloud setup diagnostics must not read tokens or cookies.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Cloud setup diagnostics must not upload workspace data.",
+    ],
+    [
+      "enables_cloud_sync: false",
+      "Cloud setup diagnostics must not enable cloud sync.",
+    ],
+    [
+      'data-testid="cloud-setup-diagnostics"',
+      "Sync UI must expose cloud setup diagnostics for smoke checks.",
+    ],
+    [
+      "data-cloud-setup-can-keep-typing",
+      "Sync UI must expose whether local writing remains unblocked.",
+    ],
+    [
+      "data-cloud-setup-ready-for-owner-smoke",
+      "Sync UI must expose owner smoke readiness.",
+    ],
+  ]) {
+    const source = snippet.startsWith("data-") || snippet.includes("data-testid")
+      ? syncShell
+      : cloudSetupDiagnostics;
+    const sourceLabel = snippet.startsWith("data-") || snippet.includes("data-testid")
+      ? files.syncShell
+      : files.cloudSetupDiagnostics;
+    assertIncludes(sourceLabel, source, snippet, message);
+  }
   for (const [snippet, message] of [
     [
       'format: "zhinote-sync-ack-retry-ledger-contract"',
