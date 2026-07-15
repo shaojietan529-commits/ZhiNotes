@@ -10754,6 +10754,24 @@ function run() {
   assertIncludes(
     files.pageCloudSync,
     pageCloudSync,
+    'authRetryStateRef.current = "synced";\n      recordPageSyncAuthRetryStatus("ok");',
+    "Page cloud sync must not keep a signed-out auth retry state after the shared account gate is ready."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'authRetryStateRef.current = "disabled";\n        recordPageSyncAuthRetryStatus("disabled");',
+    "Page cloud sync must remember disabled sync as disabled, not signed-out."
+  );
+  assertExcludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'authRetryStateRef.current = "signed-out";\n      recordPageSyncAuthRetryStatus("ok");',
+    "Page cloud sync must not record successful account checks as signed-out retry state."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
     'result.status === "unauthenticated") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";',
     "Page cloud sync must show domain-route unauthenticated results as retryable cloud uncertainty after the shared gate."
   );
@@ -10942,6 +10960,24 @@ function run() {
     databaseCloudSync,
     'return status === "signed-out" ? "signed-out" : "error";',
     "Database cloud sync must show unconfigured/error account-gate states as cloud uncertainty, not sign-out."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'authRetryStateRef.current = "synced";\n      recordDatabaseSyncAuthRetryStatus("ok");',
+    "Database cloud sync must not keep a signed-out auth retry state after the shared account gate is ready."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'authRetryStateRef.current = "disabled";\n          recordDatabaseSyncAuthRetryStatus("disabled");',
+    "Database cloud sync must remember disabled sync as disabled, not signed-out."
+  );
+  assertExcludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'authRetryStateRef.current = "signed-out";\n      recordDatabaseSyncAuthRetryStatus("ok");',
+    "Database cloud sync must not record successful account checks as signed-out retry state."
   );
   assertIncludes(
     files.databaseCloudSync,

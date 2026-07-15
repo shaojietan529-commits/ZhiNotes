@@ -216,7 +216,7 @@ export function useDatabaseCloudSync() {
     if (!mountedRef.current) return false;
     if (accountGate.status === "ready") {
       authRetryAfterRef.current = 0;
-      authRetryStateRef.current = "signed-out";
+      authRetryStateRef.current = "synced";
       recordDatabaseSyncAuthRetryStatus("ok");
       return true;
     }
@@ -298,7 +298,7 @@ export function useDatabaseCloudSync() {
         if (!mountedRef.current) return;
         if (result.status === "ok") {
           authRetryAfterRef.current = 0;
-          authRetryStateRef.current = "signed-out";
+          authRetryStateRef.current = "synced";
           recordDatabaseSyncAuthRetryStatus("ok");
           setStateIfMounted("synced");
           setLastSyncAtIfMounted(getLastDatabaseSyncAt());
@@ -328,7 +328,7 @@ export function useDatabaseCloudSync() {
           setStateIfMounted("error");
         } else if (result.status === "disabled") {
           authRetryAfterRef.current = 0;
-          authRetryStateRef.current = "signed-out";
+          authRetryStateRef.current = "disabled";
           recordDatabaseSyncAuthRetryStatus("disabled");
           setStateIfMounted("disabled");
         } else {

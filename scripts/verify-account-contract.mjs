@@ -2541,6 +2541,15 @@ check(
     pageCloudSyncHook.includes("function getAuthRetryStatusFromAccountGate(") &&
     pageCloudSyncHook.includes("recordPageSyncAuthRetryStatus(") &&
     pageCloudSyncHook.includes(
+      'authRetryStateRef.current = "synced";\n      recordPageSyncAuthRetryStatus("ok");'
+    ) &&
+    pageCloudSyncHook.includes(
+      'authRetryStateRef.current = "disabled";\n        recordPageSyncAuthRetryStatus("disabled");'
+    ) &&
+    !pageCloudSyncHook.includes(
+      'authRetryStateRef.current = "signed-out";\n      recordPageSyncAuthRetryStatus("ok");'
+    ) &&
+    pageCloudSyncHook.includes(
       "getAuthRetryStatusFromAccountGate(accountGate.status)"
     ) &&
     pageCloudSyncHook.includes("forceAccountGate: options.forceAccountGate") &&
@@ -2674,6 +2683,15 @@ check(
     databaseCloudSyncHook.includes("function getRetryStateFromAccountGate(") &&
     databaseCloudSyncHook.includes("function getAuthRetryStatusFromAccountGate(") &&
     databaseCloudSyncHook.includes("recordDatabaseSyncAuthRetryStatus(") &&
+    databaseCloudSyncHook.includes(
+      'authRetryStateRef.current = "synced";\n      recordDatabaseSyncAuthRetryStatus("ok");'
+    ) &&
+    databaseCloudSyncHook.includes(
+      'authRetryStateRef.current = "disabled";\n          recordDatabaseSyncAuthRetryStatus("disabled");'
+    ) &&
+    !databaseCloudSyncHook.includes(
+      'authRetryStateRef.current = "signed-out";\n      recordDatabaseSyncAuthRetryStatus("ok");'
+    ) &&
     databaseCloudSyncHook.includes(
       "getAuthRetryStatusFromAccountGate(accountGate.status)"
     ) &&

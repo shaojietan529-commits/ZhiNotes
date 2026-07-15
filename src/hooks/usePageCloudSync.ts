@@ -218,7 +218,7 @@ export function usePageCloudSync() {
     if (!mountedRef.current) return false;
     if (accountGate.status === "ready") {
       authRetryAfterRef.current = 0;
-      authRetryStateRef.current = "signed-out";
+      authRetryStateRef.current = "synced";
       recordPageSyncAuthRetryStatus("ok");
       return true;
     }
@@ -295,7 +295,7 @@ export function usePageCloudSync() {
       if (!mountedRef.current) return;
       if (result.status === "ok") {
         authRetryAfterRef.current = 0;
-        authRetryStateRef.current = "signed-out";
+        authRetryStateRef.current = "synced";
         recordPageSyncAuthRetryStatus("ok");
         setStateIfMounted("synced");
         setLastSyncAtIfMounted(getLastPageSyncAt());
@@ -316,7 +316,7 @@ export function usePageCloudSync() {
         setStateIfMounted("error");
       } else if (result.status === "disabled") {
         authRetryAfterRef.current = 0;
-        authRetryStateRef.current = "signed-out";
+        authRetryStateRef.current = "disabled";
         recordPageSyncAuthRetryStatus("disabled");
         setStateIfMounted("disabled");
       } else {

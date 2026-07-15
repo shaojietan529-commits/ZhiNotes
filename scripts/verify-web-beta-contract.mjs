@@ -5587,6 +5587,24 @@ function run() {
   assertSourceIncludes(
     files.pageCloudSync,
     pageCloudSync,
+    'authRetryStateRef.current = "synced";\n      recordPageSyncAuthRetryStatus("ok");',
+    "Page cloud sync hook must not keep successful account-gate checks as signed-out retry state."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'authRetryStateRef.current = "disabled";\n        recordPageSyncAuthRetryStatus("disabled");',
+    "Page cloud sync hook must remember disabled sync as disabled instead of signed-out."
+  );
+  assertSourceExcludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'authRetryStateRef.current = "signed-out";\n      recordPageSyncAuthRetryStatus("ok");',
+    "Page cloud sync hook must not record ok account checks as signed-out."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
     'result.status === "unconfirmed") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";',
     "Page cloud sync hook must keep session-unconfirmed retrying without looking signed out."
   );
@@ -6172,6 +6190,24 @@ function run() {
     databaseCloudSync,
     'if (status === "unconfirmed") return "unconfirmed";',
     "Database cloud sync hook must propagate unconfirmed account-gate status into auth retry metadata."
+  );
+  assertSourceIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'authRetryStateRef.current = "synced";\n      recordDatabaseSyncAuthRetryStatus("ok");',
+    "Database cloud sync hook must not keep successful account-gate checks as signed-out retry state."
+  );
+  assertSourceIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'authRetryStateRef.current = "disabled";\n          recordDatabaseSyncAuthRetryStatus("disabled");',
+    "Database cloud sync hook must remember disabled sync as disabled instead of signed-out."
+  );
+  assertSourceExcludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'authRetryStateRef.current = "signed-out";\n      recordDatabaseSyncAuthRetryStatus("ok");',
+    "Database cloud sync hook must not record ok account checks as signed-out."
   );
   assertSourceIncludes(
     files.databaseCloudSync,
