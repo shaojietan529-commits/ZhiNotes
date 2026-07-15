@@ -714,13 +714,18 @@ export default function DailyNotesShell() {
       window.setTimeout(() => {
         if (!mountedRef.current) return;
         if (!window.location.pathname.startsWith("/daily")) return;
+        const createPeekStillPreparing =
+          isPagePeekCreateShellStillPreparing(note.id);
+        if (!createPeekStillPreparing) return;
         const currentOpeningDraft = openingDraftRef.current;
         if (
-          currentOpeningDraft?.pageId !== note.id ||
-          currentOpeningDraft.dateKey !== dateKey
+          currentOpeningDraft &&
+          (currentOpeningDraft.pageId !== note.id ||
+            currentOpeningDraft.dateKey !== dateKey)
         ) {
           return;
         }
+        setOpeningDraftAndRef({ pageId: note.id, dateKey });
         upsertPages([note]);
         rememberPendingPageDraft(note);
         rememberPageRouteHandoff(note, "daily-create");
@@ -730,7 +735,7 @@ export default function DailyNotesShell() {
         );
       }, DAILY_PEEK_CREATE_READY_RETRY_MS);
     },
-    [dailyCreateOpenMode, openPage, upsertPages]
+    [dailyCreateOpenMode, openPage, setOpeningDraftAndRef, upsertPages]
   );
 
   useEffect(() => {
