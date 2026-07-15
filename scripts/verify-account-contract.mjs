@@ -2512,6 +2512,13 @@ check(
   databaseCloudSyncHook.includes("DATABASE_SYNC_STATUS_EVENT") &&
     databaseCloudSyncHook.includes("window.addEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus)") &&
     databaseCloudSyncHook.includes("window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus)") &&
+    databaseCloudSyncHook.includes("SYNC_LOG_STATUS_EVENT") &&
+    databaseCloudSyncHook.includes("SYNC_LOG_STATUS_STORAGE_KEY") &&
+    databaseCloudSyncHook.includes("const handleSyncLogStatus = () => refreshStatusAndScheduleIfNeeded();") &&
+    databaseCloudSyncHook.includes("window.addEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus)") &&
+    databaseCloudSyncHook.includes("window.removeEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus)") &&
+    databaseCloudSyncHook.includes("event.key === SYNC_LOG_STATUS_STORAGE_KEY") &&
+    databaseCloudSyncHook.includes("refreshStatusAndScheduleIfNeeded") &&
     databaseCloudSyncHook.includes('event.key?.startsWith("zhinote.databasesync.")') &&
     databaseCloudSyncHook.includes("CustomEvent<PendingCloudDatabaseSyncStatus>") &&
     databaseCloudSyncHook.includes("PENDING_STATUS_SYNC_DELAY_MS") &&

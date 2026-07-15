@@ -12840,6 +12840,34 @@ function run() {
       "Database pending status quick sync must include cloud key, memory, and sync_log queues.",
     ],
     [
+      "SYNC_LOG_STATUS_EVENT",
+      "Database cloud sync hook must listen to same-tab sync_log status updates.",
+    ],
+    [
+      "SYNC_LOG_STATUS_STORAGE_KEY",
+      "Database cloud sync hook must listen to cross-tab sync_log status updates.",
+    ],
+    [
+      "const handleSyncLogStatus = () => refreshStatusAndScheduleIfNeeded();",
+      "Database sync_log status updates must refresh pending status before scheduling quick sync.",
+    ],
+    [
+      "window.addEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus)",
+      "Database cloud sync hook must subscribe to same-tab sync_log status updates.",
+    ],
+    [
+      "window.removeEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus)",
+      "Database cloud sync hook must clean up the sync_log status listener.",
+    ],
+    [
+      "event.key === SYNC_LOG_STATUS_STORAGE_KEY",
+      "Database cloud sync hook must react to cross-tab sync_log status storage updates.",
+    ],
+    [
+      "refreshStatusAndScheduleIfNeeded",
+      "Database cloud sync hook must centralize sync_log status refresh and quick-sync scheduling.",
+    ],
+    [
       "DATABASE_PENDING_STORAGE_KEYS",
       "Database cloud sync must restrict cross-tab quick syncs to database pending storage keys.",
     ],

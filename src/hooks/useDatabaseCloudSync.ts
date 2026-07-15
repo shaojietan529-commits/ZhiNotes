@@ -16,6 +16,10 @@ import {
   LOCAL_CACHE_RECOVERY_EVENT,
   LOCAL_CACHE_RECOVERY_SIGNAL_KEY,
 } from "@/lib/db/local/client";
+import {
+  SYNC_LOG_STATUS_EVENT,
+  SYNC_LOG_STATUS_STORAGE_KEY,
+} from "@/lib/db/local/queries";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import {
   DATABASE_SYNC_CONFIG_EVENT,
@@ -429,6 +433,23 @@ export function useDatabaseCloudSync() {
         });
       }, delayMs);
     };
+    const refreshStatusAndScheduleIfNeeded = () => {
+      void getPendingCloudDatabaseSyncStatus()
+        .then((status) => {
+          setPendingStatusIfMounted(status);
+          const totalPending =
+            status.pending + status.queued + (status.syncLogPending ?? 0);
+          if (status.enabled && totalPending > 0) {
+            scheduleQuickSync(PENDING_STATUS_SYNC_DELAY_MS, {
+              forceAccountGate:
+                shouldForceAccountGateForPendingStatus(status),
+            });
+          }
+        })
+        .catch(() => {
+          void refreshPendingStatus();
+        });
+    };
     void refreshPendingStatus();
     const initialSyncTimer = window.setTimeout(() => {
       void runSync({ quick: true });
@@ -486,6 +507,9 @@ export function useDatabaseCloudSync() {
             }
           });
       }
+      if (event.key === SYNC_LOG_STATUS_STORAGE_KEY) {
+        refreshStatusAndScheduleIfNeeded();
+      }
     };
     const handleLocalDatabaseUpdate = (event: Event) => {
       const message = (event as CustomEvent<DatabaseUpdateMessage>).detail;
@@ -509,8 +533,10 @@ export function useDatabaseCloudSync() {
         void refreshPendingStatus();
       }
     };
+    const handleSyncLogStatus = () => refreshStatusAndScheduleIfNeeded();
     window.addEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
     window.addEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus);
+    window.addEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus);
     window.addEventListener(
       ACCOUNT_PROFILE_UPDATED_EVENT,
       handleAccountProfileUpdated
@@ -530,6 +556,7 @@ export function useDatabaseCloudSync() {
       window.clearInterval(interval);
       window.removeEventListener(DATABASE_SYNC_CONFIG_EVENT, handleConfig);
       window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleStatus);
+      window.removeEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus);
       window.removeEventListener(
         ACCOUNT_PROFILE_UPDATED_EVENT,
         handleAccountProfileUpdated

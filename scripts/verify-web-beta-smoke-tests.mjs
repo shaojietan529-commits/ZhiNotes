@@ -16196,6 +16196,38 @@ function run() {
     "detail.pending + detail.queued + (detail.syncLogPending ?? 0)",
     "Database pending status quick sync must include all local pending queue sources."
   );
+  for (const [snippet, message] of [
+    [
+      "SYNC_LOG_STATUS_EVENT",
+      "Database cloud sync hook must listen to same-tab sync_log status updates.",
+    ],
+    [
+      "SYNC_LOG_STATUS_STORAGE_KEY",
+      "Database cloud sync hook must listen to cross-tab sync_log status updates.",
+    ],
+    [
+      "const handleSyncLogStatus = () => refreshStatusAndScheduleIfNeeded();",
+      "Database sync_log status updates must refresh pending status before scheduling quick sync.",
+    ],
+    [
+      "window.addEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus)",
+      "Database cloud sync hook must subscribe to same-tab sync_log status updates.",
+    ],
+    [
+      "window.removeEventListener(SYNC_LOG_STATUS_EVENT, handleSyncLogStatus)",
+      "Database cloud sync hook must clean up the sync_log status listener.",
+    ],
+    [
+      "event.key === SYNC_LOG_STATUS_STORAGE_KEY",
+      "Database cloud sync hook must react to cross-tab sync_log status storage updates.",
+    ],
+    [
+      "refreshStatusAndScheduleIfNeeded",
+      "Database cloud sync hook must centralize sync_log status refresh and quick-sync scheduling.",
+    ],
+  ]) {
+    assertIncludes(files.databaseCloudSync, databaseCloudSync, snippet, message);
+  }
   assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
