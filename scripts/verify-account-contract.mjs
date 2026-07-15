@@ -4032,6 +4032,8 @@ check(
     accountCloudSyncCoordinator.includes("authRetryDomainLabel,") &&
     accountCloudSyncCoordinator.includes("authRetryUntilLabel,") &&
     accountCloudSyncCoordinator.includes("buildAccountLocalUseReadiness") &&
+    accountCloudSyncCoordinator.includes("const syncErrorWithoutAuthRetry =") &&
+    accountCloudSyncCoordinator.includes('accountUncertainByAuthRetry\n                ? "checking"') &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&
     accountCloudSyncCoordinator.includes("const syncBlockedBySignedOut =") &&
@@ -4241,9 +4243,7 @@ check(
 );
 check(
   accountCloudSyncCoordinator.indexOf("manualReviewTotal > 0 || failedTotal > 0") <
-    accountCloudSyncCoordinator.indexOf(
-      'pageSync.state === "error" || databaseSync.state === "error"'
-    ),
+    accountCloudSyncCoordinator.indexOf('syncErrorWithoutAuthRetry\n          ? "error"'),
   "账号级云同步协调器必须优先显示失败/人工处理队列，不能被临时接口错误盖住"
 );
 check(

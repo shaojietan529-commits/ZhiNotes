@@ -132,10 +132,11 @@ check(
 
 check(
   accountCoordinator.includes("const accountUncertainByAuthRetry = Boolean(authRetryDomainLabel)") &&
-    accountCoordinator.includes('accountUncertainByAuthRetry\n                ? "error"') &&
+    accountCoordinator.includes("const syncErrorWithoutAuthRetry =") &&
+    accountCoordinator.includes('accountUncertainByAuthRetry\n                ? "checking"') &&
     accountCoordinator.includes('fileSync.status.authRetryStatus ? "文件" : null') &&
     accountCoordinator.includes("fileSync.status.authRetryUntil"),
-  "全局同步总控必须把文件账号重试纳入云端不确定状态，不能在只剩 auth retry 标记时显示已同步"
+  "全局同步总控必须把文件账号重试纳入云端不确定状态；auth retry 显示为检查/排队，不能误报已同步或硬错误"
 );
 
 for (const snippet of [

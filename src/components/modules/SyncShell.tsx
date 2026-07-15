@@ -2257,7 +2257,7 @@ function SyncDashboard() {
         : syncLocalUseQueueSnapshot.pendingTotal > 0
           ? "queued"
           : syncLocalUseQueueSnapshot.authRetryDomainLabel
-            ? "error"
+            ? "checking"
           : syncLocalUseQueueSnapshot.enabledDomainCount === 0
             ? "disabled"
             : "synced";

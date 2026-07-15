@@ -266,7 +266,9 @@ export function buildAccountLocalUseReadiness(
       cloudHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续写作，正在检查同步状态",
-      detail: "同步域已开启但仍在检查；不要在检查完成前重建本地缓存。",
+      detail: withQueueDetail(
+        "同步域已开启但仍在检查；不要在检查完成前重建本地缓存。"
+      ),
       nextAction: "等待检查完成，或打开同步中心查看详情。",
     };
   }

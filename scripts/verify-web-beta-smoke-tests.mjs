@@ -10887,8 +10887,12 @@ function run() {
 	      "Account cloud sync coordinator must treat any remaining auth retry domain as cloud uncertainty before declaring synced.",
 	    ],
 	    [
-	      'accountUncertainByAuthRetry\n                ? "error"',
-	      "Account cloud sync coordinator must not report synced when only an auth retry marker remains.",
+	      'accountUncertainByAuthRetry\n                ? "checking"',
+	      "Account cloud sync coordinator must show temporary auth uncertainty as checking instead of synced or hard error.",
+	    ],
+	    [
+	      "const syncErrorWithoutAuthRetry =",
+	      "Account cloud sync coordinator must keep true non-auth retry errors distinct from temporary auth uncertainty.",
 	    ],
 	    [
 	      "globalSyncLogExtraRetryableFailedTotal",
@@ -10943,7 +10947,7 @@ function run() {
         "manualReviewTotal > 0 || failedTotal > 0"
       ) <
       accountCloudSyncCoordinator.indexOf(
-        'pageSync.state === "error" || databaseSync.state === "error"'
+        'syncErrorWithoutAuthRetry\n          ? "error"'
       )
     )
   ) {
@@ -17962,7 +17966,7 @@ function run() {
         "databasePendingStatus.authRetryStatus",
         "fileEmbedPendingStatus.authRetryStatus",
         "fileEmbedPendingStatus.authRetryUntil",
-        'syncLocalUseQueueSnapshot.authRetryDomainLabel\n            ? "error"',
+        'syncLocalUseQueueSnapshot.authRetryDomainLabel\n            ? "checking"',
         "authRetryDomainLabel",
         "authRetryUntilLabel",
         "同步失败不登出",

@@ -6373,7 +6373,7 @@ function run() {
         "manualReviewTotal > 0 || failedTotal > 0"
       ) <
       accountCloudSyncCoordinator.indexOf(
-        'pageSync.state === "error" || databaseSync.state === "error"'
+        'syncErrorWithoutAuthRetry\n          ? "error"'
       )
     )
   ) {
@@ -14325,6 +14325,10 @@ function run() {
     [
       "authRetryUntilLabel",
       "Sync center local-use readiness must surface the next account retry time.",
+    ],
+    [
+      'syncLocalUseQueueSnapshot.authRetryDomainLabel\n            ? "checking"',
+      "Sync center local-use readiness must show temporary account uncertainty as checking rather than hard error.",
     ],
     [
       "实验改动先本地 / staging",

@@ -680,8 +680,14 @@ function run() {
     [
       files.accountSyncCoordinator,
       accountSyncCoordinator,
-      'accountUncertainByAuthRetry\n                ? "error"',
-      "Global account sync status must not report synced when only a file auth retry marker remains.",
+      'accountUncertainByAuthRetry\n                ? "checking"',
+      "Global account sync status must show account uncertainty as checking instead of synced or hard error.",
+    ],
+    [
+      files.accountSyncCoordinator,
+      accountSyncCoordinator,
+      "const syncErrorWithoutAuthRetry =",
+      "Global account sync status must keep true non-auth retry errors distinct from temporary account uncertainty.",
     ],
     [
       files.sidebar,

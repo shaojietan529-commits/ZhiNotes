@@ -298,20 +298,24 @@ export function useAccountCloudSyncCoordinator() {
   const syncBlockedBySignedOut =
     pageSync.state === "signed-out" || databaseSync.state === "signed-out";
   const accountUncertainByAuthRetry = Boolean(authRetryDomainLabel);
+  const syncErrorWithoutAuthRetry =
+    (pageSync.state === "error" && !pageSync.pendingStatus.authRetryStatus) ||
+    (databaseSync.state === "error" &&
+      !databaseSync.pendingStatus.authRetryStatus);
 
   const state: AccountCloudSyncCoordinatorState =
     enabledDomainCount === 0
       ? "disabled"
       : manualReviewTotal > 0 || failedTotal > 0
         ? "attention"
-        : pageSync.state === "error" || databaseSync.state === "error"
+        : syncErrorWithoutAuthRetry
           ? "error"
           : pageSync.state === "syncing" || databaseSync.state === "syncing"
             ? "syncing"
             : pendingTotal > 0
               ? "queued"
-              : accountUncertainByAuthRetry
-                ? "error"
+            : accountUncertainByAuthRetry
+                ? "checking"
               : syncBlockedBySignedOut
                 ? "signed-out"
                 : initializingEnabledDomain
@@ -359,6 +363,8 @@ export function useAccountCloudSyncCoordinator() {
           : "";
       const accountRetryNote = syncBlockedBySignedOut
         ? "；账号未确认，本地输入已保留，会低频检查登录状态"
+        : accountUncertainByAuthRetry
+          ? "；账号临时不可确认，本地输入已保留，系统会重试"
         : "";
       return `后台正在补传本地输入${details.length ? `：${details.join("，")}` : ""}${settingsNote}${knowledgeNote}${accountRetryNote}`;
     }
@@ -377,6 +383,7 @@ export function useAccountCloudSyncCoordinator() {
     }
     return `账号云同步已完成${details.length ? `：${details.join("，")}` : ""}`;
   }, [
+    accountUncertainByAuthRetry,
     authRetryDetail,
     databasePendingTotal,
     filePendingTotal,
