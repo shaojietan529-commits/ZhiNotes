@@ -33,6 +33,7 @@ export interface TwoDeviceSyncSmokeRunbook {
   format_version: 1;
   report_status: "metadata-only-owner-runbook";
   generated_at: string;
+  ready_to_run_scoped_smoke_now: boolean;
   ready_to_run_real_smoke_now: boolean;
   ready_to_claim_two_device_sync_passed: false;
   boundary: {
@@ -66,6 +67,8 @@ export interface TwoDeviceSyncSmokeRunbook {
     ack_ledger_server_readiness_next_action: string;
     sync_push_route_enabled: boolean;
     sync_pull_route_enabled: boolean;
+    scoped_core_sync_ready: boolean;
+    scoped_core_sync_claim_blocked: boolean;
     full_platform_sync_claim_blocked: boolean;
     can_keep_using_now: boolean;
     can_switch_devices_now: boolean;
@@ -100,6 +103,7 @@ export interface TwoDeviceSyncSmokeOwnerReceipt {
   };
   summary: TwoDeviceSyncSmokeRunbook["summary"] & {
     runbook_ready_to_run: boolean;
+    scoped_runbook_ready_to_run: boolean;
     runbook_ready_to_claim_passed: false;
   };
   owner_evidence_fields: Array<{
@@ -343,14 +347,26 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
   const ready = steps.filter((item) => item.status === "ready").length;
   const wait = steps.filter((item) => item.status === "wait").length;
   const blocked = steps.filter((item) => item.status === "blocked").length;
-  const coreSurfacesReady =
+  const scopedCoreSurfacesReady =
     canKeepUsing &&
     syncDomainCoverageComplete &&
     reliability.cloud_workspace_linked &&
     reliability.page_sync_enabled &&
     reliability.database_sync_enabled &&
-    reliability.file_sync_enabled &&
-    ackLedgerReady;
+    reliability.file_sync_enabled;
+  const scopedWorkflowBlocked = steps.filter(
+    (item) =>
+      item.status === "blocked" &&
+      item.id !== "ack-ledger-readiness" &&
+      item.id !== "final-device-handoff"
+  ).length;
+  const readyToRunScoped =
+    scopedCoreSurfacesReady &&
+    scopedWorkflowBlocked === 0 &&
+    !waitingForDrain &&
+    !failedOrManual &&
+    !authRetryActive;
+  const coreSurfacesReady = scopedCoreSurfacesReady && ackLedgerReady;
   const readyToRun = coreSurfacesReady && wait === 0 && blocked === 0;
 
   return {
@@ -358,6 +374,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
     format_version: 1,
     report_status: "metadata-only-owner-runbook",
     generated_at: generatedAt,
+    ready_to_run_scoped_smoke_now: readyToRunScoped,
     ready_to_run_real_smoke_now: readyToRun,
     ready_to_claim_two_device_sync_passed: false,
     boundary: {
@@ -394,6 +411,8 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
         input.ackLedgerServerReadiness.summary.next_action,
       sync_push_route_enabled: input.ackRetryLedger.summary.push_route_enabled,
       sync_pull_route_enabled: input.ackRetryLedger.summary.pull_route_enabled,
+      scoped_core_sync_ready: readyToRunScoped,
+      scoped_core_sync_claim_blocked: !readyToRunScoped,
       full_platform_sync_claim_blocked: !ackLedgerReady,
       can_keep_using_now: canKeepUsing,
       can_switch_devices_now: canSwitchDevices,
@@ -403,6 +422,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
     final_owner_receipt_template: [
       "设备 A / 设备 B 使用同一账号和 workspace。",
       "同步中心显示 sync-domain coverage complete，所有 pending / failed / manual review 域都可见。",
+      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库和文件元数据；这不等于完整全平台同步通过。",
       "统一 ACK / retry ledger 和服务端 readiness 已通过：/api/sync/push 和 /api/sync/pull 已 owner-gated 启用，且 remote ACK cursor 可复核。",
       "Page、每日纪要、ZhiHui、数据库、文件元数据至少各跑一条测试样本。",
       "测试结束时 pending=0、failed=0、manual review=0、auth retry=无。",
@@ -444,6 +464,7 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
     summary: {
       ...runbook.summary,
       runbook_ready_to_run: runbook.ready_to_run_real_smoke_now,
+      scoped_runbook_ready_to_run: runbook.ready_to_run_scoped_smoke_now,
       runbook_ready_to_claim_passed:
         runbook.ready_to_claim_two_device_sync_passed,
     },
@@ -515,6 +536,7 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
       "同步中心显示 pending=0、failed=0、manual review=0。",
       "账号退避为无；临时接口失败没有导致任一设备被登出。",
       "sync-domain coverage complete，所有同步域都有可见队列状态。",
+      "如果只验收 48 小时 scoped beta，只能声称 Page、每日纪要、ZhiHui、数据库和文件元数据的核心交接通过，不能声称完整全平台同步通过。",
       "统一 /api/sync/push 和 /api/sync/pull 已由 owner-gated 启用，并有 durable ACK ledger 与 remote ACK cursor 证据。",
       "本地 sync_log rows 只在 remote ACK cursor 前进后标记 synced，不能用本地队列清零替代云端确认。",
       "设备 A 创建/编辑后设备 B 可见；设备 B 再编辑后设备 A 可见。",
@@ -522,6 +544,8 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
     ],
     next_action: runbook.ready_to_run_real_smoke_now
       ? "用两台真实设备跑 checklist，然后由 owner 填写这张结果收据；未填前不能声称两设备同步已通过。"
+      : runbook.ready_to_run_scoped_smoke_now
+        ? "可以先跑 48 小时 scoped beta smoke：Page、每日纪要、ZhiHui、数据库和文件元数据；完成前仍不能声称完整全平台同步通过。"
       : runbook.next_action,
   };
 }
@@ -572,6 +596,19 @@ function getNextAction(input: {
   }
   if (input.readyToRun) {
     return "可以准备两端 smoke，但先让 pending 清零，避免把旧队列误认为新测试失败。";
+  }
+  if (
+    input.input.gate.can_target_two_day_sync_beta &&
+    input.input.reliability.summary.cloud_workspace_linked &&
+    input.input.reliability.summary.page_sync_enabled &&
+    input.input.reliability.summary.database_sync_enabled &&
+    input.input.reliability.summary.file_sync_enabled &&
+    !input.input.reliability.summary.auth_retry_active &&
+    input.input.reliability.summary.total_waiting_rows === 0 &&
+    input.input.reliability.summary.failed_rows === 0 &&
+    input.input.reliability.summary.manual_review_rows === 0
+  ) {
+    return "可以先跑 48 小时 scoped beta smoke：Page、每日纪要、ZhiHui、数据库和文件元数据；完整全平台同步仍等待 ACK ledger。";
   }
   if (input.blocked > 0) {
     return isAckLedgerReady({

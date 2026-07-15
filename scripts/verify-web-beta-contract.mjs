@@ -15966,6 +15966,14 @@ function run() {
       "Sync UI must expose ack ledger server readiness blockers in the two-device smoke gate.",
     ],
     [
+      "data-two-device-sync-scoped-ready-to-run",
+      "Sync UI must expose scoped two-device smoke readiness separately from full-platform readiness.",
+    ],
+    [
+      "data-two-device-sync-scoped-core-claim-blocked",
+      "Sync UI must expose scoped core sync claim blocking separately from full-platform blocking.",
+    ],
+    [
       "不是上传按钮",
       "Sync UI must state the ack/retry ledger is not an upload button.",
     ],

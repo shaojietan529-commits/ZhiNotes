@@ -24337,6 +24337,9 @@ function TwoDeviceSyncSmokeRunbookPanel({
       data-two-device-sync-ready-to-run={String(
         runbook.ready_to_run_real_smoke_now
       )}
+      data-two-device-sync-scoped-ready-to-run={String(
+        runbook.ready_to_run_scoped_smoke_now
+      )}
       data-two-device-sync-claim-passed={String(
         runbook.ready_to_claim_two_device_sync_passed
       )}
@@ -24357,6 +24360,9 @@ function TwoDeviceSyncSmokeRunbookPanel({
       )}
       data-two-device-sync-full-platform-claim-blocked={String(
         runbook.summary.full_platform_sync_claim_blocked
+      )}
+      data-two-device-sync-scoped-core-claim-blocked={String(
+        runbook.summary.scoped_core_sync_claim_blocked
       )}
       data-two-device-sync-owner-receipt-status={ownerReceipt.receipt_status}
       data-two-device-sync-owner-receipt-claim-passed={String(
@@ -24410,7 +24416,12 @@ function TwoDeviceSyncSmokeRunbookPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-9">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-10">
+        <CacheRebuildFact
+          label="48h核心"
+          value={runbook.ready_to_run_scoped_smoke_now ? "可测" : "等待"}
+          detail="scoped beta"
+        />
         <CacheRebuildFact
           label="可开始"
           value={runbook.ready_to_run_real_smoke_now ? "可以" : "等待"}

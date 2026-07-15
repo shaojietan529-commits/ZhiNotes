@@ -3571,6 +3571,10 @@ function run() {
       "Two-device sync smoke runbook must not claim the real two-device smoke has passed without owner evidence.",
     ],
     [
+      "ready_to_run_scoped_smoke_now",
+      "Two-device sync smoke runbook must separately tell whether the 48-hour scoped beta smoke can start.",
+    ],
+    [
       "can_claim_two_device_sync_passed_now: false",
       "Two-device sync smoke owner receipt must not claim the real two-device smoke has passed without owner-filled evidence.",
     ],
@@ -3609,6 +3613,14 @@ function run() {
     [
       "ack_ledger_server_readiness_next_action",
       "Two-device sync smoke runbook must expose the server-readiness next action.",
+    ],
+    [
+      "scoped_core_sync_ready",
+      "Two-device sync smoke runbook must expose scoped core sync readiness separately from full-platform readiness.",
+    ],
+    [
+      "scoped_core_sync_claim_blocked",
+      "Two-device sync smoke runbook must block scoped beta claims when core surfaces are not ready.",
     ],
     [
       "SyncAckLedgerServerReadiness",
@@ -3681,6 +3693,14 @@ function run() {
     [
       "Page、每日纪要、ZhiHui、数据库、文件元数据至少各跑一条测试样本",
       "Two-device sync smoke runbook must state the required real workflow samples for the final owner receipt.",
+    ],
+    [
+      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库和文件元数据",
+      "Two-device sync smoke runbook must let scoped beta verification proceed without claiming full-platform sync.",
+    ],
+    [
+      "不能声称完整全平台同步通过",
+      "Two-device sync smoke runbook must explicitly separate scoped beta success from full-platform sync success.",
     ],
     [
       "sync-domain coverage complete",
@@ -3768,8 +3788,16 @@ function run() {
       "Sync UI must expose a stable test id for the two-device sync smoke runbook.",
     ],
     [
+      "data-two-device-sync-scoped-ready-to-run",
+      "Sync UI must expose whether the 48-hour scoped beta smoke can start.",
+    ],
+    [
       "data-two-device-sync-domain-coverage-complete",
       "Sync UI must expose two-device sync-domain coverage readiness.",
+    ],
+    [
+      "data-two-device-sync-scoped-core-claim-blocked",
+      "Sync UI must expose scoped core sync claim blocking separately from full-platform blocking.",
     ],
     [
       "data-two-device-sync-ack-ledger-ready",
@@ -3782,6 +3810,10 @@ function run() {
     [
       "ACK账本",
       "Sync UI must show the ack ledger gate in the two-device smoke summary.",
+    ],
+    [
+      "48h核心",
+      "Sync UI must show the scoped 48-hour core beta status.",
     ],
     [
       "data-two-device-sync-owner-receipt-status",
