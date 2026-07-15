@@ -3707,6 +3707,18 @@ function run() {
       "Two-device sync smoke owner receipt must not claim the real two-device smoke has passed without owner-filled evidence.",
     ],
     [
+      "ready_to_collect_scoped_owner_evidence",
+      "Two-device sync smoke owner receipt must expose scoped evidence readiness separately from full evidence readiness.",
+    ],
+    [
+      "ready_to_collect_scoped_owner_evidence:\n      runbook.ready_to_run_scoped_smoke_now",
+      "Two-device sync smoke owner receipt scoped evidence readiness must be sourced from the scoped runbook gate.",
+    ],
+    [
+      "ready_to_collect_owner_evidence: runbook.ready_to_run_real_smoke_now",
+      "Two-device sync smoke owner receipt full evidence readiness must be sourced from the full real smoke gate.",
+    ],
+    [
       "owner_evidence_fields",
       "Two-device sync smoke owner receipt must list owner-filled evidence fields.",
     ],
@@ -3972,8 +3984,20 @@ function run() {
       "Sync UI must expose the two-device owner receipt status.",
     ],
     [
+      "data-two-device-sync-owner-receipt-scoped-ready",
+      "Sync UI must expose scoped owner evidence readiness.",
+    ],
+    [
+      "data-two-device-sync-owner-receipt-full-ready",
+      "Sync UI must expose full owner evidence readiness.",
+    ],
+    [
       "data-two-device-sync-owner-receipt-claim-passed",
       "Sync UI must expose that the owner receipt does not auto-claim pass.",
+    ],
+    [
+      "48h scoped 证据",
+      "Sync UI must label scoped evidence separately from full evidence.",
     ],
     [
       'data-testid="two-device-sync-smoke-runbook-export"',

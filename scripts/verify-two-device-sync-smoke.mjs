@@ -102,6 +102,18 @@ function run() {
       "Two-device owner receipt must never auto-claim sync passed.",
     ],
     [
+      "ready_to_collect_scoped_owner_evidence",
+      "Two-device owner receipt must expose scoped 48-hour evidence readiness separately from full sync evidence.",
+    ],
+    [
+      "ready_to_collect_scoped_owner_evidence:\n      runbook.ready_to_run_scoped_smoke_now",
+      "Two-device owner receipt scoped evidence readiness must come from the scoped runbook gate.",
+    ],
+    [
+      "ready_to_collect_owner_evidence: runbook.ready_to_run_real_smoke_now",
+      "Two-device owner receipt full evidence readiness must come from the full real smoke gate.",
+    ],
+    [
       'owner_result: "not-recorded"',
       "Two-device owner receipt must require owner-filled results.",
     ],
@@ -233,6 +245,18 @@ function run() {
     [
       "data-two-device-sync-owner-receipt-claim-passed",
       "Sync UI must expose that owner receipt does not auto-claim pass.",
+    ],
+    [
+      "data-two-device-sync-owner-receipt-scoped-ready",
+      "Sync UI must expose scoped owner evidence readiness separately.",
+    ],
+    [
+      "data-two-device-sync-owner-receipt-full-ready",
+      "Sync UI must expose full owner evidence readiness separately.",
+    ],
+    [
+      "48h scoped 证据",
+      "Sync UI must label scoped two-device evidence separately from full evidence.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);

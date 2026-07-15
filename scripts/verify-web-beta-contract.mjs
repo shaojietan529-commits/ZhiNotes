@@ -16244,6 +16244,14 @@ function run() {
       "Sync UI must expose scoped two-device smoke readiness separately from full-platform readiness.",
     ],
     [
+      "data-two-device-sync-owner-receipt-scoped-ready",
+      "Sync UI must expose scoped owner evidence readiness separately from full-platform evidence readiness.",
+    ],
+    [
+      "data-two-device-sync-owner-receipt-full-ready",
+      "Sync UI must expose full owner evidence readiness separately from scoped evidence readiness.",
+    ],
+    [
       "data-two-device-sync-scoped-core-claim-blocked",
       "Sync UI must expose scoped core sync claim blocking separately from full-platform blocking.",
     ],

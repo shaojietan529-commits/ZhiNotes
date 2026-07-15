@@ -24399,6 +24399,12 @@ function TwoDeviceSyncSmokeRunbookPanel({
         runbook.summary.scoped_core_sync_claim_blocked
       )}
       data-two-device-sync-owner-receipt-status={ownerReceipt.receipt_status}
+      data-two-device-sync-owner-receipt-scoped-ready={String(
+        ownerReceipt.ready_to_collect_scoped_owner_evidence
+      )}
+      data-two-device-sync-owner-receipt-full-ready={String(
+        ownerReceipt.ready_to_collect_owner_evidence
+      )}
       data-two-device-sync-owner-receipt-claim-passed={String(
         ownerReceipt.can_claim_two_device_sync_passed_now
       )}
@@ -24515,7 +24521,9 @@ function TwoDeviceSyncSmokeRunbookPanel({
           结果收据
         </div>
         <p className="mt-1">
-          状态：{ownerReceipt.receipt_status}；可收集证据：
+          状态：{ownerReceipt.receipt_status}；48h scoped 证据：
+          {ownerReceipt.ready_to_collect_scoped_owner_evidence ? "是" : "否"}
+          ；完整证据：
           {ownerReceipt.ready_to_collect_owner_evidence ? "是" : "否"}；自动宣称通过：
           {ownerReceipt.can_claim_two_device_sync_passed_now ? "是" : "否"}。
           收据模板只留测试证据字段，不嵌入正文、数据库行值、文件名或文件内容。

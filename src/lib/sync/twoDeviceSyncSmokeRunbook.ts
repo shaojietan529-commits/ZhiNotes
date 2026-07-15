@@ -84,6 +84,7 @@ export interface TwoDeviceSyncSmokeOwnerReceipt {
   receipt_status: "owner-evidence-required";
   generated_at: string;
   source_runbook_generated_at: string;
+  ready_to_collect_scoped_owner_evidence: boolean;
   ready_to_collect_owner_evidence: boolean;
   can_claim_two_device_sync_passed_now: false;
   boundary: {
@@ -444,6 +445,8 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
     receipt_status: "owner-evidence-required",
     generated_at: generatedAt,
     source_runbook_generated_at: runbook.generated_at,
+    ready_to_collect_scoped_owner_evidence:
+      runbook.ready_to_run_scoped_smoke_now,
     ready_to_collect_owner_evidence: runbook.ready_to_run_real_smoke_now,
     can_claim_two_device_sync_passed_now: false,
     boundary: {
