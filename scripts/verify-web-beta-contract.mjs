@@ -15962,6 +15962,10 @@ function run() {
       "Sync UI must expose ack ledger server readiness blockers as a stable data attribute.",
     ],
     [
+      "data-two-device-sync-ack-ledger-server-readiness-blockers",
+      "Sync UI must expose ack ledger server readiness blockers in the two-device smoke gate.",
+    ],
+    [
       "不是上传按钮",
       "Sync UI must state the ack/retry ledger is not an upload button.",
     ],
@@ -30031,7 +30035,7 @@ function run() {
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "if (event.newValue) {\n          refreshAndMaybeRetry();\n        } else {\n          refreshAndMaybeForegroundRetry();\n        }",
+      "if (event.newValue) refreshAndMaybeRetry();\n        else setStatusIfMounted(getPendingFileEmbedSyncStatus());",
       "File embed account fallback removal must refresh status without forcing an auth-recovery upload.",
     ],
   ]) {

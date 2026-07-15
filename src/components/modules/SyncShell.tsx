@@ -2671,28 +2671,6 @@ function SyncDashboard() {
       pendingDomainCoverage,
     ]
   );
-  const twoDeviceSyncSmokeRunbook = useMemo(
-    () =>
-      buildTwoDeviceSyncSmokeRunbook({
-        gate: twoDayUsabilityGate,
-        controlPlane: cloudSyncControlPlane,
-        reliability: cloudUploadReliabilityReport,
-        ackRetryLedger: syncAckRetryLedgerContract,
-      }),
-    [
-      cloudSyncControlPlane,
-      cloudUploadReliabilityReport,
-      syncAckRetryLedgerContract,
-      twoDayUsabilityGate,
-    ]
-  );
-  const twoDeviceSyncSmokeOwnerReceipt = useMemo(
-    () =>
-      buildTwoDeviceSyncSmokeOwnerReceipt({
-        runbook: twoDeviceSyncSmokeRunbook,
-      }),
-    [twoDeviceSyncSmokeRunbook]
-  );
   const syncReplayTestApiGuard = useMemo(
     () => buildSyncReplayTestApiDisabledResponse(),
     []
@@ -3036,6 +3014,30 @@ function SyncDashboard() {
       syncPullApiGuard,
       syncPushApiGuard,
     ]
+  );
+  const twoDeviceSyncSmokeRunbook = useMemo(
+    () =>
+      buildTwoDeviceSyncSmokeRunbook({
+        gate: twoDayUsabilityGate,
+        controlPlane: cloudSyncControlPlane,
+        reliability: cloudUploadReliabilityReport,
+        ackRetryLedger: syncAckRetryLedgerContract,
+        ackLedgerServerReadiness: syncAckLedgerServerReadiness,
+      }),
+    [
+      cloudSyncControlPlane,
+      cloudUploadReliabilityReport,
+      syncAckLedgerServerReadiness,
+      syncAckRetryLedgerContract,
+      twoDayUsabilityGate,
+    ]
+  );
+  const twoDeviceSyncSmokeOwnerReceipt = useMemo(
+    () =>
+      buildTwoDeviceSyncSmokeOwnerReceipt({
+        runbook: twoDeviceSyncSmokeRunbook,
+      }),
+    [twoDeviceSyncSmokeRunbook]
   );
   const cloudManifestCompareApiGuard = useMemo(
     () => buildCloudManifestCompareApiDisabledResponse(),
@@ -24347,6 +24349,12 @@ function TwoDeviceSyncSmokeRunbookPanel({
       data-two-device-sync-ack-ledger-blocked-gates={String(
         runbook.summary.ack_ledger_blocked_gates
       )}
+      data-two-device-sync-ack-ledger-contract-blocked-gates={String(
+        runbook.summary.ack_ledger_contract_blocked_gates
+      )}
+      data-two-device-sync-ack-ledger-server-readiness-blockers={String(
+        runbook.summary.ack_ledger_server_readiness_remaining_blockers
+      )}
       data-two-device-sync-full-platform-claim-blocked={String(
         runbook.summary.full_platform_sync_claim_blocked
       )}
@@ -24438,7 +24446,7 @@ function TwoDeviceSyncSmokeRunbookPanel({
         <CacheRebuildFact
           label="ACK账本"
           value={runbook.summary.ack_ledger_ready ? "通过" : "未过"}
-          detail={`${runbook.summary.ack_ledger_blocked_gates} 个阻塞`}
+          detail={`${runbook.summary.ack_ledger_contract_blocked_gates} 合同 / ${runbook.summary.ack_ledger_server_readiness_remaining_blockers} 服务端`}
         />
         <CacheRebuildFact
           label="push/pull"

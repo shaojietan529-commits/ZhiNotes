@@ -3599,6 +3599,26 @@ function run() {
       "Two-device sync smoke runbook must expose remaining ack ledger blockers.",
     ],
     [
+      "ack_ledger_contract_blocked_gates",
+      "Two-device sync smoke runbook must expose contract-level ack ledger blockers.",
+    ],
+    [
+      "ack_ledger_server_readiness_remaining_blockers",
+      "Two-device sync smoke runbook must expose server-readiness ack ledger blockers.",
+    ],
+    [
+      "ack_ledger_server_readiness_next_action",
+      "Two-device sync smoke runbook must expose the server-readiness next action.",
+    ],
+    [
+      "SyncAckLedgerServerReadiness",
+      "Two-device sync smoke runbook must depend on the server-readiness report type.",
+    ],
+    [
+      "serverReadiness.can_query_server_ledger_now",
+      "Two-device sync smoke runbook must require server ledger query readiness before claiming ACK readiness.",
+    ],
+    [
       "full_platform_sync_claim_blocked",
       "Two-device sync smoke runbook must block full-platform sync claims until ack ledger is ready.",
     ],
@@ -3722,6 +3742,14 @@ function run() {
     [
       "ackRetryLedger: syncAckRetryLedgerContract",
       "Sync UI must pass the ack/retry ledger contract into the two-device smoke runbook.",
+    ],
+    [
+      "ackLedgerServerReadiness: syncAckLedgerServerReadiness",
+      "Sync UI must pass the ack ledger server-readiness report into the two-device smoke runbook.",
+    ],
+    [
+      "data-two-device-sync-ack-ledger-server-readiness-blockers",
+      "Sync UI must expose server-readiness blockers for the two-device smoke runbook.",
     ],
     [
       "buildTwoDeviceSyncSmokeOwnerReceipt",

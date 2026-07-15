@@ -1,5 +1,6 @@
 import type { CloudSyncControlPlane } from "@/lib/sync/cloudSyncControlPlane";
 import type { CloudUploadReliabilityReport } from "@/lib/sync/cloudUploadReliabilityReport";
+import type { SyncAckLedgerServerReadiness } from "@/lib/sync/syncAckLedgerServerReadiness";
 import type { SyncAckRetryLedgerContract } from "@/lib/sync/syncAckRetryLedgerContract";
 import type { TwoDayUsabilityGate } from "@/lib/sync/twoDayUsabilityGate";
 
@@ -60,6 +61,9 @@ export interface TwoDeviceSyncSmokeRunbook {
     sync_domain_coverage_complete: boolean;
     ack_ledger_ready: boolean;
     ack_ledger_blocked_gates: number;
+    ack_ledger_contract_blocked_gates: number;
+    ack_ledger_server_readiness_remaining_blockers: number;
+    ack_ledger_server_readiness_next_action: string;
     sync_push_route_enabled: boolean;
     sync_pull_route_enabled: boolean;
     full_platform_sync_claim_blocked: boolean;
@@ -124,6 +128,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
   controlPlane: CloudSyncControlPlane;
   reliability: CloudUploadReliabilityReport;
   ackRetryLedger: SyncAckRetryLedgerContract;
+  ackLedgerServerReadiness: SyncAckLedgerServerReadiness;
   generatedAt?: string;
 }): TwoDeviceSyncSmokeRunbook {
   const generatedAt = input.generatedAt ?? new Date().toISOString();
@@ -139,7 +144,13 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
   );
   const syncDomainCoverageComplete =
     input.gate.summary.sync_domain_coverage_complete;
-  const ackLedgerReady = isAckLedgerReady(input.ackRetryLedger);
+  const ackLedgerReady = isAckLedgerReady({
+    contract: input.ackRetryLedger,
+    serverReadiness: input.ackLedgerServerReadiness,
+  });
+  const ackLedgerBlockedGateCount =
+    input.ackRetryLedger.summary.blocked_gates +
+    input.ackLedgerServerReadiness.summary.remaining_blockers;
   const crossDeviceReady =
     canSwitchDevices &&
     syncDomainCoverageComplete &&
@@ -200,7 +211,10 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
         "ack/retry 账本导出：blocked_gates=0、push_route_enabled=true、pull_route_enabled=true、remote ACK cursor evidence 可复核。",
       blocker: ackLedgerReady
         ? null
-        : ackLedgerBlocker(input.ackRetryLedger),
+        : ackLedgerBlocker({
+            contract: input.ackRetryLedger,
+            serverReadiness: input.ackLedgerServerReadiness,
+          }),
     }),
     step({
       id: "page-note-sync",
@@ -319,7 +333,10 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
         ? null
         : ackLedgerReady
           ? input.controlPlane.next_action || input.gate.next_48h_action
-          : ackLedgerBlocker(input.ackRetryLedger),
+          : ackLedgerBlocker({
+              contract: input.ackRetryLedger,
+              serverReadiness: input.ackLedgerServerReadiness,
+            }),
     }),
   ];
 
@@ -368,7 +385,13 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
       auth_retry_active: reliability.auth_retry_active,
       sync_domain_coverage_complete: syncDomainCoverageComplete,
       ack_ledger_ready: ackLedgerReady,
-      ack_ledger_blocked_gates: input.ackRetryLedger.summary.blocked_gates,
+      ack_ledger_blocked_gates: ackLedgerBlockedGateCount,
+      ack_ledger_contract_blocked_gates:
+        input.ackRetryLedger.summary.blocked_gates,
+      ack_ledger_server_readiness_remaining_blockers:
+        input.ackLedgerServerReadiness.summary.remaining_blockers,
+      ack_ledger_server_readiness_next_action:
+        input.ackLedgerServerReadiness.summary.next_action,
       sync_push_route_enabled: input.ackRetryLedger.summary.push_route_enabled,
       sync_pull_route_enabled: input.ackRetryLedger.summary.pull_route_enabled,
       full_platform_sync_claim_blocked: !ackLedgerReady,
@@ -380,7 +403,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
     final_owner_receipt_template: [
       "设备 A / 设备 B 使用同一账号和 workspace。",
       "同步中心显示 sync-domain coverage complete，所有 pending / failed / manual review 域都可见。",
-      "统一 ACK / retry ledger 已通过：/api/sync/push 和 /api/sync/pull 已 owner-gated 启用，且 remote ACK cursor 可复核。",
+      "统一 ACK / retry ledger 和服务端 readiness 已通过：/api/sync/push 和 /api/sync/pull 已 owner-gated 启用，且 remote ACK cursor 可复核。",
       "Page、每日纪要、ZhiHui、数据库、文件元数据至少各跑一条测试样本。",
       "测试结束时 pending=0、failed=0、manual review=0、auth retry=无。",
       "两端刷新后都能看到对方最后一次编辑。",
@@ -541,6 +564,7 @@ function getNextAction(input: {
     controlPlane: CloudSyncControlPlane;
     reliability: CloudUploadReliabilityReport;
     ackRetryLedger: SyncAckRetryLedgerContract;
+    ackLedgerServerReadiness: SyncAckLedgerServerReadiness;
   };
 }) {
   if (input.readyToRun && input.wait === 0) {
@@ -550,33 +574,54 @@ function getNextAction(input: {
     return "可以准备两端 smoke，但先让 pending 清零，避免把旧队列误认为新测试失败。";
   }
   if (input.blocked > 0) {
-    return isAckLedgerReady(input.input.ackRetryLedger)
+    return isAckLedgerReady({
+      contract: input.input.ackRetryLedger,
+      serverReadiness: input.input.ackLedgerServerReadiness,
+    })
       ? input.input.controlPlane.next_action
-      : ackLedgerBlocker(input.input.ackRetryLedger);
+      : ackLedgerBlocker({
+          contract: input.input.ackRetryLedger,
+          serverReadiness: input.input.ackLedgerServerReadiness,
+        });
   }
   return input.input.gate.next_48h_action;
 }
 
-function isAckLedgerReady(contract: SyncAckRetryLedgerContract) {
+function isAckLedgerReady(input: {
+  contract: SyncAckRetryLedgerContract;
+  serverReadiness: SyncAckLedgerServerReadiness;
+}) {
   return (
-    contract.can_enable_sync_push_now &&
-    contract.can_mark_local_rows_synced_now &&
-    contract.summary.push_route_enabled &&
-    contract.summary.pull_route_enabled &&
-    contract.summary.blocked_gates === 0
+    input.contract.can_enable_sync_push_now &&
+    input.contract.can_mark_local_rows_synced_now &&
+    input.contract.summary.push_route_enabled &&
+    input.contract.summary.pull_route_enabled &&
+    input.contract.summary.blocked_gates === 0 &&
+    input.serverReadiness.can_query_server_ledger_now &&
+    input.serverReadiness.summary.remaining_blockers === 0
   );
 }
 
-function ackLedgerBlocker(contract: SyncAckRetryLedgerContract) {
-  const blockedGateIds = contract.enablement_gates
+function ackLedgerBlocker(input: {
+  contract: SyncAckRetryLedgerContract;
+  serverReadiness: SyncAckLedgerServerReadiness;
+}) {
+  const contractGateIds = input.contract.enablement_gates
     .filter((gate) => gate.status === "blocked")
     .map((gate) => gate.id)
     .join(", ");
-  const blockedSummary = blockedGateIds
-    ? `blocked gates: ${blockedGateIds}`
-    : `blocked gates: ${contract.summary.blocked_gates}`;
+  const serverReadinessGateIds = input.serverReadiness.gates
+    .filter((gate) => gate.status !== "pass")
+    .map((gate) => gate.id)
+    .join(", ");
+  const contractBlockedSummary = contractGateIds
+    ? `contract blocked gates: ${contractGateIds}`
+    : `contract blocked gates: ${input.contract.summary.blocked_gates}`;
+  const serverReadinessBlockedSummary = serverReadinessGateIds
+    ? `server readiness gates: ${serverReadinessGateIds}`
+    : `server readiness blockers: ${input.serverReadiness.summary.remaining_blockers}`;
 
-  return `统一 ACK/retry ledger 还没通过，不能声称全平台两端同步已验收；${blockedSummary}。${contract.summary.next_action}`;
+  return `统一 ACK/retry ledger 还没通过，不能声称全平台两端同步已验收；${contractBlockedSummary}；${serverReadinessBlockedSummary}。${input.serverReadiness.summary.next_action || input.contract.summary.next_action}`;
 }
 
 function step(input: {
