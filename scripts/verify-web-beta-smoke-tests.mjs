@@ -46,6 +46,7 @@ const files = {
     "src/lib/sync/cloudUploadReliabilityReport.ts",
   cloudSyncControlPlane: "src/lib/sync/cloudSyncControlPlane.ts",
   twoDayUsabilityGate: "src/lib/sync/twoDayUsabilityGate.ts",
+  twoDeviceSyncVerifier: "scripts/verify-two-device-sync-smoke.mjs",
   twoDeviceSyncSmokeRunbook:
     "src/lib/sync/twoDeviceSyncSmokeRunbook.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
@@ -497,6 +498,7 @@ function run() {
   );
   const cloudSyncControlPlane = readProjectFile(files.cloudSyncControlPlane);
   const twoDayUsabilityGate = readProjectFile(files.twoDayUsabilityGate);
+  const twoDeviceSyncVerifier = readProjectFile(files.twoDeviceSyncVerifier);
   const twoDeviceSyncSmokeRunbook = readProjectFile(
     files.twoDeviceSyncSmokeRunbook
   );
@@ -829,10 +831,49 @@ function run() {
     "verify:cloud-manifest-route",
     "verify:web-beta:full",
     "verify:stable-use-health",
+    "verify:two-device-sync",
   ]) {
     if (typeof scripts[scriptName] !== "string") {
       failures.push(`package.json missing script ${scriptName}`);
     }
+  }
+
+  if (
+    scripts["verify:two-device-sync"] !==
+    "node scripts/verify-two-device-sync-smoke.mjs"
+  ) {
+    failures.push(
+      "package.json must expose verify:two-device-sync as the focused two-device smoke verifier."
+    );
+  }
+
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-two-device-sync-smoke-verification-receipt"',
+      "Focused two-device sync verifier must emit a stable verification receipt.",
+    ],
+    [
+      "two_device_sync_claim_passed_now: false",
+      "Focused two-device sync verifier must not claim real sync has passed.",
+    ],
+    [
+      "sends_network_requests: false",
+      "Focused two-device sync verifier must not send network requests.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Focused two-device sync verifier must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Focused two-device sync verifier must not read database row values.",
+    ],
+    [
+      "npm run verify:two-device-sync",
+      "Focused two-device sync verifier command must be wired into the P0/full verification scripts.",
+    ],
+  ]) {
+    assertIncludes(files.twoDeviceSyncVerifier, twoDeviceSyncVerifier, snippet, message);
   }
 
   for (const [snippet, message] of [

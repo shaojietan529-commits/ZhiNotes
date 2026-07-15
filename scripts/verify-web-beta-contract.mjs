@@ -57,6 +57,8 @@ const files = {
     "src/lib/sync/cloudAckCacheSafetyReport.ts",
   smokeTestPlan: "src/lib/sync/webBetaSmokeTestPlan.ts",
   smokeTestVerifier: "scripts/verify-web-beta-smoke-tests.mjs",
+  twoDeviceSyncVerifier: "scripts/verify-two-device-sync-smoke.mjs",
+  privateAlphaVerifier: "scripts/verify-private-alpha-p0.mjs",
   routeSmokeVerifier: "scripts/verify-route-smoke.mjs",
   replayHarnessVerifier: "scripts/verify-replay-harness-safety.mjs",
   environmentPreflight: "src/lib/sync/webBetaEnvironmentPreflight.ts",
@@ -556,6 +558,8 @@ function run() {
   );
   const smokeTestPlan = readProjectFile(files.smokeTestPlan);
   const smokeTestVerifier = readProjectFile(files.smokeTestVerifier);
+  const twoDeviceSyncVerifier = readProjectFile(files.twoDeviceSyncVerifier);
+  const privateAlphaVerifier = readProjectFile(files.privateAlphaVerifier);
   const routeSmokeVerifier = readProjectFile(files.routeSmokeVerifier);
   const replayHarnessVerifier = readProjectFile(files.replayHarnessVerifier);
   const environmentPreflight = readProjectFile(files.environmentPreflight);
@@ -953,6 +957,8 @@ function run() {
     [files.deploymentTarget, deploymentTarget],
     [files.smokeTestPlan, smokeTestPlan],
     [files.smokeTestVerifier, smokeTestVerifier],
+    [files.twoDeviceSyncVerifier, twoDeviceSyncVerifier],
+    [files.privateAlphaVerifier, privateAlphaVerifier],
     [files.webAlphaLaunchDecisionReceipt, webAlphaLaunchDecisionReceipt],
     [files.webBetaOwnerReviewPacket, webBetaOwnerReviewPacket],
     [files.syncManualReviewPacket, syncManualReviewPacket],
@@ -21569,6 +21575,30 @@ function run() {
     packageJson,
     '"verify:stable-use-health": "node scripts/verify-stable-use-health.mjs"',
     "package.json must expose the stable-use health route verification command."
+  );
+  assertSourceIncludes(
+    files.packageJson,
+    packageJson,
+    '"verify:two-device-sync": "node scripts/verify-two-device-sync-smoke.mjs"',
+    "package.json must expose the focused two-device sync smoke verification command."
+  );
+  assertSourceIncludes(
+    files.privateAlphaVerifier,
+    privateAlphaVerifier,
+    "npm run verify:two-device-sync",
+    "Private Alpha P0 verifier must run the focused two-device sync verifier."
+  );
+  assertSourceIncludes(
+    files.webBetaFullVerifier,
+    webBetaFullVerifier,
+    "npm run verify:two-device-sync",
+    "Web Beta full verifier must run the focused two-device sync verifier."
+  );
+  assertSourceIncludes(
+    files.twoDeviceSyncVerifier,
+    twoDeviceSyncVerifier,
+    'format: "zhinote-two-device-sync-smoke-verification-receipt"',
+    "Focused two-device sync verifier must emit a stable receipt."
   );
   assertSourceIncludes(
     files.webBetaFullVerifier,

@@ -35,6 +35,13 @@ const verificationCommands = [
       "Check preview smoke-plan coverage, hot-cache policy, and disabled cloud defaults.",
   },
   {
+    id: "verify-two-device-sync",
+    command: "npm run verify:two-device-sync",
+    args: ["run", "verify:two-device-sync"],
+    purpose:
+      "Check the focused two-device sync smoke runbook and owner receipt wiring.",
+  },
+  {
     id: "verify-sync-pending-domains",
     command: "npm run verify:sync-pending-domains",
     args: ["run", "verify:sync-pending-domains"],

@@ -337,8 +337,8 @@ function run() {
     [
       files.localFirstPageNavigationHook,
       localFirstPageNavigationHook,
-      "scheduleLocalFirstRouteFallback(href, Boolean(options.replace));",
-      "Shared page navigation must schedule a hard browser fallback before client route push/replace can stall.",
+      "scheduleLocalFirstRouteFallback(\n        href,\n        Boolean(options.replace),\n        getLocalFirstRouteFallbackMs(options.source)\n      );",
+      "Shared page navigation must schedule a source-aware hard browser fallback before client route push/replace can stall.",
     ],
     [
       files.localFirstPageNavigationHook,

@@ -28,6 +28,13 @@ const verificationCommands = [
       "Check shared sync pending-domain aggregation, core fallback queues, and metadata-only next actions.",
   },
   {
+    id: "verify-two-device-sync",
+    command: "npm run verify:two-device-sync",
+    args: ["run", "verify:two-device-sync"],
+    purpose:
+      "Check the source-only two-device sync smoke runbook, owner receipt, ACK ledger gates, and Sync UI export wiring.",
+  },
+  {
     id: "verify-module-workspaces",
     command: "npm run verify:module-workspaces",
     args: ["run", "verify:module-workspaces"],
