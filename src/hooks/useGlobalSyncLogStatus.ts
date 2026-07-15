@@ -86,6 +86,9 @@ export function useGlobalSyncLogStatus() {
   const [status, setStatus] = useState<GlobalSyncLogStatus>(
     buildEmptyGlobalSyncLogStatus(false)
   );
+  const lastGoodStatusRef = useRef<GlobalSyncLogStatus>(
+    buildEmptyGlobalSyncLogStatus(false)
+  );
   const mountedRef = useRef(false);
   const runningRef = useRef(false);
   const rerunAfterCurrentRefreshRef = useRef(false);
@@ -97,7 +100,9 @@ export function useGlobalSyncLogStatus() {
 
   const refresh = useCallback(async () => {
     if (!dbReady) {
-      setStatusIfMounted(buildEmptyGlobalSyncLogStatus(false));
+      const disabledStatus = buildEmptyGlobalSyncLogStatus(false);
+      lastGoodStatusRef.current = disabledStatus;
+      setStatusIfMounted(disabledStatus);
       return;
     }
     if (runningRef.current) {
@@ -107,7 +112,14 @@ export function useGlobalSyncLogStatus() {
     runningRef.current = true;
     try {
       const summary = await getSyncLogSummary();
-      setStatusIfMounted(summarizeGlobalSyncLogStatus(summary, true));
+      const nextStatus = summarizeGlobalSyncLogStatus(summary, true);
+      lastGoodStatusRef.current = nextStatus;
+      setStatusIfMounted(nextStatus);
+    } catch {
+      const fallbackStatus = lastGoodStatusRef.current.enabled
+        ? lastGoodStatusRef.current
+        : buildEmptyGlobalSyncLogStatus(true);
+      setStatusIfMounted(fallbackStatus);
     } finally {
       runningRef.current = false;
       if (rerunAfterCurrentRefreshRef.current) {
@@ -120,7 +132,9 @@ export function useGlobalSyncLogStatus() {
   useEffect(() => {
     mountedRef.current = true;
     if (!dbReady) {
-      setStatus(buildEmptyGlobalSyncLogStatus(false));
+      const disabledStatus = buildEmptyGlobalSyncLogStatus(false);
+      lastGoodStatusRef.current = disabledStatus;
+      setStatus(disabledStatus);
       return () => {
         mountedRef.current = false;
       };

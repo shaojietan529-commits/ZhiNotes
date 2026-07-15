@@ -25,6 +25,9 @@ export function useSettingsCloudSyncStatus() {
   const [status, setStatus] = useState<SettingsCloudSyncStatus>(
     buildEmptySettingsCloudSyncStatus(false)
   );
+  const lastGoodStatusRef = useRef<SettingsCloudSyncStatus>(
+    buildEmptySettingsCloudSyncStatus(false)
+  );
   const mountedRef = useRef(false);
   const runningRef = useRef(false);
   const rerunAfterCurrentRefreshRef = useRef(false);
@@ -39,7 +42,9 @@ export function useSettingsCloudSyncStatus() {
 
   const refresh = useCallback(async () => {
     if (!dbReady) {
-      setStatusIfMounted(buildEmptySettingsCloudSyncStatus(false));
+      const disabledStatus = buildEmptySettingsCloudSyncStatus(false);
+      lastGoodStatusRef.current = disabledStatus;
+      setStatusIfMounted(disabledStatus);
       return;
     }
     if (runningRef.current) {
@@ -52,12 +57,17 @@ export function useSettingsCloudSyncStatus() {
         getPendingWorkspaceSettingSyncLogEntries(),
         getPendingAccountModuleSettingSyncLogEntries(),
       ]);
-      setStatusIfMounted(
-        summarizeSettingsCloudSyncStatus(
-          [...workspaceEntries, ...accountModuleEntries],
-          true
-        )
+      const nextStatus = summarizeSettingsCloudSyncStatus(
+        [...workspaceEntries, ...accountModuleEntries],
+        true
       );
+      lastGoodStatusRef.current = nextStatus;
+      setStatusIfMounted(nextStatus);
+    } catch {
+      const fallbackStatus = lastGoodStatusRef.current.enabled
+        ? lastGoodStatusRef.current
+        : buildEmptySettingsCloudSyncStatus(true);
+      setStatusIfMounted(fallbackStatus);
     } finally {
       runningRef.current = false;
       if (rerunAfterCurrentRefreshRef.current) {
@@ -70,7 +80,9 @@ export function useSettingsCloudSyncStatus() {
   useEffect(() => {
     mountedRef.current = true;
     if (!dbReady) {
-      setStatus(buildEmptySettingsCloudSyncStatus(false));
+      const disabledStatus = buildEmptySettingsCloudSyncStatus(false);
+      lastGoodStatusRef.current = disabledStatus;
+      setStatus(disabledStatus);
       return () => {
         mountedRef.current = false;
       };
@@ -95,6 +107,7 @@ export function useSettingsCloudSyncStatus() {
       const detail = (event as CustomEvent<SettingsCloudSyncStatus | undefined>)
         .detail;
       if (detail) {
+        lastGoodStatusRef.current = detail;
         setStatusIfMounted(detail);
         return;
       }

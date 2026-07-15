@@ -22,6 +22,9 @@ export function useKnowledgeCloudSyncStatus() {
   const [status, setStatus] = useState<KnowledgeCloudSyncStatus>(
     buildEmptyKnowledgeCloudSyncStatus(false)
   );
+  const lastGoodStatusRef = useRef<KnowledgeCloudSyncStatus>(
+    buildEmptyKnowledgeCloudSyncStatus(false)
+  );
   const mountedRef = useRef(false);
   const runningRef = useRef(false);
   const rerunAfterCurrentRefreshRef = useRef(false);
@@ -36,7 +39,9 @@ export function useKnowledgeCloudSyncStatus() {
 
   const refresh = useCallback(async () => {
     if (!dbReady) {
-      setStatusIfMounted(buildEmptyKnowledgeCloudSyncStatus(false));
+      const disabledStatus = buildEmptyKnowledgeCloudSyncStatus(false);
+      lastGoodStatusRef.current = disabledStatus;
+      setStatusIfMounted(disabledStatus);
       return;
     }
     if (runningRef.current) {
@@ -46,7 +51,14 @@ export function useKnowledgeCloudSyncStatus() {
     runningRef.current = true;
     try {
       const entries = await getPendingKnowledgeSyncLogEntries();
-      setStatusIfMounted(summarizeKnowledgeCloudSyncStatus(entries, true));
+      const nextStatus = summarizeKnowledgeCloudSyncStatus(entries, true);
+      lastGoodStatusRef.current = nextStatus;
+      setStatusIfMounted(nextStatus);
+    } catch {
+      const fallbackStatus = lastGoodStatusRef.current.enabled
+        ? lastGoodStatusRef.current
+        : buildEmptyKnowledgeCloudSyncStatus(true);
+      setStatusIfMounted(fallbackStatus);
     } finally {
       runningRef.current = false;
       if (rerunAfterCurrentRefreshRef.current) {
@@ -59,7 +71,9 @@ export function useKnowledgeCloudSyncStatus() {
   useEffect(() => {
     mountedRef.current = true;
     if (!dbReady) {
-      setStatus(buildEmptyKnowledgeCloudSyncStatus(false));
+      const disabledStatus = buildEmptyKnowledgeCloudSyncStatus(false);
+      lastGoodStatusRef.current = disabledStatus;
+      setStatus(disabledStatus);
       return () => {
         mountedRef.current = false;
       };
@@ -84,6 +98,7 @@ export function useKnowledgeCloudSyncStatus() {
       const detail = (event as CustomEvent<KnowledgeCloudSyncStatus | undefined>)
         .detail;
       if (detail) {
+        lastGoodStatusRef.current = detail;
         setStatusIfMounted(detail);
         return;
       }

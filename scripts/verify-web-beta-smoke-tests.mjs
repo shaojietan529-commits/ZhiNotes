@@ -10552,6 +10552,18 @@ function run() {
     "Settings sync_log status refresh must not write state after the panel unmounts."
   );
   assertIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "const lastGoodStatusRef = useRef<SettingsCloudSyncStatus>(",
+    "Settings sync_log status refresh must keep the last good visible status for refresh read failures."
+  );
+  assertIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "} catch {\n      const fallbackStatus = lastGoodStatusRef.current.enabled\n        ? lastGoodStatusRef.current\n        : buildEmptySettingsCloudSyncStatus(true);",
+    "Settings sync_log status refresh must catch local read failures so background refreshes do not become unhandled promises."
+  );
+  assertIncludes(
     files.knowledgeCloudSyncStatusHook,
     knowledgeCloudSyncStatusHook,
     "claimVisibleRefreshLease",
@@ -10564,6 +10576,18 @@ function run() {
     "Knowledge sync_log status refresh must not write state after the panel unmounts."
   );
   assertIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "const lastGoodStatusRef = useRef<KnowledgeCloudSyncStatus>(",
+    "Knowledge sync_log status refresh must keep the last good visible status for refresh read failures."
+  );
+  assertIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "} catch {\n      const fallbackStatus = lastGoodStatusRef.current.enabled\n        ? lastGoodStatusRef.current\n        : buildEmptyKnowledgeCloudSyncStatus(true);",
+    "Knowledge sync_log status refresh must catch local read failures so background refreshes do not become unhandled promises."
+  );
+  assertIncludes(
     files.globalSyncLogStatusHook,
     globalSyncLogStatusHook,
     "claimVisibleRefreshLease",
@@ -10574,6 +10598,18 @@ function run() {
     globalSyncLogStatusHook,
     "setStatusIfMounted",
     "Global sync_log status refresh must not write state after the panel unmounts."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "const lastGoodStatusRef = useRef<GlobalSyncLogStatus>(",
+    "Global sync_log status refresh must keep the last good visible status for refresh read failures."
+  );
+  assertIncludes(
+    files.globalSyncLogStatusHook,
+    globalSyncLogStatusHook,
+    "} catch {\n      const fallbackStatus = lastGoodStatusRef.current.enabled\n        ? lastGoodStatusRef.current\n        : buildEmptyGlobalSyncLogStatus(true);",
+    "Global sync_log status refresh must catch local read failures so background refreshes do not become unhandled promises."
   );
   assertIncludes(
     files.fileEmbedSyncStatusHook,
