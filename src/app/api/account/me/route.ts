@@ -126,9 +126,8 @@ export async function PATCH(request: Request) {
     });
     return response;
   } catch {
-    return NextResponse.json(
-      { error: "云端存储读写失败，请稍后重试。" },
-      { status: 502 }
+    return accountSessionUnconfirmedResponse(
+      "云端暂时无法保存用户名；不会清除当前登录，请稍后重试。"
     );
   }
 }

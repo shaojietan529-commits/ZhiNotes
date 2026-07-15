@@ -133,6 +133,25 @@ check(
     !mePatchSessionUnconfirmedHandler.includes("response.cookies.delete"),
   "me route PATCH 云端 session 暂时查不到时只能返回可恢复错误，不能清除登录 cookie"
 );
+const mePatchTransientFailureHandler = me.slice(
+  me.indexOf("const nextAccount = await updateAccountDisplayName"),
+  me.lastIndexOf("  } catch {")
+);
+const mePatchTransientCatchHandler = me.slice(
+  me.lastIndexOf("  } catch {"),
+  me.lastIndexOf("}\n}")
+);
+check(
+  mePatchTransientFailureHandler.includes("updateAccountDisplayName") &&
+    mePatchTransientCatchHandler.includes("accountSessionUnconfirmedResponse") &&
+    mePatchTransientCatchHandler.includes(
+      "云端暂时无法保存用户名；不会清除当前登录，请稍后重试。"
+    ) &&
+    !mePatchTransientCatchHandler.includes("{ status: 502 }") &&
+    !mePatchTransientCatchHandler.includes("cookies.delete") &&
+    !mePatchTransientCatchHandler.includes("response.cookies.delete"),
+  "me route PATCH 用户名云端保存临时失败必须返回可重试 session-unconfirmed，不能清除登录 cookie 或表现成自动登出"
+);
 
 // 3. Login page: unconfigured state, no auto-send
 const shell = read("src/components/modules/AccountShell.tsx");

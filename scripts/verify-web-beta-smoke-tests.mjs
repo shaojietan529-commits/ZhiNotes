@@ -9312,6 +9312,10 @@ function run() {
     accountMeRoute.indexOf("export async function PATCH"),
     accountMeRoute.indexOf("const nextAccount = await updateAccountDisplayName")
   );
+  const accountMePatchTransientCatchHandler = accountMeRoute.slice(
+    accountMeRoute.lastIndexOf("  } catch {"),
+    accountMeRoute.lastIndexOf("}\n}")
+  );
   if (
     accountMeGetSessionUnconfirmedHandler.includes("cookies.delete") ||
     accountMeGetSessionUnconfirmedHandler.includes("response.cookies.delete")
@@ -9326,6 +9330,21 @@ function run() {
   ) {
     failures.push(
       "Account /me PATCH must not clear the session cookie on a retryable missing-session check."
+    );
+  }
+  if (
+    !accountMePatchTransientCatchHandler.includes(
+      "accountSessionUnconfirmedResponse"
+    ) ||
+    !accountMePatchTransientCatchHandler.includes(
+      "云端暂时无法保存用户名；不会清除当前登录，请稍后重试。"
+    ) ||
+    accountMePatchTransientCatchHandler.includes("{ status: 502 }") ||
+    accountMePatchTransientCatchHandler.includes("cookies.delete") ||
+    accountMePatchTransientCatchHandler.includes("response.cookies.delete")
+  ) {
+    failures.push(
+      "Account /me PATCH cloud profile write failures must stay retryable, preserve the session cookie, and avoid looking like a logout."
     );
   }
   for (const [snippet, message] of [

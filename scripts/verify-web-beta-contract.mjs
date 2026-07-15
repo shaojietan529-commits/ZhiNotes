@@ -5004,6 +5004,10 @@ function run() {
     accountMeRoute.indexOf("export async function PATCH"),
     accountMeRoute.indexOf("const nextAccount = await updateAccountDisplayName")
   );
+  const accountMePatchTransientCatchHandler = accountMeRoute.slice(
+    accountMeRoute.lastIndexOf("  } catch {"),
+    accountMeRoute.lastIndexOf("}\n}")
+  );
   if (
     accountMeGetSessionUnconfirmedHandler.includes("cookies.delete") ||
     accountMeGetSessionUnconfirmedHandler.includes("response.cookies.delete")
@@ -5018,6 +5022,21 @@ function run() {
   ) {
     fail(
       "Account /me PATCH must not clear the session cookie on a retryable missing-session check."
+    );
+  }
+  if (
+    !accountMePatchTransientCatchHandler.includes(
+      "accountSessionUnconfirmedResponse"
+    ) ||
+    !accountMePatchTransientCatchHandler.includes(
+      "云端暂时无法保存用户名；不会清除当前登录，请稍后重试。"
+    ) ||
+    accountMePatchTransientCatchHandler.includes("{ status: 502 }") ||
+    accountMePatchTransientCatchHandler.includes("cookies.delete") ||
+    accountMePatchTransientCatchHandler.includes("response.cookies.delete")
+  ) {
+    fail(
+      "Account /me PATCH cloud profile write failures must stay retryable, preserve the session cookie, and avoid looking like a logout."
     );
   }
   for (const [snippet, message] of [
@@ -26670,7 +26689,19 @@ function run() {
       files.sidebar,
       sidebar,
       '"登录同步"',
-      "Sidebar cloud-sync control must show signed-out no-pending state as an action, not as an apparent forced logout.",
+      "Sidebar cloud-sync control must still show a login action when there is no remembered account identity.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      '"确认中"',
+      "Sidebar cloud-sync control must show remembered-account signed-out state as pending confirmation, not as an apparent forced logout.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      'const accountHasRecentIdentity = accountLabel !== "账号"',
+      "Sidebar cloud-sync control must distinguish a remembered account identity from a truly anonymous session.",
     ],
     [
       files.sidebar,
@@ -26687,8 +26718,8 @@ function run() {
     [
       files.sidebar,
       sidebar,
-      "getAccountSyncIcon(accountSync)",
-      "Sidebar cloud-sync icon must derive from local-use readiness, not only raw signed-out state.",
+      "getAccountSyncIcon(\n    accountSync,\n    accountHasRecentIdentity\n  )",
+      "Sidebar cloud-sync icon must derive from local-use readiness and remembered account identity, not only raw signed-out state.",
     ],
     [
       files.sidebar,
@@ -26699,8 +26730,20 @@ function run() {
     [
       files.sidebar,
       sidebar,
-      'return accountSync.pendingTotal > 0 ? "⬆️" : "🔑"',
-      "Sidebar signed-out icon must show upload work while pending exists and only show login key when there is no local queue.",
+      '? "☁️"',
+      "Sidebar remembered-account signed-out icon must show cloud confirmation instead of an immediate login key.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      ': "🔑"',
+      "Sidebar anonymous signed-out icon must still show a login key when there is no local queue and no remembered account.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "账号待确认，本地可继续",
+      "Sidebar remembered-account signed-out summary must say local use can continue while the account is confirmed.",
     ],
     [
       files.sidebar,
