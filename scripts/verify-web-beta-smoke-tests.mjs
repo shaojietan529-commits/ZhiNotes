@@ -1583,8 +1583,8 @@ function run() {
   assertIncludes(
     files.pageRouteLoadingShell,
     pageRouteLoadingShell,
-    "PageRouteSkeleton",
-    "Shared page route loading shell must render the immediate page skeleton."
+    "PageRouteLocalFirstLoadingShell",
+    "Shared page route loading shell must delegate to the client local-first shell so route-level loading can show handed-off metadata."
   );
   assertIncludes(
     files.pageRouteLocalFirstLoadingShell,

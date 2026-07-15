@@ -1,5 +1,5 @@
-import PageRouteSkeleton from "@/components/page/PageRouteSkeleton";
+import PageRouteLocalFirstLoadingShell from "@/components/page/PageRouteLocalFirstLoadingShell";
 
 export default function PageRouteLoadingShell() {
-  return <PageRouteSkeleton />;
+  return <PageRouteLocalFirstLoadingShell />;
 }

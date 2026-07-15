@@ -2718,7 +2718,7 @@ check(
 check(
   pageRoute.includes("PageRouteLocalFirstLoadingShell") &&
     pageRouteLoading.includes("PageRouteLoadingShell") &&
-    pageRouteLoadingShell.includes("PageRouteSkeleton") &&
+    pageRouteLoadingShell.includes("PageRouteLocalFirstLoadingShell") &&
     pageRouteLocalFirstLoadingShell.includes("PageRouteSkeleton") &&
     pageShell.includes("PageRouteSkeleton") &&
     pageRouteLocalFirstLoadingShell.includes("readPageRouteHandoff") &&
