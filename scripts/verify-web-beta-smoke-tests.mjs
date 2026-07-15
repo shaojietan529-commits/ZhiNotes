@@ -10095,8 +10095,32 @@ function run() {
       "Cloud client session refreshes must be coalesced so multiple sync domains do not stampede the refresh endpoint.",
     ],
     [
-      'fetch("/api/auth/refresh"',
+      "CLOUD_SESSION_REFRESH_TIMEOUT_MS = 12_000",
+      "Cloud client session refresh must have a bounded timeout so expired-session recovery cannot block sync indefinitely.",
+    ],
+    [
+      "class CloudSessionRefreshTimeoutError extends Error",
+      "Cloud client session refresh timeout must be typed and preserve local data instead of clearing the session.",
+    ],
+    [
+      "fetchCloudSessionRefreshWithTimeout",
+      "Cloud client session refresh must route through the timeout helper.",
+    ],
+    [
+      'fetchCloudSessionRefreshWithTimeout(\n      "/api/auth/refresh"',
       "Cloud client sessions must refresh through the local privacy-scoped auth refresh route.",
+    ],
+    [
+      "const controller = new AbortController();",
+      "Cloud client session refresh must abort slow refresh requests.",
+    ],
+    [
+      "signal: controller.signal",
+      "Cloud client session refresh must pass the abort signal to fetch.",
+    ],
+    [
+      "window.clearTimeout(timeout)",
+      "Cloud client session refresh timeout timers must be cleared after fetch settles.",
     ],
     [
       "writeCloudSession(nextSession);",

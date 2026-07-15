@@ -3,6 +3,7 @@
 export const CLOUD_SESSION_KEY = "zhinotes.cloud.session.v1";
 export const CLOUD_SESSION_UPDATED_EVENT = "zhinotes:cloud-session-updated";
 const EXPIRY_SKEW_MS = 60_000;
+const CLOUD_SESSION_REFRESH_TIMEOUT_MS = 12_000;
 
 export interface ZhiNotesCloudSessionUser {
   id: string;
@@ -45,6 +46,15 @@ export type ZhiNotesCloudSessionRefreshResult =
 
 let cloudSessionRefreshInFlight: Promise<ZhiNotesCloudSessionRefreshResult> | null =
   null;
+
+class CloudSessionRefreshTimeoutError extends Error {
+  constructor() {
+    super(
+      "云端 session 自动续期超时；本地数据和待上传队列已保留，可稍后重试。"
+    );
+    this.name = "CloudSessionRefreshTimeoutError";
+  }
+}
 
 export function readCloudSession() {
   if (!canUseLocalStorage()) return null;
@@ -151,16 +161,19 @@ async function runCloudSessionRefresh(
   previousSession: ZhiNotesCloudSession
 ): Promise<ZhiNotesCloudSessionRefreshResult> {
   try {
-    const response = await fetch("/api/auth/refresh", {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        refresh_token: previousSession.refreshToken,
-      }),
-    });
+    const response = await fetchCloudSessionRefreshWithTimeout(
+      "/api/auth/refresh",
+      {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refresh_token: previousSession.refreshToken,
+        }),
+      }
+    );
     const body = await readCloudSessionRefreshBody(response);
     if (!response.ok || !isCloudSessionRefreshResponse(body)) {
       return {
@@ -181,9 +194,35 @@ async function runCloudSessionRefresh(
   } catch (error) {
     return {
       status: "refresh-failed",
-      error: error instanceof Error ? error.message : "Cloud session refresh failed.",
+      error:
+        error instanceof Error ? error.message : "Cloud session refresh failed.",
       session: previousSession,
     };
+  }
+}
+
+async function fetchCloudSessionRefreshWithTimeout(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1]
+): Promise<Response> {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeout = window.setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, CLOUD_SESSION_REFRESH_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      cache: init?.cache ?? "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (didTimeout) throw new CloudSessionRefreshTimeoutError();
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
   }
 }
 
