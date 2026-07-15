@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
-import { ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY } from "@/lib/account/clientSession";
+import {
+  ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY,
+  ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+} from "@/lib/account/clientSession";
 import {
   drainPendingFileEmbedSyncQueue,
   FILE_EMBED_SYNC_AUTH_RETRY_STORAGE_KEY,
@@ -161,12 +164,13 @@ export function useFileEmbedCloudSyncStatus() {
       refreshAndMaybeForegroundRetry();
     };
     const handleStorage = (event: StorageEvent) => {
+      if (event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY) {
+        setStatusIfMounted(getPendingFileEmbedSyncStatus());
+        return;
+      }
       if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
-        if (event.newValue) {
-          refreshAndMaybeRetry();
-        } else {
-          refreshAndMaybeForegroundRetry();
-        }
+        if (event.newValue) refreshAndMaybeRetry();
+        else setStatusIfMounted(getPendingFileEmbedSyncStatus());
         return;
       }
       if (

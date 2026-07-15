@@ -844,6 +844,7 @@ check(
   fileEmbedSyncStatusHook.includes(
     "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
   ) &&
+    fileEmbedSyncStatusHook.includes("ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY") &&
     fileEmbedSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
     fileEmbedSyncStatusHook.includes("refreshAndMaybeRetry") &&
     fileEmbedSyncStatusHook.includes("FILE_EMBED_ACCOUNT_RECOVERY_RETRY_LIMIT") &&
@@ -862,7 +863,10 @@ check(
       "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {"
     ) &&
     fileEmbedSyncStatusHook.includes(
-      "if (event.newValue) {\n          refreshAndMaybeRetry();\n        } else {\n          refreshAndMaybeForegroundRetry();\n        }"
+      "if (event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY) {"
+    ) &&
+    fileEmbedSyncStatusHook.includes(
+      "if (event.newValue) refreshAndMaybeRetry();\n        else setStatusIfMounted(getPendingFileEmbedSyncStatus());"
     ) &&
     fileEmbedSyncStatusHook.includes("scheduleAutoRetry") &&
     fileEmbedSyncStatusHook.includes("FILE_EMBED_SYNC_LAST_OUTCOME_STORAGE_KEY") &&

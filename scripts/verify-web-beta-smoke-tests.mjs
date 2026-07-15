@@ -14752,13 +14752,25 @@ function run() {
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
+      "ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
+      "File embed status must observe explicit cross-tab logout markers.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "if (event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY) {",
+      "File embed explicit logout handling must refresh status without forcing file upload retries.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
       "if (event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {",
       "File embed status must respond to cross-tab account fallback writes and removals.",
     ],
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
-      "if (event.newValue) {\n          refreshAndMaybeRetry();\n        } else {\n          refreshAndMaybeForegroundRetry();\n        }",
+      "if (event.newValue) refreshAndMaybeRetry();\n        else setStatusIfMounted(getPendingFileEmbedSyncStatus());",
       "File embed account fallback removal must refresh status without forcing an auth-recovery upload.",
     ],
   ]) {

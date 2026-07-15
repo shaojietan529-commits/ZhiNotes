@@ -551,12 +551,30 @@ function run() {
       "ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY",
       "File embed queue must retry quickly when account recovery is observed in another tab.",
     ],
-	    [
-	      files.fileEmbedSyncStatusHook,
-	      fileEmbedSyncStatusHook,
-	      "ACCOUNT_PROFILE_UPDATED_EVENT",
-	      "File embed queue must retry quickly after same-tab account login/profile recovery.",
-	    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
+      "File embed queue must notice explicit cross-tab logout without relying only on the last-authenticated fallback key.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY",
+      "File embed queue must handle explicit logout separately so it refreshes status without pushing file bytes.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "if (event.newValue) refreshAndMaybeRetry();\n        else setStatusIfMounted(getPendingFileEmbedSyncStatus());",
+      "File embed queue must retry on account recovery but only refresh when the last-authenticated fallback is cleared.",
+    ],
+    [
+      files.fileEmbedSyncStatusHook,
+      fileEmbedSyncStatusHook,
+      "ACCOUNT_PROFILE_UPDATED_EVENT",
+      "File embed queue must retry quickly after same-tab account login/profile recovery.",
+    ],
     [
       files.fileEmbedSyncStatusHook,
       fileEmbedSyncStatusHook,
