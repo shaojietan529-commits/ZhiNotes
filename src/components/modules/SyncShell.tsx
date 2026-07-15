@@ -24141,6 +24141,10 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
       data-all-platform-sync-minimum-ready={String(
         gate.all_platform_sync_minimum_ready
       )}
+      data-two-day-sync-beta-answer={gate.two_day_delivery_answer}
+      data-can-target-two-day-sync-beta={String(
+        gate.can_target_two_day_sync_beta
+      )}
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -24157,6 +24161,16 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             目标是两天内保证账号不乱掉、本地输入不断、同步状态透明、跨设备交接有证据。
             这不是完整 Notion 对齐，也不会在 gate 里上传或清理任何数据。
+          </p>
+          <p
+            data-testid="two-day-sync-beta-answer"
+            data-two-day-sync-beta-answer={gate.two_day_delivery_answer}
+            className="mt-2 max-w-3xl rounded-md bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900 dark:bg-blue-950/40 dark:text-blue-100"
+          >
+            两天结论：
+            {gate.can_target_two_day_sync_beta
+              ? "可以冲刺到 scoped sync beta：优先保证账号、页面、每日纪要、ZhiHui、数据库和同步状态可用。"
+              : "现在还不能承诺两天交付；先解除 P0 阻塞，再进入 scoped sync beta 冲刺。"}
           </p>
         </div>
         <div className="rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
@@ -24245,7 +24259,7 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
         ))}
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
         <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
             24小时动作
@@ -24258,10 +24272,28 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
         </div>
         <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
           <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            48小时交付范围
+          </div>
+          <ul className="mt-1 space-y-1">
+            {gate.scoped_sync_beta_surfaces.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+          <div className="mt-3 font-semibold text-zinc-900 dark:text-zinc-100">
+            提速原则
+          </div>
+          <ul className="mt-1 space-y-1">
+            {gate.two_day_acceleration_rules.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
             48小时内先不做
           </div>
           <ul className="mt-1 space-y-1">
-            {gate.non_goals_for_48h.map((item) => (
+            {[...gate.non_goals_for_48h, ...gate.not_in_two_day_scope].map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>

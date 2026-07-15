@@ -3475,6 +3475,26 @@ function run() {
       "Two-day usability gate must expose the minimum all-platform sync readiness.",
     ],
     [
+      "two_day_delivery_answer",
+      "Two-day usability gate must answer whether a scoped two-day sync beta is targetable.",
+    ],
+    [
+      "can_target_two_day_sync_beta",
+      "Two-day usability gate must distinguish scoped beta feasibility from full-platform readiness.",
+    ],
+    [
+      "scoped_sync_beta_surfaces",
+      "Two-day usability gate must list the 48-hour scoped sync beta surfaces.",
+    ],
+    [
+      "two_day_acceleration_rules",
+      "Two-day usability gate must keep the acceleration rules explicit.",
+    ],
+    [
+      "not_in_two_day_scope",
+      "Two-day usability gate must list work that is not part of the 48-hour scope.",
+    ],
+    [
       "can_claim_full_notion_parity_now: false",
       "Two-day usability gate must not redefine the 48-hour target as full Notion parity.",
     ],
@@ -3678,6 +3698,18 @@ function run() {
     [
       "data-testid=\"two-day-usability-gate\"",
       "Sync UI must expose a stable test id for the two-day usability gate.",
+    ],
+    [
+      "data-testid=\"two-day-sync-beta-answer\"",
+      "Sync UI must expose a stable two-day scoped sync beta answer.",
+    ],
+    [
+      "data-can-target-two-day-sync-beta",
+      "Sync UI must expose whether scoped two-day sync beta is targetable.",
+    ],
+    [
+      "48小时交付范围",
+      "Sync UI must show the 48-hour scoped delivery surfaces.",
     ],
     [
       "目标是两天内保证账号不乱掉、本地输入不断、同步状态透明、跨设备交接有证据",

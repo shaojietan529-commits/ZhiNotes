@@ -8,6 +8,8 @@ export type TwoDayUsabilityVerdict =
   | "usable-while-sync-drains"
   | "p0-blocked";
 
+export type TwoDayDeliveryAnswer = "yes-scoped-beta" | "not-safe-yet";
+
 export type TwoDayUsabilityGateStatus = "pass" | "warn" | "block";
 
 export interface TwoDayUsabilityGateInput {
@@ -43,6 +45,8 @@ export interface TwoDayUsabilityGate {
   can_keep_using_now: boolean;
   can_switch_devices_now: boolean;
   all_platform_sync_minimum_ready: boolean;
+  two_day_delivery_answer: TwoDayDeliveryAnswer;
+  can_target_two_day_sync_beta: boolean;
   can_claim_full_notion_parity_now: false;
   privacy_boundary: string;
   boundary: {
@@ -83,6 +87,9 @@ export interface TwoDayUsabilityGate {
     performance_samples: number;
   };
   gates: TwoDayUsabilityGateItem[];
+  scoped_sync_beta_surfaces: string[];
+  two_day_acceleration_rules: string[];
+  not_in_two_day_scope: string[];
   non_goals_for_48h: string[];
   next_24h_action: string;
   next_48h_action: string;
@@ -107,6 +114,10 @@ export function buildTwoDayUsabilityGate(
     reliability.page_sync_enabled &&
     reliability.database_sync_enabled &&
     reliability.file_sync_enabled;
+  const canTargetTwoDaySyncBeta = canKeepUsingNow;
+  const twoDayDeliveryAnswer: TwoDayDeliveryAnswer = canTargetTwoDaySyncBeta
+    ? "yes-scoped-beta"
+    : "not-safe-yet";
 
   const gates = buildGateItems({
     canKeepUsingNow,
@@ -137,6 +148,8 @@ export function buildTwoDayUsabilityGate(
     can_keep_using_now: canKeepUsingNow,
     can_switch_devices_now: canSwitchDevicesNow,
     all_platform_sync_minimum_ready: allPlatformSyncMinimumReady,
+    two_day_delivery_answer: twoDayDeliveryAnswer,
+    can_target_two_day_sync_beta: canTargetTwoDaySyncBeta,
     can_claim_full_notion_parity_now: false,
     privacy_boundary:
       "Generated locally from sync queue counts, auth retry state, cross-device handoff readiness, sync-domain coverage, and route performance metadata. It does not read page bodies, database row values, comments, file names, file bytes, secrets, tokens, cookies, or raw workspace content; it does not send network requests, upload workspace data, write server data, clear cache, or enable AI.",
@@ -178,6 +191,25 @@ export function buildTwoDayUsabilityGate(
       performance_samples: fluidity.performance_samples,
     },
     gates,
+    scoped_sync_beta_surfaces: [
+      "账号会话稳定：临时云端失败不能自动登出。",
+      "页面 / 每日纪要 / ZhiHui 会议日历复用现有页面账号同步和 metadata-first 热缓存。",
+      "数据库 schema、视图和行记录复用现有数据库账号同步队列。",
+      "同步中心展示 pending、failed、manual review、认证退避和跨设备 handoff 状态。",
+      "真实两设备 smoke 覆盖创建、编辑、刷新、换设备继续写。",
+    ],
+    two_day_acceleration_rules: [
+      "复用已存在的 /api/pages/account-sync 与 /api/databases/account-sync，不为了统一入口重写同步内核。",
+      "只修 P0 可用性：账号、队列、ACK、首屏、日历和页面打开；暂停非阻断型 polish。",
+      "文件大对象、AI、批量恢复、自动冲突合并继续 gated，不进入默认后台上传。",
+      "每个有效改动都跑 P0 verifier、build、commit、push，避免线上版本漂移。",
+    ],
+    not_in_two_day_scope: [
+      "完整 Notion 功能和多人实时协作 parity。",
+      "所有 Office/PDF/HTML 文件的大对象云存储与原生编辑。",
+      "复杂冲突的自动合并、权限分享、审计后台和恢复写回全自动化。",
+      "把统一 /api/sync/push 和 /api/sync/pull 直接切成生产写入入口。",
+    ],
     non_goals_for_48h: [
       "不把 48 小时目标定义成完整 Notion 功能对齐。",
       "不在 P0 阻塞未清前开启 AI、批量恢复写回或清本地缓存。",
