@@ -12350,6 +12350,18 @@ function run() {
       "Handoff readiness receipt must include file pending rows.",
     ],
     [
+      "page_last_sync_outcome_status",
+      "Handoff readiness receipt must include the latest metadata-only page sync outcome status.",
+    ],
+    [
+      "page_last_sync_outcome_source",
+      "Handoff readiness receipt must include the latest page sync outcome source without page ids.",
+    ],
+    [
+      "page_last_sync_outcome_skipped_remote_newer",
+      "Handoff readiness receipt must include remote-newer skip counts without page ids or page bodies.",
+    ],
+    [
       "file-pending-drained",
       "Handoff readiness receipt must block cross-device handoff while file rows are pending.",
     ],
@@ -12388,6 +12400,14 @@ function run() {
     [
       "reads_queue_timestamps: true",
       "Handoff readiness receipt may read queue timestamps.",
+    ],
+    [
+      "reads_page_sync_outcome_summary: true",
+      "Handoff readiness receipt may read metadata-only page sync outcome summaries.",
+    ],
+    [
+      "reads_page_sync_failure_messages: false",
+      "Handoff readiness receipt must not read page sync failure messages.",
     ],
     [
       "reads_page_ids: false",
@@ -12470,6 +12490,10 @@ function run() {
       "Handoff readiness receipt must only include counts, booleans, hashes, timestamps, and gates.",
     ],
     [
+      "includes_page_sync_outcome_counts_status_source_and_timestamps: true",
+      "Handoff readiness receipt must keep page sync outcome receipts limited to counts, status, source, and timestamps.",
+    ],
+    [
       "blocked-local-only",
       "Handoff readiness receipt must block local-only workspaces.",
     ],
@@ -12525,6 +12549,13 @@ function run() {
       message
     );
   }
+
+  assertSourceExcludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "page_last_sync_outcome_message",
+    "Handoff readiness receipt must not export page sync status or failure messages."
+  );
 
   for (const [snippet, message] of [
     [

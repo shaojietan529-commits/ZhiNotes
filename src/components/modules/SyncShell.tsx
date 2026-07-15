@@ -22021,6 +22021,31 @@ function SyncUploadSafetyPanel({
             detail={`页面 ${handoffReceipt.summary.page_pending_rows} · 数据库 ${handoffReceipt.summary.database_pending_rows} · 文件 ${handoffReceipt.summary.file_pending_rows} · sync_log 额外 ${handoffReceipt.summary.total_sync_log_unclassified_pending_rows}`}
           />
           <CacheRebuildFact
+            label="页面回执"
+            value={
+              handoffReceipt.summary.page_last_sync_outcome_status
+                ? formatPageSyncStatus(
+                    handoffReceipt.summary.page_last_sync_outcome_status
+                  )
+                : "暂无回执"
+            }
+            detail={
+              handoffReceipt.summary.page_last_sync_outcome_status
+                ? `${formatPageSyncOutcomeSource(
+                    handoffReceipt.summary.page_last_sync_outcome_source ??
+                      "unknown"
+                  )}：推送 ${
+                    handoffReceipt.summary.page_last_sync_outcome_pushed
+                  } · 拉取 ${
+                    handoffReceipt.summary.page_last_sync_outcome_pulled
+                  } · 远端跳过 ${
+                    handoffReceipt.summary
+                      .page_last_sync_outcome_skipped_remote_newer
+                  }`
+                : "还没有页面同步 ACK/拉取回执。"
+            }
+          />
+          <CacheRebuildFact
             label="最早 pending"
             value={handoffReceipt.summary.oldest_pending_age_label}
             detail={
@@ -22268,6 +22293,12 @@ function SyncHandoffQuickCheckPanel({
       data-handoff-pending-total={pendingTotal}
       data-handoff-failed-total={summary.failed_rows}
       data-handoff-manual-review-total={summary.manual_review_rows}
+      data-page-last-sync-outcome-status={
+        summary.page_last_sync_outcome_status ?? "none"
+      }
+      data-page-last-sync-outcome-skipped-remote-newer={
+        summary.page_last_sync_outcome_skipped_remote_newer
+      }
       className={`rounded-lg border px-4 py-3 ${panelClass}`}
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -22356,6 +22387,25 @@ function SyncHandoffQuickCheckPanel({
           label="待上传"
           value={`${pendingTotal} 条`}
           detail={`页面 ${summary.page_pending_rows} · 数据库 ${summary.database_pending_rows} · 文件 ${summary.file_pending_rows} · sync_log 额外 ${summary.total_sync_log_unclassified_pending_rows}`}
+        />
+        <SyncHandoffQuickFact
+          label="页面回执"
+          value={
+            summary.page_last_sync_outcome_status
+              ? formatPageSyncStatus(summary.page_last_sync_outcome_status)
+              : "暂无回执"
+          }
+          detail={
+            summary.page_last_sync_outcome_status
+              ? `${formatPageSyncOutcomeSource(
+                  summary.page_last_sync_outcome_source ?? "unknown"
+                )}：推送 ${summary.page_last_sync_outcome_pushed} · 拉取 ${
+                  summary.page_last_sync_outcome_pulled
+                } · 远端跳过 ${
+                  summary.page_last_sync_outcome_skipped_remote_newer
+                }`
+              : "队列清空仍是主判断；回执会在下一次页面同步后出现。"
+          }
         />
         <SyncHandoffQuickFact
           label="失败 / 人工"
