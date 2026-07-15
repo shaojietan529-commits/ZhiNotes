@@ -216,7 +216,7 @@ function PageContent({ pageId }: { pageId: string }) {
   const copyNoticeTimeoutRef = useRef<number | null>(null);
   const titleSaveTimerRef = useRef<number | null>(null);
   const pendingTitleRef = useRef<string | null>(null);
-  const { page, loading, update, remove } = usePage(pageId);
+  const { page, loading, reload, update, remove } = usePage(pageId);
   const pageUpdateRef = useRef(update);
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
@@ -1365,17 +1365,52 @@ function PageContent({ pageId }: { pageId: string }) {
 
   if (!page) {
     return (
-      <div className="flex h-screen">
+      <div
+        className="flex h-screen"
+        data-testid="page-temporarily-unavailable-shell"
+        data-local-first-recovery="retry-visible"
+      >
         <Sidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-zinc-500 mb-4">页面未找到</p>
-            <button
-              onClick={() => router.push("/")}
-              className="text-sm text-blue-500 hover:underline"
-            >
-              返回首页
-            </button>
+        <main className="flex-1 overflow-y-auto px-6 py-10">
+          <div className="mx-auto flex min-h-full max-w-xl items-center justify-center">
+            <section className="w-full rounded-md border border-zinc-200 bg-white p-5 text-sm shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+              <p className="text-xs font-medium text-zinc-400">
+                本地优先页面恢复
+              </p>
+              <h1 className="mt-2 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                页面暂时不可见
+              </h1>
+              <p className="mt-3 leading-6 text-zinc-500 dark:text-zinc-400">
+                这通常是本地缓存、云端回填或刚创建的页面还在恢复，不代表数据已删除。
+                你可以先重试加载；本地草稿、pending 队列和云端回执不会因为这个页面被清空。
+              </p>
+              <div className="mt-4 rounded border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400">
+                页面 ID：<span className="font-mono">{pageId}</span>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void reload()}
+                  className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+                >
+                  重试加载
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/modules/sync")}
+                  className="rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                >
+                  查看同步状态
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/")}
+                  className="rounded-md px-3 py-2 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                >
+                  返回首页
+                </button>
+              </div>
+            </section>
           </div>
         </main>
       </div>

@@ -397,6 +397,30 @@ function run() {
       "PageRouteSkeleton",
       "PageShell must render a route skeleton while local metadata is resolving.",
     ],
+    [
+      "const { page, loading, reload, update, remove } = usePage(pageId);",
+      "PageShell must expose a retry path when local and cloud page recovery is still catching up.",
+    ],
+    [
+      'data-testid="page-temporarily-unavailable-shell"',
+      "PageShell must show a recoverable missing-page state instead of implying user data was deleted.",
+    ],
+    [
+      'data-local-first-recovery="retry-visible"',
+      "PageShell missing-page fallback must keep local-first recovery visible.",
+    ],
+    [
+      "页面暂时不可见",
+      "PageShell missing-page fallback must explain temporary cache/cloud recovery in Chinese.",
+    ],
+    [
+      "本地草稿、pending 队列和云端回执不会因为这个页面被清空",
+      "PageShell missing-page fallback must reassure that recovery does not clear local drafts or sync queues.",
+    ],
+    [
+      "onClick={() => void reload()}",
+      "PageShell missing-page fallback must provide an in-place retry button.",
+    ],
   ]) {
     assertIncludes(files.pageShell, pageShell, snippet, message);
   }
