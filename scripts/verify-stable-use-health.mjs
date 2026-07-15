@@ -155,6 +155,17 @@ function verifySourceContracts() {
   assertIncludes(healthSource, "visible_shell_before_cloud_check: true", "bulk-import first-paint policy must show the shell before cloud checks");
   assertIncludes(healthSource, "background_cloud_refresh_can_block_first_paint: false", "bulk-import first-paint policy must not let cloud refresh block first paint");
   assertIncludes(healthSource, "route_smoke_budget_ms: 5000", "bulk-import first-paint policy must preserve the route smoke budget");
+  assertIncludes(healthSource, "two_day_sync_policy", "health response must expose the 48-hour sync stabilization policy");
+  assertIncludes(healthSource, "target_window_hours: 48", "two-day sync policy must keep the 48-hour target window");
+  assertIncludes(healthSource, 'delivery_status: "private-alpha-sync-stabilization"', "two-day sync policy must preserve private alpha stabilization status");
+  assertIncludes(healthSource, "can_claim_full_platform_sync_from_health_check: false", "health check must not be able to claim full platform sync");
+  assertIncludes(healthSource, "can_claim_two_device_sync_without_owner_smoke: false", "two-device sync must require owner smoke evidence");
+  assertIncludes(healthSource, "cloud_master_requires_real_ack: true", "cloud master claims must require real ACK evidence");
+  assertIncludes(healthSource, "local_hot_cache_can_mask_cloud_failure: false", "hot cache must not mask cloud sync failures");
+  assertIncludes(healthSource, "must_stay_usable_while_developing: true", "two-day policy must preserve use-while-developing");
+  assertIncludes(healthSource, "local_input_must_continue_during_cloud_uncertainty: true", "two-day policy must keep local input available during cloud uncertainty");
+  assertIncludes(healthSource, "pending_failed_manual_review_must_be_visible: true", "two-day policy must keep sync status transparent");
+  assertIncludes(healthSource, "owner_smoke_required_before_full_sync_claim: true", "two-day policy must require owner smoke before full sync claims");
   assertIncludes(healthSource, 'coverage_source: "static-pending-domain-catalog"', "health response must mark coverage as static metadata");
   assertIncludes(healthSource, "git pull --rebase before git push; never force push.", "health response must preserve safe push guidance");
   for (const flag of requiredTopLevelFalseFlags) {
@@ -583,6 +594,79 @@ function verifyRouteResult(result) {
       "bulk_import_first_paint_policy.user_facing_copy must explain first-paint protection"
     );
   }
+  const twoDaySyncPolicy = body?.two_day_sync_policy ?? {};
+  assertEqual(
+    twoDaySyncPolicy.target_window_hours,
+    48,
+    "two_day_sync_policy.target_window_hours"
+  );
+  assertEqual(
+    twoDaySyncPolicy.delivery_status,
+    "private-alpha-sync-stabilization",
+    "two_day_sync_policy.delivery_status"
+  );
+  assertEqual(
+    twoDaySyncPolicy.can_claim_full_platform_sync_from_health_check,
+    false,
+    "two_day_sync_policy.can_claim_full_platform_sync_from_health_check"
+  );
+  assertEqual(
+    twoDaySyncPolicy.can_claim_two_device_sync_without_owner_smoke,
+    false,
+    "two_day_sync_policy.can_claim_two_device_sync_without_owner_smoke"
+  );
+  assertEqual(
+    twoDaySyncPolicy.cloud_master_requires_real_ack,
+    true,
+    "two_day_sync_policy.cloud_master_requires_real_ack"
+  );
+  assertEqual(
+    twoDaySyncPolicy.local_hot_cache_can_mask_cloud_failure,
+    false,
+    "two_day_sync_policy.local_hot_cache_can_mask_cloud_failure"
+  );
+  assertEqual(
+    twoDaySyncPolicy.must_stay_usable_while_developing,
+    true,
+    "two_day_sync_policy.must_stay_usable_while_developing"
+  );
+  assertEqual(
+    twoDaySyncPolicy.local_input_must_continue_during_cloud_uncertainty,
+    true,
+    "two_day_sync_policy.local_input_must_continue_during_cloud_uncertainty"
+  );
+  assertEqual(
+    twoDaySyncPolicy.pending_failed_manual_review_must_be_visible,
+    true,
+    "two_day_sync_policy.pending_failed_manual_review_must_be_visible"
+  );
+  assertEqual(
+    twoDaySyncPolicy.cache_rebuild_requires_queue_clearance,
+    true,
+    "two_day_sync_policy.cache_rebuild_requires_queue_clearance"
+  );
+  assertEqual(
+    twoDaySyncPolicy.owner_smoke_required_before_full_sync_claim,
+    true,
+    "two_day_sync_policy.owner_smoke_required_before_full_sync_claim"
+  );
+  for (const surface of [
+    "page",
+    "daily",
+    "zhihui",
+    "database",
+    "file-metadata",
+    "settings",
+  ]) {
+    if (!twoDaySyncPolicy.minimum_stable_surfaces?.includes(surface)) {
+      failures.push(`two_day_sync_policy.minimum_stable_surfaces missing ${surface}`);
+    }
+  }
+  if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("真实两设备 smoke")) {
+    failures.push(
+      "two_day_sync_policy.user_facing_copy must require real two-device smoke evidence"
+    );
+  }
   if (
     !Array.isArray(body?.required_before_shipping_changes) ||
     !body.required_before_shipping_changes.some((item) =>
@@ -867,6 +951,14 @@ function printReceipt(result, status, port, devServer) {
     bulk_import_background_can_block_first_paint:
       result?.body?.bulk_import_first_paint_policy
         ?.background_cloud_refresh_can_block_first_paint ?? null,
+    two_day_sync_target_hours:
+      result?.body?.two_day_sync_policy?.target_window_hours ?? null,
+    two_day_sync_full_claim_allowed:
+      result?.body?.two_day_sync_policy
+        ?.can_claim_full_platform_sync_from_health_check ?? null,
+    two_day_sync_owner_smoke_required:
+      result?.body?.two_day_sync_policy
+        ?.owner_smoke_required_before_full_sync_claim ?? null,
     registered_sync_domains:
       result?.body?.sync_domain_coverage?.registered_domain_count ?? null,
     visible_registered_sync_domains:

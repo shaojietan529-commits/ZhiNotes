@@ -99,6 +99,29 @@ export interface StableUseBulkImportFirstPaintPolicy {
   user_facing_copy: string;
 }
 
+export interface StableUseTwoDaySyncPolicy {
+  target_window_hours: 48;
+  delivery_status: "private-alpha-sync-stabilization";
+  can_claim_full_platform_sync_from_health_check: false;
+  can_claim_two_device_sync_without_owner_smoke: false;
+  cloud_master_requires_real_ack: true;
+  local_hot_cache_can_mask_cloud_failure: false;
+  minimum_stable_surfaces: Array<
+    | "page"
+    | "daily"
+    | "zhihui"
+    | "database"
+    | "file-metadata"
+    | "settings"
+  >;
+  must_stay_usable_while_developing: true;
+  local_input_must_continue_during_cloud_uncertainty: true;
+  pending_failed_manual_review_must_be_visible: true;
+  cache_rebuild_requires_queue_clearance: true;
+  owner_smoke_required_before_full_sync_claim: true;
+  user_facing_copy: string;
+}
+
 export interface StableUseHealthResponse {
   format: "zhinote-stable-use-health";
   format_version: 1;
@@ -121,6 +144,7 @@ export interface StableUseHealthResponse {
   hot_cache_safety_policy: StableUseHotCacheSafetyPolicy;
   development_lane_policy: StableUseDevelopmentLanePolicy;
   bulk_import_first_paint_policy: StableUseBulkImportFirstPaintPolicy;
+  two_day_sync_policy: StableUseTwoDaySyncPolicy;
   required_before_shipping_changes: string[];
   boundary: {
     deployment_health_metadata_only: true;
@@ -221,6 +245,30 @@ const STABLE_USE_BULK_IMPORT_FIRST_PAINT_POLICY: StableUseBulkImportFirstPaintPo
       "大批量导入后，日历、侧边栏和页面列表必须先显示 metadata 壳；正文补齐、云端校正和索引回填只能后台分批进行，不能挡住首屏。",
   };
 
+const STABLE_USE_TWO_DAY_SYNC_POLICY: StableUseTwoDaySyncPolicy = {
+  target_window_hours: 48,
+  delivery_status: "private-alpha-sync-stabilization",
+  can_claim_full_platform_sync_from_health_check: false,
+  can_claim_two_device_sync_without_owner_smoke: false,
+  cloud_master_requires_real_ack: true,
+  local_hot_cache_can_mask_cloud_failure: false,
+  minimum_stable_surfaces: [
+    "page",
+    "daily",
+    "zhihui",
+    "database",
+    "file-metadata",
+    "settings",
+  ],
+  must_stay_usable_while_developing: true,
+  local_input_must_continue_during_cloud_uncertainty: true,
+  pending_failed_manual_review_must_be_visible: true,
+  cache_rebuild_requires_queue_clearance: true,
+  owner_smoke_required_before_full_sync_claim: true,
+  user_facing_copy:
+    "48 小时目标是私有 beta 可稳定使用：写作先本地保存，页面/每日纪要/ZhiHui/数据库/文件元数据/设置的同步状态必须可见；只有真实两设备 smoke 跑通并且 pending、failed、manual review 清零后，才能声称全平台同步可用。",
+};
+
 function buildStableUseDevelopmentLanePolicy(input: {
   stableUseRoutes: string[];
   experimentalRoutes: string[];
@@ -316,6 +364,7 @@ export function buildStableUseHealthResponse(input: {
     }),
     bulk_import_first_paint_policy:
       STABLE_USE_BULK_IMPORT_FIRST_PAINT_POLICY,
+    two_day_sync_policy: STABLE_USE_TWO_DAY_SYNC_POLICY,
     required_before_shipping_changes: [
       "Run the focused verifier for the changed surface.",
       "Run npm run verify:route-smoke for stable route, sidebar, module, account, Daily, ZhiHui, or sync-center changes.",
@@ -325,6 +374,6 @@ export function buildStableUseHealthResponse(input: {
     ],
     boundary: STABLE_USE_HEALTH_BOUNDARY,
     privacy_note:
-      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, static account-session uncertainty policy, static hot-cache safety policy, static development-lane policy, and static bulk-import first-paint policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
+      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, static account-session uncertainty policy, static hot-cache safety policy, static development-lane policy, static bulk-import first-paint policy, and static two-day sync stabilization policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
   };
 }
