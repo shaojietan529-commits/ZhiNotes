@@ -4077,6 +4077,42 @@ function run() {
   assertIncludes(
     files.syncUploadDrainReceipt,
     syncUploadDrainReceipt,
+    "required_sync_outcomes_ready",
+    "Sync upload drain receipt must require recent successful sync outcomes before device handoff."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "outcome_evidence_status",
+    "Sync upload drain receipt must expose handoff outcome evidence status."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "reads_page_sync_outcome_summary: true",
+    "Sync upload drain receipt must declare that it reads page sync outcome metadata."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "evaluates_handoff_outcome_evidence: true",
+    "Sync upload drain receipt must explicitly evaluate handoff outcome evidence."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "outcomeEvidence.requiredReady",
+    "Sync upload drain safe-to-switch logic must depend on required sync outcome readiness."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-upload-drain-required-outcomes-ready",
+    "Sync UI must expose upload drain outcome readiness for smoke checks."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
     "fileResult: SyncUploadDrainResultSnapshot",
     "Sync upload drain receipt must include file queue drain results."
   );

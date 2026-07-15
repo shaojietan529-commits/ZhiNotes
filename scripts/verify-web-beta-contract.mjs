@@ -14896,6 +14896,34 @@ function run() {
       "Sync upload drain receipt must state whether cross-device switching is safe after drain.",
     ],
     [
+      "required_sync_outcomes_ready",
+      "Sync upload drain receipt must require successful page/database/file outcome evidence before device handoff.",
+    ],
+    [
+      "outcome_evidence_status",
+      "Sync upload drain receipt must expose outcome evidence status.",
+    ],
+    [
+      "reads_page_sync_outcome_summary: true",
+      "Sync upload drain receipt must declare page sync outcome metadata reads.",
+    ],
+    [
+      "reads_database_sync_outcome_summary: true",
+      "Sync upload drain receipt must declare database sync outcome metadata reads.",
+    ],
+    [
+      "reads_file_sync_outcome_summary: true",
+      "Sync upload drain receipt must declare file sync outcome metadata reads.",
+    ],
+    [
+      "evaluates_handoff_outcome_evidence: true",
+      "Sync upload drain receipt must explicitly gate handoff on outcome evidence.",
+    ],
+    [
+      "outcomeEvidence.requiredReady",
+      "Sync upload drain safe-to-switch logic must depend on required outcome readiness.",
+    ],
+    [
       "buildSyncUploadDrainReceipt",
       "Sync upload drain receipt builder must be exported.",
     ],
@@ -14927,6 +14955,18 @@ function run() {
       message
     );
   }
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "data-upload-drain-required-outcomes-ready",
+    "Sync UI must expose upload drain required outcome readiness."
+  );
+  assertSourceIncludes(
+    files.syncShell,
+    syncShell,
+    "data-upload-drain-outcome-evidence-status",
+    "Sync UI must expose upload drain outcome evidence status."
+  );
   for (const [snippet, message] of [
     [
       'format: "zhinote-sync-ack-retry-ledger-contract"',

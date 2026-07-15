@@ -7,6 +7,11 @@ export type SyncUploadDrainStatus =
   | "pending"
   | "needs-attention"
   | "blocked";
+export type SyncUploadDrainOutcomeEvidenceStatus =
+  | "ready"
+  | "missing-required"
+  | "failed-required"
+  | "uncleared-required";
 
 export interface SyncUploadDrainResultSnapshot {
   status: string;
@@ -63,6 +68,10 @@ export interface SyncUploadDrainReceipt {
     reads_queue_timestamps: true;
     reads_failure_counts: true;
     reads_failure_messages: true;
+    reads_page_sync_outcome_summary: true;
+    reads_database_sync_outcome_summary: true;
+    reads_file_sync_outcome_summary: true;
+    evaluates_handoff_outcome_evidence: true;
     reads_page_body_text_for_receipt: false;
     reads_database_row_values_for_receipt: false;
     reads_comment_bodies_for_receipt: false;
@@ -88,6 +97,12 @@ export interface SyncUploadDrainReceipt {
     file_manual_review_rows_after: number;
     queue_reduced: boolean;
     safe_to_switch_device_now: boolean;
+    required_sync_outcomes_ready: boolean;
+    outcome_evidence_status: SyncUploadDrainOutcomeEvidenceStatus;
+    page_sync_outcome_ready: boolean;
+    database_sync_outcome_ready: boolean;
+    file_sync_outcome_required: boolean;
+    file_sync_outcome_ready: boolean;
     blockers: number;
     warnings: number;
   };
@@ -189,13 +204,25 @@ export function buildSyncUploadDrainReceipt(
       message: input.fileResult.message ?? null,
     },
   ];
+  const outcomeEvidence = buildOutcomeEvidence({
+    afterPageStatus: input.afterPageStatus,
+    afterDatabaseStatus: input.afterDatabaseStatus,
+    beforeFileStatus: input.beforeFileStatus,
+    afterFileStatus: input.afterFileStatus,
+    fileBefore,
+    fileAfter,
+    fileResult: input.fileResult,
+  });
   const disabledDomains = domains.filter((domain) => !domain.enabled).length;
   const blockedStatuses = domains.filter(
     (domain) =>
       domain.result_status !== "ok" && domain.result_status !== "disabled"
   ).length;
   const blockers =
-    disabledDomains + blockedStatuses + (manualReviewRowsAfter > 0 ? 1 : 0);
+    disabledDomains +
+    blockedStatuses +
+    (manualReviewRowsAfter > 0 ? 1 : 0) +
+    (outcomeEvidence.requiredReady ? 0 : 1);
   const warnings =
     (waitingAfter > 0 ? 1 : 0) + (failedRowsAfter > 0 ? 1 : 0);
   const safeToSwitchDeviceNow =
@@ -203,7 +230,8 @@ export function buildSyncUploadDrainReceipt(
     warnings === 0 &&
     waitingAfter === 0 &&
     failedRowsAfter === 0 &&
-    manualReviewRowsAfter === 0;
+    manualReviewRowsAfter === 0 &&
+    outcomeEvidence.requiredReady;
   const status = getStatus({
     blockers,
     warnings,
@@ -217,7 +245,7 @@ export function buildSyncUploadDrainReceipt(
     generated_at: generatedAt,
     status,
     privacy_boundary:
-      "This receipt is generated locally after a user-triggered pending-queue upload attempt. It summarizes page/database/file queue counts, timestamps, failure counts, failure messages, and the action result. The upload action only uses explicit pending rows from existing sync queues; the receipt itself does not read or export page bodies, database row values, comments, file bytes, secrets, tokens, or raw workspace content. It does not clear or rebuild local cache, enable sync, or enable AI.",
+      "This receipt is generated locally after a user-triggered pending-queue upload attempt. It summarizes page/database/file queue counts, timestamps, failure counts, failure messages, action results, and page/database/file last sync outcome status/source/counts/timestamps required before device handoff. The upload action only uses explicit pending rows from existing sync queues; the receipt itself does not read or export page bodies, database row values, comments, file bytes, secrets, tokens, or raw workspace content. It does not clear or rebuild local cache, enable sync, or enable AI.",
     boundary: {
       local_receipt_only: true,
       triggered_upload_from_pending_queue: true,
@@ -226,6 +254,10 @@ export function buildSyncUploadDrainReceipt(
       reads_queue_timestamps: true,
       reads_failure_counts: true,
       reads_failure_messages: true,
+      reads_page_sync_outcome_summary: true,
+      reads_database_sync_outcome_summary: true,
+      reads_file_sync_outcome_summary: true,
+      evaluates_handoff_outcome_evidence: true,
       reads_page_body_text_for_receipt: false,
       reads_database_row_values_for_receipt: false,
       reads_comment_bodies_for_receipt: false,
@@ -251,6 +283,12 @@ export function buildSyncUploadDrainReceipt(
       file_manual_review_rows_after: input.afterFileStatus.manualReviewCount,
       queue_reduced: waitingAfter < waitingBefore,
       safe_to_switch_device_now: safeToSwitchDeviceNow,
+      required_sync_outcomes_ready: outcomeEvidence.requiredReady,
+      outcome_evidence_status: outcomeEvidence.status,
+      page_sync_outcome_ready: outcomeEvidence.pageReady,
+      database_sync_outcome_ready: outcomeEvidence.databaseReady,
+      file_sync_outcome_required: outcomeEvidence.fileRequired,
+      file_sync_outcome_ready: outcomeEvidence.fileReady,
       blockers,
       warnings,
     },
@@ -262,7 +300,89 @@ export function buildSyncUploadDrainReceipt(
       manualReviewRowsAfter,
       waitingAfter,
       safeToSwitchDeviceNow,
+      outcomeEvidenceStatus: outcomeEvidence.status,
     }),
+  };
+}
+
+function buildOutcomeEvidence(input: {
+  afterPageStatus: PendingCloudPageSyncStatus;
+  afterDatabaseStatus: PendingCloudDatabaseSyncStatus;
+  beforeFileStatus: PendingFileEmbedSyncStatus;
+  afterFileStatus: PendingFileEmbedSyncStatus;
+  fileBefore: number;
+  fileAfter: number;
+  fileResult: SyncUploadDrainResultSnapshot;
+}): {
+  requiredReady: boolean;
+  status: SyncUploadDrainOutcomeEvidenceStatus;
+  pageReady: boolean;
+  databaseReady: boolean;
+  fileRequired: boolean;
+  fileReady: boolean;
+} {
+  const pageOutcome = input.afterPageStatus.lastOutcome;
+  const databaseOutcome = input.afterDatabaseStatus.lastOutcome;
+  const pageReady =
+    input.afterPageStatus.enabled &&
+    pageOutcome?.status === "ok" &&
+    pageOutcome.pendingAfter === 0;
+  const databaseReady =
+    input.afterDatabaseStatus.enabled &&
+    databaseOutcome?.status === "ok" &&
+    databaseOutcome.pendingAfter === 0;
+  const fileRequired =
+    input.fileBefore > 0 ||
+    input.fileAfter > 0 ||
+    input.beforeFileStatus.failed > 0 ||
+    input.afterFileStatus.failed > 0 ||
+    input.beforeFileStatus.manualReviewCount > 0 ||
+    input.afterFileStatus.manualReviewCount > 0 ||
+    input.fileResult.pushed > 0 ||
+    (input.fileResult.skipped ?? 0) > 0 ||
+    input.fileResult.status !== "ok";
+  const fileOutcome = input.afterFileStatus.lastOutcome;
+  const fileReady =
+    !fileRequired ||
+    (fileOutcome?.status === "ok" &&
+      fileOutcome.pendingAfter === 0 &&
+      input.afterFileStatus.failed === 0 &&
+      input.afterFileStatus.manualReviewCount === 0);
+
+  if (pageReady && databaseReady && fileReady) {
+    return {
+      requiredReady: true,
+      status: "ready",
+      pageReady,
+      databaseReady,
+      fileRequired,
+      fileReady,
+    };
+  }
+
+  const hasFailedRequired =
+    (pageOutcome !== null && pageOutcome.status !== "ok") ||
+    (databaseOutcome !== null && databaseOutcome.status !== "ok") ||
+    (fileRequired &&
+      ((fileOutcome !== null && fileOutcome.status !== "ok") ||
+        input.fileResult.status !== "ok"));
+  const hasUnclearedRequired =
+    (pageOutcome?.pendingAfter ?? 0) > 0 ||
+    (databaseOutcome?.pendingAfter ?? 0) > 0 ||
+    (fileRequired && (fileOutcome?.pendingAfter ?? 0) > 0);
+  const status: SyncUploadDrainOutcomeEvidenceStatus = hasFailedRequired
+    ? "failed-required"
+    : hasUnclearedRequired
+      ? "uncleared-required"
+      : "missing-required";
+
+  return {
+    requiredReady: false,
+    status,
+    pageReady,
+    databaseReady,
+    fileRequired,
+    fileReady,
   };
 }
 
@@ -298,6 +418,7 @@ function getNextAction(input: {
   manualReviewRowsAfter: number;
   waitingAfter: number;
   safeToSwitchDeviceNow: boolean;
+  outcomeEvidenceStatus: SyncUploadDrainOutcomeEvidenceStatus;
 }): string {
   if (input.safeToSwitchDeviceNow) {
     return "补传后页面、数据库、文件队列已清空，当前适合切换设备或继续推进本地热缓存重建。";
@@ -307,6 +428,15 @@ function getNextAction(input: {
   }
   if (input.blockedStatuses > 0) {
     return "补传动作未完全成功，先检查登录、网络、云端配置和最近失败原因。";
+  }
+  if (input.outcomeEvidenceStatus === "missing-required") {
+    return "队列可能已清空，但页面/数据库/必要文件缺少最近一次成功同步回执；再运行一次补传并确认 outcome=ok、pendingAfter=0 后再换设备。";
+  }
+  if (input.outcomeEvidenceStatus === "failed-required") {
+    return "最近同步回执包含失败，先处理失败原因；不要在失败回执未清理前切换设备或重建缓存。";
+  }
+  if (input.outcomeEvidenceStatus === "uncleared-required") {
+    return "最近同步回执仍显示 pendingAfter 未归零，继续等待后台补传或再次运行补传全部。";
   }
   if (input.manualReviewRowsAfter > 0) {
     return "存在反复失败的记录，导出处理包并按 page id、database key 或 file id 做人工排查。";

@@ -22497,6 +22497,15 @@ function SyncUploadSafetyPanel({
       {drainReceipt ? (
         <div
           data-testid="sync-upload-drain-receipt"
+          data-upload-drain-safe-to-switch={String(
+            drainReceipt.summary.safe_to_switch_device_now
+          )}
+          data-upload-drain-required-outcomes-ready={String(
+            drainReceipt.summary.required_sync_outcomes_ready
+          )}
+          data-upload-drain-outcome-evidence-status={
+            drainReceipt.summary.outcome_evidence_status
+          }
           className="rounded-md border border-zinc-200 bg-white p-3 text-xs dark:border-zinc-800 dark:bg-zinc-950"
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -22516,7 +22525,7 @@ function SyncUploadSafetyPanel({
               {formatSyncUploadDrainStatus(drainReceipt.status)}
             </span>
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
             <CacheRebuildFact
               label="推送"
               value={`${drainReceipt.summary.pushed_records} 条`}
@@ -22544,7 +22553,26 @@ function SyncUploadSafetyPanel({
                   ? "可以"
                   : "先等等"
               }
-              detail="清空 pending 后最稳"
+              detail="队列和回执都清后最稳"
+            />
+            <CacheRebuildFact
+              label="回执证据"
+              value={formatSyncUploadDrainOutcomeEvidenceStatus(
+                drainReceipt.summary.outcome_evidence_status
+              )}
+              detail={`页面 ${
+                drainReceipt.summary.page_sync_outcome_ready ? "OK" : "待确认"
+              } / 数据库 ${
+                drainReceipt.summary.database_sync_outcome_ready
+                  ? "OK"
+                  : "待确认"
+              } / 文件 ${
+                drainReceipt.summary.file_sync_outcome_required
+                  ? drainReceipt.summary.file_sync_outcome_ready
+                    ? "OK"
+                    : "待确认"
+                  : "无待补"
+              }`}
             />
           </div>
           <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
@@ -22911,6 +22939,15 @@ function formatSyncUploadDrainStatus(status: SyncUploadDrainStatus) {
   if (status === "pending") return "等待中";
   if (status === "needs-attention") return "待处理";
   return "阻断";
+}
+
+function formatSyncUploadDrainOutcomeEvidenceStatus(
+  status: SyncUploadDrainReceipt["summary"]["outcome_evidence_status"]
+) {
+  if (status === "ready") return "已齐";
+  if (status === "missing-required") return "缺回执";
+  if (status === "failed-required") return "有失败";
+  return "未清零";
 }
 
 function syncUploadDrainStatusClass(status: SyncUploadDrainStatus) {
