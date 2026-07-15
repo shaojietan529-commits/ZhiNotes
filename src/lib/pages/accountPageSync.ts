@@ -509,6 +509,7 @@ async function fetchAccountPageSync(
   try {
     return await fetch("/api/pages/account-sync", {
       method: "POST",
+      cache: "no-store",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
       signal: controller.signal,

@@ -905,11 +905,12 @@ check(
     pageSyncClient.includes("async function fetchAccountPageSync") &&
     pageSyncClient.includes("timeoutMs = ACCOUNT_PAGE_SYNC_REQUEST_TIMEOUT_MS") &&
     pageSyncClient.includes("const controller = new AbortController();") &&
+    pageSyncClient.includes('cache: "no-store"') &&
     pageSyncClient.includes("signal: controller.signal") &&
     pageSyncClient.includes("controller.abort()") &&
     pageSyncClient.includes("clearTimeout(timeout)") &&
     pageSyncClient.includes("页面同步请求超时；本地输入已保留，会稍后重试。"),
-  "页面同步底层 fetch 必须可超时取消；超时只能进入可重试错误并明确本地输入已保留"
+  "页面同步底层 fetch 必须实时 no-store 且可超时取消；超时只能进入可重试错误并明确本地输入已保留"
 );
 check(
   pageSyncClient.includes("interface AccountPageSyncCallOptions") &&
@@ -924,11 +925,12 @@ check(
   databaseSyncClient.includes("ACCOUNT_DATABASE_SYNC_REQUEST_TIMEOUT_MS = 12000") &&
     databaseSyncClient.includes("async function fetchAccountDatabaseSync") &&
     databaseSyncClient.includes("const controller = new AbortController();") &&
+    databaseSyncClient.includes('cache: "no-store"') &&
     databaseSyncClient.includes("signal: controller.signal") &&
     databaseSyncClient.includes("controller.abort()") &&
     databaseSyncClient.includes("clearTimeout(timeout)") &&
     databaseSyncClient.includes("数据库同步请求超时；本地输入已保留，会稍后重试。"),
-  "数据库同步底层 fetch 必须可超时取消；超时只能进入可重试错误并明确本地输入已保留"
+  "数据库同步底层 fetch 必须实时 no-store 且可超时取消；超时只能进入可重试错误并明确本地输入已保留"
 );
 const coreManifestCompareReceipt = read(
   "src/lib/sync/coreManifestCompareReceipt.ts"

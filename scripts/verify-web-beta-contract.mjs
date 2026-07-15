@@ -5603,6 +5603,12 @@ function run() {
   assertSourceIncludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
+    'cache: "no-store"',
+    "Database account-sync fetches must bypass browser caches so multi-device database state uses the current server response."
+  );
+  assertSourceIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
     "clearTimeout(timeout)",
     "Database account-sync request timeout timers must be cleared after fetch settles."
   );
@@ -25565,6 +25571,12 @@ function run() {
       accountPageSync,
       "signal: controller.signal",
       "Account page sync fetches must pass the abort signal to the browser fetch call.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      'cache: "no-store"',
+      "Account page sync fetches must bypass browser caches so multi-device page state uses the current server response.",
     ],
     [
       files.accountPageSync,
