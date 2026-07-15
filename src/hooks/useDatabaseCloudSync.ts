@@ -326,6 +326,12 @@ export function useDatabaseCloudSync() {
           recordDatabaseSyncAuthRetryStatus("error");
           setStateIfMounted("error");
         }
+      } catch {
+        if (!mountedRef.current) return;
+        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+        authRetryStateRef.current = "error";
+        recordDatabaseSyncAuthRetryStatus("error");
+        setStateIfMounted("error");
       } finally {
         runningRef.current = false;
         void refreshPendingStatus();
@@ -406,6 +412,13 @@ export function useDatabaseCloudSync() {
         recordDatabaseSyncAuthRetryStatus("error");
         setStateIfMounted("error");
       }
+      void refreshPendingStatus();
+    } catch {
+      if (!mountedRef.current) return;
+      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+      authRetryStateRef.current = "error";
+      recordDatabaseSyncAuthRetryStatus("error");
+      setStateIfMounted("error");
       void refreshPendingStatus();
     } finally {
       if (recoveringLocalCacheSignalRef.current === signal.id) {

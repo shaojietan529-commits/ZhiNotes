@@ -10413,6 +10413,24 @@ function run() {
     'result.status === "unauthenticated") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";',
     "Database cloud sync must show domain-route unauthenticated results as retryable cloud uncertainty after the shared gate."
   );
+  const pageUnexpectedSyncErrorFallbacks =
+    pageCloudSync.match(
+      /authRetryAfterRef\.current = Date\.now\(\) \+ AUTH_RETRY_BACKOFF_MS;\s+authRetryStateRef\.current = "error";\s+recordPageSyncAuthRetryStatus\("error"\);\s+setStateIfMounted\("error"\);/g
+    ) ?? [];
+  if (pageUnexpectedSyncErrorFallbacks.length < 2) {
+    failures.push(
+      "Page cloud sync must catch unexpected background/recovery sync errors, mark cloud uncertainty visible, and back off retries without signing the user out."
+    );
+  }
+  const databaseUnexpectedSyncErrorFallbacks =
+    databaseCloudSync.match(
+      /authRetryAfterRef\.current = Date\.now\(\) \+ AUTH_RETRY_BACKOFF_MS;\s+authRetryStateRef\.current = "error";\s+recordDatabaseSyncAuthRetryStatus\("error"\);\s+setStateIfMounted\("error"\);/g
+    ) ?? [];
+  if (databaseUnexpectedSyncErrorFallbacks.length < 2) {
+    failures.push(
+      "Database cloud sync must catch unexpected background/recovery sync errors, mark cloud uncertainty visible, and back off retries without signing the user out."
+    );
+  }
   assertIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,

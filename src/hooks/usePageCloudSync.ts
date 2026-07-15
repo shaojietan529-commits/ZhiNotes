@@ -314,6 +314,12 @@ export function usePageCloudSync() {
         recordPageSyncAuthRetryStatus("error");
         setStateIfMounted("error");
       }
+    } catch {
+      if (!mountedRef.current) return;
+      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+      authRetryStateRef.current = "error";
+      recordPageSyncAuthRetryStatus("error");
+      setStateIfMounted("error");
     } finally {
       runningRef.current = false;
       refreshPendingStatus();
@@ -390,6 +396,13 @@ export function usePageCloudSync() {
         recordPageSyncAuthRetryStatus("error");
         setStateIfMounted("error");
       }
+      refreshPendingStatus();
+    } catch {
+      if (!mountedRef.current) return;
+      authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;
+      authRetryStateRef.current = "error";
+      recordPageSyncAuthRetryStatus("error");
+      setStateIfMounted("error");
       refreshPendingStatus();
     } finally {
       if (recoveringLocalCacheSignalRef.current === signal.id) {
