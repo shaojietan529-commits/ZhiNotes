@@ -3723,6 +3723,26 @@ function run() {
       "Two-device sync smoke runbook must not claim the real two-device smoke has passed without owner evidence.",
     ],
     [
+      "accountSyncBridgeProbe?:",
+      "Two-device sync smoke runbook must accept the account bridge probe receipt as a precondition.",
+    ],
+    [
+      "account_sync_bridge_probe_ready",
+      "Two-device sync smoke runbook must expose account bridge probe readiness.",
+    ],
+    [
+      "account-sync-bridge-probe",
+      "Two-device sync smoke runbook must include the account bridge probe as a step.",
+    ],
+    [
+      "isFreshAccountBridgeProbe",
+      "Two-device sync smoke runbook must reject expired account bridge probe receipts.",
+    ],
+    [
+      "账号同步桥回执未过期",
+      "Two-device sync smoke owner evidence must require a fresh account bridge receipt.",
+    ],
+    [
       "ready_to_run_scoped_smoke_now",
       "Two-device sync smoke runbook must separately tell whether the 48-hour scoped beta smoke can start.",
     ],
@@ -3974,6 +3994,18 @@ function run() {
     [
       "data-two-device-sync-ack-ledger-server-readiness-blockers",
       "Sync UI must expose server-readiness blockers for the two-device smoke runbook.",
+    ],
+    [
+      "accountSyncBridgeProbe: accountBridgeProbeReceipt",
+      "Sync UI must pass the account bridge receipt into the two-device smoke runbook.",
+    ],
+    [
+      "data-two-device-sync-account-bridge-probe-ready",
+      "Sync UI must expose account bridge readiness in the two-device smoke runbook.",
+    ],
+    [
+      "data-two-device-sync-account-bridge-expires-at",
+      "Sync UI must expose the account bridge receipt expiry in the two-device smoke runbook.",
     ],
     [
       "buildTwoDeviceSyncSmokeOwnerReceipt",

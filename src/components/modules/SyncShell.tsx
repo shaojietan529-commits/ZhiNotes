@@ -3369,8 +3369,18 @@ function SyncDashboard() {
         reliability: cloudUploadReliabilityReport,
         ackRetryLedger: syncAckRetryLedgerContract,
         ackLedgerServerReadiness: syncAckLedgerServerReadiness,
+        accountSyncBridgeProbe: accountBridgeProbeReceipt
+          ? {
+              status: accountBridgeProbeReceipt.status,
+              readable_domains: accountBridgeProbeReceipt.readable_domains,
+              blocked_domains: accountBridgeProbeReceipt.blocked_domains,
+              checked_at: accountBridgeProbeReceipt.checked_at,
+              expires_at: accountBridgeProbeReceipt.expires_at,
+            }
+          : null,
       }),
     [
+      accountBridgeProbeReceipt,
       cloudSyncControlPlane,
       cloudUploadReliabilityReport,
       syncAckLedgerServerReadiness,
@@ -25144,6 +25154,18 @@ function TwoDeviceSyncSmokeRunbookPanel({
       data-two-device-sync-ack-ledger-server-readiness-blockers={String(
         runbook.summary.ack_ledger_server_readiness_remaining_blockers
       )}
+      data-two-device-sync-account-bridge-probe-status={
+        runbook.summary.account_sync_bridge_probe_status
+      }
+      data-two-device-sync-account-bridge-probe-ready={String(
+        runbook.summary.account_sync_bridge_probe_ready
+      )}
+      data-two-device-sync-account-bridge-readable-domains={String(
+        runbook.summary.account_sync_bridge_readable_domains
+      )}
+      data-two-device-sync-account-bridge-expires-at={
+        runbook.summary.account_sync_bridge_expires_at ?? ""
+      }
       data-two-device-sync-full-platform-claim-blocked={String(
         runbook.summary.full_platform_sync_claim_blocked
       )}
@@ -25208,7 +25230,7 @@ function TwoDeviceSyncSmokeRunbookPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-10">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-11">
         <CacheRebuildFact
           label="48h核心"
           value={runbook.ready_to_run_scoped_smoke_now ? "可测" : "等待"}
@@ -25238,6 +25260,13 @@ function TwoDeviceSyncSmokeRunbookPanel({
           label="账号退避"
           value={runbook.summary.auth_retry_active ? "有" : "无"}
           detail="不等于登出"
+        />
+        <CacheRebuildFact
+          label="同步桥"
+          value={
+            runbook.summary.account_sync_bridge_probe_ready ? "有效" : "重查"
+          }
+          detail={`${runbook.summary.account_sync_bridge_readable_domains}/4 域`}
         />
         <CacheRebuildFact
           label="覆盖"

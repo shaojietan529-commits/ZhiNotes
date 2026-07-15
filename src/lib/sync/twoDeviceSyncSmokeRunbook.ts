@@ -16,6 +16,20 @@ export type TwoDeviceSyncSmokeSurface =
   | "file"
   | "handoff";
 
+export type TwoDeviceSyncSmokeAccountBridgeProbeStatus =
+  | "not-run"
+  | "ready"
+  | "blocked"
+  | "partial";
+
+export interface TwoDeviceSyncSmokeAccountBridgeProbe {
+  status: TwoDeviceSyncSmokeAccountBridgeProbeStatus;
+  readable_domains: number;
+  blocked_domains: number;
+  checked_at: string | null;
+  expires_at: string | null;
+}
+
 export interface TwoDeviceSyncSmokeStep {
   id: string;
   surface: TwoDeviceSyncSmokeSurface;
@@ -67,6 +81,12 @@ export interface TwoDeviceSyncSmokeRunbook {
     ack_ledger_server_readiness_next_action: string;
     sync_push_route_enabled: boolean;
     sync_pull_route_enabled: boolean;
+    account_sync_bridge_probe_status: TwoDeviceSyncSmokeAccountBridgeProbeStatus;
+    account_sync_bridge_probe_ready: boolean;
+    account_sync_bridge_readable_domains: number;
+    account_sync_bridge_blocked_domains: number;
+    account_sync_bridge_checked_at: string | null;
+    account_sync_bridge_expires_at: string | null;
     scoped_core_sync_ready: boolean;
     scoped_core_sync_claim_blocked: boolean;
     full_platform_sync_claim_blocked: boolean;
@@ -134,6 +154,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
   reliability: CloudUploadReliabilityReport;
   ackRetryLedger: SyncAckRetryLedgerContract;
   ackLedgerServerReadiness: SyncAckLedgerServerReadiness;
+  accountSyncBridgeProbe?: TwoDeviceSyncSmokeAccountBridgeProbe | null;
   generatedAt?: string;
 }): TwoDeviceSyncSmokeRunbook {
   const generatedAt = input.generatedAt ?? new Date().toISOString();
@@ -156,8 +177,16 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
   const ackLedgerBlockedGateCount =
     input.ackRetryLedger.summary.blocked_gates +
     input.ackLedgerServerReadiness.summary.remaining_blockers;
+  const accountBridgeProbe = input.accountSyncBridgeProbe ?? null;
+  const accountBridgeProbeStatus = accountBridgeProbe?.status ?? "not-run";
+  const accountBridgeProbeReady =
+    Boolean(accountBridgeProbe) &&
+    accountBridgeProbeStatus === "ready" &&
+    accountBridgeProbe?.readable_domains === 4 &&
+    isFreshAccountBridgeProbe(accountBridgeProbe, generatedAt);
   const crossDeviceReady =
     canSwitchDevices &&
+    accountBridgeProbeReady &&
     syncDomainCoverageComplete &&
     ackLedgerReady &&
     !waitingForDrain &&
@@ -181,6 +210,23 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
       blocker: authRetryActive
         ? input.reliability.summary.auth_retry_state_label
         : null,
+    }),
+    step({
+      id: "account-sync-bridge-probe",
+      surface: "sync",
+      title: "账号同步桥 metadata 可读",
+      status: accountBridgeProbeReady ? "ready" : "blocked",
+      deviceA:
+        "设备 A 在 /modules/sync 运行“只读检查账号同步桥”，确认页面、每日纪要、会议、数据库四个 metadata 域均可读。",
+      deviceB:
+        "设备 B 用同一账号打开 /modules/sync，也能复核同一组核心 metadata 域；检查回执必须未过期。",
+      pass:
+        "账号同步桥显示 4/4 域可读，检查时间和过期时间可见，且过期回执不能作为同步可用证据。",
+      evidence:
+        "同步桥回执：status=ready、readable_domains=4、checked_at/expires_at 未过期。",
+      blocker: accountBridgeProbeReady
+        ? null
+        : accountBridgeProbeBlocker(accountBridgeProbe, generatedAt),
     }),
     step({
       id: "sync-domain-coverage-check",
@@ -350,6 +396,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
   const blocked = steps.filter((item) => item.status === "blocked").length;
   const scopedCoreSurfacesReady =
     canKeepUsing &&
+    accountBridgeProbeReady &&
     syncDomainCoverageComplete &&
     reliability.cloud_workspace_linked &&
     reliability.page_sync_enabled &&
@@ -412,6 +459,14 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
         input.ackLedgerServerReadiness.summary.next_action,
       sync_push_route_enabled: input.ackRetryLedger.summary.push_route_enabled,
       sync_pull_route_enabled: input.ackRetryLedger.summary.pull_route_enabled,
+      account_sync_bridge_probe_status: accountBridgeProbeStatus,
+      account_sync_bridge_probe_ready: accountBridgeProbeReady,
+      account_sync_bridge_readable_domains:
+        accountBridgeProbe?.readable_domains ?? 0,
+      account_sync_bridge_blocked_domains:
+        accountBridgeProbe?.blocked_domains ?? 4,
+      account_sync_bridge_checked_at: accountBridgeProbe?.checked_at ?? null,
+      account_sync_bridge_expires_at: accountBridgeProbe?.expires_at ?? null,
       scoped_core_sync_ready: readyToRunScoped,
       scoped_core_sync_claim_blocked: !readyToRunScoped,
       full_platform_sync_claim_blocked: !ackLedgerReady,
@@ -422,6 +477,7 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
     steps,
     final_owner_receipt_template: [
       "设备 A / 设备 B 使用同一账号和 workspace。",
+      "账号同步桥只读检查为 ready，页面、每日纪要、会议、数据库四个 metadata 域均可读，且回执未过期。",
       "同步中心显示 sync-domain coverage complete，所有 pending / failed / manual review 域都可见。",
       "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库和文件元数据；这不等于完整全平台同步通过。",
       "统一 ACK / retry ledger 和服务端 readiness 已通过：/api/sync/push 和 /api/sync/pull 已 owner-gated 启用，且 remote ACK cursor 可复核。",
@@ -494,6 +550,15 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
         privacy_note: "可以写脱敏邮箱，不写登录码、cookie 或 token。",
       },
       {
+        id: "account-sync-bridge-probe",
+        label: "账号同步桥检查回执",
+        placeholder:
+          "记录 status=ready、4/4 域可读、checked_at/expires_at 未过期。",
+        required: true,
+        privacy_note:
+          "只写 metadata 检查状态和时间，不写正文、数据库行值、文件名、cookie 或 token。",
+      },
+      {
         id: "test-sample-ids",
         label: "测试样本 ID",
         placeholder: "Page / Daily / ZhiHui / Database / File metadata 的非敏感 ID。",
@@ -538,6 +603,7 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
       "owner 手动完成 checklist 中每一项，并把 owner_result 从 not-recorded 改为 pass。",
       "同步中心显示 pending=0、failed=0、manual review=0。",
       "账号退避为无；临时接口失败没有导致任一设备被登出。",
+      "账号同步桥回执未过期，且页面、每日纪要、会议、数据库四个 metadata 域均可读。",
       "sync-domain coverage complete，所有同步域都有可见队列状态。",
       "如果只验收 48 小时 scoped beta，只能声称 Page、每日纪要、ZhiHui、数据库和文件元数据的核心交接通过，不能声称完整全平台同步通过。",
       "统一 /api/sync/push 和 /api/sync/pull 已由 owner-gated 启用，并有 durable ACK ledger 与 remote ACK cursor 证据。",
@@ -582,6 +648,42 @@ function coreSyncBlocker(
   return input.controlPlane.next_action;
 }
 
+function isFreshAccountBridgeProbe(
+  probe: TwoDeviceSyncSmokeAccountBridgeProbe,
+  generatedAt: string
+): boolean {
+  if (!probe.expires_at || !probe.checked_at) return false;
+  const expiresAt = Date.parse(probe.expires_at);
+  const checkedAt = Date.parse(probe.checked_at);
+  const now = Date.parse(generatedAt);
+  return (
+    !Number.isNaN(expiresAt) &&
+    !Number.isNaN(checkedAt) &&
+    !Number.isNaN(now) &&
+    checkedAt <= now &&
+    expiresAt > now
+  );
+}
+
+function accountBridgeProbeBlocker(
+  probe: TwoDeviceSyncSmokeAccountBridgeProbe | null,
+  generatedAt: string
+): string {
+  if (!probe) {
+    return "还没有有效的账号同步桥回执；先在同步中心运行“只读检查账号同步桥”。";
+  }
+  if (!isFreshAccountBridgeProbe(probe, generatedAt)) {
+    return "账号同步桥回执已过期或时间无效；重新运行只读检查后再开始两设备 smoke。";
+  }
+  if (probe.status !== "ready") {
+    return `账号同步桥状态为 ${probe.status}，${probe.readable_domains}/4 域可读；先处理不可读域。`;
+  }
+  if (probe.readable_domains !== 4) {
+    return `账号同步桥只读检查只有 ${probe.readable_domains}/4 域可读，仍有 ${probe.blocked_domains} 个域不可读。`;
+  }
+  return "账号同步桥回执不完整；重新运行只读检查。";
+}
+
 function getNextAction(input: {
   readyToRun: boolean;
   wait: number;
@@ -603,6 +705,8 @@ function getNextAction(input: {
   if (
     input.input.gate.can_target_two_day_sync_beta &&
     input.input.reliability.summary.cloud_workspace_linked &&
+    input.input.gate.summary.account_sync_bridge_probe_status === "ready" &&
+    input.input.gate.summary.account_sync_bridge_readable_domains === 4 &&
     input.input.reliability.summary.page_sync_enabled &&
     input.input.reliability.summary.database_sync_enabled &&
     input.input.reliability.summary.file_sync_enabled &&

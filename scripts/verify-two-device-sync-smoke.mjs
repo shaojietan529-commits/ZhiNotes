@@ -98,6 +98,22 @@ function run() {
       "Two-device runbook must never auto-claim sync passed.",
     ],
     [
+      "accountSyncBridgeProbe?:",
+      "Two-device runbook must accept the account bridge probe receipt as a smoke precondition.",
+    ],
+    [
+      "account_sync_bridge_probe_ready",
+      "Two-device runbook must expose account bridge probe readiness.",
+    ],
+    [
+      "isFreshAccountBridgeProbe",
+      "Two-device runbook must reject expired account bridge probe receipts.",
+    ],
+    [
+      "账号同步桥回执未过期",
+      "Two-device owner receipt must require a fresh account bridge receipt.",
+    ],
+    [
       "can_claim_two_device_sync_passed_now: false",
       "Two-device owner receipt must never auto-claim sync passed.",
     ],
@@ -143,6 +159,7 @@ function run() {
 
   for (const stepId of [
     "same-account-session",
+    "account-sync-bridge-probe",
     "sync-domain-coverage-check",
     "ack-ledger-readiness",
     "page-note-sync",
@@ -225,6 +242,18 @@ function run() {
     [
       'data-testid="two-device-sync-smoke-runbook-export"',
       "Sync UI must expose a local runbook export action.",
+    ],
+    [
+      "accountSyncBridgeProbe: accountBridgeProbeReceipt",
+      "Sync UI must pass the account bridge receipt into the two-device smoke runbook.",
+    ],
+    [
+      "data-two-device-sync-account-bridge-probe-ready",
+      "Sync UI must expose account bridge readiness in the two-device smoke gate.",
+    ],
+    [
+      "data-two-device-sync-account-bridge-expires-at",
+      "Sync UI must expose account bridge receipt expiry in the two-device smoke gate.",
     ],
     [
       'data-testid="two-device-sync-smoke-owner-receipt-export"',

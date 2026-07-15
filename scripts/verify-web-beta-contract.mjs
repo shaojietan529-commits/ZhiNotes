@@ -16485,6 +16485,18 @@ function run() {
       "Sync UI must expose ack ledger server readiness blockers in the two-device smoke gate.",
     ],
     [
+      "accountSyncBridgeProbe: accountBridgeProbeReceipt",
+      "Sync UI must pass the account bridge receipt into the two-device smoke runbook.",
+    ],
+    [
+      "data-two-device-sync-account-bridge-probe-ready",
+      "Sync UI must expose account bridge probe readiness in the two-device smoke gate.",
+    ],
+    [
+      "data-two-device-sync-account-bridge-expires-at",
+      "Sync UI must expose account bridge probe receipt expiry in the two-device smoke gate.",
+    ],
+    [
       "data-two-device-sync-scoped-ready-to-run",
       "Sync UI must expose scoped two-device smoke readiness separately from full-platform readiness.",
     ],
