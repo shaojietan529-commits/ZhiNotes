@@ -2911,6 +2911,9 @@ const pageRouteLoadingShell = read("src/components/page/PageRouteLoadingShell.ts
 const pageRouteLocalFirstLoadingShell = read(
   "src/components/page/PageRouteLocalFirstLoadingShell.tsx"
 );
+const pageRouteLocalFirstLoadingEnhancer = read(
+  "src/components/page/PageRouteLocalFirstLoadingEnhancer.tsx"
+);
 const pageRouteSkeleton = read("src/components/page/PageRouteSkeleton.tsx");
 check(
   !pageShell.includes('from "@/hooks/usePages"') &&
@@ -2922,7 +2925,18 @@ check(
   pageRoute.includes("PageRouteLocalFirstLoadingShell") &&
     pageRouteLoading.includes("PageRouteLoadingShell") &&
     pageRouteLoadingShell.includes("PageRouteSkeleton") &&
+    pageRouteLoadingShell.includes("PageRouteLocalFirstLoadingEnhancer") &&
+    pageRouteLoadingShell.includes("page-route-server-loading-shell") &&
     pageRouteLocalFirstLoadingShell.includes("PageRouteSkeleton") &&
+    pageRouteLocalFirstLoadingEnhancer.includes("PageRouteSkeleton") &&
+    pageRouteLocalFirstLoadingEnhancer.includes("readPageRouteHandoff") &&
+    pageRouteLocalFirstLoadingEnhancer.includes("readPendingPageDraft") &&
+    pageRouteLocalFirstLoadingEnhancer.includes(
+      "useWorkspaceStore.getState().getPageById"
+    ) &&
+    pageRouteLocalFirstLoadingEnhancer.includes(
+      ".page-route-server-loading-shell{display:none}"
+    ) &&
     pageShell.includes("PageRouteSkeleton") &&
     pageRouteLocalFirstLoadingShell.includes("readPageRouteHandoff") &&
     pageRouteLocalFirstLoadingShell.includes("readPendingPageDraft") &&
@@ -2935,7 +2949,7 @@ check(
     pageRouteLocalFirstLoadingShell.includes("previewPage.properties") &&
     pageRouteSkeleton.includes("preview?:") &&
     pageRouteSkeleton.includes('data-testid="page-route-preview-title"'),
-  "页面动态路由、route loading、动态组件 fallback、单页缓存读取等待态都必须显示页面骨架；服务器首屏不能空白，客户端 fallback 必须在完整页面加载前显示本地交接的标题/图标"
+  "页面动态路由、route loading、动态组件 fallback、单页缓存读取等待态都必须显示页面骨架；route loading 必须先服务端显示骨架，再在浏览器可用时用本地交接标题/图标增强"
 );
 check(
   pageRouteSkeleton.includes("本地缓存会先加载") &&

@@ -242,6 +242,8 @@ const files = {
   pageRouteLoadingShell: "src/components/page/PageRouteLoadingShell.tsx",
   pageRouteLocalFirstLoadingShell:
     "src/components/page/PageRouteLocalFirstLoadingShell.tsx",
+  pageRouteLocalFirstLoadingEnhancer:
+    "src/components/page/PageRouteLocalFirstLoadingEnhancer.tsx",
   localPerformance: "src/lib/performance/localPerformance.ts",
   databaseDetailRoute: "src/app/(workspace)/database/[databaseId]/page.tsx",
   databaseDetailRouteLoading:
@@ -777,6 +779,9 @@ function run() {
   const pageRouteLoadingShell = readProjectFile(files.pageRouteLoadingShell);
   const pageRouteLocalFirstLoadingShell = readProjectFile(
     files.pageRouteLocalFirstLoadingShell
+  );
+  const pageRouteLocalFirstLoadingEnhancer = readProjectFile(
+    files.pageRouteLocalFirstLoadingEnhancer
   );
   const localPerformance = readProjectFile(files.localPerformance);
   const databaseDetailRoute = readProjectFile(files.databaseDetailRoute);
@@ -1631,14 +1636,20 @@ function run() {
       sourceLabel === files.pageDetailRoute
         ? "PageRouteLocalFirstLoadingShell"
         : "PageRouteLoadingShell",
-      "Page detail route must keep a server-rendered route loading shell and a client local-first dynamic fallback."
+      "Page detail route must keep a server-visible route loading shell plus a client local-first dynamic fallback."
     );
   }
   assertIncludes(
     files.pageRouteLoadingShell,
     pageRouteLoadingShell,
     "PageRouteSkeleton",
-    "Shared page route loading shell must render a server-visible page skeleton; the page route keeps the client local-first dynamic fallback."
+    "Shared page route loading shell must render a server-visible page skeleton."
+  );
+  assertIncludes(
+    files.pageRouteLoadingShell,
+    pageRouteLoadingShell,
+    "PageRouteLocalFirstLoadingEnhancer",
+    "Shared page route loading shell must enhance the server skeleton with handed-off metadata after browser storage is available."
   );
   assertIncludes(
     files.pageRouteLocalFirstLoadingShell,
@@ -1660,6 +1671,22 @@ function run() {
       pageRouteLocalFirstLoadingShell,
       snippet,
       "Client local-first page route loading shell must show handed-off metadata before the full page shell hydrates."
+    );
+  }
+  for (const snippet of [
+    "readPageRouteHandoff",
+    "readPendingPageDraft",
+    "useWorkspaceStore.getState().getPageById",
+    ".page-route-server-loading-shell{display:none}",
+    "previewPage.title",
+    "previewPage.icon",
+    "previewPage.properties",
+  ]) {
+    assertIncludes(
+      files.pageRouteLocalFirstLoadingEnhancer,
+      pageRouteLocalFirstLoadingEnhancer,
+      snippet,
+      "Route-level loading must keep server-visible skeletons while replacing them with local-first metadata after hydration."
     );
   }
   assertIncludes(
