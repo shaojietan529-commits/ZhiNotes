@@ -11754,12 +11754,36 @@ function run() {
       "Upload safety overview must include the latest page sync outcome.",
     ],
     [
+      "appendSyncOutcomeMessage(",
+      "Upload safety overview must append visible sync outcome messages to receipt details.",
+    ],
+    [
+      "pageStatus.lastOutcome.message",
+      "Upload safety overview must surface page sync outcome messages.",
+    ],
+    [
       "数据库回执",
       "Upload safety overview must include the latest database sync outcome.",
     ],
     [
+      "databaseStatus.lastOutcome.message",
+      "Upload safety overview must surface database sync outcome messages.",
+    ],
+    [
       "文件回执",
       "Upload safety overview must include the latest file sync outcome.",
+    ],
+    [
+      "lastOutcome.message",
+      "Page pending queue details must surface page sync outcome messages.",
+    ],
+    [
+      "status.lastOutcome.message",
+      "Database pending queue details must surface database sync outcome messages.",
+    ],
+    [
+      "最近原因：",
+      "Sync outcome message details must be labeled clearly for users.",
     ],
     [
       "远端跳过",

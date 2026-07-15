@@ -21996,11 +21996,14 @@ function SyncUploadSafetyPanel({
         ? formatPageSyncStatus(pageStatus.lastOutcome.status)
         : "暂无回执",
       detail: pageStatus.lastOutcome
-        ? `${formatPageSyncOutcomeSource(
-            pageStatus.lastOutcome.source
-          )}：推送 ${pageStatus.lastOutcome.pushed}，拉取 ${
-            pageStatus.lastOutcome.pulled
-          }，远端跳过 ${pageStatus.lastOutcome.skippedRemoteNewer}。`
+        ? appendSyncOutcomeMessage(
+            `${formatPageSyncOutcomeSource(
+              pageStatus.lastOutcome.source
+            )}：推送 ${pageStatus.lastOutcome.pushed}，拉取 ${
+              pageStatus.lastOutcome.pulled
+            }，远端跳过 ${pageStatus.lastOutcome.skippedRemoteNewer}。`,
+            pageStatus.lastOutcome.message
+          )
         : "等待下一次页面同步结果。",
     },
     {
@@ -22019,11 +22022,14 @@ function SyncUploadSafetyPanel({
         ? formatDatabaseSyncStatus(databaseStatus.lastOutcome.status)
         : "暂无回执",
       detail: databaseStatus.lastOutcome
-        ? `${formatDatabaseSyncOutcomeSource(
-            databaseStatus.lastOutcome.source
-          )}：推送 ${databaseStatus.lastOutcome.pushed}，拉取 ${
-            databaseStatus.lastOutcome.pulled
-          }，跳过 ${databaseStatus.lastOutcome.skipped}。`
+        ? appendSyncOutcomeMessage(
+            `${formatDatabaseSyncOutcomeSource(
+              databaseStatus.lastOutcome.source
+            )}：推送 ${databaseStatus.lastOutcome.pushed}，拉取 ${
+              databaseStatus.lastOutcome.pulled
+            }，跳过 ${databaseStatus.lastOutcome.skipped}。`,
+            databaseStatus.lastOutcome.message
+          )
         : "等待下一次数据库同步结果。",
     },
     {
@@ -23083,11 +23089,14 @@ function PagePendingQueueDetails({
       label: "最近回执",
       value: lastOutcome ? formatPageSyncStatus(lastOutcome.status) : "暂无回执",
       detail: lastOutcome
-        ? `${formatPageSyncOutcomeSource(lastOutcome.source)}：推送 ${
-            lastOutcome.pushed
-          }，拉取 ${lastOutcome.pulled}，远端较新/相同跳过 ${
-            lastOutcome.skippedRemoteNewer
-          }；剩余 pending ${lastOutcome.pendingAfter}。`
+        ? appendSyncOutcomeMessage(
+            `${formatPageSyncOutcomeSource(lastOutcome.source)}：推送 ${
+              lastOutcome.pushed
+            }，拉取 ${lastOutcome.pulled}，远端较新/相同跳过 ${
+              lastOutcome.skippedRemoteNewer
+            }；剩余 pending ${lastOutcome.pendingAfter}。`,
+            lastOutcome.message
+          )
         : "尚未记录页面同步结果。",
     },
     {
@@ -23335,11 +23344,16 @@ function DatabasePendingQueueDetails({
         ? formatDatabaseSyncStatus(status.lastOutcome.status)
         : "暂无回执",
       detail: status.lastOutcome
-        ? `${formatDatabaseSyncOutcomeSource(status.lastOutcome.source)}：推送 ${
-            status.lastOutcome.pushed
-          }，拉取 ${status.lastOutcome.pulled}，跳过 ${
-            status.lastOutcome.skipped
-          }；剩余 pending ${status.lastOutcome.pendingAfter}。`
+        ? appendSyncOutcomeMessage(
+            `${formatDatabaseSyncOutcomeSource(
+              status.lastOutcome.source
+            )}：推送 ${status.lastOutcome.pushed}，拉取 ${
+              status.lastOutcome.pulled
+            }，跳过 ${status.lastOutcome.skipped}；剩余 pending ${
+              status.lastOutcome.pendingAfter
+            }。`,
+            status.lastOutcome.message
+          )
         : "等待下一次数据库同步结果。",
     },
     {
@@ -28989,6 +29003,11 @@ function formatDatabaseSyncOutcomeSource(source: string) {
   if (source === "baseline-upload") return "首次基线补种";
   if (source === "reconcile") return "数据库同步对账";
   return source;
+}
+
+function appendSyncOutcomeMessage(detail: string, message?: string | null) {
+  const cleanMessage = message?.trim();
+  return cleanMessage ? `${detail} 最近原因：${cleanMessage}` : detail;
 }
 
 function formatFileEmbedSyncOutcomeStatus(status: string) {
