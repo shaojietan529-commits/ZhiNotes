@@ -15,8 +15,8 @@ import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus";
 import { buildAccountLocalUseReadiness } from "@/lib/sync/accountLocalUseReadiness";
 
 const COORDINATOR_PENDING_DRAIN_DELAY_MS = 900;
-const COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS = 15_000;
-const COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS = 30_000;
+const COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS = 5_000;
+const COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS = 12_000;
 
 export type AccountCloudSyncCoordinatorState =
   | "disabled"
