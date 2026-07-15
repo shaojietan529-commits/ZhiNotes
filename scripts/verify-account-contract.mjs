@@ -454,6 +454,17 @@ check(
   "AccountShell 打开账号页时应先显示本机最近登录身份，再异步确认云端 session，避免刷新/弱网时看起来自动掉线"
 );
 check(
+  shell.includes("const accountShellMountedRef = useRef(true)") &&
+    shell.includes("const refreshSessionRequestRef = useRef(0)") &&
+    shell.includes("refreshSessionRequestRef.current += 1") &&
+    shell.includes("const requestId = refreshSessionRequestRef.current + 1") &&
+    shell.includes("refreshSessionRequestRef.current !== requestId") &&
+    shell.includes("if (!accountShellMountedRef.current) return;") &&
+    shell.includes("let cancelled = false") &&
+    shell.includes("cancelled || !accountShellMountedRef.current"),
+  "AccountShell 账号页异步 session、同步健康卡和共享/API key 初始化必须有卸载保护和请求序号，旧请求不能覆盖最新账号状态"
+);
+check(
   shell.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
     shell.includes("handleAccountSessionStorage") &&
     shell.includes(

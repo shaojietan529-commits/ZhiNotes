@@ -4,7 +4,7 @@
 // "not configured" state until the owner enables Resend + the allowlist,
 // so this page is safe to ship ahead of the cloud rollout.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -311,6 +311,16 @@ export default function AccountShell() {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyBusy, setApiKeyBusy] = useState(false);
   const [apiKeyNotice, setApiKeyNotice] = useState<string | null>(null);
+  const accountShellMountedRef = useRef(true);
+  const refreshSessionRequestRef = useRef(0);
+
+  useEffect(() => {
+    accountShellMountedRef.current = true;
+    return () => {
+      accountShellMountedRef.current = false;
+      refreshSessionRequestRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     setPageSyncOn(isPageSyncEnabled());
@@ -325,6 +335,7 @@ export default function AccountShell() {
       getPendingCloudDatabaseSyncStatus(),
       getSyncLogSummary().catch(() => null),
     ]);
+    if (!accountShellMountedRef.current) return;
     setPagePendingStatus(pageStatus);
     setDatabasePendingStatus(databaseStatus);
     setFileEmbedPendingStatus(getPendingFileEmbedSyncStatus());
@@ -412,6 +423,7 @@ export default function AccountShell() {
 
   const refreshHotCachePreferences = useCallback(async () => {
     const setting = await getWorkspaceSetting(HOT_CACHE_PREFERENCES_SETTING_KEY);
+    if (!accountShellMountedRef.current) return;
     setHotCacheSettingSaved(Boolean(setting));
     setHotCachePreferences(parseHotCachePreferences(setting));
   }, []);
@@ -455,12 +467,14 @@ export default function AccountShell() {
 
   const setSignedInAccount = useCallback((nextAccount: ClientAccountInfo) => {
     rememberLastAuthenticatedAccount(nextAccount);
+    if (!accountShellMountedRef.current) return;
     setAccount(nextAccount);
     setDisplayNameInput(nextAccount.display_name);
     notifyAccountProfileUpdated();
   }, []);
 
   const showStoredAccountFallback = useCallback((message: string) => {
+    if (!accountShellMountedRef.current) return false;
     const lastAuthenticatedAccount = getLastAuthenticatedAccount();
     if (!lastAuthenticatedAccount) return false;
     setAccount(lastAuthenticatedAccount);
@@ -471,11 +485,19 @@ export default function AccountShell() {
   }, []);
 
   const refreshSession = useCallback(async () => {
+    const requestId = refreshSessionRequestRef.current + 1;
+    refreshSessionRequestRef.current = requestId;
     showStoredAccountFallback(
       "正在确认账号云端状态；本机已先保留最近一次登录状态，本地输入可继续保存。"
     );
     try {
       const session = await fetchAccountSession({ force: true });
+      if (
+        !accountShellMountedRef.current ||
+        refreshSessionRequestRef.current !== requestId
+      ) {
+        return;
+      }
       if (session.authenticated && session.account) {
         setSignedInAccount(session.account);
         setPhase("signed-in");
@@ -506,6 +528,12 @@ export default function AccountShell() {
       setPhase("email");
     } catch {
       if (
+        !accountShellMountedRef.current ||
+        refreshSessionRequestRef.current !== requestId
+      ) {
+        return;
+      }
+      if (
         showStoredAccountFallback(
           "账号检查暂时失败，已保留最近一次登录状态；本地输入可继续保存，同步会稍后重试。"
         )
@@ -535,7 +563,9 @@ export default function AccountShell() {
   // Load sharing lists once signed in.
   useEffect(() => {
     if (phase !== "signed-in") return;
+    let cancelled = false;
     void fetchShares().then((result) => {
+      if (cancelled || !accountShellMountedRef.current) return;
       if (result.status === "ok") {
         setShareMembers(result.data.members);
         setSharedWithMe(result.data.sharedWithMe);
@@ -544,8 +574,14 @@ export default function AccountShell() {
     // Load existing API key
     void fetchAccountActionWithTimeout("/api/pages/ingest?action=current")
       .then((r) => r.json())
-      .then((d) => { if (d.ok) setApiKey(d.apiKey); })
+      .then((d) => {
+        if (cancelled || !accountShellMountedRef.current) return;
+        if (d.ok) setApiKey(d.apiKey);
+      })
       .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [phase]);
 
   async function handleShareAdd() {

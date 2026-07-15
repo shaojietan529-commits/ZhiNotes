@@ -5263,6 +5263,26 @@ function run() {
       "Account shell user action timeout timers must be cleared after fetch settles.",
     ],
     [
+      "const accountShellMountedRef = useRef(true)",
+      "Account shell must keep a mounted guard so old async account checks cannot write after navigation.",
+    ],
+    [
+      "const refreshSessionRequestRef = useRef(0)",
+      "Account shell must sequence session refreshes so stale results cannot override newer account state.",
+    ],
+    [
+      "refreshSessionRequestRef.current += 1",
+      "Account shell cleanup must invalidate in-flight session refreshes.",
+    ],
+    [
+      "refreshSessionRequestRef.current !== requestId",
+      "Account shell session refresh must ignore stale account responses.",
+    ],
+    [
+      "cancelled || !accountShellMountedRef.current",
+      "Account shell sharing and ingest-key loaders must avoid writing UI after cleanup.",
+    ],
+    [
       'fetchAccountActionWithTimeout("/api/account/login/start"',
       "Sending an account login code must use the bounded account action fetch helper.",
     ],
