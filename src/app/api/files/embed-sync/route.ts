@@ -46,7 +46,14 @@ export async function POST(request: Request) {
   if (!token) {
     return NextResponse.json({ error: "auth-required" }, { status: 401 });
   }
-  const account = await getSessionAccount(config, token);
+  let account: Awaited<ReturnType<typeof getSessionAccount>>;
+  try {
+    account = await getSessionAccount(config, token);
+  } catch {
+    return accountSessionUnconfirmedResponse(
+      "文件云同步暂时无法确认账号；文件已保存在本地，请稍后重试。"
+    );
+  }
   if (!account) {
     return accountSessionUnconfirmedResponse(
       "文件云同步暂时无法确认账号；文件已保存在本地，请稍后重试。"
@@ -86,7 +93,13 @@ export async function POST(request: Request) {
       dataUrl,
       textContent: textContent ?? null,
     });
-    await kvSet(config.kv, `${FILE_KEY_PREFIX}${email}:${fileId}`, record);
+    try {
+      await kvSet(config.kv, `${FILE_KEY_PREFIX}${email}:${fileId}`, record);
+    } catch {
+      return accountSessionUnconfirmedResponse(
+        "文件云同步暂时无法写入云端；文件已保存在本地，请稍后重试。"
+      );
+    }
     return NextResponse.json({ ok: true, synced: true });
   }
 
@@ -95,7 +108,14 @@ export async function POST(request: Request) {
     if (!fileId) {
       return NextResponse.json({ error: "missing-fileId" }, { status: 400 });
     }
-    const raw = await kvGet(config.kv, `${FILE_KEY_PREFIX}${email}:${fileId}`);
+    let raw: string | null;
+    try {
+      raw = await kvGet(config.kv, `${FILE_KEY_PREFIX}${email}:${fileId}`);
+    } catch {
+      return accountSessionUnconfirmedResponse(
+        "文件云同步暂时无法读取云端；本地文件不受影响，请稍后重试。"
+      );
+    }
     if (!raw) {
       return NextResponse.json({ found: false });
     }

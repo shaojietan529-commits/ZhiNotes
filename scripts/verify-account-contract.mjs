@@ -763,10 +763,15 @@ check(
 );
 check(
   fileEmbedSyncRoute.includes("accountSessionUnconfirmedResponse") &&
+    fileEmbedSyncRoute.includes(
+      "try {\n    account = await getSessionAccount(config, token);"
+    ) &&
     fileEmbedSyncRoute.includes("文件云同步暂时无法确认账号；文件已保存在本地，请稍后重试。") &&
+    fileEmbedSyncRoute.includes("文件云同步暂时无法写入云端；文件已保存在本地，请稍后重试。") &&
+    fileEmbedSyncRoute.includes("文件云同步暂时无法读取云端；本地文件不受影响，请稍后重试。") &&
     fileEmbedSyncRoute.includes('return NextResponse.json({ error: "auth-required" }, { status: 401 });') &&
     !fileEmbedSyncRoute.includes("登录已过期，请重新登录。"),
-  "file embed-sync route 必须区分未登录和 session 暂时不可确认：未登录才 401，有 cookie 时返回可重试 session-unconfirmed"
+  "file embed-sync route 必须区分未登录和 session 暂时不可确认；账号、云端读写短暂失败也必须返回可重试 session-unconfirmed"
 );
 check(
   fileEmbedSyncQueue.includes("classifyFileEmbedCloudSyncAuthDeferral") &&

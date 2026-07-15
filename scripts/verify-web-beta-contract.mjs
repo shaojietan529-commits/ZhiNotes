@@ -252,6 +252,7 @@ const files = {
   fileEmbedNode: "src/components/editor/extensions/FileEmbedNode.tsx",
   filePreviewUpload: "src/components/editor/filePreviewUpload.ts",
   fileEmbedSyncClient: "src/lib/files/fileEmbedSyncClient.ts",
+  fileEmbedSyncRoute: "src/app/api/files/embed-sync/route.ts",
   fileEmbedSyncStatusHook: "src/hooks/useFileEmbedCloudSyncStatus.ts",
   breadcrumbBlockNode:
     "src/components/editor/extensions/BreadcrumbBlockNode.tsx",
@@ -850,6 +851,7 @@ function run() {
   const fileEmbedNode = readProjectFile(files.fileEmbedNode);
   const filePreviewUpload = readProjectFile(files.filePreviewUpload);
   const fileEmbedSyncClient = readProjectFile(files.fileEmbedSyncClient);
+  const fileEmbedSyncRoute = readProjectFile(files.fileEmbedSyncRoute);
   const fileEmbedSyncStatusHook = readProjectFile(
     files.fileEmbedSyncStatusHook
   );
@@ -29274,6 +29276,30 @@ function run() {
     assertSourceExcludes(sourceLabel, source, forbiddenSnippet, message);
   }
   for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.fileEmbedSyncRoute,
+      fileEmbedSyncRoute,
+      "try {\n    account = await getSessionAccount(config, token);",
+      "File embed sync route must treat transient account lookup failures as retryable session uncertainty.",
+    ],
+    [
+      files.fileEmbedSyncRoute,
+      fileEmbedSyncRoute,
+      "文件云同步暂时无法确认账号；文件已保存在本地，请稍后重试。",
+      "File embed sync account uncertainty must preserve the local file.",
+    ],
+    [
+      files.fileEmbedSyncRoute,
+      fileEmbedSyncRoute,
+      "文件云同步暂时无法写入云端；文件已保存在本地，请稍后重试。",
+      "File embed sync cloud write failures must preserve the local file and stay retryable.",
+    ],
+    [
+      files.fileEmbedSyncRoute,
+      fileEmbedSyncRoute,
+      "文件云同步暂时无法读取云端；本地文件不受影响，请稍后重试。",
+      "File embed sync cloud read failures must keep local pages usable and stay retryable.",
+    ],
     [
       files.fileEmbedSyncClient,
       fileEmbedSyncClient,
