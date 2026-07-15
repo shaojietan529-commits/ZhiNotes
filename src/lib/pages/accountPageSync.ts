@@ -83,6 +83,8 @@ const AUTH_RETRY_PROBE_WINDOW_KEY = "__zhinotePageSyncAuthRetryProbe";
 // than failing the whole page push.
 const MAX_COVER_CHARS = 300 * 1024;
 const CLOUD_PUSH_DEBOUNCE_MS = 1000;
+const EMPTY_CLOUD_PAGE_ACK_MESSAGE =
+  "云端没有返回任何页面 ACK，已保留本地待上传状态并稍后重试。";
 let queuedCloudPush = new Map<string, RemotePageRecord>();
 let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
 let metadataDeltaInFlight: Promise<CloudPageMetadataDeltaResult> | null = null;
@@ -1233,6 +1235,30 @@ export async function pushCloudPages(
     ? (res.json.skipped as string[])
     : [];
   const acknowledgedIds = [...accepted, ...skipped];
+  if (records.length > 0 && acknowledgedIds.length === 0) {
+    markPendingCloudPushFailedRecords(
+      records,
+      "error",
+      EMPTY_CLOUD_PAGE_ACK_MESSAGE
+    );
+    recordPageSyncOutcome({
+      status: "error",
+      source: "direct-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skippedRemoteNewer: 0,
+      pendingAfter: getPendingCloudPushIds().length,
+      message: EMPTY_CLOUD_PAGE_ACK_MESSAGE,
+    });
+    emitPageSyncStatusChanged();
+    return {
+      status: "error",
+      accepted: [],
+      skipped: [],
+      message: EMPTY_CLOUD_PAGE_ACK_MESSAGE,
+    };
+  }
   clearPendingCloudPushIds(acknowledgedIds);
   void markAcknowledgedPageSyncIds(acknowledgedIds).catch(() => {
     // Keep the upload success path non-blocking; the next status refresh will

@@ -13086,6 +13086,14 @@ function run() {
       "Database pending queue must preserve failed upload receipts for retry visibility.",
     ],
     [
+      "EMPTY_CLOUD_DATABASE_ACK_MESSAGE",
+      "Database sync must keep local rows pending when the cloud response does not acknowledge any specific record.",
+    ],
+    [
+      "records.length > 0 && acknowledgedKeys.length === 0",
+      "Database sync must not treat an empty cloud ACK receipt as a successful sync.",
+    ],
+    [
       "failedSampleKeys",
       "Database pending status must expose metadata-only failed sample keys.",
     ],
@@ -25994,6 +26002,18 @@ function run() {
       accountPageSync,
       "if (acknowledgedIds.length > 0) setLastPageSyncAtNow();",
       "Account page sync push ACKs must refresh the last cloud sync timestamp immediately.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "EMPTY_CLOUD_PAGE_ACK_MESSAGE",
+      "Account page sync must keep local rows pending when the cloud response does not acknowledge any specific page.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "records.length > 0 && acknowledgedIds.length === 0",
+      "Account page sync must not treat an empty cloud ACK receipt as a successful sync.",
     ],
     [
       files.accountPageSync,

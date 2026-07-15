@@ -15994,6 +15994,18 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "EMPTY_CLOUD_PAGE_ACK_MESSAGE",
+    "Page push must keep local rows pending when the cloud response does not acknowledge any specific page."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "records.length > 0 && acknowledgedIds.length === 0",
+    "Page push must not treat an empty cloud ACK receipt as a successful sync."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "authRetryStatus: authRetry.status",
     "Smoke verifier must keep page auth retry status visible in pending metadata."
   );
@@ -17502,6 +17514,18 @@ function run() {
     accountDatabaseSync,
     "markPendingCloudDatabasePushFailedRecords",
     "Database pending queue must preserve failed upload receipts for retry visibility."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "EMPTY_CLOUD_DATABASE_ACK_MESSAGE",
+    "Database push must keep local rows pending when the cloud response does not acknowledge any specific record."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "records.length > 0 && acknowledgedKeys.length === 0",
+    "Database push must not treat an empty cloud ACK receipt as a successful sync."
   );
   assertIncludes(
     files.accountDatabaseSync,

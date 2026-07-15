@@ -50,6 +50,8 @@ const ACCOUNT_DATABASE_SYNC_REQUEST_TIMEOUT_MS = 12000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const METADATA_DELTA_THROTTLE_MS = 2500;
 const AUTH_RETRY_PROBE_WINDOW_KEY = "__zhinoteDatabaseSyncAuthRetryProbe";
+const EMPTY_CLOUD_DATABASE_ACK_MESSAGE =
+  "云端没有返回任何数据库 ACK，已保留本地待上传状态并稍后重试。";
 
 let queuedCloudDatabasePush = new Map<string, CloudDatabaseRecord>();
 let queuedCloudDatabasePushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1522,6 +1524,30 @@ export async function pushCloudDatabaseRecords(
     ? (res.json.skipped as string[])
     : [];
   const acknowledgedKeys = [...accepted, ...skipped];
+  if (records.length > 0 && acknowledgedKeys.length === 0) {
+    markPendingCloudDatabasePushFailedRecords(
+      records,
+      "error",
+      EMPTY_CLOUD_DATABASE_ACK_MESSAGE
+    );
+    emitDatabaseSyncStatusChanged();
+    recordDatabaseSyncOutcome({
+      status: "error",
+      source: "direct-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+      message: EMPTY_CLOUD_DATABASE_ACK_MESSAGE,
+    });
+    return {
+      status: "error",
+      accepted: [],
+      skipped: [],
+      message: EMPTY_CLOUD_DATABASE_ACK_MESSAGE,
+    };
+  }
   clearPendingCloudDatabasePushKeys(acknowledgedKeys);
   setLastDatabaseSyncAtNow();
   recordDatabaseSyncOutcome({
