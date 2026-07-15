@@ -586,6 +586,10 @@ export default function MeetingScheduleShell() {
     (callback: () => void, delayMs: number) => {
       let timer: number | null = null;
       const runWhenQuiet = () => {
+        if (!mountedRef.current) {
+          timer = null;
+          return;
+        }
         const foregroundDelay = getMeetingForegroundRefreshDelay();
         if (foregroundDelay > 0) {
           timer = window.setTimeout(runWhenQuiet, foregroundDelay);
@@ -868,6 +872,7 @@ export default function MeetingScheduleShell() {
         window.clearTimeout(highlightTimerRef.current);
       }
       highlightTimerRef.current = window.setTimeout(() => {
+        if (!mountedRef.current) return;
         setHighlightedDateKey((current) =>
           current === dateKey ? "" : current
         );
@@ -2353,6 +2358,7 @@ export default function MeetingScheduleShell() {
   const scheduleMeetingCreatePeekReadyFallback = useCallback(
     (page: Page, dateKey: string) => {
       window.setTimeout(() => {
+        if (!mountedRef.current) return;
         if (!window.location.pathname.startsWith("/schedule")) return;
         const currentOpeningDraft = openingDraftRef.current;
         const createPeekStillPreparing =
@@ -2482,6 +2488,7 @@ export default function MeetingScheduleShell() {
         if (creatingMeetingDateKeyRef.current === targetDateKey) {
           creatingMeetingDateKeyRef.current = null;
         }
+        if (!mountedRef.current) return;
         setCreatingMeetingDateKey((current) =>
           current === targetDateKey ? null : current
         );
@@ -2956,6 +2963,7 @@ export default function MeetingScheduleShell() {
           if (creatingMeetingDateKeyRef.current === dateKey) {
             creatingMeetingDateKeyRef.current = null;
           }
+          if (!mountedRef.current) return;
           setCreatingMeetingDateKey((current) =>
             current === dateKey ? null : current
           );

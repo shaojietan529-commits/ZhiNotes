@@ -3372,6 +3372,10 @@ function run() {
       "Meeting schedule background loads must stop before writing UI after unmount.",
     ],
     [
+      "if (!mountedRef.current) {\n          timer = null;\n          return;\n        }",
+      "Meeting schedule delayed foreground refreshes must cancel instead of writing UI after route unmount.",
+    ],
+    [
       "preserveVisibleMeetings",
       "Meeting schedule background refreshes must preserve already visible meetings.",
     ],
@@ -6677,6 +6681,10 @@ function run() {
       "Daily calendar background loads must stop before writing UI after unmount.",
     ],
     [
+      "if (!mountedRef.current) {\n          timer = null;\n          return;\n        }",
+      "Daily calendar delayed foreground refreshes must cancel instead of writing UI after route unmount.",
+    ],
+    [
       "seedVisibleDailyNotesForBackgroundRefresh(",
       "Daily calendar background refreshes must retain currently visible notes while local indexes catch up.",
     ],
@@ -7228,6 +7236,18 @@ function run() {
       "Daily + creation must fall back to a full page if the same-page peek shell stalls.",
     ],
     [
+      "if (!mountedRef.current) return;\n        if (!window.location.pathname.startsWith(\"/daily\")) return;",
+      "Daily + create fallback timers must not retry opening after the daily route unmounts.",
+    ],
+    [
+      "scheduleDailyIdleTask(() => {\n        if (!mountedRef.current) return;",
+      "Daily + background persistence must stop before writing UI after the daily route unmounts.",
+    ],
+    [
+      "await waitForDailyCreateFeedbackFrame();\n          if (!mountedRef.current) {",
+      "Daily + full-page creation must stop after unmount before retrying navigation.",
+    ],
+    [
       "DAILY_PEEK_CREATE_READY_RETRY_MS",
       "Daily + peek create fallback must be bounded so + never looks like a dead click.",
     ],
@@ -7256,7 +7276,7 @@ function run() {
       "Daily + creation must defer hot-cache writes behind the immediate peek open path.",
     ],
     [
-      "scheduleDailyIdleTask(() => {\n        void (async () => {",
+      "scheduleDailyIdleTask(() => {\n        if (!mountedRef.current) return;\n        void (async () => {",
       "Daily + creation must defer root resolution and cloud queue persistence behind the immediate navigation path.",
     ],
     [
@@ -8369,6 +8389,14 @@ function run() {
     [
       "onPointerDown={warmMeetingPeekOpen}",
       "Meeting schedule creation/import controls must warm the page shell and peek editor even on fast clicks.",
+    ],
+    [
+      "if (!mountedRef.current) return;\n        if (!window.location.pathname.startsWith(\"/schedule\")) return;",
+      "Meeting create fallback timers must not retry opening after the schedule route unmounts.",
+    ],
+    [
+      "if (!mountedRef.current) return;\n        setCreatingMeetingDateKey",
+      "Meeting create busy-state release timers must not write UI after the schedule route unmounts.",
     ],
     [
       "const creatingMeetingDateKeyRef = useRef<string | null>(null)",

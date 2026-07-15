@@ -6515,6 +6515,10 @@ function run() {
       "Daily notes background loads must stop before writing UI after unmount.",
     ],
     [
+      "if (!mountedRef.current) {\n          timer = null;\n          return;\n        }",
+      "Daily notes delayed foreground refreshes must cancel instead of writing UI after route unmount.",
+    ],
+    [
       "seedVisibleDailyNotesForBackgroundRefresh(",
       "Daily notes background refreshes must retain currently visible notes while local indexes catch up.",
     ],
@@ -7618,6 +7622,10 @@ function run() {
     [
       "if (!mountedRef.current) return",
       "Meeting schedule background loads must stop before writing UI after unmount.",
+    ],
+    [
+      "if (!mountedRef.current) {\n          timer = null;\n          return;\n        }",
+      "Meeting schedule delayed foreground refreshes must cancel instead of writing UI after route unmount.",
     ],
     [
       "preserveVisibleMeetings",
@@ -12003,6 +12011,24 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "if (!mountedRef.current) return;\n        if (!window.location.pathname.startsWith(\"/daily\")) return;",
+    "Daily + create fallback timers must not retry opening after the daily route unmounts."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "scheduleDailyIdleTask(() => {\n        if (!mountedRef.current) return;",
+    "Daily + background persistence must stop before writing UI after the daily route unmounts."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "await waitForDailyCreateFeedbackFrame();\n          if (!mountedRef.current) {",
+    "Daily + full-page creation must stop after unmount before retrying navigation."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     "onFocus={warmDailyCreateOpenPath}",
     "Daily calendar + controls must warm the selected create-open path on keyboard focus before opening."
   );
@@ -12149,7 +12175,7 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
-    "scheduleDailyIdleTask(() => {\n        void (async () => {",
+    "scheduleDailyIdleTask(() => {\n        if (!mountedRef.current) return;\n        void (async () => {",
     "Daily + creation must defer root resolution and cloud queue persistence behind the immediate navigation path."
   );
   assertIncludes(
@@ -12336,6 +12362,8 @@ function run() {
     "data-create-state={createButtonState}",
     "data-local-draft-created={",
     'data-create-affordance="persistent"',
+    "if (!mountedRef.current) return;\n        if (!window.location.pathname.startsWith(\"/schedule\")) return;",
+    "if (!mountedRef.current) return;\n        setCreatingMeetingDateKey",
   ]) {
     assertIncludes(
       files.meetingScheduleShell,

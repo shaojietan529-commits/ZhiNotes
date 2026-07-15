@@ -421,6 +421,10 @@ export default function DailyNotesShell() {
     (callback: () => void, delayMs: number) => {
       let timer: number | null = null;
       const runWhenQuiet = () => {
+        if (!mountedRef.current) {
+          timer = null;
+          return;
+        }
         const foregroundDelay = getDailyForegroundRefreshDelay();
         if (foregroundDelay > 0) {
           timer = window.setTimeout(runWhenQuiet, foregroundDelay);
@@ -678,6 +682,7 @@ export default function DailyNotesShell() {
     (note: DailyNote, dateKey: string) => {
       if (dailyCreateOpenMode !== "full-page") return;
       window.setTimeout(() => {
+        if (!mountedRef.current) return;
         if (!window.location.pathname.startsWith("/daily")) return;
         const currentOpeningDraft = openingDraftRef.current;
         const createPeekStillPreparing =
@@ -705,6 +710,7 @@ export default function DailyNotesShell() {
     (note: DailyNote, dateKey: string) => {
       if (dailyCreateOpenMode !== "peek") return;
       window.setTimeout(() => {
+        if (!mountedRef.current) return;
         if (!window.location.pathname.startsWith("/daily")) return;
         const currentOpeningDraft = openingDraftRef.current;
         if (
@@ -1477,6 +1483,7 @@ export default function DailyNotesShell() {
         window.clearTimeout(dailyHighlightTimerRef.current);
       }
       dailyHighlightTimerRef.current = window.setTimeout(() => {
+        if (!mountedRef.current) return;
         setHighlightedDailyDateKey((current) =>
           current === dateKey ? "" : current
         );
@@ -1761,6 +1768,7 @@ export default function DailyNotesShell() {
         if (creatingDateKeyRef.current === dateKey) {
           creatingDateKeyRef.current = null;
         }
+        if (!mountedRef.current) return;
         setCreatingDateKey((current) =>
           current === dateKey ? null : current
         );
@@ -1845,6 +1853,10 @@ export default function DailyNotesShell() {
           setOpeningNoteId(null);
           setPeekPageId(null);
           await waitForDailyCreateFeedbackFrame();
+          if (!mountedRef.current) {
+            releaseCreatingDate();
+            return;
+          }
           openPage(optimisticNote, { source: "daily-create" });
           scheduleDailyCreateFullPageNavigationRetry(optimisticNote, dateKey);
         }
@@ -1911,11 +1923,14 @@ export default function DailyNotesShell() {
         })
       );
       scheduleDailyIdleTask(() => {
+        if (!mountedRef.current) return;
         void (async () => {
           try {
             const dailyRootId = initialRootId ?? (await getModuleRootId("daily"));
+            if (!mountedRef.current) return;
             if (!rootId) setRootId(dailyRootId);
             const latestNote = await getLatestOpenedDailyNote(optimisticNote);
+            if (!mountedRef.current) return;
             const noteForSave: DailyNote = {
               ...latestNote,
               parent_id: dailyRootId,
@@ -1940,12 +1955,14 @@ export default function DailyNotesShell() {
               noteForSave,
               upsertPages
             );
+            if (!mountedRef.current) return;
             setCloudNotice(
               persistStatus === "queued"
                 ? `${dateKey} 的每日纪要已在本机保存，并加入云端后台上传队列。`
                 : `${dateKey} 的每日纪要已在本机保存；登录或配置账号云端后会自动同步。`
             );
           } catch (error) {
+            if (!mountedRef.current) return;
             const message =
               error instanceof Error ? error.message : "账号云端保存失败";
             setCloudNotice(`每日纪要已在当前页面打开，但后台保存失败：${message}`);
