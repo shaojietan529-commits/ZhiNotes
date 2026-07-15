@@ -44,6 +44,7 @@ const files = {
     "src/lib/sync/localFirstCloudInputPlan.ts",
   cloudUploadReliabilityReport:
     "src/lib/sync/cloudUploadReliabilityReport.ts",
+  twoDayUsabilityGate: "src/lib/sync/twoDayUsabilityGate.ts",
   syncUploadDrainReceipt: "src/lib/sync/syncUploadDrainReceipt.ts",
   syncAckRetryLedgerContract:
     "src/lib/sync/syncAckRetryLedgerContract.ts",
@@ -490,6 +491,7 @@ function run() {
   const cloudUploadReliabilityReport = readProjectFile(
     files.cloudUploadReliabilityReport
   );
+  const twoDayUsabilityGate = readProjectFile(files.twoDayUsabilityGate);
   const syncUploadDrainReceipt = readProjectFile(
     files.syncUploadDrainReceipt
   );
@@ -3404,6 +3406,94 @@ function run() {
     "input.syncSummary?.manualReview ?? 0",
     "Cloud upload reliability report must include full-domain sync_log manual-review rows."
   );
+  for (const [snippet, message] of [
+    [
+      'format: "zhinote-two-day-usability-gate"',
+      "Two-day usability gate must expose a stable format.",
+    ],
+    [
+      "target_window_hours: 48",
+      "Two-day usability gate must keep the 48-hour P0 delivery window explicit.",
+    ],
+    [
+      "can_keep_using_now",
+      "Two-day usability gate must tell whether the user can keep using ZhiNotes now.",
+    ],
+    [
+      "can_switch_devices_now",
+      "Two-day usability gate must tell whether cross-device handoff is safe.",
+    ],
+    [
+      "all_platform_sync_minimum_ready",
+      "Two-day usability gate must expose the minimum all-platform sync readiness.",
+    ],
+    [
+      "can_claim_full_notion_parity_now: false",
+      "Two-day usability gate must not redefine the 48-hour target as full Notion parity.",
+    ],
+    [
+      "reads_page_body_text: false",
+      "Two-day usability gate must not read page body text.",
+    ],
+    [
+      "reads_database_row_values: false",
+      "Two-day usability gate must not read database row values.",
+    ],
+    [
+      "reads_file_bytes: false",
+      "Two-day usability gate must not read file bytes.",
+    ],
+    [
+      "uploads_workspace_data: false",
+      "Two-day usability gate must not upload workspace data.",
+    ],
+    [
+      "clears_local_cache: false",
+      "Two-day usability gate must not clear local cache.",
+    ],
+    [
+      "local-use-not-blocked",
+      "Two-day usability gate must include the local-use P0 gate.",
+    ],
+    [
+      "cross-device-handoff",
+      "Two-day usability gate must include the cross-device handoff P0 gate.",
+    ],
+    [
+      "cloud-workspace-and-core-sync",
+      "Two-day usability gate must include cloud workspace and core sync gating.",
+    ],
+    [
+      "sync-domain-coverage",
+      "Two-day usability gate must include sync-domain coverage.",
+    ],
+  ]) {
+    assertIncludes(files.twoDayUsabilityGate, twoDayUsabilityGate, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "buildTwoDayUsabilityGate",
+      "Sync UI must build the two-day usability gate.",
+    ],
+    [
+      "TwoDayUsabilityGatePanel",
+      "Sync UI must render the two-day usability gate panel.",
+    ],
+    [
+      "48小时可用版门禁",
+      "Sync UI must expose the two-day usability gate to the user.",
+    ],
+    [
+      "data-testid=\"two-day-usability-gate\"",
+      "Sync UI must expose a stable test id for the two-day usability gate.",
+    ],
+    [
+      "目标是两天内保证账号不乱掉、本地输入不断、同步状态透明、跨设备交接有证据",
+      "Sync UI must state the two-day P0 scope in user-facing Chinese.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
+  }
   assertIncludes(
     files.syncUploadDrainReceipt,
     syncUploadDrainReceipt,

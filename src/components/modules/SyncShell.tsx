@@ -393,6 +393,12 @@ import {
   type CloudSyncControlPlaneVerdict,
 } from "@/lib/sync/cloudSyncControlPlane";
 import {
+  buildTwoDayUsabilityGate,
+  type TwoDayUsabilityGate,
+  type TwoDayUsabilityGateStatus,
+  type TwoDayUsabilityVerdict,
+} from "@/lib/sync/twoDayUsabilityGate";
+import {
   buildAccountLocalUseReadiness,
   type AccountLocalUseReadiness,
   type AccountCloudSyncReadinessState,
@@ -2614,6 +2620,21 @@ function SyncDashboard() {
       syncDrainReceipt,
       syncHandoffReadinessReceipt,
       syncSummary,
+    ]
+  );
+  const twoDayUsabilityGate = useMemo(
+    () =>
+      buildTwoDayUsabilityGate({
+        cloudSyncControlPlane,
+        cloudUploadReliabilityReport,
+        cloudNativeFluidityReport,
+        pendingDomainCoverage,
+      }),
+    [
+      cloudNativeFluidityReport,
+      cloudSyncControlPlane,
+      cloudUploadReliabilityReport,
+      pendingDomainCoverage,
     ]
   );
   const syncReplayTestApiGuard = useMemo(
@@ -6916,6 +6937,8 @@ function SyncDashboard() {
           }
           onOpenAccount={() => router.push("/account")}
         />
+
+        <TwoDayUsabilityGatePanel gate={twoDayUsabilityGate} />
 
         <CloudAlphaPanel
           email={cloudEmail}
@@ -23436,6 +23459,205 @@ function CloudManifestOwnerReviewStatusPill({
     status === "local-ready"
       ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
       : status === "owner-decision"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[status]}
+    </span>
+  );
+}
+
+function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
+  const primaryGate =
+    gate.gates.find((item) => item.status === "block") ??
+    gate.gates.find((item) => item.status === "warn") ??
+    gate.gates[0] ??
+    null;
+
+  return (
+    <section
+      id="two-day-usability-gate"
+      data-testid="two-day-usability-gate"
+      data-two-day-usability-verdict={gate.verdict}
+      data-can-keep-using-now={String(gate.can_keep_using_now)}
+      data-can-switch-devices-now={String(gate.can_switch_devices_now)}
+      data-all-platform-sync-minimum-ready={String(
+        gate.all_platform_sync_minimum_ready
+      )}
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+            48h P0 Gate
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              48小时可用版门禁
+            </h2>
+            <TwoDayUsabilityVerdictPill verdict={gate.verdict} />
+          </div>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            目标是两天内保证账号不乱掉、本地输入不断、同步状态透明、跨设备交接有证据。
+            这不是完整 Notion 对齐，也不会在 gate 里上传或清理任何数据。
+          </p>
+        </div>
+        <div className="rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+          {gate.summary.pass} pass · {gate.summary.warnings} warn ·{" "}
+          {gate.summary.blockers} block
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <CacheRebuildFact
+          label="继续使用"
+          value={gate.can_keep_using_now ? "可以" : "先处理"}
+          detail="输入先本地保存"
+        />
+        <CacheRebuildFact
+          label="跨设备"
+          value={gate.can_switch_devices_now ? "可以" : "等待"}
+          detail="云 ACK 后再交接"
+        />
+        <CacheRebuildFact
+          label="全平台同步"
+          value={gate.all_platform_sync_minimum_ready ? "最低可用" : "未达标"}
+          detail="页面/库/文件"
+        />
+        <CacheRebuildFact
+          label="待上传"
+          value={String(gate.summary.total_waiting_rows)}
+          detail={`${gate.summary.failed_rows} 失败 / ${gate.summary.manual_review_rows} 人工`}
+        />
+        <CacheRebuildFact
+          label="账号退避"
+          value={gate.summary.auth_retry_active ? "等待恢复" : "正常"}
+          detail="不等于登出"
+        />
+        <CacheRebuildFact
+          label="性能样本"
+          value={String(gate.summary.performance_samples)}
+          detail="Daily / ZhiHui / 页面"
+        />
+      </div>
+
+      {primaryGate ? (
+        <article
+          data-testid="two-day-usability-primary-gate"
+          data-two-day-usability-primary-status={primaryGate.status}
+          className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs dark:border-amber-900 dark:bg-amber-950/30"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                当前最先处理：{primaryGate.title}
+              </div>
+              <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                {primaryGate.evidence}
+              </p>
+            </div>
+            <TwoDayUsabilityGatePill status={primaryGate.status} />
+          </div>
+          <p className="mt-2 leading-5 text-zinc-600 dark:text-zinc-300">
+            下一步：{primaryGate.next_action}
+          </p>
+        </article>
+      ) : null}
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {gate.gates.map((item) => (
+          <article
+            key={item.id}
+            data-testid={`two-day-usability-gate-${item.id}`}
+            data-two-day-usability-gate-status={item.status}
+            className="rounded-md border border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                {item.title}
+              </div>
+              <TwoDayUsabilityGatePill status={item.status} />
+            </div>
+            <p className="mt-2 leading-5 text-zinc-500 dark:text-zinc-400">
+              {item.evidence}
+            </p>
+            <p className="mt-1 leading-5 text-zinc-500 dark:text-zinc-400">
+              下一步：{item.next_action}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            24小时动作
+          </div>
+          <p className="mt-1">{gate.next_24h_action}</p>
+          <div className="mt-3 font-semibold text-zinc-900 dark:text-zinc-100">
+            48小时动作
+          </div>
+          <p className="mt-1">{gate.next_48h_action}</p>
+        </div>
+        <div className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            48小时内先不做
+          </div>
+          <ul className="mt-1 space-y-1">
+            {gate.non_goals_for_48h.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <p className="mt-4 rounded-md bg-zinc-100 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        边界：{gate.privacy_boundary}
+      </p>
+    </section>
+  );
+}
+
+function TwoDayUsabilityVerdictPill({
+  verdict,
+}: {
+  verdict: TwoDayUsabilityVerdict;
+}) {
+  const labels: Record<TwoDayUsabilityVerdict, string> = {
+    "ready-for-cross-device-beta": "可多端试用",
+    "usable-while-sync-drains": "可用但等同步",
+    "p0-blocked": "P0 阻断",
+  };
+  const className =
+    verdict === "ready-for-cross-device-beta"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : verdict === "usable-while-sync-drains"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+
+  return (
+    <span className={`rounded-md px-2 py-1 text-[10px] ${className}`}>
+      {labels[verdict]}
+    </span>
+  );
+}
+
+function TwoDayUsabilityGatePill({
+  status,
+}: {
+  status: TwoDayUsabilityGateStatus;
+}) {
+  const labels: Record<TwoDayUsabilityGateStatus, string> = {
+    pass: "pass",
+    warn: "warn",
+    block: "block",
+  };
+  const className =
+    status === "pass"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : status === "warn"
         ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
 
