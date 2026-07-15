@@ -453,22 +453,25 @@ export function useAccountCloudSyncCoordinator() {
     ) {
       return;
     }
+    const shouldForceAccountGate =
+      state === "error" || syncBlockedBySignedOut || accountUncertainByAuthRetry;
     const retryDelayMs =
       syncBlockedBySignedOut
         ? COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS
-        : state === "error"
+        : state === "error" || accountUncertainByAuthRetry
           ? COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS
           : COORDINATOR_PENDING_DRAIN_DELAY_MS;
     const timer = window.setTimeout(() => {
       if (!mountedRef.current) return;
       void syncNow({
-        forceAccountGate: state === "error" || syncBlockedBySignedOut,
+        forceAccountGate: shouldForceAccountGate,
         includeFileSync: false,
       });
     }, retryDelayMs);
     return () => window.clearTimeout(timer);
   }, [
     autoRetryableSyncWorkTotal,
+    accountUncertainByAuthRetry,
     enabledDomainCount,
     state,
     syncBlockedBySignedOut,

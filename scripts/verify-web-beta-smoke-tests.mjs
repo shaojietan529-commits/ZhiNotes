@@ -10832,8 +10832,14 @@ function run() {
   assertIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
-    'forceAccountGate: state === "error" || syncBlockedBySignedOut',
-    "Account cloud sync coordinator low-frequency retries must bypass stale auth backoff when account state is uncertain."
+    'state === "error" || syncBlockedBySignedOut || accountUncertainByAuthRetry',
+    "Account cloud sync coordinator low-frequency retries must bypass stale auth backoff when account state is uncertain or auth retry is active."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "forceAccountGate: shouldForceAccountGate",
+    "Account cloud sync coordinator automatic retries must force an account recheck while auth retry is active, without waiting for the full backoff window."
   );
   assertIncludes(
     files.accountCloudSyncCoordinator,
