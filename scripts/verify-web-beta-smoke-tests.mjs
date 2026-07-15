@@ -3627,6 +3627,18 @@ function run() {
       "data-two-device-sync-domain-coverage-complete",
       "Sync UI must expose two-device sync-domain coverage readiness.",
     ],
+    [
+      'data-testid="two-device-sync-smoke-runbook-export"',
+      "Sync UI must expose a local export action for the real two-device smoke runbook.",
+    ],
+    [
+      "zhinote-two-device-sync-smoke-runbook-",
+      "Sync UI must export the real two-device smoke runbook under a stable filename.",
+    ],
+    [
+      'busyQueueAction === "two-device-smoke-runbook"',
+      "Sync UI must track the two-device smoke runbook export as its own busy state.",
+    ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);
   }

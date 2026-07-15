@@ -678,6 +678,7 @@ type SyncQueueAction =
   | "cloud-ack-cache-safety-report"
   | "cloud-sync-control-plane"
   | "development-stability-handoff"
+  | "two-device-smoke-runbook"
   | "replay-test-plan";
 type CoreManifestCompareStatus =
   | "matched"
@@ -5042,6 +5043,26 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportTwoDeviceSyncSmokeRunbook = () => {
+    setBusyQueueAction("two-device-smoke-runbook");
+    try {
+      downloadJsonFile(
+        `zhinote-two-device-sync-smoke-runbook-${fileSafeTimestamp()}.json`,
+        twoDeviceSyncSmokeRunbook
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export two-device sync smoke runbook:",
+        err
+      );
+      window.alert(
+        "Two-device sync smoke runbook export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncDrainReceipt = () => {
     if (!syncDrainReceipt) return;
     downloadJsonFile(
@@ -6970,7 +6991,11 @@ function SyncDashboard() {
         />
 
         <TwoDayUsabilityGatePanel gate={twoDayUsabilityGate} />
-        <TwoDeviceSyncSmokeRunbookPanel runbook={twoDeviceSyncSmokeRunbook} />
+        <TwoDeviceSyncSmokeRunbookPanel
+          runbook={twoDeviceSyncSmokeRunbook}
+          exportBusy={busyQueueAction === "two-device-smoke-runbook"}
+          onExport={handleExportTwoDeviceSyncSmokeRunbook}
+        />
 
         <CloudAlphaPanel
           email={cloudEmail}
@@ -23654,8 +23679,12 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
 
 function TwoDeviceSyncSmokeRunbookPanel({
   runbook,
+  exportBusy,
+  onExport,
 }: {
   runbook: TwoDeviceSyncSmokeRunbook;
+  exportBusy: boolean;
+  onExport: () => void;
 }) {
   const primaryStep =
     runbook.steps.find((item) => item.status === "blocked") ??
@@ -23698,9 +23727,20 @@ function TwoDeviceSyncSmokeRunbookPanel({
             它只读取同步状态，不上传、不清缓存、不读取正文或文件内容。
           </p>
         </div>
-        <div className="rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
-          {runbook.summary.ready} ready · {runbook.summary.wait} wait ·{" "}
-          {runbook.summary.blocked} blocked
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exportBusy}
+            data-testid="two-device-sync-smoke-runbook-export"
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {exportBusy ? "导出中..." : "导出验收清单"}
+          </button>
+          <div className="rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+            {runbook.summary.ready} ready · {runbook.summary.wait} wait ·{" "}
+            {runbook.summary.blocked} blocked
+          </div>
         </div>
       </div>
 
