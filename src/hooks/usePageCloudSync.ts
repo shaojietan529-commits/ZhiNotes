@@ -51,6 +51,7 @@ const INITIAL_SYNC_DELAY_MS = 800;
 const EDIT_DEBOUNCE_MS = 4 * 1000;
 const PENDING_STATUS_SYNC_DELAY_MS = 1200;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
+const INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS = 10 * 1000;
 const LEASE_KEY = "zhinote.pagesync.leaderLease.v1";
 const LEASE_TTL_MS = 18 * 1000;
 const PAGE_PENDING_STORAGE_KEYS = new Set([
@@ -169,6 +170,7 @@ export function usePageCloudSync() {
     useRef<PageCloudSyncRunOptions | null>(null);
   const authRetryAfterRef = useRef(0);
   const authRetryStateRef = useRef<PageCloudSyncState>("signed-out");
+  const interactiveAuthRetryRecheckAfterRef = useRef(0);
   const seenLocalCacheRecoverySignalRef = useRef<string | null>(null);
   const recoveringLocalCacheSignalRef = useRef<string | null>(null);
   const pendingStatusRefreshGenerationRef = useRef(0);
@@ -231,6 +233,15 @@ export function usePageCloudSync() {
     refreshPendingStatus();
     return false;
   }, [refreshPendingStatus]);
+
+  const shouldForceAccountGateForInteractiveRetry = useCallback(() => {
+    const now = Date.now();
+    if (now >= authRetryAfterRef.current) return false;
+    if (now < interactiveAuthRetryRecheckAfterRef.current) return false;
+    interactiveAuthRetryRecheckAfterRef.current =
+      now + INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS;
+    return true;
+  }, []);
 
   const runSync = useCallback(async (options: PageCloudSyncRunOptions = {}) => {
     if (!mountedRef.current) return;
@@ -466,11 +477,19 @@ export function usePageCloudSync() {
     // of waiting for a hidden tab's lease to expire.
     const handleVisible = () => {
       if (document.visibilityState === "visible") {
-        void runSync({ quick: true, forceLease: true });
+        void runSync({
+          quick: true,
+          forceLease: true,
+          forceAccountGate: shouldForceAccountGateForInteractiveRetry(),
+        });
       }
     };
     const handleForeground = () => {
-      void runSync({ quick: true, forceLease: true });
+      void runSync({
+        quick: true,
+        forceLease: true,
+        forceAccountGate: shouldForceAccountGateForInteractiveRetry(),
+      });
     };
     const handleOnline = () => {
       void runSync({ quick: true, forceLease: true, forceAccountGate: true });
@@ -589,6 +608,7 @@ export function usePageCloudSync() {
     recoverLocalCacheFromCloud,
     refreshPendingStatus,
     runSync,
+    shouldForceAccountGateForInteractiveRetry,
     setPendingStatusIfMounted,
   ]);
 

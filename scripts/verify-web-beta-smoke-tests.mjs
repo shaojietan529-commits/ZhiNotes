@@ -10270,6 +10270,24 @@ function run() {
     "Page cloud sync must show domain-route unauthenticated results as retryable cloud uncertainty after the shared gate."
   );
   assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS = 10 * 1000",
+    "Page cloud sync must cap foreground auth retry recovery so tab switching does not create a tight account-check loop."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "shouldForceAccountGateForInteractiveRetry",
+    "Page cloud sync must recheck the account when the user foregrounds the app while auth retry is active."
+  );
+  assertIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    "forceAccountGate: shouldForceAccountGateForInteractiveRetry()",
+    "Page foreground/visibility sync must bypass stale auth retry only when the interactive retry guard allows it."
+  );
+  assertIncludes(
     files.databaseCloudSync,
     databaseCloudSync,
     "checkAccountCloudSyncGate",
@@ -10442,6 +10460,24 @@ function run() {
     databaseCloudSync,
     'result.status === "unauthenticated") {\n          authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n          authRetryStateRef.current = "error";',
     "Database cloud sync must show domain-route unauthenticated results as retryable cloud uncertainty after the shared gate."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS = 10 * 1000",
+    "Database cloud sync must cap foreground auth retry recovery so tab switching does not create a tight account-check loop."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "shouldForceAccountGateForInteractiveRetry",
+    "Database cloud sync must recheck the account when the user foregrounds the app while auth retry is active."
+  );
+  assertIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    "forceAccountGate: shouldForceAccountGateForInteractiveRetry()",
+    "Database foreground/visibility sync must bypass stale auth retry only when the interactive retry guard allows it."
   );
   const pageUnexpectedSyncErrorFallbacks =
     pageCloudSync.match(

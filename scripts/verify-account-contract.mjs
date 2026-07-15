@@ -2370,11 +2370,21 @@ check(
 );
 check(
   pageCloudSyncHook.includes("!options.forceAccountGate && Date.now() < authRetryAfterRef.current") &&
+    pageCloudSyncHook.includes("INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS = 10 * 1000") &&
+    pageCloudSyncHook.includes("interactiveAuthRetryRecheckAfterRef") &&
+    pageCloudSyncHook.includes("shouldForceAccountGateForInteractiveRetry") &&
+    pageCloudSyncHook.includes("now >= authRetryAfterRef.current") &&
+    pageCloudSyncHook.includes("now < interactiveAuthRetryRecheckAfterRef.current") &&
+    pageCloudSyncHook.includes(
+      "now + INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS"
+    ) &&
+    pageCloudSyncHook.includes(
+      "forceAccountGate: shouldForceAccountGateForInteractiveRetry()"
+    ) &&
     pageCloudSyncHook.includes("window.addEventListener(\"online\", handleOnline)") &&
     pageCloudSyncHook.includes("window.addEventListener(\"focus\", handleForeground)") &&
-    pageCloudSyncHook.includes("window.removeEventListener(\"online\", handleOnline)") &&
-    pageCloudSyncHook.includes("void runSync({ quick: true, forceLease: true });"),
-  "页面同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化/pending 队列在 auth retry 中时才强制重新确认账号"
+    pageCloudSyncHook.includes("window.removeEventListener(\"online\", handleOnline)"),
+  "页面同步前台切换默认只接管租约；如果已处于账号重试退避，应以 10 秒成本边界强制重新确认账号，避免登录恢复后仍卡住"
 );
 check(
   pageCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
@@ -2442,6 +2452,24 @@ check(
       'result.status === "unconfirmed") {\n        authRetryAfterRef.current = Date.now() + AUTH_RETRY_BACKOFF_MS;\n        authRetryStateRef.current = "error";'
     ),
   "页面同步应短期退避；只有共享账号 gate 明确 signed-out 才能显示未登录，具体同步接口认证失败必须显示成云端暂不可确认，避免误导用户以为账号掉线"
+);
+check(
+  pageCloudSyncHook.includes("INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS = 10 * 1000") &&
+    pageCloudSyncHook.includes("interactiveAuthRetryRecheckAfterRef") &&
+    pageCloudSyncHook.includes("shouldForceAccountGateForInteractiveRetry") &&
+    pageCloudSyncHook.includes("now >= authRetryAfterRef.current") &&
+    pageCloudSyncHook.includes("now < interactiveAuthRetryRecheckAfterRef.current") &&
+    pageCloudSyncHook.includes(
+      "now + INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS"
+    ) &&
+    pageCloudSyncHook.includes(
+      "forceAccountGate: shouldForceAccountGateForInteractiveRetry()"
+    ) &&
+    pageCloudSyncHook.includes('window.addEventListener("focus", handleForeground)') &&
+    pageCloudSyncHook.includes(
+      'document.addEventListener("visibilitychange", handleVisible)'
+    ),
+  "页面同步在用户切回页面/窗口聚焦时，如果正处于账号重试退避，应以 10 秒成本边界强制重新确认账号，避免重新登录后仍等完整退避窗口"
 );
 check(
   pageCloudSyncHook.includes("getPendingCloudPageSyncStatus") &&
@@ -2554,14 +2582,24 @@ check(
 );
 check(
   databaseCloudSyncHook.includes("!options.forceAccountGate && Date.now() < authRetryAfterRef.current") &&
+    databaseCloudSyncHook.includes("INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS = 10 * 1000") &&
+    databaseCloudSyncHook.includes("interactiveAuthRetryRecheckAfterRef") &&
+    databaseCloudSyncHook.includes("shouldForceAccountGateForInteractiveRetry") &&
+    databaseCloudSyncHook.includes("now >= authRetryAfterRef.current") &&
+    databaseCloudSyncHook.includes("now < interactiveAuthRetryRecheckAfterRef.current") &&
+    databaseCloudSyncHook.includes(
+      "now + INTERACTIVE_AUTH_RETRY_RECHECK_BACKOFF_MS"
+    ) &&
+    databaseCloudSyncHook.includes(
+      "forceAccountGate: shouldForceAccountGateForInteractiveRetry()"
+    ) &&
     databaseCloudSyncHook.includes("window.addEventListener(\"online\", handleOnline)") &&
     databaseCloudSyncHook.includes("window.addEventListener(\"focus\", handleForeground)") &&
     databaseCloudSyncHook.includes("window.removeEventListener(\"online\", handleOnline)") &&
-    databaseCloudSyncHook.includes("void runSync({ forceLease: true, quick: true });") &&
     databaseCloudSyncHook.includes(
       "void runSync({ forceLease: true, forceAccountGate: true, quick: true });"
     ),
-  "数据库同步前台切换只能接管租约，不能绕过账号重试冷却；只有联网恢复/配置变化/pending 队列在 auth retry 中时才强制重新确认账号"
+  "数据库同步在用户切回页面/窗口聚焦时，如果正处于账号重试退避，应以 10 秒成本边界强制重新确认账号；联网恢复/配置变化仍应立即强制确认"
 );
 check(
   databaseCloudSyncHook.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
