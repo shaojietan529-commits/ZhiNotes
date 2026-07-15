@@ -78,6 +78,7 @@ const EMPTY_DATABASE_PENDING_STATUS: PendingCloudDatabaseSyncStatus = {
   authRetryStatus: null,
   authRetryUntil: null,
   lastSyncAt: null,
+  lastOutcome: null,
 };
 
 export type DatabaseCloudSyncState =

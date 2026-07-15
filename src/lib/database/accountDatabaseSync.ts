@@ -36,6 +36,7 @@ const REMOTE_CURSOR_KEY = "zhinote.databasesync.remoteCursor";
 const PENDING_PUSH_KEYS_KEY = "zhinote.databasesync.pendingPushKeys";
 const PENDING_PUSH_META_KEY = "zhinote.databasesync.pendingPushMeta";
 const AUTH_RETRY_KEY = "zhinote.databasesync.authRetry.v1";
+const LAST_OUTCOME_KEY = "zhinote.databasesync.lastOutcome.v1";
 const LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY =
   "zhinote.databasesync.localBaselineUploadSignature.v1";
 export const DATABASE_SYNC_STORAGE_KEY_PREFIX = "zhinote.databasesync.";
@@ -61,6 +62,7 @@ let authRetryStatus: DatabaseSyncStatus | null = null;
 let authRetryProbeInFlight: Promise<AuthRetryProbeStatus> | null = null;
 let memoryDatabaseRemoteCursor = "";
 let memoryLastDatabaseSyncAt: string | null = null;
+let memoryLastDatabaseSyncOutcome: DatabaseSyncLastOutcome | null = null;
 
 export const DATABASE_SYNC_CONFIG_EVENT = "zhinote:databasesync-config";
 export const DATABASE_SYNC_STATUS_EVENT = "zhinote:databasesync-status";
@@ -74,6 +76,13 @@ export type DatabaseSyncStatus =
   | "error";
 
 export type DatabaseSyncRecordType = "database" | "field" | "row" | "view";
+
+export type DatabaseSyncOutcomeSource =
+  | "direct-push"
+  | "pending-push"
+  | "sync-log-push"
+  | "baseline-upload"
+  | "reconcile";
 
 export type CloudDatabaseRecord = RemoteDatabaseRecord;
 type AuthRetryProbeStatus = DatabaseSyncStatus | "ok";
@@ -185,6 +194,18 @@ export interface PushLocalDatabasesResult {
   message?: string;
 }
 
+export interface DatabaseSyncLastOutcome {
+  status: DatabaseSyncStatus;
+  source: DatabaseSyncOutcomeSource;
+  at: string;
+  pulled: number;
+  pushed: number;
+  accepted: number;
+  skipped: number;
+  pendingAfter: number;
+  message: string | null;
+}
+
 export interface PendingCloudDatabaseSyncStatus {
   enabled: boolean;
   pending: number;
@@ -207,6 +228,7 @@ export interface PendingCloudDatabaseSyncStatus {
   authRetryStatus: DatabaseSyncStatus | null;
   authRetryUntil: string | null;
   lastSyncAt: string | null;
+  lastOutcome: DatabaseSyncLastOutcome | null;
 }
 
 interface PendingCloudDatabasePushMetaEntry {
@@ -320,6 +342,17 @@ function removeSyncStorage(key: string): void {
 
 export function getLastDatabaseSyncAt(): string | null {
   return readSyncStorage(LAST_SYNC_KEY) ?? memoryLastDatabaseSyncAt;
+}
+
+export function getLastDatabaseSyncOutcome(): DatabaseSyncLastOutcome | null {
+  const stored = normalizeDatabaseSyncLastOutcome(
+    readSyncStorage(LAST_OUTCOME_KEY)
+  );
+  if (stored) {
+    memoryLastDatabaseSyncOutcome = stored;
+    return stored;
+  }
+  return memoryLastDatabaseSyncOutcome;
 }
 
 function setLastDatabaseSyncAtNow(): void {
@@ -1446,6 +1479,15 @@ export async function pushCloudDatabaseRecords(
   records: CloudDatabaseRecord[]
 ): Promise<PushCloudDatabasesResult> {
   if (records.length === 0) {
+    recordDatabaseSyncOutcome({
+      status: "ok",
+      source: "direct-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+    });
     return { status: "ok", accepted: [], skipped: [] };
   }
   markPendingCloudDatabasePushAttemptRecords(records);
@@ -1454,6 +1496,16 @@ export async function pushCloudDatabaseRecords(
   if (!res.ok) {
     markPendingCloudDatabasePushFailedRecords(records, res.status, res.message);
     emitDatabaseSyncStatusChanged();
+    recordDatabaseSyncOutcome({
+      status: res.status,
+      source: "direct-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+      message: res.message,
+    });
     return {
       status: res.status,
       accepted: [],
@@ -1470,6 +1522,15 @@ export async function pushCloudDatabaseRecords(
   const acknowledgedKeys = [...accepted, ...skipped];
   clearPendingCloudDatabasePushKeys(acknowledgedKeys);
   setLastDatabaseSyncAtNow();
+  recordDatabaseSyncOutcome({
+    status: "ok",
+    source: "direct-push",
+    pulled: 0,
+    pushed: accepted.length,
+    accepted: accepted.length,
+    skipped: skipped.length,
+    pendingAfter: getPendingCloudDatabasePushKeys().length,
+  });
   return { status: "ok", accepted, skipped };
 }
 
@@ -1565,10 +1626,28 @@ export async function flushPendingCloudDatabasePushes(
   options: FlushPendingCloudDatabasePushOptions = {}
 ): Promise<PushLocalDatabasesResult> {
   if (!isDatabaseSyncEnabled()) {
+    recordDatabaseSyncOutcome({
+      status: "disabled",
+      source: "pending-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+    });
     return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
   }
   const keys = getPendingCloudDatabasePushKeys();
   if (keys.length === 0) {
+    recordDatabaseSyncOutcome({
+      status: "ok",
+      source: "pending-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: 0,
+    });
     return { status: "ok", pushed: 0, skipped: 0, total: 0 };
   }
   const pendingMeta = getPendingCloudDatabasePushMeta();
@@ -1580,6 +1659,15 @@ export async function flushPendingCloudDatabasePushes(
           PENDING_CLOUD_DATABASE_MANUAL_REVIEW_FAILURE_COUNT
       );
   if (retryableKeys.length === 0) {
+    recordDatabaseSyncOutcome({
+      status: "ok",
+      source: "pending-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: keys.length,
+    });
     return { status: "ok", pushed: 0, skipped: 0, total: keys.length };
   }
   const records = await getDatabaseRecordsForSyncByKeys(retryableKeys);
@@ -1587,6 +1675,15 @@ export async function flushPendingCloudDatabasePushes(
   const missingKeys = retryableKeys.filter((key) => !foundKeys.has(key));
   clearPendingCloudDatabasePushKeys(missingKeys);
   if (records.length === 0) {
+    recordDatabaseSyncOutcome({
+      status: "ok",
+      source: "pending-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: missingKeys.length,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+    });
     return {
       status: "ok",
       pushed: 0,
@@ -1597,11 +1694,22 @@ export async function flushPendingCloudDatabasePushes(
     };
   }
   const result = await pushCloudDatabaseRecordsInBatches(records);
-  return {
+  const next = {
     ...result,
     total: keys.length,
     skippedKeys: [...(result.skippedKeys ?? []), ...missingKeys],
   };
+  recordDatabaseSyncOutcome({
+    status: next.status,
+    source: "pending-push",
+    pulled: 0,
+    pushed: next.pushed,
+    accepted: next.acceptedKeys?.length ?? next.pushed,
+    skipped: next.skipped,
+    pendingAfter: getPendingCloudDatabasePushKeys().length,
+    message: next.message ?? null,
+  });
+  return next;
 }
 
 export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudDatabaseSyncStatus> {
@@ -1681,6 +1789,7 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
     authRetryStatus: authRetry.status,
     authRetryUntil: authRetry.until,
     lastSyncAt: getLastDatabaseSyncAt(),
+    lastOutcome: getLastDatabaseSyncOutcome(),
   };
 }
 
@@ -1787,6 +1896,15 @@ async function pushCloudDatabaseRecordsInBatches(
 
 async function uploadLocalDatabaseBaselineIfNeeded(): Promise<PushLocalDatabasesResult> {
   if (!isDatabaseSyncEnabled()) {
+    recordDatabaseSyncOutcome({
+      status: "disabled",
+      source: "baseline-upload",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+    });
     return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
   }
   const summary = await getLocalDatabaseSyncSummary();
@@ -1795,29 +1913,84 @@ async function uploadLocalDatabaseBaselineIfNeeded(): Promise<PushLocalDatabases
     summary.count === 0 ||
     readSyncStorage(LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY) === signature
   ) {
+    recordDatabaseSyncOutcome({
+      status: "ok",
+      source: "baseline-upload",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+    });
     return { status: "ok", pushed: 0, skipped: 0, total: 0 };
   }
   const records = await getAllDatabaseRecordsForSync();
   if (records.length === 0) {
     writeSyncStorage(LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY, signature);
+    recordDatabaseSyncOutcome({
+      status: "ok",
+      source: "baseline-upload",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+    });
     return { status: "ok", pushed: 0, skipped: 0, total: 0 };
   }
 
   const result = await pushCloudDatabaseRecordsInBatches(records);
   if (result.status !== "ok") {
+    recordDatabaseSyncOutcome({
+      status: result.status,
+      source: "baseline-upload",
+      pulled: 0,
+      pushed: result.pushed,
+      accepted: result.acceptedKeys?.length ?? result.pushed,
+      skipped: result.skipped,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+      message: result.message ?? null,
+    });
     return result;
   }
   writeSyncStorage(LOCAL_DATABASE_BASELINE_UPLOAD_SIGNATURE_KEY, signature);
   setLastDatabaseSyncAtNow();
+  recordDatabaseSyncOutcome({
+    status: "ok",
+    source: "baseline-upload",
+    pulled: 0,
+    pushed: result.pushed,
+    accepted: result.acceptedKeys?.length ?? result.pushed,
+    skipped: result.skipped,
+    pendingAfter: getPendingCloudDatabasePushKeys().length,
+  });
   return result;
 }
 
 export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLocalDatabasesResult> {
   if (!isDatabaseSyncEnabled()) {
+    recordDatabaseSyncOutcome({
+      status: "disabled",
+      source: "sync-log-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+    });
     return { status: "disabled", pushed: 0, skipped: 0, total: 0 };
   }
   const pending = await getPendingDatabaseSyncRecords(200);
   if (pending.entries.length === 0 || pending.records.length === 0) {
+    recordDatabaseSyncOutcome({
+      status: "ok",
+      source: "sync-log-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+    });
     return { status: "ok", pushed: 0, skipped: 0, total: pending.entries.length };
   }
   const pendingLogIds = pending.entries.map((entry) => entry.logId);
@@ -1841,7 +2014,18 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
       result.message ?? result.status
     );
     emitDatabaseSyncStatusChanged();
-    return { ...result, marked };
+    const next: PushLocalDatabasesResult = { ...result, marked };
+    recordDatabaseSyncOutcome({
+      status: next.status,
+      source: "sync-log-push",
+      pulled: 0,
+      pushed: next.pushed,
+      accepted: next.acceptedKeys?.length ?? next.pushed,
+      skipped: next.skipped,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+      message: next.message ?? null,
+    });
+    return next;
   }
   const acknowledged = new Set([
     ...(result.acceptedKeys ?? []),
@@ -1853,13 +2037,23 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
       .map((entry) => entry.logId)
   );
   emitDatabaseSyncStatusChanged();
-  return {
+  const next: PushLocalDatabasesResult = {
     status: "ok",
     pushed: result.pushed,
     skipped: result.skipped,
     total: pending.entries.length,
     marked,
   };
+  recordDatabaseSyncOutcome({
+    status: next.status,
+    source: "sync-log-push",
+    pulled: 0,
+    pushed: next.pushed,
+    accepted: result.acceptedKeys?.length ?? next.pushed,
+    skipped: next.skipped,
+    pendingAfter: getPendingCloudDatabasePushKeys().length,
+  });
+  return next;
 }
 
 export async function syncCloudDatabaseDelta(
@@ -1915,6 +2109,13 @@ export async function syncCloudDatabaseDelta(
 }
 
 export async function reconcileDatabaseSync(
+  options: DatabaseReconcileOptions = {}
+): Promise<DatabaseReconcileResult> {
+  const result = await reconcileDatabaseSyncCore(options);
+  return recordReconcileDatabaseSyncOutcome(result);
+}
+
+async function reconcileDatabaseSyncCore(
   options: DatabaseReconcileOptions = {}
 ): Promise<DatabaseReconcileResult> {
   if (!isDatabaseSyncEnabled()) {
@@ -2193,4 +2394,115 @@ function newestIso(values: Array<string | null | undefined>): string | null {
     if (!newest || value > newest) newest = value;
   }
   return newest;
+}
+
+function normalizeDatabaseSyncLastOutcome(
+  value: string | DatabaseSyncLastOutcome | null | undefined
+): DatabaseSyncLastOutcome | null {
+  let parsed: unknown = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return null;
+  }
+  const source = (parsed as { source?: unknown }).source;
+  const status = (parsed as { status?: unknown }).status;
+  const at = (parsed as { at?: unknown }).at;
+  if (
+    source !== "direct-push" &&
+    source !== "pending-push" &&
+    source !== "sync-log-push" &&
+    source !== "baseline-upload" &&
+    source !== "reconcile"
+  ) {
+    return null;
+  }
+  if (
+    status !== "ok" &&
+    status !== "unauthenticated" &&
+    status !== "unconfigured" &&
+    status !== "unconfirmed" &&
+    status !== "disabled" &&
+    status !== "error"
+  ) {
+    return null;
+  }
+  if (typeof at !== "string" || Number.isNaN(Date.parse(at))) return null;
+
+  const pulled = normalizeNonNegativeCount(
+    (parsed as { pulled?: unknown }).pulled
+  );
+  const pushed = normalizeNonNegativeCount(
+    (parsed as { pushed?: unknown }).pushed
+  );
+  const accepted = normalizeNonNegativeCount(
+    (parsed as { accepted?: unknown }).accepted
+  );
+  const skipped = normalizeNonNegativeCount(
+    (parsed as { skipped?: unknown }).skipped
+  );
+  const pendingAfter = normalizeNonNegativeCount(
+    (parsed as { pendingAfter?: unknown }).pendingAfter
+  );
+  const message = (parsed as { message?: unknown }).message;
+  return {
+    status,
+    source,
+    at,
+    pulled,
+    pushed,
+    accepted,
+    skipped,
+    pendingAfter,
+    message:
+      typeof message === "string" && message.trim()
+        ? message.trim().slice(0, 220)
+        : null,
+  };
+}
+
+function normalizeNonNegativeCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : 0;
+}
+
+function recordDatabaseSyncOutcome(
+  outcome: Omit<DatabaseSyncLastOutcome, "at" | "message"> & {
+    at?: string;
+    message?: string | null;
+  }
+): void {
+  const next: DatabaseSyncLastOutcome = {
+    ...outcome,
+    at: outcome.at ?? new Date().toISOString(),
+    message:
+      typeof outcome.message === "string" && outcome.message.trim()
+        ? outcome.message.trim().slice(0, 220)
+        : null,
+  };
+  memoryLastDatabaseSyncOutcome = next;
+  writeSyncStorage(LAST_OUTCOME_KEY, JSON.stringify(next));
+}
+
+function recordReconcileDatabaseSyncOutcome(
+  result: DatabaseReconcileResult
+): DatabaseReconcileResult {
+  recordDatabaseSyncOutcome({
+    status: result.status,
+    source: "reconcile",
+    pulled: result.pulled,
+    pushed: result.pushed,
+    accepted: result.pushed,
+    skipped: result.skipped,
+    pendingAfter: getPendingCloudDatabasePushKeys().length,
+    message: result.message ?? null,
+  });
+  emitDatabaseSyncStatusChanged();
+  return result;
 }

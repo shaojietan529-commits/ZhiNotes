@@ -16110,6 +16110,18 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
+    "data-database-last-sync-outcome-status",
+    "Sync UI quick check must expose the latest metadata-only database sync receipt status."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
+    "data-database-last-sync-outcome-skipped",
+    "Sync UI quick check must expose how many database sync rows were skipped."
+  );
+  assertIncludes(
+    files.syncShell,
+    syncShell,
     "formatSyncHandoffMode",
     "Sync UI must translate handoff mode into user-facing language."
   );
@@ -16282,6 +16294,12 @@ function run() {
     "Sync UI handoff readiness summary must show the latest page sync outcome from the same export receipt."
   );
   assertIncludes(
+    files.syncShell,
+    syncShell,
+    "handoffReceipt.summary.database_last_sync_outcome_status",
+    "Sync UI handoff readiness summary must show the latest database sync outcome from the same export receipt."
+  );
+  assertIncludes(
     files.authCallback,
     authCallback,
     "recoverCloudHandoffFromSession",
@@ -16416,8 +16434,20 @@ function run() {
   assertIncludes(
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
+    "reads_database_sync_outcome_summary: true",
+    "Handoff readiness receipt may read metadata-only database sync outcome summaries."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
     "reads_page_sync_failure_messages: false",
     "Handoff readiness receipt must not read page sync failure messages."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "reads_database_sync_failure_messages: false",
+    "Handoff readiness receipt must not read database sync failure messages."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,
@@ -16428,8 +16458,20 @@ function run() {
   assertIncludes(
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
+    "database_last_sync_outcome_status",
+    "Handoff readiness receipt must include the latest metadata-only database sync outcome status."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
     "page_last_sync_outcome_skipped_remote_newer",
     "Handoff readiness receipt must include remote-newer skip counts without page ids or body text."
+  );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "database_last_sync_outcome_skipped",
+    "Handoff readiness receipt must include database skip counts without database keys or row values."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,
@@ -16521,11 +16563,23 @@ function run() {
     "includes_page_sync_outcome_counts_status_source_and_timestamps: true",
     "Handoff readiness receipt must declare that page sync outcomes are limited to counts, status, source, and timestamps."
   );
+  assertIncludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "includes_database_sync_outcome_counts_status_source_and_timestamps: true",
+    "Handoff readiness receipt must declare that database sync outcomes are limited to counts, status, source, and timestamps."
+  );
   assertExcludes(
     files.syncHandoffReadinessReceipt,
     syncHandoffReadinessReceipt,
     "page_last_sync_outcome_message",
     "Handoff readiness receipt must not export page sync failure or status messages."
+  );
+  assertExcludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "database_last_sync_outcome_message",
+    "Handoff readiness receipt must not export database sync failure or status messages."
   );
   assertIncludes(
     files.syncHandoffReadinessReceipt,

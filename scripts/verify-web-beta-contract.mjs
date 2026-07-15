@@ -11704,6 +11704,10 @@ function run() {
       "Upload safety overview must include the latest page sync outcome.",
     ],
     [
+      "数据库回执",
+      "Upload safety overview must include the latest database sync outcome.",
+    ],
+    [
       "远端跳过",
       "Sync UI must distinguish cloud-newer or equal skipped uploads from failures.",
     ],
@@ -11714,6 +11718,10 @@ function run() {
     [
       "最近回执只保存 counts、状态和时间戳，不保存页面正文",
       "Sync UI must disclose that page outcome receipts are metadata-only.",
+    ],
+    [
+      "最近回执只保存 counts、状态和时间戳，不保存数据库 key 或 row value",
+      "Sync UI must disclose that database outcome receipts are metadata-only.",
     ],
     [
       "人工处理样本",
@@ -12362,6 +12370,18 @@ function run() {
       "Handoff readiness receipt must include remote-newer skip counts without page ids or page bodies.",
     ],
     [
+      "database_last_sync_outcome_status",
+      "Handoff readiness receipt must include the latest metadata-only database sync outcome status.",
+    ],
+    [
+      "database_last_sync_outcome_source",
+      "Handoff readiness receipt must include the latest database sync outcome source without database keys.",
+    ],
+    [
+      "database_last_sync_outcome_skipped",
+      "Handoff readiness receipt must include database skip counts without database keys or row values.",
+    ],
+    [
       "file-pending-drained",
       "Handoff readiness receipt must block cross-device handoff while file rows are pending.",
     ],
@@ -12406,8 +12426,16 @@ function run() {
       "Handoff readiness receipt may read metadata-only page sync outcome summaries.",
     ],
     [
+      "reads_database_sync_outcome_summary: true",
+      "Handoff readiness receipt may read metadata-only database sync outcome summaries.",
+    ],
+    [
       "reads_page_sync_failure_messages: false",
       "Handoff readiness receipt must not read page sync failure messages.",
+    ],
+    [
+      "reads_database_sync_failure_messages: false",
+      "Handoff readiness receipt must not read database sync failure messages.",
     ],
     [
       "reads_page_ids: false",
@@ -12494,6 +12522,10 @@ function run() {
       "Handoff readiness receipt must keep page sync outcome receipts limited to counts, status, source, and timestamps.",
     ],
     [
+      "includes_database_sync_outcome_counts_status_source_and_timestamps: true",
+      "Handoff readiness receipt must keep database sync outcome receipts limited to counts, status, source, and timestamps.",
+    ],
+    [
       "blocked-local-only",
       "Handoff readiness receipt must block local-only workspaces.",
     ],
@@ -12555,6 +12587,12 @@ function run() {
     syncHandoffReadinessReceipt,
     "page_last_sync_outcome_message",
     "Handoff readiness receipt must not export page sync status or failure messages."
+  );
+  assertSourceExcludes(
+    files.syncHandoffReadinessReceipt,
+    syncHandoffReadinessReceipt,
+    "database_last_sync_outcome_message",
+    "Handoff readiness receipt must not export database sync status or failure messages."
   );
 
   for (const [snippet, message] of [

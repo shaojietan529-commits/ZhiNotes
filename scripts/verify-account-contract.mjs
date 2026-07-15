@@ -1249,8 +1249,13 @@ check(
     databaseSyncClient.includes("pendingSampleKeys: pendingKeys.slice(0, 5)") &&
     databaseSyncClient.includes("authRetryStatus: authRetry.status") &&
     databaseSyncClient.includes("authRetryUntil: authRetry.until") &&
-    databaseSyncClient.includes("lastSyncAt: getLastDatabaseSyncAt()"),
-  "数据库同步客户端应暴露只读 pending 上传状态、最早排队时间和样本 key，供同步页展示 cloud key、本地 sync_log 和内存批次"
+    databaseSyncClient.includes("lastSyncAt: getLastDatabaseSyncAt()") &&
+    databaseSyncClient.includes("LAST_OUTCOME_KEY") &&
+    databaseSyncClient.includes("export interface DatabaseSyncLastOutcome") &&
+    databaseSyncClient.includes("export function getLastDatabaseSyncOutcome") &&
+    databaseSyncClient.includes("lastOutcome: getLastDatabaseSyncOutcome()") &&
+    databaseSyncClient.includes("recordReconcileDatabaseSyncOutcome"),
+  "数据库同步客户端应暴露只读 pending 上传状态、最早排队时间、样本 key 和最近同步回执，供同步页展示 cloud key、本地 sync_log 和内存批次"
 );
 check(
   syncDashboardShell.includes("数据库 pending 上传队列") &&
@@ -1260,8 +1265,12 @@ check(
     syncDashboardShell.includes("includeManualReview: true") &&
     syncDashboardShell.includes("forceAccountGate: true") &&
     syncDashboardShell.includes("首次账号同步会补种本机数据库基线") &&
-    syncDashboardShell.includes("之后只补传 pending queue 里的数据库变更"),
-  "同步页应展示数据库 pending 上传队列并提供 quick 增量补传，同时说明首次基线补种和后续增量补传"
+    syncDashboardShell.includes("之后只补传 pending queue 里的数据库变更") &&
+    syncDashboardShell.includes("数据库回执") &&
+    syncDashboardShell.includes(
+      "最近回执只保存 counts、状态和时间戳，不保存数据库 key 或 row value"
+    ),
+  "同步页应展示数据库 pending 上传队列并提供 quick 增量补传，同时说明首次基线补种、后续增量补传和 metadata-only 最近同步回执"
 );
 check(
   syncDashboardShell.includes("全域 pending 变更分布") &&

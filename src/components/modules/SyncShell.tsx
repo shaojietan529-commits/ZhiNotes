@@ -1464,6 +1464,7 @@ function SyncDashboard() {
       authRetryStatus: null,
       authRetryUntil: null,
       lastSyncAt: null,
+      lastOutcome: null,
     }));
   const [databasePendingMessage, setDatabasePendingMessage] = useState<
     string | null
@@ -21779,6 +21780,19 @@ function SyncUploadSafetyPanel({
             : "数据库同步关闭",
     },
     {
+      label: "数据库回执",
+      value: databaseStatus.lastOutcome
+        ? formatDatabaseSyncStatus(databaseStatus.lastOutcome.status)
+        : "暂无回执",
+      detail: databaseStatus.lastOutcome
+        ? `${formatDatabaseSyncOutcomeSource(
+            databaseStatus.lastOutcome.source
+          )}：推送 ${databaseStatus.lastOutcome.pushed}，拉取 ${
+            databaseStatus.lastOutcome.pulled
+          }，跳过 ${databaseStatus.lastOutcome.skipped}。`
+        : "等待下一次数据库同步结果。",
+    },
+    {
       label: "文件队列",
       value: `${fileWaiting} 条`,
       detail:
@@ -22046,6 +22060,30 @@ function SyncUploadSafetyPanel({
             }
           />
           <CacheRebuildFact
+            label="数据库回执"
+            value={
+              handoffReceipt.summary.database_last_sync_outcome_status
+                ? formatDatabaseSyncStatus(
+                    handoffReceipt.summary.database_last_sync_outcome_status
+                  )
+                : "暂无回执"
+            }
+            detail={
+              handoffReceipt.summary.database_last_sync_outcome_status
+                ? `${formatDatabaseSyncOutcomeSource(
+                    handoffReceipt.summary.database_last_sync_outcome_source ??
+                      "unknown"
+                  )}：推送 ${
+                    handoffReceipt.summary.database_last_sync_outcome_pushed
+                  } · 拉取 ${
+                    handoffReceipt.summary.database_last_sync_outcome_pulled
+                  } · 跳过 ${
+                    handoffReceipt.summary.database_last_sync_outcome_skipped
+                  }`
+                : "还没有数据库同步 ACK/拉取回执。"
+            }
+          />
+          <CacheRebuildFact
             label="最早 pending"
             value={handoffReceipt.summary.oldest_pending_age_label}
             detail={
@@ -22299,6 +22337,12 @@ function SyncHandoffQuickCheckPanel({
       data-page-last-sync-outcome-skipped-remote-newer={
         summary.page_last_sync_outcome_skipped_remote_newer
       }
+      data-database-last-sync-outcome-status={
+        summary.database_last_sync_outcome_status ?? "none"
+      }
+      data-database-last-sync-outcome-skipped={
+        summary.database_last_sync_outcome_skipped
+      }
       className={`rounded-lg border px-4 py-3 ${panelClass}`}
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -22405,6 +22449,23 @@ function SyncHandoffQuickCheckPanel({
                   summary.page_last_sync_outcome_skipped_remote_newer
                 }`
               : "队列清空仍是主判断；回执会在下一次页面同步后出现。"
+          }
+        />
+        <SyncHandoffQuickFact
+          label="数据库回执"
+          value={
+            summary.database_last_sync_outcome_status
+              ? formatDatabaseSyncStatus(summary.database_last_sync_outcome_status)
+              : "暂无回执"
+          }
+          detail={
+            summary.database_last_sync_outcome_status
+              ? `${formatDatabaseSyncOutcomeSource(
+                  summary.database_last_sync_outcome_source ?? "unknown"
+                )}：推送 ${summary.database_last_sync_outcome_pushed} · 拉取 ${
+                  summary.database_last_sync_outcome_pulled
+                } · 跳过 ${summary.database_last_sync_outcome_skipped}`
+              : "队列清空仍是主判断；回执会在下一次数据库同步后出现。"
           }
         />
         <SyncHandoffQuickFact
@@ -22890,6 +22951,19 @@ function DatabasePendingQueueDetails({
       detail: status.enabled ? "最近一次数据库云同步时间。" : "数据库同步当前关闭。",
     },
     {
+      label: "最近回执",
+      value: status.lastOutcome
+        ? formatDatabaseSyncStatus(status.lastOutcome.status)
+        : "暂无回执",
+      detail: status.lastOutcome
+        ? `${formatDatabaseSyncOutcomeSource(status.lastOutcome.source)}：推送 ${
+            status.lastOutcome.pushed
+          }，拉取 ${status.lastOutcome.pulled}，跳过 ${
+            status.lastOutcome.skipped
+          }；剩余 pending ${status.lastOutcome.pendingAfter}。`
+        : "等待下一次数据库同步结果。",
+    },
+    {
       label: "认证退避",
       value: status.authRetryStatus
         ? formatDatabaseSyncStatus(status.authRetryStatus)
@@ -23042,6 +23116,7 @@ function DatabasePendingQueueDetails({
       <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
         数据库同步当前{status.enabled ? "已开启" : "已关闭"}。Cloud key
         队列、sync_log 和内存批次都清空后，才适合做本机缓存重建。
+        最近回执只保存 counts、状态和时间戳，不保存数据库 key 或 row value。
       </p>
     </div>
   );
@@ -28441,9 +28516,19 @@ function formatDatabaseSyncStatus(status: string) {
   if (status === "unauthenticated") return "账号未登录";
   if (status === "unconfigured") return "云端未配置";
   if (status === "unconfirmed") return "账号临时不可确认";
+  if (status === "ok") return "同步完成";
   if (status === "disabled") return "数据库同步已关闭";
   if (status === "error") return "云端同步错误";
   return status;
+}
+
+function formatDatabaseSyncOutcomeSource(source: string) {
+  if (source === "direct-push") return "直接上传";
+  if (source === "pending-push") return "pending 补传";
+  if (source === "sync-log-push") return "sync_log 补传";
+  if (source === "baseline-upload") return "首次基线补种";
+  if (source === "reconcile") return "数据库同步对账";
+  return source;
 }
 
 function formatSyncAuthRetryStatus(status: string) {
