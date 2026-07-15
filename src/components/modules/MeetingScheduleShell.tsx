@@ -308,6 +308,9 @@ function getMeetingCloudUnavailableMessage(status?: string) {
   if (status === "unconfigured") {
     return "云端账号系统未配置，本地会议日历继续可用。";
   }
+  if (status === "unconfirmed") {
+    return "账号会话暂时无法确认，本地会议日历继续可用；云端会在后台自动重试。";
+  }
   return "云端会议目录本轮校正失败，本地会议日历继续可用。";
 }
 
@@ -1323,7 +1326,8 @@ export default function MeetingScheduleShell() {
     const cloudUnavailableLocally =
       cloud.status === "disabled" ||
       cloud.status === "unauthenticated" ||
-      cloud.status === "unconfigured";
+      cloud.status === "unconfigured" ||
+      cloud.status === "unconfirmed";
     publishCalendarStatus(
       cloudUnavailableLocally ? "local-only" : "cloud-error",
       {

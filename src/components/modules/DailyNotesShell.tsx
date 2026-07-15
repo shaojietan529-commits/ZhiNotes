@@ -1308,6 +1308,16 @@ export default function DailyNotesShell() {
           });
           publishNotice("云端账号系统未配置，只显示本机每日纪要。");
           recordDailyPerformance("cloud-unconfigured");
+        } else if (cloud.status === "unconfirmed") {
+          const message =
+            "账号会话暂时无法确认，本地每日纪要继续可用；云端会在后台自动重试。";
+          publishCalendarStatus("local-only", Array.from(byId.values()), {
+            backgroundActive: false,
+            cloudLoading: false,
+            message,
+          });
+          publishNotice(message);
+          recordDailyPerformance("cloud-unconfirmed");
         } else {
           const message = formatDailyCloudMetadataFailureMessage(cloud.message);
           publishCalendarStatus("cloud-error", Array.from(byId.values()), {

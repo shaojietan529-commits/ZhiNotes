@@ -1405,6 +1405,9 @@ check(
     dailyNotesShell.includes("云端每日纪要目录先返回") &&
     dailyNotesShell.includes("formatDailyCloudMetadataFailureMessage") &&
     dailyNotesShell.includes("云端每日纪要索引本轮读取失败；当前先显示本机/热缓存内容，稍后刷新会自动重试。") &&
+    dailyNotesShell.includes('cloud.status === "unconfirmed"') &&
+    dailyNotesShell.includes("账号会话暂时无法确认，本地每日纪要继续可用；云端会在后台自动重试。") &&
+    dailyNotesShell.includes('recordDailyPerformance("cloud-unconfirmed")') &&
     dailyNotesShell.indexOf("readCachedDailyCloudMetadata(startDate, endDate)") <
       dailyNotesShell.indexOf("const localMetadata = await listDailyPageMetadataForCalendar") &&
     dailyNotesShell.indexOf("const earlyCloudMetadata = includeCloud") <
@@ -1831,7 +1834,9 @@ check(
     meetingScheduleShell.includes("页面同步已关闭，本地会议日历继续可用。") &&
     meetingScheduleShell.includes("当前浏览器未登录账号，只显示本机会议日历。") &&
     meetingScheduleShell.includes("云端账号系统未配置，本地会议日历继续可用。") &&
+    meetingScheduleShell.includes("账号会话暂时无法确认，本地会议日历继续可用；云端会在后台自动重试。") &&
     meetingScheduleShell.includes("云端会议目录本轮校正失败，本地会议日历继续可用。") &&
+    meetingScheduleShell.includes('cloud.status === "unconfirmed"') &&
     meetingScheduleShell.includes("getMeetingCloudUnavailableMessage(cloud.status)") &&
     !meetingScheduleShell.includes("云端会议目录暂未启用或未登录，本地会议日历继续可用。"),
   "MeetingScheduleShell 云端会议目录不可用文案必须区分同步关闭、未登录、账号未配置和临时失败，不能把配置/临时问题说成掉线"

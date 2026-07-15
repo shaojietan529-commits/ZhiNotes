@@ -1696,7 +1696,9 @@ check(
     shells.schedule.includes("页面同步已关闭，本地会议日历继续可用。") &&
     shells.schedule.includes("当前浏览器未登录账号，只显示本机会议日历。") &&
     shells.schedule.includes("云端账号系统未配置，本地会议日历继续可用。") &&
+    shells.schedule.includes("账号会话暂时无法确认，本地会议日历继续可用；云端会在后台自动重试。") &&
     shells.schedule.includes("云端会议目录本轮校正失败，本地会议日历继续可用。") &&
+    shells.schedule.includes('cloud.status === "unconfirmed"') &&
     shells.schedule.includes("getMeetingCloudUnavailableMessage(cloud.status)") &&
     !shells.schedule.includes("云端会议目录暂未启用或未登录，本地会议日历继续可用。"),
   "MeetingScheduleShell 云端会议目录不可用文案必须区分同步关闭、未登录、账号未配置和临时失败"
