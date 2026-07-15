@@ -4140,6 +4140,9 @@ check(
     sidebar.includes("formatClientAccountLabel") &&
     sidebar.includes("getLastAuthenticatedAccount") &&
     sidebar.includes("getLastKnownAccountLabel") &&
+    sidebar.includes("const accountLabelMountedRef = useRef(true)") &&
+    sidebar.includes("if (!accountLabelMountedRef.current) return;") &&
+    sidebar.includes("accountLabelMountedRef.current = false") &&
     sidebar.includes('window.addEventListener("storage", handleAccountStorage)') &&
     sidebar.includes('window.addEventListener("focus", handleAccountForeground)') &&
     sidebar.includes(

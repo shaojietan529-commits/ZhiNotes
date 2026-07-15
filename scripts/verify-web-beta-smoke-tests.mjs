@@ -11054,6 +11054,24 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
+    "const accountLabelMountedRef = useRef(true)",
+    "Sidebar account label refresh must keep a mounted guard for async account probes."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "if (!accountLabelMountedRef.current) return;",
+    "Sidebar account label refresh must avoid writing stale account state after navigation or unmount."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
+    "accountLabelMountedRef.current = false",
+    "Sidebar account label refresh must disable async account writes during cleanup."
+  );
+  assertIncludes(
+    files.sidebar,
+    sidebar,
     "if (options.preferStored)",
     "Sidebar account label refresh must paint the latest local username before cloud confirmation finishes."
   );

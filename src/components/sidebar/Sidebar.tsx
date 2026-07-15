@@ -756,6 +756,7 @@ export default function Sidebar() {
     icon: string;
     label: string;
   } | null>(null);
+  const accountLabelMountedRef = useRef(true);
   const primaryPointerDragRef = useRef<SidebarPrimaryPointerDrag | null>(null);
   const suppressPrimaryClickRef = useRef(false);
   const accountSync = useAccountCloudSyncCoordinator();
@@ -899,6 +900,7 @@ export default function Sidebar() {
         fallbackReason?: string;
       } = {}
     ) => {
+      if (!accountLabelMountedRef.current) return;
       if (options.preferStored) {
         const lastKnownLabel = getLastKnownAccountLabel();
         if (lastKnownLabel !== "账号") {
@@ -913,6 +915,7 @@ export default function Sidebar() {
       }
       try {
         const session = await fetchAccountSession({ force: options.force });
+        if (!accountLabelMountedRef.current) return;
         if (session.authenticated && session.account) {
           setAccountLabel(formatClientAccountLabel(session.account));
           setAccountSessionFallback(
@@ -942,6 +945,7 @@ export default function Sidebar() {
           reason: getAccountSessionFallbackReason(session.status),
         });
       } catch {
+        if (!accountLabelMountedRef.current) return;
         const lastKnownLabel = getLastKnownAccountLabel();
         setAccountLabel((currentLabel) =>
           currentLabel === "账号" ? lastKnownLabel : currentLabel
@@ -954,6 +958,13 @@ export default function Sidebar() {
     },
     []
   );
+
+  useEffect(() => {
+    accountLabelMountedRef.current = true;
+    return () => {
+      accountLabelMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

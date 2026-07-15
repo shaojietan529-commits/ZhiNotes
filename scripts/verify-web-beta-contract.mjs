@@ -26597,6 +26597,24 @@ function run() {
     [
       files.sidebar,
       sidebar,
+      "const accountLabelMountedRef = useRef(true)",
+      "Sidebar account label refresh must keep a mounted guard for async account probes.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "if (!accountLabelMountedRef.current) return;",
+      "Sidebar account label refresh must avoid writing stale account state after navigation or unmount.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
+      "accountLabelMountedRef.current = false",
+      "Sidebar account label refresh must disable async account writes during cleanup.",
+    ],
+    [
+      files.sidebar,
+      sidebar,
       "正在确认账号云端状态，已先显示最近用户名",
       "Sidebar foreground refresh should show the local username before cloud confirmation finishes.",
     ],
