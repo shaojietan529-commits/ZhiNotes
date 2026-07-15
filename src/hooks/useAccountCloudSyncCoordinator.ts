@@ -113,6 +113,7 @@ export function useAccountCloudSyncCoordinator() {
   const knowledgePendingTotal = knowledgeSync.status.totalPending;
   const filePendingTotal = fileSync.status.pending;
   const globalSyncLogCoveredPendingTotal =
+    (pageSync.pendingStatus.syncLogPending ?? 0) +
     (databaseSync.pendingStatus.syncLogPending ?? 0) +
     settingsPendingTotal +
     knowledgePendingTotal;

@@ -10497,6 +10497,10 @@ function run() {
       "Account cloud sync coordinator must add uncovered sync_log pending rows to the global pending total.",
     ],
     [
+      "(pageSync.pendingStatus.syncLogPending ?? 0) +",
+      "Account cloud sync coordinator must not double-count page sync_log pending rows as uncovered global sync_log rows.",
+    ],
+    [
       "globalSyncLogExtraManualReviewTotal",
       "Account cloud sync coordinator must add uncovered sync_log manual-review rows to the global manual-review total.",
     ],

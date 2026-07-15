@@ -3847,6 +3847,9 @@ check(
     accountCloudSyncCoordinator.includes("settingsPendingTotal") &&
     accountCloudSyncCoordinator.includes("knowledgePendingTotal") &&
     accountCloudSyncCoordinator.includes("globalSyncLogExtraPendingTotal") &&
+    accountCloudSyncCoordinator.includes(
+      "(pageSync.pendingStatus.syncLogPending ?? 0) +"
+    ) &&
     accountCloudSyncCoordinator.includes("globalSyncLogExtraManualReviewTotal") &&
     accountCloudSyncCoordinator.includes("manualReviewTotal") &&
     accountCloudSyncCoordinator.includes("pageRetryableFailedTotal") &&
