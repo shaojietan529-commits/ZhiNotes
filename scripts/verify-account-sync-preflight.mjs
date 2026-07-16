@@ -209,11 +209,15 @@ function run() {
       "Sync Center must expose the account sync preflight as a queue action.",
     ],
     [
+      '"account-sync-metadata-cache-warmup"',
+      "Sync Center must expose an explicit Daily/ZhiHui metadata cache warmup action.",
+    ],
+    [
       "ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY",
       "Sync Center must persist only a local preflight UI receipt.",
     ],
     [
-      'fetchSyncCloudApiWithTimeout(\n        "/api/account/sync-preflight"',
+      'fetchSyncCloudApiWithTimeout("/api/account/sync-preflight")',
       "Sync Center must call the read-only account sync preflight route.",
     ],
     [
@@ -227,6 +231,26 @@ function run() {
     [
       "data-testid=\"account-sync-preflight-run\"",
       "Sync Center must expose a manual account sync preflight rerun button.",
+    ],
+    [
+      "data-testid=\"account-sync-metadata-cache-warmup\"",
+      "Sync Center must expose a manual Daily/ZhiHui metadata cache warmup button.",
+    ],
+    [
+      "fetchDailyCloudMetadata({",
+      "Sync Center metadata cache warmup must explicitly request Daily cloud metadata.",
+    ],
+    [
+      "fetchMeetingCloudMetadata({",
+      "Sync Center metadata cache warmup must explicitly request ZhiHui cloud metadata.",
+    ],
+    [
+      "ACCOUNT_SYNC_METADATA_CACHE_WARMUP_NOTE",
+      "Sync Center must explain the explicit metadata cache warmup boundary.",
+    ],
+    [
+      "不上传、不清缓存、不改正文或数据库行值",
+      "Sync Center metadata cache warmup copy must disclose that it does not upload, clear cache, or mutate content.",
     ],
     [
       "data-account-sync-preflight-status",

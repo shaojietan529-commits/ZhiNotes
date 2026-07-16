@@ -697,6 +697,7 @@ type SyncQueueAction =
   | "two-device-smoke-owner-receipt"
   | "two-device-smoke-filled-receipt"
   | "account-sync-preflight"
+  | "account-sync-metadata-cache-warmup"
   | "account-bridge-probe"
   | "replay-test-plan";
 type AccountSyncPreflightStatus =
@@ -1030,6 +1031,8 @@ const ACCOUNT_SYNC_PREFLIGHT_RETRY_TTL_MS = 2 * 60 * 1000;
 const ACCOUNT_SYNC_PREFLIGHT_AUTO_DELAY_MS = 900;
 const ACCOUNT_SYNC_PREFLIGHT_PRIVACY_NOTE =
   "只读取账号会话状态和页面/数据库云端索引 metadata；不读正文、不上传、不清缓存，也不启用 push/pull。";
+const ACCOUNT_SYNC_METADATA_CACHE_WARMUP_NOTE =
+  "显式请求 Daily/ZhiHui 云端 metadata 接口来修复或预热日历 cache；不上传、不清缓存、不改正文或数据库行值。完成后会自动重新做账号同步体检。";
 const ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY =
   "zhinote.sync.accountBridgeProbeReceipt.v1";
 const ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS = 30 * 60 * 1000;
@@ -1109,6 +1112,16 @@ function persistAccountSyncPreflightReceipt(
   } catch {
     // Losing this UI receipt does not affect local input or pending queues.
   }
+}
+
+async function requestAccountSyncPreflightReceipt(): Promise<AccountSyncPreflightReceipt> {
+  const response = await fetchSyncCloudApiWithTimeout("/api/account/sync-preflight");
+  const body = await readCloudApiBody(response);
+  const receipt = normalizeAccountSyncPreflightReceipt(body);
+  if (!receipt) {
+    throw new Error(getCloudApiDetail(body, response));
+  }
+  return receipt;
 }
 
 function isFreshAccountSyncPreflightReceipt(
@@ -6782,14 +6795,7 @@ function SyncDashboard() {
   const handleRunAccountSyncPreflight = useCallback(async () => {
     setBusyQueueAction("account-sync-preflight");
     try {
-      const response = await fetchSyncCloudApiWithTimeout(
-        "/api/account/sync-preflight"
-      );
-      const body = await readCloudApiBody(response);
-      const receipt = normalizeAccountSyncPreflightReceipt(body);
-      if (!receipt) {
-        throw new Error(getCloudApiDetail(body, response));
-      }
+      const receipt = await requestAccountSyncPreflightReceipt();
       persistAccountSyncPreflightReceipt(receipt);
       setAccountSyncPreflightReceipt(receipt);
       const [nextPagePending, nextDatabasePending] = await Promise.all([
@@ -6800,6 +6806,46 @@ function SyncDashboard() {
       setDatabasePendingStatus(nextDatabasePending);
     } catch (err) {
       console.error("[Zhinote] Failed to run account sync preflight:", err);
+      const receipt = buildAccountSyncPreflightClientErrorReceipt(
+        err instanceof Error ? err.message : "未知错误"
+      );
+      persistAccountSyncPreflightReceipt(receipt);
+      setAccountSyncPreflightReceipt(receipt);
+    } finally {
+      setBusyQueueAction(null);
+    }
+  }, []);
+
+  const handleWarmAccountSyncMetadataCaches = useCallback(async () => {
+    setBusyQueueAction("account-sync-metadata-cache-warmup");
+    try {
+      await Promise.all([
+        fetchDailyCloudMetadata({
+          startDate: CORE_MANIFEST_DATE_START_DATE,
+          endDate: CORE_MANIFEST_DATE_END_DATE,
+          recentLimit: 0,
+        }),
+        fetchMeetingCloudMetadata({
+          startDate: CORE_MANIFEST_DATE_START_DATE,
+          endDate: CORE_MANIFEST_DATE_END_DATE,
+          recentLimit: 0,
+        }),
+      ]);
+      const receipt = await requestAccountSyncPreflightReceipt();
+      persistAccountSyncPreflightReceipt(receipt);
+      setAccountSyncPreflightReceipt(receipt);
+      const bridgeReceipt =
+        buildAccountSyncBridgeProbeReceiptFromPreflight(receipt);
+      persistAccountSyncBridgeProbeReceipt(bridgeReceipt);
+      setAccountBridgeProbeReceipt(bridgeReceipt);
+      const [nextPagePending, nextDatabasePending] = await Promise.all([
+        getPendingCloudPageSyncStatusWithSyncLog(),
+        getPendingCloudDatabaseSyncStatus(),
+      ]);
+      setPagePendingStatus(nextPagePending);
+      setDatabasePendingStatus(nextDatabasePending);
+    } catch (err) {
+      console.error("[Zhinote] Failed to warm account sync metadata caches:", err);
       const receipt = buildAccountSyncPreflightClientErrorReceipt(
         err instanceof Error ? err.message : "未知错误"
       );
@@ -6835,14 +6881,7 @@ function SyncDashboard() {
   const handleRunAccountBridgeProbe = useCallback(async () => {
     setBusyQueueAction("account-bridge-probe");
     try {
-      const response = await fetchSyncCloudApiWithTimeout(
-        "/api/account/sync-preflight"
-      );
-      const body = await readCloudApiBody(response);
-      const preflightReceipt = normalizeAccountSyncPreflightReceipt(body);
-      if (!preflightReceipt) {
-        throw new Error(getCloudApiDetail(body, response));
-      }
+      const preflightReceipt = await requestAccountSyncPreflightReceipt();
       persistAccountSyncPreflightReceipt(preflightReceipt);
       setAccountSyncPreflightReceipt(preflightReceipt);
       const receipt =
@@ -8572,7 +8611,9 @@ function SyncDashboard() {
         <AccountSyncPreflightPanel
           receipt={accountSyncPreflightReceipt}
           busy={busyQueueAction === "account-sync-preflight"}
+          warmBusy={busyQueueAction === "account-sync-metadata-cache-warmup"}
           onRun={() => void handleRunAccountSyncPreflight()}
+          onWarmMetadataCaches={() => void handleWarmAccountSyncMetadataCaches()}
         />
 
         <AccountSyncBridgeProbePanel
@@ -24838,14 +24879,22 @@ function accountSyncPreflightStatusClass(status: AccountSyncPreflightStatus) {
 function AccountSyncPreflightPanel({
   receipt,
   busy,
+  warmBusy,
   onRun,
+  onWarmMetadataCaches,
 }: {
   receipt: AccountSyncPreflightReceipt | null;
   busy: boolean;
+  warmBusy: boolean;
   onRun: () => void;
+  onWarmMetadataCaches: () => void;
 }) {
   const status = receipt?.status ?? "not-run";
   const expiresAt = accountSyncPreflightEffectiveExpiresAt(receipt);
+  const hasMetadataCacheGap =
+    !receipt ||
+    !receipt.summary.daily_cloud_metadata_readable ||
+    !receipt.summary.meeting_cloud_metadata_readable;
   return (
     <section
       data-testid="account-sync-preflight"
@@ -24896,15 +24945,26 @@ function AccountSyncPreflightPanel({
             如果状态是“临时无法确认”，它不是登出，本地输入和 pending 队列会保留。
           </p>
         </div>
-        <button
-          type="button"
-          data-testid="account-sync-preflight-run"
-          onClick={onRun}
-          disabled={busy}
-          className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
-        >
-          {busy ? "体检中..." : "只读体检同步链路"}
-        </button>
+        <div className="flex flex-col items-start gap-2 sm:flex-row lg:items-end">
+          <button
+            type="button"
+            data-testid="account-sync-preflight-run"
+            onClick={onRun}
+            disabled={busy || warmBusy}
+            className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+          >
+            {busy ? "体检中..." : "只读体检同步链路"}
+          </button>
+          <button
+            type="button"
+            data-testid="account-sync-metadata-cache-warmup"
+            onClick={onWarmMetadataCaches}
+            disabled={busy || warmBusy || !hasMetadataCacheGap}
+            className="w-fit rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-900"
+          >
+            {warmBusy ? "修复中..." : "修复 Daily/ZhiHui metadata cache"}
+          </button>
+        </div>
       </div>
 
       {receipt ? (
@@ -25015,6 +25075,11 @@ function AccountSyncPreflightPanel({
           <p className="rounded-md bg-blue-50 px-3 py-2 text-[11px] leading-4 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
             {ACCOUNT_SYNC_PREFLIGHT_PRIVACY_NOTE}
           </p>
+          {hasMetadataCacheGap ? (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+              {ACCOUNT_SYNC_METADATA_CACHE_WARMUP_NOTE}
+            </p>
+          ) : null}
         </div>
       ) : (
         <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">

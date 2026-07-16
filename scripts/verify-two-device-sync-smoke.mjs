@@ -264,7 +264,7 @@ function run() {
       "Sync UI account bridge probe must reuse the lightweight account sync preflight receipt.",
     ],
     [
-      'fetchSyncCloudApiWithTimeout(\n        "/api/account/sync-preflight"',
+      'fetchSyncCloudApiWithTimeout("/api/account/sync-preflight")',
       "Sync UI account bridge probe must call the metadata-only account sync preflight route instead of pulling Daily/ZhiHui metadata.",
     ],
     [
