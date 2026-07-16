@@ -16601,6 +16601,34 @@ function run() {
       "Sync UI must disclose that owner smoke draft storage is localStorage.",
     ],
     [
+      'format: "zhinote-two-device-smoke-owner-filled-receipt"',
+      "Sync UI must build a stable owner-filled two-device smoke receipt format.",
+    ],
+    [
+      "buildTwoDeviceSmokeOwnerFilledReceipt",
+      "Sync UI must convert the local owner smoke draft into an exportable filled receipt.",
+    ],
+    [
+      "owner_filled_local_results: true",
+      "Owner-filled two-device smoke receipt must declare that results are owner-filled local evidence.",
+    ],
+    [
+      "local_export_only: true",
+      "Owner-filled two-device smoke receipt must remain a local export only.",
+    ],
+    [
+      "can_claim_two_device_sync_passed_now: false",
+      "Owner-filled two-device smoke receipt must not auto-claim two-device sync passed.",
+    ],
+    [
+      'data-testid="two-device-sync-smoke-filled-receipt-export"',
+      "Sync UI must expose a button for exporting owner-filled two-device smoke results.",
+    ],
+    [
+      "zhinote-two-device-sync-smoke-filled-receipt-",
+      "Sync UI must export owner-filled two-device smoke results under a stable filename.",
+    ],
+    [
       "不会上传，也不会让系统自动宣称两端同步通过",
       "Sync UI owner smoke draft must not upload data or auto-claim two-device sync passed.",
     ],

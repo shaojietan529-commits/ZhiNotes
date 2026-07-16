@@ -4116,6 +4116,10 @@ function run() {
       "Sync UI must expose a local export action for the two-device owner receipt template.",
     ],
     [
+      'data-testid="two-device-sync-smoke-filled-receipt-export"',
+      "Sync UI must expose a local export action for the owner-filled two-device smoke results.",
+    ],
+    [
       "zhinote-two-device-sync-smoke-runbook-",
       "Sync UI must export the real two-device smoke runbook under a stable filename.",
     ],
@@ -4124,12 +4128,32 @@ function run() {
       "Sync UI must export the real two-device owner receipt under a stable filename.",
     ],
     [
+      "zhinote-two-device-sync-smoke-filled-receipt-",
+      "Sync UI must export the owner-filled two-device smoke receipt under a stable filename.",
+    ],
+    [
+      'format: "zhinote-two-device-smoke-owner-filled-receipt"',
+      "Owner-filled two-device smoke receipt must expose a stable local export format.",
+    ],
+    [
+      "owner_filled_local_results: true",
+      "Owner-filled two-device smoke receipt must clearly state that results are owner-filled local evidence.",
+    ],
+    [
+      "can_claim_two_device_sync_passed_now: false",
+      "Owner-filled two-device smoke receipt must not auto-claim two-device sync passed.",
+    ],
+    [
       'busyQueueAction === "two-device-smoke-runbook"',
       "Sync UI must track the two-device smoke runbook export as its own busy state.",
     ],
     [
       'busyQueueAction === "two-device-smoke-owner-receipt"',
       "Sync UI must track the two-device smoke owner receipt export as its own busy state.",
+    ],
+    [
+      'busyQueueAction === "two-device-smoke-filled-receipt"',
+      "Sync UI must track the owner-filled two-device smoke receipt export as its own busy state.",
     ],
     [
       'busyQueueAction === "account-bridge-probe"',

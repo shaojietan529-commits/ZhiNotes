@@ -412,6 +412,7 @@ import {
   buildTwoDeviceSyncSmokeRunbook,
   type TwoDeviceSyncSmokeOwnerReceipt,
   type TwoDeviceSyncSmokeRunbook,
+  type TwoDeviceSyncSmokeSurface,
   type TwoDeviceSyncSmokeStepStatus,
 } from "@/lib/sync/twoDeviceSyncSmokeRunbook";
 import {
@@ -697,6 +698,7 @@ type SyncQueueAction =
   | "development-stability-handoff"
   | "two-device-smoke-runbook"
   | "two-device-smoke-owner-receipt"
+  | "two-device-smoke-filled-receipt"
   | "account-bridge-probe"
   | "replay-test-plan";
 type AccountSyncBridgeProbeStatus = "not-run" | "ready" | "blocked" | "partial";
@@ -755,6 +757,50 @@ type TwoDeviceSmokeOwnerDraftSummary = {
   scoped_blocked: number;
   scoped_not_recorded: number;
   updated_at: string | null;
+};
+type TwoDeviceSmokeOwnerFilledReceipt = {
+  format: "zhinote-two-device-smoke-owner-filled-receipt";
+  format_version: 1;
+  receipt_status: TwoDeviceSmokeOwnerDraftSummary["status"];
+  scoped_receipt_status: TwoDeviceSmokeOwnerDraftSummary["scoped_status"];
+  generated_at: string;
+  source_runbook_generated_at: string;
+  source_owner_receipt_generated_at: string;
+  can_claim_two_device_sync_passed_now: false;
+  boundary: {
+    owner_filled_local_results: true;
+    local_export_only: true;
+    stores_private_content: false;
+    reads_page_body_text: false;
+    reads_database_row_values: false;
+    reads_file_names: false;
+    reads_file_bytes: false;
+    sends_network_requests: false;
+    writes_server_data: false;
+    uploads_workspace_data: false;
+  };
+  summary: TwoDeviceSmokeOwnerDraftSummary & {
+    runbook_ready_to_run: boolean;
+    scoped_runbook_ready_to_run: boolean;
+    owner_filled_steps: number;
+    owner_note_limit: number;
+  };
+  checklist: Array<{
+    id: string;
+    surface: TwoDeviceSyncSmokeSurface;
+    title: string;
+    runbook_status: TwoDeviceSyncSmokeStepStatus;
+    owner_result: TwoDeviceSmokeOwnerDraftResult;
+    owner_note: string;
+    owner_updated_at: string | null;
+    pass_criteria: string;
+    evidence_needed: string;
+    current_blocker: string | null;
+  }>;
+  final_pass_claim_requirements: string[];
+  privacy_note: string;
+  storage_policy: string;
+  next_action: string;
 };
 type CoreManifestCompareStatus =
   | "matched"
@@ -1372,6 +1418,82 @@ function getTwoDeviceSmokeOwnerDraftStep(
       updated_at: null,
     }
   );
+}
+
+function buildTwoDeviceSmokeOwnerFilledReceipt(input: {
+  runbook: TwoDeviceSyncSmokeRunbook;
+  ownerReceipt: TwoDeviceSyncSmokeOwnerReceipt;
+  ownerDraft: TwoDeviceSmokeOwnerDraft | null;
+  ownerDraftSummary: TwoDeviceSmokeOwnerDraftSummary;
+  generatedAt?: string;
+}): TwoDeviceSmokeOwnerFilledReceipt {
+  const generatedAt = input.generatedAt ?? new Date().toISOString();
+  const checklist = input.ownerReceipt.checklist.map((item) => {
+    const draftStep = getTwoDeviceSmokeOwnerDraftStep(
+      input.ownerDraft,
+      item.id
+    );
+    return {
+      id: item.id,
+      surface: item.surface,
+      title: item.title,
+      runbook_status: item.runbook_status,
+      owner_result: draftStep.result,
+      owner_note: draftStep.note,
+      owner_updated_at: draftStep.updated_at,
+      pass_criteria: item.pass_criteria,
+      evidence_needed: item.evidence_needed,
+      current_blocker: item.current_blocker,
+    };
+  });
+  const ownerFilledSteps = checklist.filter(
+    (item) => item.owner_result !== "not-recorded"
+  ).length;
+  const hasFailures =
+    input.ownerDraftSummary.failed > 0 || input.ownerDraftSummary.blocked > 0;
+  const nextAction = hasFailures
+    ? "先处理结果收据里的失败或阻塞项；未清零前不能声称两端同步通过。"
+    : input.ownerDraftSummary.status === "complete"
+      ? "结果已填齐，可以作为 owner evidence 保存；仍需按最终要求复核 pending=0、failed=0、manual review=0 和 ACK 证据。"
+      : "继续填写未记录步骤；导出文件只是本地验收记录，不会触发云同步或自动通过。";
+
+  return {
+    format: "zhinote-two-device-smoke-owner-filled-receipt",
+    format_version: 1,
+    receipt_status: input.ownerDraftSummary.status,
+    scoped_receipt_status: input.ownerDraftSummary.scoped_status,
+    generated_at: generatedAt,
+    source_runbook_generated_at: input.runbook.generated_at,
+    source_owner_receipt_generated_at: input.ownerReceipt.generated_at,
+    can_claim_two_device_sync_passed_now: false,
+    boundary: {
+      owner_filled_local_results: true,
+      local_export_only: true,
+      stores_private_content: false,
+      reads_page_body_text: false,
+      reads_database_row_values: false,
+      reads_file_names: false,
+      reads_file_bytes: false,
+      sends_network_requests: false,
+      writes_server_data: false,
+      uploads_workspace_data: false,
+    },
+    summary: {
+      ...input.ownerDraftSummary,
+      runbook_ready_to_run: input.runbook.ready_to_run_real_smoke_now,
+      scoped_runbook_ready_to_run: input.runbook.ready_to_run_scoped_smoke_now,
+      owner_filled_steps: ownerFilledSteps,
+      owner_note_limit: TWO_DEVICE_SMOKE_OWNER_DRAFT_NOTE_LIMIT,
+    },
+    checklist,
+    final_pass_claim_requirements:
+      input.ownerReceipt.final_pass_claim_requirements,
+    privacy_note:
+      "这份结果收据只导出 owner 在本机填写的步骤状态和脱敏短备注；不要把正文、数据库行值、文件名、会议链接、验证码、cookie 或 token 填进备注。",
+    storage_policy:
+      "本地下载 JSON 文件；不会上传到云端，不写 sync_log，不清 pending 队列，也不会让系统自动宣称两端同步通过。",
+    next_action: nextAction,
+  };
 }
 
 function normalizeTwoDeviceSmokeOwnerDraft(
@@ -3746,6 +3868,21 @@ function SyncDashboard() {
       ),
     [twoDeviceSmokeOwnerDraft, twoDeviceSyncSmokeRunbook]
   );
+  const twoDeviceSmokeOwnerFilledReceipt = useMemo(
+    () =>
+      buildTwoDeviceSmokeOwnerFilledReceipt({
+        runbook: twoDeviceSyncSmokeRunbook,
+        ownerReceipt: twoDeviceSyncSmokeOwnerReceipt,
+        ownerDraft: twoDeviceSmokeOwnerDraft,
+        ownerDraftSummary: twoDeviceSmokeOwnerDraftSummary,
+      }),
+    [
+      twoDeviceSmokeOwnerDraft,
+      twoDeviceSmokeOwnerDraftSummary,
+      twoDeviceSyncSmokeOwnerReceipt,
+      twoDeviceSyncSmokeRunbook,
+    ]
+  );
   const handleUpdateTwoDeviceSmokeOwnerDraftResult = useCallback(
     (stepId: string, result: TwoDeviceSmokeOwnerDraftResult) => {
       setTwoDeviceSmokeOwnerDraft((current) => {
@@ -5906,6 +6043,26 @@ function SyncDashboard() {
     }
   };
 
+  const handleExportTwoDeviceSyncSmokeFilledReceipt = () => {
+    setBusyQueueAction("two-device-smoke-filled-receipt");
+    try {
+      downloadJsonFile(
+        `zhinote-two-device-sync-smoke-filled-receipt-${fileSafeTimestamp()}.json`,
+        twoDeviceSmokeOwnerFilledReceipt
+      );
+    } catch (err) {
+      console.error(
+        "[Zhinote] Failed to export two-device sync filled smoke receipt:",
+        err
+      );
+      window.alert(
+        "Two-device sync filled smoke receipt export failed. Please check the console."
+      );
+    } finally {
+      setBusyQueueAction(null);
+    }
+  };
+
   const handleExportSyncDrainReceipt = () => {
     if (!syncDrainReceipt) return;
     downloadJsonFile(
@@ -7921,8 +8078,12 @@ function SyncDashboard() {
           receiptExportBusy={
             busyQueueAction === "two-device-smoke-owner-receipt"
           }
+          filledReceiptExportBusy={
+            busyQueueAction === "two-device-smoke-filled-receipt"
+          }
           onExport={handleExportTwoDeviceSyncSmokeRunbook}
           onExportOwnerReceipt={handleExportTwoDeviceSyncSmokeOwnerReceipt}
+          onExportFilledReceipt={handleExportTwoDeviceSyncSmokeFilledReceipt}
           onUpdateOwnerDraftResult={handleUpdateTwoDeviceSmokeOwnerDraftResult}
           onUpdateOwnerDraftNote={handleUpdateTwoDeviceSmokeOwnerDraftNote}
         />
@@ -25586,8 +25747,10 @@ function TwoDeviceSyncSmokeRunbookPanel({
   ownerDraftSummary,
   exportBusy,
   receiptExportBusy,
+  filledReceiptExportBusy,
   onExport,
   onExportOwnerReceipt,
+  onExportFilledReceipt,
   onUpdateOwnerDraftResult,
   onUpdateOwnerDraftNote,
 }: {
@@ -25597,8 +25760,10 @@ function TwoDeviceSyncSmokeRunbookPanel({
   ownerDraftSummary: TwoDeviceSmokeOwnerDraftSummary;
   exportBusy: boolean;
   receiptExportBusy: boolean;
+  filledReceiptExportBusy: boolean;
   onExport: () => void;
   onExportOwnerReceipt: () => void;
+  onExportFilledReceipt: () => void;
   onUpdateOwnerDraftResult: (
     stepId: string,
     result: TwoDeviceSmokeOwnerDraftResult
@@ -25737,6 +25902,15 @@ function TwoDeviceSyncSmokeRunbookPanel({
             className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {receiptExportBusy ? "导出中..." : "导出结果收据模板"}
+          </button>
+          <button
+            type="button"
+            onClick={onExportFilledReceipt}
+            disabled={filledReceiptExportBusy}
+            data-testid="two-device-sync-smoke-filled-receipt-export"
+            className="rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            {filledReceiptExportBusy ? "导出中..." : "导出已填结果"}
           </button>
           <div className="rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
             {runbook.summary.ready} ready · {runbook.summary.wait} wait ·{" "}
