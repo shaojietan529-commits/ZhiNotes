@@ -826,6 +826,21 @@ type TwoDeviceSmokeOwnerDraftSummary = {
   owner_evidence_age_minutes: number | null;
   updated_at: string | null;
 };
+type TwoDeviceHandoffVerdictTone = "success" | "info" | "warning" | "danger";
+type TwoDeviceHandoffVerdict = {
+  decision:
+    | "safe-to-switch"
+    | "scoped-smoke-ready"
+    | "keep-using-wait"
+    | "blocked";
+  tone: TwoDeviceHandoffVerdictTone;
+  headline: string;
+  detail: string;
+  primary_blocker: string;
+  next_action: string;
+  safe_actions: string[];
+  blocked_actions: string[];
+};
 type TwoDeviceSmokeOwnerFilledReceipt = {
   format: "zhinote-two-device-smoke-owner-filled-receipt";
   format_version: 1;
@@ -1958,6 +1973,181 @@ function buildTwoDeviceSmokeOwnerFilledReceipt(input: {
     storage_policy:
       "本地下载 JSON 文件；30 分钟后过期，过期后不能作为换设备证据；不会上传到云端，不写 sync_log，不清 pending 队列，也不会让系统自动宣称两端同步通过。",
     next_action: nextAction,
+  };
+}
+
+function buildTwoDeviceHandoffVerdict(input: {
+  runbook: TwoDeviceSyncSmokeRunbook;
+  ownerDraftSummary: TwoDeviceSmokeOwnerDraftSummary;
+}): TwoDeviceHandoffVerdict {
+  const summary = input.runbook.summary;
+  const queueBlocked =
+    summary.pending_rows > 0 ||
+    summary.failed_rows > 0 ||
+    summary.manual_review_rows > 0;
+  const primaryWorkflowBlocker =
+    input.runbook.steps.find(
+      (step) =>
+        step.status === "blocked" &&
+        step.id !== "ack-ledger-readiness" &&
+        step.id !== "final-device-handoff"
+    ) ?? null;
+  const canSwitchWithEvidence =
+    summary.can_switch_devices_now &&
+    summary.ack_ledger_ready &&
+    input.ownerDraftSummary.device_handoff_evidence_ready &&
+    input.ownerDraftSummary.owner_evidence_fresh &&
+    !queueBlocked &&
+    !summary.auth_retry_active;
+
+  if (canSwitchWithEvidence) {
+    return {
+      decision: "safe-to-switch",
+      tone: "success",
+      headline: "可以进行换设备验收",
+      detail:
+        "账号同步桥、ACK、pendingAfter=0 和 A/B 双向可见证据都已满足；仍然只把它作为 owner evidence，不自动宣称完整平台同步通过。",
+      primary_blocker: "无",
+      next_action:
+        "用另一台设备复核 Page、每日纪要、ZhiHui、数据库和文件元数据，然后保存脱敏验收收据。",
+      safe_actions: [
+        "继续在当前设备写作",
+        "用第二台设备做只读复核",
+        "导出已填结果收据",
+      ],
+      blocked_actions: ["自动清缓存", "自动宣称完整平台同步通过"],
+    };
+  }
+
+  if (!summary.can_keep_using_now) {
+    return {
+      decision: "blocked",
+      tone: "danger",
+      headline: "当前先修 P0 阻断",
+      detail:
+        "当前本地继续使用的前置条件还没满足；先不要切设备，也不要做缓存重建。",
+      primary_blocker: input.runbook.next_action,
+      next_action: input.runbook.next_action,
+      safe_actions: ["停留在当前页面查看状态", "导出同步中心收据"],
+      blocked_actions: ["换设备接着写", "清缓存", "开启真实云写入"],
+    };
+  }
+
+  if (summary.auth_retry_active) {
+    return {
+      decision: "keep-using-wait",
+      tone: "warning",
+      headline: "当前设备可继续用，但不要切设备",
+      detail:
+        "账号处于临时退避或暂不可确认状态；这不等于登出，但不能作为多端同步验收依据。",
+      primary_blocker: "账号状态暂不可确认",
+      next_action: "先刷新账号同步桥；如果仍退避，继续本地写作并等待重试。",
+      safe_actions: ["当前设备继续写作", "刷新账号同步桥", "查看账号页"],
+      blocked_actions: ["换设备接着写", "清本地缓存"],
+    };
+  }
+
+  if (!summary.account_sync_bridge_probe_ready) {
+    return {
+      decision: "keep-using-wait",
+      tone: "warning",
+      headline: "当前设备可继续用，先别换设备",
+      detail:
+        "账号同步桥还没有 4/4 metadata 可读的有效回执；另一台设备可能看不到完整索引。",
+      primary_blocker: "账号同步桥未 ready",
+      next_action: "点击“刷新同步桥”，拿到未过期的 4/4 metadata 回执。",
+      safe_actions: ["当前设备继续写作", "刷新同步桥", "修复 Daily/ZhiHui metadata"],
+      blocked_actions: ["把当前状态当成多端同步通过", "清缓存后重建"],
+    };
+  }
+
+  if (queueBlocked) {
+    return {
+      decision: "keep-using-wait",
+      tone: "warning",
+      headline: "当前设备可继续用，等待队列清零",
+      detail:
+        "仍有 pending、failed 或 manual review。写作可以继续，但换设备前必须能看到这些队列清零或人工处理完。",
+      primary_blocker: `pending ${summary.pending_rows} / failed ${summary.failed_rows} / manual ${summary.manual_review_rows}`,
+      next_action: "先重试或处理同步队列；不要用本地可见替代云端 ACK。",
+      safe_actions: ["当前设备继续写作", "导出 manual review 包", "重试 pending"],
+      blocked_actions: ["换设备接着写", "重建本地缓存"],
+    };
+  }
+
+  if (!summary.sync_domain_coverage_complete) {
+    return {
+      decision: "keep-using-wait",
+      tone: "warning",
+      headline: "当前设备可继续用，先补同步域覆盖",
+      detail:
+        "同步中心还不能证明所有 pending/failed/manual review 域都可见；这会让你误判数据已经同步。",
+      primary_blocker: "同步域覆盖未 complete",
+      next_action: "先补齐同步中心可见队列，再做两设备 smoke。",
+      safe_actions: ["当前设备继续写作", "查看同步域覆盖"],
+      blocked_actions: ["切设备验收", "清缓存"],
+    };
+  }
+
+  if (primaryWorkflowBlocker) {
+    return {
+      decision: "keep-using-wait",
+      tone: "warning",
+      headline: "当前设备可继续用，先补核心同步面",
+      detail:
+        "至少一个核心同步面还没 ready；这时当前设备可以继续用，但不能把另一台设备作为接力工作入口。",
+      primary_blocker:
+        primaryWorkflowBlocker.current_blocker ?? primaryWorkflowBlocker.title,
+      next_action:
+        primaryWorkflowBlocker.current_blocker ?? input.runbook.next_action,
+      safe_actions: ["当前设备继续写作", "查看当前先处理步骤", "导出验收清单"],
+      blocked_actions: ["换设备接着写", "清缓存", "声称多端同步通过"],
+    };
+  }
+
+  if (input.runbook.ready_to_run_scoped_smoke_now) {
+    return {
+      decision: "scoped-smoke-ready",
+      tone: "info",
+      headline: "可以先跑 48h scoped smoke",
+      detail:
+        "Page、每日纪要、ZhiHui、数据库和文件元数据可进入 scoped 验收；完整换设备仍要等 ACK 账本和 owner evidence。",
+      primary_blocker: summary.ack_ledger_ready
+        ? "owner evidence 尚未填齐"
+        : "ACK 账本尚未 ready",
+      next_action: input.runbook.next_action,
+      safe_actions: ["跑 scoped 两端 smoke", "继续当前设备写作", "导出验收清单"],
+      blocked_actions: ["声称完整平台同步通过", "清缓存"],
+    };
+  }
+
+  if (!summary.ack_ledger_ready) {
+    return {
+      decision: "keep-using-wait",
+      tone: "warning",
+      headline: "当前设备可继续用，完整换设备等待 ACK",
+      detail:
+        "本地队列状态不能替代云端 ACK。没有 ACK 账本前，另一台设备接力写作仍不安全。",
+      primary_blocker: "ACK 账本未 ready",
+      next_action: summary.ack_ledger_server_readiness_next_action,
+      safe_actions: ["当前设备继续写作", "查看 ACK 证据路径"],
+      blocked_actions: ["切设备接着写", "把本地清零当成云端已同步"],
+    };
+  }
+
+  return {
+    decision: "keep-using-wait",
+    tone: "warning",
+    headline: "当前设备可继续用，验收证据未填齐",
+    detail:
+      "运行条件基本接近，但 owner evidence 还没有完整记录，或记录已经过期。",
+    primary_blocker: input.ownerDraftSummary.owner_evidence_stale
+      ? "owner evidence 已过期"
+      : "owner evidence 未完成",
+    next_action:
+      "重新跑账号同步桥、ACK 和 A/B 双向可见检查，并填齐本地验收草稿。",
+    safe_actions: ["当前设备继续写作", "填写本地验收草稿", "导出结果收据"],
+    blocked_actions: ["换设备接着写", "清缓存"],
   };
 }
 
@@ -26984,6 +27174,19 @@ function TwoDeviceSyncSmokeRunbookPanel({
   ) => void;
   onUpdateOwnerDraftNote: (stepId: string, note: string) => void;
 }) {
+  const handoffVerdict = buildTwoDeviceHandoffVerdict({
+    runbook,
+    ownerDraftSummary,
+  });
+  const handoffVerdictClassName: Record<TwoDeviceHandoffVerdictTone, string> = {
+    success:
+      "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-100",
+    info: "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-100",
+    warning:
+      "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100",
+    danger:
+      "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-100",
+  };
   const primaryStep =
     runbook.steps.find((item) => item.status === "blocked") ??
     runbook.steps.find((item) => item.status === "wait") ??
@@ -27170,6 +27373,48 @@ function TwoDeviceSyncSmokeRunbookPanel({
           <div className="rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
             {runbook.summary.ready} ready · {runbook.summary.wait} wait ·{" "}
             {runbook.summary.blocked} blocked
+          </div>
+        </div>
+      </div>
+
+      <div
+        className={`mt-4 rounded-md border px-3 py-2 text-xs leading-5 ${handoffVerdictClassName[handoffVerdict.tone]}`}
+        data-testid="two-device-sync-handoff-verdict"
+        data-two-device-sync-handoff-decision={handoffVerdict.decision}
+        data-two-device-sync-handoff-tone={handoffVerdict.tone}
+        data-two-device-sync-handoff-safe-to-switch={String(
+          handoffVerdict.decision === "safe-to-switch"
+        )}
+        data-two-device-sync-handoff-primary-blocker={
+          handoffVerdict.primary_blocker
+        }
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="font-semibold">切设备判断：{handoffVerdict.headline}</div>
+            <p className="mt-1">{handoffVerdict.detail}</p>
+            <p className="mt-1">
+              主要阻塞：{handoffVerdict.primary_blocker}；下一步：
+              {handoffVerdict.next_action}
+            </p>
+          </div>
+          <div className="grid gap-2 text-[11px] lg:w-80 lg:grid-cols-2">
+            <div className="rounded-md bg-white/70 px-2 py-1 dark:bg-zinc-950/40">
+              <div className="font-semibold">现在可以</div>
+              <ul className="mt-1 space-y-0.5">
+                {handoffVerdict.safe_actions.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-md bg-white/70 px-2 py-1 dark:bg-zinc-950/40">
+              <div className="font-semibold">先不要做</div>
+              <ul className="mt-1 space-y-0.5">
+                {handoffVerdict.blocked_actions.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </div>

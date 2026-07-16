@@ -287,6 +287,30 @@ function run() {
       "Sync UI must expose a stable runbook test id.",
     ],
     [
+      "buildTwoDeviceHandoffVerdict",
+      "Sync UI must build a direct two-device handoff verdict from the runbook and owner evidence.",
+    ],
+    [
+      'data-testid="two-device-sync-handoff-verdict"',
+      "Sync UI must render a visible handoff verdict before the detailed two-device checklist.",
+    ],
+    [
+      "data-two-device-sync-handoff-decision",
+      "Sync UI handoff verdict must expose a stable machine-readable decision.",
+    ],
+    [
+      "切设备判断",
+      "Sync UI handoff verdict must explain the device handoff decision in user-facing Chinese.",
+    ],
+    [
+      "现在可以",
+      "Sync UI handoff verdict must separate safe actions from blocked actions.",
+    ],
+    [
+      "先不要做",
+      "Sync UI handoff verdict must tell the owner which actions remain blocked.",
+    ],
+    [
       'data-testid="two-device-sync-smoke-runbook-export"',
       "Sync UI must expose a local runbook export action.",
     ],
