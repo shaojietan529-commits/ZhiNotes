@@ -1521,6 +1521,18 @@ function run() {
       "Daily note creation peek fallback must be bounded so + never feels dead.",
     ],
     [
+      "DAILY_CREATE_STUCK_UNLOCK_MS",
+      "Daily note creation must define a bounded stale-lock release so one stuck create cannot disable all + buttons.",
+    ],
+    [
+      "releaseStaleDailyCreateLock(createStartedAt);",
+      "Daily note creation must release a stale create lock before refusing a new local-first draft.",
+    ],
+    [
+      "已释放 + 按钮",
+      "Daily note creation stale-lock recovery must visibly tell the user they can retry.",
+    ],
+    [
       "每日纪要弹窗准备较慢，已自动打开完整页面。",
       "Daily note creation peek fallback must tell users why a full page opened.",
     ],

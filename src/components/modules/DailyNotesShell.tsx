@@ -176,6 +176,7 @@ const DAILY_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 1800;
 // Keep create fallbacks short so calendar + never feels inert on heavy imports.
 const DAILY_PEEK_CREATE_READY_RETRY_MS = 450;
 const DAILY_CREATE_ACTIVATION_DEDUPE_MS = 800;
+const DAILY_CREATE_STUCK_UNLOCK_MS = 5000;
 const DAILY_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
 const DAILY_LOCAL_METADATA_FALLBACK_DELAY_MS = 900;
 const DAILY_EMPTY_FIRST_PAINT_FALLBACK_DELAY_MS = 120;
@@ -353,6 +354,7 @@ export default function DailyNotesShell() {
     dateKey: string;
     startedAt: number;
   } | null>(null);
+  const creatingDateStartedAtRef = useRef<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     pageId: string;
     x: number;
@@ -1833,6 +1835,30 @@ export default function DailyNotesShell() {
     });
   }, [warmDailyCreateOpenPath]);
 
+  const releaseStaleDailyCreateLock = useCallback(
+    (now = getLocalPerformanceNow()) => {
+      const lockedDateKey = creatingDateKeyRef.current;
+      const lockedStartedAt = creatingDateStartedAtRef.current;
+      if (!lockedDateKey || lockedStartedAt === null) return false;
+      if (now - lockedStartedAt < DAILY_CREATE_STUCK_UNLOCK_MS) return false;
+
+      creatingDateKeyRef.current = null;
+      creatingDateStartedAtRef.current = null;
+      dailyCreateActivationRef.current = null;
+      setCreatingDateKey((current) =>
+        current === lockedDateKey ? null : current
+      );
+      setOpeningDraftAndRef((current) =>
+        current?.dateKey === lockedDateKey ? null : current
+      );
+      setCloudNotice(
+        `${lockedDateKey} 的每日纪要新建等待过久，已释放 + 按钮；本地草稿不会被删除，可以重新点击。`
+      );
+      return true;
+    },
+    [setOpeningDraftAndRef]
+  );
+
   useEffect(() => {
     const occupiedDateKeys = buildOccupiedDailyCalendarHydrationKeys(
       grid,
@@ -1856,16 +1882,21 @@ export default function DailyNotesShell() {
   // Add a new note page on the given day, then open it for editing.
   const addNote = useCallback(
     async (dateKey: string) => {
-      if (creatingDateKeyRef.current) return;
       const createStartedAt = getLocalPerformanceNow();
+      if (creatingDateKeyRef.current) {
+        releaseStaleDailyCreateLock(createStartedAt);
+      }
+      if (creatingDateKeyRef.current) return;
       const createStartedAtIso = new Date().toISOString();
       loadRequestRef.current += 1;
       creatingDateKeyRef.current = dateKey;
+      creatingDateStartedAtRef.current = createStartedAt;
       markDailyForegroundInteraction(DAILY_NOTE_OPEN_QUIET_WINDOW_MS);
       setCreatingDateKey(dateKey);
       const releaseCreatingDate = () => {
         if (creatingDateKeyRef.current === dateKey) {
           creatingDateKeyRef.current = null;
+          creatingDateStartedAtRef.current = null;
         }
         if (!mountedRef.current) return;
         setCreatingDateKey((current) =>
@@ -2084,12 +2115,16 @@ export default function DailyNotesShell() {
       setOpeningDraftAndRef,
       markDailyForegroundInteraction,
       scheduleDailyCreateOpenWarmupAfterFeedback,
+      releaseStaleDailyCreateLock,
     ]
   );
 
   const claimDailyCreateActivation = useCallback((dateKey: string) => {
-    if (creatingDateKeyRef.current) return false;
     const now = getLocalPerformanceNow();
+    if (creatingDateKeyRef.current) {
+      releaseStaleDailyCreateLock(now);
+    }
+    if (creatingDateKeyRef.current) return false;
     const current = dailyCreateActivationRef.current;
     if (
       current?.dateKey === dateKey &&
@@ -2099,7 +2134,7 @@ export default function DailyNotesShell() {
     }
     dailyCreateActivationRef.current = { dateKey, startedAt: now };
     return true;
-  }, []);
+  }, [releaseStaleDailyCreateLock]);
 
   const runDailyCreateActivation = useCallback(
     (dateKey: string) => {
