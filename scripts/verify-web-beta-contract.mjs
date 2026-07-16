@@ -16509,6 +16509,26 @@ function run() {
       "Sync UI must expose full owner evidence readiness separately from scoped evidence readiness.",
     ],
     [
+      "TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY",
+      "Sync UI must keep a browser-local two-device owner smoke draft.",
+    ],
+    [
+      'format: "zhinote-two-device-smoke-owner-draft"',
+      "Sync UI owner smoke draft must have a stable local-only metadata format.",
+    ],
+    [
+      "data-two-device-smoke-owner-draft-status",
+      "Sync UI must expose the owner smoke draft status.",
+    ],
+    [
+      'data-two-device-smoke-owner-draft-storage="localStorage"',
+      "Sync UI must disclose that owner smoke draft storage is localStorage.",
+    ],
+    [
+      "不会上传，也不会让系统自动宣称两端同步通过",
+      "Sync UI owner smoke draft must not upload data or auto-claim two-device sync passed.",
+    ],
+    [
       "data-two-device-sync-scoped-core-claim-blocked",
       "Sync UI must expose scoped core sync claim blocking separately from full-platform blocking.",
     ],

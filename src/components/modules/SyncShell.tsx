@@ -720,6 +720,34 @@ type AccountSyncBridgeProbeReceipt = {
   privacy_note: string;
   storage_policy: string;
 };
+type TwoDeviceSmokeOwnerDraftResult =
+  | "not-recorded"
+  | "pass"
+  | "fail"
+  | "blocked";
+type TwoDeviceSmokeOwnerDraftStep = {
+  step_id: string;
+  result: TwoDeviceSmokeOwnerDraftResult;
+  note: string;
+  updated_at: string | null;
+};
+type TwoDeviceSmokeOwnerDraft = {
+  format: "zhinote-two-device-smoke-owner-draft";
+  format_version: 1;
+  updated_at: string;
+  steps: Record<string, TwoDeviceSmokeOwnerDraftStep>;
+  privacy_note: string;
+  storage_policy: string;
+};
+type TwoDeviceSmokeOwnerDraftSummary = {
+  status: "empty" | "in-progress" | "complete" | "has-failures";
+  total: number;
+  passed: number;
+  failed: number;
+  blocked: number;
+  not_recorded: number;
+  updated_at: string | null;
+};
 type CoreManifestCompareStatus =
   | "matched"
   | "needs-sync"
@@ -883,6 +911,13 @@ const ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY =
 const ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS = 30 * 60 * 1000;
 const ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE =
   "只读取云端 manifest summary 的 count、deleted、watermark 和状态；不读取页面正文、数据库行值、评论、文件名、文件字节、token 或凭据，也不上传数据、不修改 pending 队列。";
+const TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY =
+  "zhinote.sync.twoDeviceSmokeOwnerDraft.v1";
+const TWO_DEVICE_SMOKE_OWNER_DRAFT_NOTE_LIMIT = 180;
+const TWO_DEVICE_SMOKE_OWNER_DRAFT_PRIVACY_NOTE =
+  "本地验收草稿只保存 smoke 步骤 ID、通过/失败/阻塞状态和用户手写的脱敏短备注；不要写页面正文、会议链接、文件名、数据库行值、token 或凭据。";
+const TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_POLICY =
+  "只保存在本机浏览器 localStorage，用于刷新后继续验收；不会上传到云端，不写 sync_log，不作为自动宣称同步通过的证据。";
 
 function buildAccountSyncBridgeProbeDomain(input: {
   id: AccountSyncBridgeProbeDomainId;
@@ -1131,6 +1166,197 @@ function isAccountSyncBridgeProbeDomainId(
     value === "meetings" ||
     value === "databases"
   );
+}
+
+function buildEmptyTwoDeviceSmokeOwnerDraft(): TwoDeviceSmokeOwnerDraft {
+  return {
+    format: "zhinote-two-device-smoke-owner-draft",
+    format_version: 1,
+    updated_at: new Date().toISOString(),
+    steps: {},
+    privacy_note: TWO_DEVICE_SMOKE_OWNER_DRAFT_PRIVACY_NOTE,
+    storage_policy: TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_POLICY,
+  };
+}
+
+function readStoredTwoDeviceSmokeOwnerDraft(): TwoDeviceSmokeOwnerDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(
+      TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY
+    );
+    if (!raw) return null;
+    return normalizeTwoDeviceSmokeOwnerDraft(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function persistTwoDeviceSmokeOwnerDraft(
+  draft: TwoDeviceSmokeOwnerDraft
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY,
+      JSON.stringify(draft)
+    );
+  } catch {
+    // This is a local UI checklist only. Sync correctness never depends on it.
+  }
+}
+
+function updateTwoDeviceSmokeOwnerDraftStep(input: {
+  current: TwoDeviceSmokeOwnerDraft | null;
+  stepId: string;
+  result?: TwoDeviceSmokeOwnerDraftResult;
+  note?: string;
+}): TwoDeviceSmokeOwnerDraft {
+  const now = new Date().toISOString();
+  const current = input.current ?? buildEmptyTwoDeviceSmokeOwnerDraft();
+  const currentStep = current.steps[input.stepId];
+  const nextStep: TwoDeviceSmokeOwnerDraftStep = {
+    step_id: input.stepId,
+    result:
+      input.result ??
+      currentStep?.result ??
+      ("not-recorded" as TwoDeviceSmokeOwnerDraftResult),
+    note:
+      input.note !== undefined
+        ? sanitizeTwoDeviceSmokeOwnerDraftNote(input.note)
+        : currentStep?.note ?? "",
+    updated_at: now,
+  };
+  return {
+    ...current,
+    updated_at: now,
+    steps: {
+      ...current.steps,
+      [input.stepId]: nextStep,
+    },
+    privacy_note: TWO_DEVICE_SMOKE_OWNER_DRAFT_PRIVACY_NOTE,
+    storage_policy: TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_POLICY,
+  };
+}
+
+function buildTwoDeviceSmokeOwnerDraftSummary(
+  draft: TwoDeviceSmokeOwnerDraft | null,
+  stepIds: string[]
+): TwoDeviceSmokeOwnerDraftSummary {
+  let passed = 0;
+  let failed = 0;
+  let blocked = 0;
+  let notRecorded = 0;
+  for (const stepId of stepIds) {
+    const result = draft?.steps[stepId]?.result ?? "not-recorded";
+    if (result === "pass") {
+      passed += 1;
+    } else if (result === "fail") {
+      failed += 1;
+    } else if (result === "blocked") {
+      blocked += 1;
+    } else {
+      notRecorded += 1;
+    }
+  }
+  const status: TwoDeviceSmokeOwnerDraftSummary["status"] =
+    failed > 0 || blocked > 0
+      ? "has-failures"
+      : passed > 0 && notRecorded === 0
+        ? "complete"
+        : passed > 0
+          ? "in-progress"
+          : "empty";
+  return {
+    status,
+    total: stepIds.length,
+    passed,
+    failed,
+    blocked,
+    not_recorded: notRecorded,
+    updated_at: draft?.updated_at ?? null,
+  };
+}
+
+function getTwoDeviceSmokeOwnerDraftStep(
+  draft: TwoDeviceSmokeOwnerDraft | null,
+  stepId: string
+): TwoDeviceSmokeOwnerDraftStep {
+  return (
+    draft?.steps[stepId] ?? {
+      step_id: stepId,
+      result: "not-recorded",
+      note: "",
+      updated_at: null,
+    }
+  );
+}
+
+function normalizeTwoDeviceSmokeOwnerDraft(
+  value: unknown
+): TwoDeviceSmokeOwnerDraft | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<TwoDeviceSmokeOwnerDraft>;
+  if (
+    candidate.format !== "zhinote-two-device-smoke-owner-draft" ||
+    candidate.format_version !== 1 ||
+    typeof candidate.updated_at !== "string" ||
+    !candidate.steps ||
+    typeof candidate.steps !== "object" ||
+    Array.isArray(candidate.steps)
+  ) {
+    return null;
+  }
+  const steps: Record<string, TwoDeviceSmokeOwnerDraftStep> = {};
+  for (const [stepId, rawStep] of Object.entries(candidate.steps)) {
+    const normalized = normalizeTwoDeviceSmokeOwnerDraftStep(stepId, rawStep);
+    if (normalized) steps[stepId] = normalized;
+  }
+  return {
+    format: "zhinote-two-device-smoke-owner-draft",
+    format_version: 1,
+    updated_at: candidate.updated_at,
+    steps,
+    privacy_note: TWO_DEVICE_SMOKE_OWNER_DRAFT_PRIVACY_NOTE,
+    storage_policy: TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_POLICY,
+  };
+}
+
+function normalizeTwoDeviceSmokeOwnerDraftStep(
+  fallbackStepId: string,
+  value: unknown
+): TwoDeviceSmokeOwnerDraftStep | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<TwoDeviceSmokeOwnerDraftStep>;
+  const result = normalizeTwoDeviceSmokeOwnerDraftResult(candidate.result);
+  if (!result) return null;
+  return {
+    step_id: typeof candidate.step_id === "string" ? candidate.step_id : fallbackStepId,
+    result,
+    note: sanitizeTwoDeviceSmokeOwnerDraftNote(candidate.note),
+    updated_at:
+      typeof candidate.updated_at === "string" ? candidate.updated_at : null,
+  };
+}
+
+function normalizeTwoDeviceSmokeOwnerDraftResult(
+  value: unknown
+): TwoDeviceSmokeOwnerDraftResult | null {
+  return value === "not-recorded" ||
+    value === "pass" ||
+    value === "fail" ||
+    value === "blocked"
+    ? value
+    : null;
+}
+
+function sanitizeTwoDeviceSmokeOwnerDraftNote(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, TWO_DEVICE_SMOKE_OWNER_DRAFT_NOTE_LIMIT);
 }
 
 function buildEmptyCoreDateManifestDiffReport(): CoreDateManifestDiffReport {
@@ -1767,6 +1993,10 @@ function SyncDashboard() {
     useState<AccountSyncBridgeProbeReceipt | null>(() =>
       readStoredAccountSyncBridgeProbeReceipt()
     );
+  const [twoDeviceSmokeOwnerDraft, setTwoDeviceSmokeOwnerDraft] =
+    useState<TwoDeviceSmokeOwnerDraft | null>(() =>
+      readStoredTwoDeviceSmokeOwnerDraft()
+    );
   const [coreManifestCompareReport, setCoreManifestCompareReport] =
     useState<CoreManifestCompareReport | null>(null);
   const [coreManifestCompareBusy, setCoreManifestCompareBusy] =
@@ -2168,6 +2398,8 @@ function SyncDashboard() {
     const handleStorage = (event: StorageEvent) => {
       if (event.key === ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY) {
         setAccountBridgeProbeReceipt(readStoredAccountSyncBridgeProbeReceipt());
+      } else if (event.key === TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY) {
+        setTwoDeviceSmokeOwnerDraft(readStoredTwoDeviceSmokeOwnerDraft());
       }
     };
     window.addEventListener("storage", handleStorage);
@@ -3394,6 +3626,42 @@ function SyncDashboard() {
         runbook: twoDeviceSyncSmokeRunbook,
       }),
     [twoDeviceSyncSmokeRunbook]
+  );
+  const twoDeviceSmokeOwnerDraftSummary = useMemo(
+    () =>
+      buildTwoDeviceSmokeOwnerDraftSummary(
+        twoDeviceSmokeOwnerDraft,
+        twoDeviceSyncSmokeRunbook.steps.map((step) => step.id)
+      ),
+    [twoDeviceSmokeOwnerDraft, twoDeviceSyncSmokeRunbook]
+  );
+  const handleUpdateTwoDeviceSmokeOwnerDraftResult = useCallback(
+    (stepId: string, result: TwoDeviceSmokeOwnerDraftResult) => {
+      setTwoDeviceSmokeOwnerDraft((current) => {
+        const next = updateTwoDeviceSmokeOwnerDraftStep({
+          current,
+          stepId,
+          result,
+        });
+        persistTwoDeviceSmokeOwnerDraft(next);
+        return next;
+      });
+    },
+    []
+  );
+  const handleUpdateTwoDeviceSmokeOwnerDraftNote = useCallback(
+    (stepId: string, note: string) => {
+      setTwoDeviceSmokeOwnerDraft((current) => {
+        const next = updateTwoDeviceSmokeOwnerDraftStep({
+          current,
+          stepId,
+          note,
+        });
+        persistTwoDeviceSmokeOwnerDraft(next);
+        return next;
+      });
+    },
+    []
   );
   const cloudManifestCompareApiGuard = useMemo(
     () => buildCloudManifestCompareApiDisabledResponse(),
@@ -7458,12 +7726,16 @@ function SyncDashboard() {
         <TwoDeviceSyncSmokeRunbookPanel
           runbook={twoDeviceSyncSmokeRunbook}
           ownerReceipt={twoDeviceSyncSmokeOwnerReceipt}
+          ownerDraft={twoDeviceSmokeOwnerDraft}
+          ownerDraftSummary={twoDeviceSmokeOwnerDraftSummary}
           exportBusy={busyQueueAction === "two-device-smoke-runbook"}
           receiptExportBusy={
             busyQueueAction === "two-device-smoke-owner-receipt"
           }
           onExport={handleExportTwoDeviceSyncSmokeRunbook}
           onExportOwnerReceipt={handleExportTwoDeviceSyncSmokeOwnerReceipt}
+          onUpdateOwnerDraftResult={handleUpdateTwoDeviceSmokeOwnerDraftResult}
+          onUpdateOwnerDraftNote={handleUpdateTwoDeviceSmokeOwnerDraftNote}
         />
 
         <CloudAlphaPanel
@@ -25108,17 +25380,28 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
 function TwoDeviceSyncSmokeRunbookPanel({
   runbook,
   ownerReceipt,
+  ownerDraft,
+  ownerDraftSummary,
   exportBusy,
   receiptExportBusy,
   onExport,
   onExportOwnerReceipt,
+  onUpdateOwnerDraftResult,
+  onUpdateOwnerDraftNote,
 }: {
   runbook: TwoDeviceSyncSmokeRunbook;
   ownerReceipt: TwoDeviceSyncSmokeOwnerReceipt;
+  ownerDraft: TwoDeviceSmokeOwnerDraft | null;
+  ownerDraftSummary: TwoDeviceSmokeOwnerDraftSummary;
   exportBusy: boolean;
   receiptExportBusy: boolean;
   onExport: () => void;
   onExportOwnerReceipt: () => void;
+  onUpdateOwnerDraftResult: (
+    stepId: string,
+    result: TwoDeviceSmokeOwnerDraftResult
+  ) => void;
+  onUpdateOwnerDraftNote: (stepId: string, note: string) => void;
 }) {
   const primaryStep =
     runbook.steps.find((item) => item.status === "blocked") ??
@@ -25182,6 +25465,21 @@ function TwoDeviceSyncSmokeRunbookPanel({
       data-two-device-sync-owner-receipt-claim-passed={String(
         ownerReceipt.can_claim_two_device_sync_passed_now
       )}
+      data-two-device-smoke-owner-draft-status={ownerDraftSummary.status}
+      data-two-device-smoke-owner-draft-passed={String(
+        ownerDraftSummary.passed
+      )}
+      data-two-device-smoke-owner-draft-failed={String(
+        ownerDraftSummary.failed
+      )}
+      data-two-device-smoke-owner-draft-blocked={String(
+        ownerDraftSummary.blocked
+      )}
+      data-two-device-smoke-owner-draft-not-recorded={String(
+        ownerDraftSummary.not_recorded
+      )}
+      data-two-device-smoke-owner-draft-storage="localStorage"
+      data-two-device-smoke-owner-draft-privacy="metadata-only"
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -25311,6 +25609,34 @@ function TwoDeviceSyncSmokeRunbookPanel({
         </p>
       </div>
 
+      <div
+        className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-800 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-200"
+        data-testid="two-device-smoke-owner-draft"
+        data-owner-draft-status={ownerDraftSummary.status}
+      >
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="font-semibold text-blue-950 dark:text-blue-100">
+              本地验收草稿
+            </div>
+            <p className="mt-1">
+              已通过 {ownerDraftSummary.passed}/{ownerDraftSummary.total}；失败{" "}
+              {ownerDraftSummary.failed}；阻塞 {ownerDraftSummary.blocked}；未记录{" "}
+              {ownerDraftSummary.not_recorded}。这个草稿只保存在本机浏览器，
+              不会上传，也不会让系统自动宣称两端同步通过。
+            </p>
+          </div>
+          <div className="shrink-0 rounded-md bg-white/70 px-2 py-1 text-[11px] text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
+            {ownerDraftSummary.updated_at
+              ? `更新于 ${formatDate(ownerDraftSummary.updated_at)}`
+              : "尚未记录"}
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-blue-700/80 dark:text-blue-200/80">
+          {TWO_DEVICE_SMOKE_OWNER_DRAFT_PRIVACY_NOTE}
+        </p>
+      </div>
+
       {primaryStep ? (
         <article
           data-testid="two-device-sync-primary-step"
@@ -25332,47 +25658,92 @@ function TwoDeviceSyncSmokeRunbookPanel({
       ) : null}
 
       <div className="mt-4 grid gap-2 xl:grid-cols-2">
-        {runbook.steps.map((step) => (
-          <article
-            key={step.id}
-            data-testid={`two-device-sync-step-${step.id}`}
-            data-two-device-sync-step-status={step.status}
-            className="rounded-md border border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                {step.title}
+        {runbook.steps.map((step) => {
+          const ownerDraftStep = getTwoDeviceSmokeOwnerDraftStep(
+            ownerDraft,
+            step.id
+          );
+          return (
+            <article
+              key={step.id}
+              data-testid={`two-device-sync-step-${step.id}`}
+              data-two-device-sync-step-status={step.status}
+              data-two-device-smoke-owner-result={ownerDraftStep.result}
+              className="rounded-md border border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {step.title}
+                </div>
+                <TwoDeviceSyncSmokeStatusPill status={step.status} />
               </div>
-              <TwoDeviceSyncSmokeStatusPill status={step.status} />
-            </div>
-            <dl className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
-              <div>
-                <dt className="inline text-zinc-700 dark:text-zinc-200">
-                  A：
-                </dt>{" "}
-                <dd className="inline">{step.device_a_action}</dd>
+              <dl className="mt-2 space-y-1 leading-5 text-zinc-500 dark:text-zinc-400">
+                <div>
+                  <dt className="inline text-zinc-700 dark:text-zinc-200">
+                    A：
+                  </dt>{" "}
+                  <dd className="inline">{step.device_a_action}</dd>
+                </div>
+                <div>
+                  <dt className="inline text-zinc-700 dark:text-zinc-200">
+                    B：
+                  </dt>{" "}
+                  <dd className="inline">{step.device_b_action}</dd>
+                </div>
+                <div>
+                  <dt className="inline text-zinc-700 dark:text-zinc-200">
+                    通过：
+                  </dt>{" "}
+                  <dd className="inline">{step.pass_criteria}</dd>
+                </div>
+                <div>
+                  <dt className="inline text-zinc-700 dark:text-zinc-200">
+                    证据：
+                  </dt>{" "}
+                  <dd className="inline">{step.evidence_needed}</dd>
+                </div>
+              </dl>
+              <div className="mt-3 grid gap-2 rounded-md bg-zinc-50 p-2 dark:bg-zinc-900 sm:grid-cols-[9rem_1fr]">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                    实测结果
+                  </span>
+                  <select
+                    value={ownerDraftStep.result}
+                    data-testid={`two-device-smoke-owner-result-${step.id}`}
+                    onChange={(event) =>
+                      onUpdateOwnerDraftResult(
+                        step.id,
+                        event.target.value as TwoDeviceSmokeOwnerDraftResult
+                      )
+                    }
+                    className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-xs text-zinc-700 outline-none transition-colors focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+                  >
+                    <option value="not-recorded">未记录</option>
+                    <option value="pass">通过</option>
+                    <option value="fail">失败</option>
+                    <option value="blocked">阻塞</option>
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                    脱敏备注
+                  </span>
+                  <input
+                    value={ownerDraftStep.note}
+                    maxLength={TWO_DEVICE_SMOKE_OWNER_DRAFT_NOTE_LIMIT}
+                    data-testid={`two-device-smoke-owner-note-${step.id}`}
+                    onChange={(event) =>
+                      onUpdateOwnerDraftNote(step.id, event.target.value)
+                    }
+                    placeholder="只写脱敏证据，例如 A/B 均可见 pending=0"
+                    className="h-8 min-w-0 rounded-md border border-zinc-300 bg-white px-2 text-xs text-zinc-700 outline-none transition-colors placeholder:text-zinc-400 focus:border-blue-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+                  />
+                </label>
               </div>
-              <div>
-                <dt className="inline text-zinc-700 dark:text-zinc-200">
-                  B：
-                </dt>{" "}
-                <dd className="inline">{step.device_b_action}</dd>
-              </div>
-              <div>
-                <dt className="inline text-zinc-700 dark:text-zinc-200">
-                  通过：
-                </dt>{" "}
-                <dd className="inline">{step.pass_criteria}</dd>
-              </div>
-              <div>
-                <dt className="inline text-zinc-700 dark:text-zinc-200">
-                  证据：
-                </dt>{" "}
-                <dd className="inline">{step.evidence_needed}</dd>
-              </div>
-            </dl>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
 
       <div className="mt-4 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">

@@ -4068,6 +4068,26 @@ function run() {
       "Sync UI must expose that the owner receipt does not auto-claim pass.",
     ],
     [
+      "TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY",
+      "Sync UI must persist the local owner smoke draft across refreshes.",
+    ],
+    [
+      'data-testid="two-device-smoke-owner-draft"',
+      "Sync UI must render the local owner smoke draft.",
+    ],
+    [
+      "data-two-device-smoke-owner-draft-status",
+      "Sync UI must expose the local owner smoke draft status.",
+    ],
+    [
+      "data-two-device-smoke-owner-result",
+      "Sync UI must expose per-step owner smoke results.",
+    ],
+    [
+      "不会上传，也不会让系统自动宣称两端同步通过",
+      "Sync UI owner smoke draft must stay local-only and must not become an automatic sync pass claim.",
+    ],
+    [
       "48h scoped 证据",
       "Sync UI must label scoped evidence separately from full evidence.",
     ],
