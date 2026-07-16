@@ -260,6 +260,18 @@ function run() {
       "Sync UI must pass the account bridge receipt into the two-device smoke runbook.",
     ],
     [
+      "buildAccountSyncBridgeProbeReceiptFromPreflight",
+      "Sync UI account bridge probe must reuse the lightweight account sync preflight receipt.",
+    ],
+    [
+      'fetchSyncCloudApiWithTimeout(\n        "/api/account/sync-preflight"',
+      "Sync UI account bridge probe must call the metadata-only account sync preflight route instead of pulling Daily/ZhiHui metadata.",
+    ],
+    [
+      "不触发日历/会议 metadata 重扫",
+      "Sync UI copy must state that the account bridge probe avoids Daily/ZhiHui metadata rescans.",
+    ],
+    [
       "ACCOUNT_SYNC_BRIDGE_PROBE_AUTO_DELAY_MS",
       "Sync UI must define a bounded delay before auto-running the metadata-only account bridge probe.",
     ],

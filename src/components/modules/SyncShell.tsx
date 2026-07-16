@@ -65,7 +65,6 @@ import {
   getPendingCloudDatabaseSyncStatus,
   isDatabaseSyncEnabled,
   reconcileDatabaseSync,
-  type CloudDatabaseManifestSummaryResult,
   type PendingCloudDatabaseSyncStatus,
 } from "@/lib/database/accountDatabaseSync";
 import {
@@ -80,8 +79,6 @@ import {
   fetchMeetingCloudMetadata,
   isPageSyncEnabled,
   reconcilePageSync,
-  type CloudPageDomainManifestSummaryResult,
-  type CloudPageManifestSummaryResult,
   type PendingCloudPageSyncStatus,
 } from "@/lib/pages/accountPageSync";
 import {
@@ -1039,7 +1036,7 @@ const ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS = 30 * 60 * 1000;
 const ACCOUNT_SYNC_BRIDGE_PROBE_RETRY_TTL_MS = 2 * 60 * 1000;
 const ACCOUNT_SYNC_BRIDGE_PROBE_AUTO_DELAY_MS = 1_200;
 const ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE =
-  "只读取云端 manifest summary 的 count、deleted、watermark 和状态；不读取页面正文、数据库行值、评论、文件名、文件字节、token 或凭据，也不上传数据、不修改 pending 队列。";
+  "复用账号同步体检的 metadata-only 回执，只读取账号会话、页面索引、每日纪要 cache、ZhiHui cache 和数据库索引的可读状态与条数；不读取页面正文、数据库行值、评论、文件名、文件字节、token 或凭据，也不上传数据、不修改 pending 队列。";
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY =
   "zhinote.sync.twoDeviceSmokeOwnerDraft.v1";
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_NOTE_LIMIT = 180;
@@ -1336,85 +1333,86 @@ function buildAccountSyncPreflightClientErrorReceipt(
   };
 }
 
-function buildAccountSyncBridgeProbeDomain(input: {
+function getAccountSyncPreflightCheckDetail(
+  receipt: AccountSyncPreflightReceipt,
+  id: string
+) {
+  return receipt.checks.find((check) => check.id === id)?.detail ?? null;
+}
+
+function buildAccountSyncBridgeProbeDomainFromPreflight(input: {
   id: AccountSyncBridgeProbeDomainId;
   label: string;
-  result:
-    | CloudPageManifestSummaryResult
-    | CloudPageDomainManifestSummaryResult
-    | CloudDatabaseManifestSummaryResult;
+  readable: boolean;
+  count: number | null;
+  detail: string | null;
 }): AccountSyncBridgeProbeDomain {
-  const { summary } = input.result;
   return {
     id: input.id,
     label: input.label,
-    status: input.result.status,
-    count: summary?.count ?? null,
-    deleted: summary?.deleted ?? null,
-    watermark: summary?.watermark ?? null,
-    message:
-      input.result.status === "ok" && summary
-        ? null
-        : input.result.message ??
-          `云端 ${input.label} manifest summary 暂不可读：${input.result.status}`,
+    status: input.readable ? "ok" : "blocked",
+    count: input.readable ? input.count : null,
+    deleted: null,
+    watermark: null,
+    message: input.readable ? null : input.detail,
   };
 }
 
-function buildAccountSyncBridgeProbeReceipt(input: {
-  pages: CloudPageManifestSummaryResult;
-  daily: CloudPageDomainManifestSummaryResult;
-  meetings: CloudPageDomainManifestSummaryResult;
-  databases: CloudDatabaseManifestSummaryResult;
-}): AccountSyncBridgeProbeReceipt {
-  const checkedAt = new Date();
+function buildAccountSyncBridgeProbeReceiptFromPreflight(
+  receipt: AccountSyncPreflightReceipt
+): AccountSyncBridgeProbeReceipt {
+  const expiresAt = accountSyncPreflightEffectiveExpiresAt(receipt);
+  const checkedAt = Number.isFinite(Date.parse(receipt.generated_at))
+    ? receipt.generated_at
+    : new Date().toISOString();
   const domains: AccountSyncBridgeProbeDomain[] = [
-    buildAccountSyncBridgeProbeDomain({
+    buildAccountSyncBridgeProbeDomainFromPreflight({
       id: "pages",
       label: "页面",
-      result: input.pages,
+      readable: receipt.summary.page_cloud_index_readable,
+      count: receipt.summary.page_cloud_records,
+      detail: getAccountSyncPreflightCheckDetail(receipt, "page-cloud-index"),
     }),
-    buildAccountSyncBridgeProbeDomain({
+    buildAccountSyncBridgeProbeDomainFromPreflight({
       id: "daily",
       label: "每日纪要",
-      result: input.daily,
+      readable: receipt.summary.daily_cloud_metadata_readable,
+      count: receipt.summary.daily_cloud_records,
+      detail: getAccountSyncPreflightCheckDetail(receipt, "daily-cloud-metadata"),
     }),
-    buildAccountSyncBridgeProbeDomain({
+    buildAccountSyncBridgeProbeDomainFromPreflight({
       id: "meetings",
       label: "会议日历",
-      result: input.meetings,
+      readable: receipt.summary.meeting_cloud_metadata_readable,
+      count: receipt.summary.meeting_cloud_records,
+      detail: getAccountSyncPreflightCheckDetail(receipt, "meeting-cloud-metadata"),
     }),
-    buildAccountSyncBridgeProbeDomain({
+    buildAccountSyncBridgeProbeDomainFromPreflight({
       id: "databases",
       label: "数据库",
-      result: input.databases,
+      readable: receipt.summary.database_cloud_index_readable,
+      count: receipt.summary.database_cloud_records,
+      detail: getAccountSyncPreflightCheckDetail(receipt, "database-cloud-index"),
     }),
   ];
-  const readableDomains = domains.filter(
-    (domain) => domain.status === "ok" && domain.count !== null
-  ).length;
+  const readableDomains = domains.filter((domain) => domain.status === "ok").length;
   const blockedDomains = domains.length - readableDomains;
   const status: AccountSyncBridgeProbeStatus =
-    readableDomains === domains.length
+    receipt.status === "ready"
       ? "ready"
       : readableDomains === 0
         ? "blocked"
         : "partial";
-  const ttlMs =
-    status === "ready"
-      ? ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS
-      : ACCOUNT_SYNC_BRIDGE_PROBE_RETRY_TTL_MS;
-
   return {
-    checked_at: checkedAt.toISOString(),
-    expires_at: new Date(checkedAt.getTime() + ttlMs).toISOString(),
+    checked_at: checkedAt,
+    expires_at: Number.isFinite(expiresAt)
+      ? new Date(expiresAt).toISOString()
+      : new Date(Date.now() + ACCOUNT_SYNC_BRIDGE_PROBE_RETRY_TTL_MS).toISOString(),
     status,
     readable_domains: readableDomains,
     blocked_domains: blockedDomains,
     domains,
-    next_action:
-      status === "ready"
-        ? "账号同步桥的核心 metadata 均可读；可以继续跑真实两设备 smoke，在另一台设备登录同账号后核对页面、每日、会议和数据库。"
-        : "先处理不可读的数据域：通常是未登录、会话过期、同步开关未开、云环境未配置或接口错误；本地输入和 pending 队列会保留。",
+    next_action: receipt.summary.next_action,
     privacy_note: ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE,
     storage_policy:
       "ready 回执只在本机 localStorage 保留 30 分钟；partial/blocked 回执只保留 2 分钟并允许自动重查。过期后不作为同步可用证据。",
@@ -6837,19 +6835,18 @@ function SyncDashboard() {
   const handleRunAccountBridgeProbe = useCallback(async () => {
     setBusyQueueAction("account-bridge-probe");
     try {
-      const [pageSummary, dailySummary, meetingSummary, databaseSummary] =
-        await Promise.all([
-          getCloudPageManifestSummary(),
-          getCloudDailyManifestSummary(),
-          getCloudMeetingManifestSummary(),
-          getCloudDatabaseManifestSummary(),
-        ]);
-      const receipt = buildAccountSyncBridgeProbeReceipt({
-        pages: pageSummary,
-        daily: dailySummary,
-        meetings: meetingSummary,
-        databases: databaseSummary,
-      });
+      const response = await fetchSyncCloudApiWithTimeout(
+        "/api/account/sync-preflight"
+      );
+      const body = await readCloudApiBody(response);
+      const preflightReceipt = normalizeAccountSyncPreflightReceipt(body);
+      if (!preflightReceipt) {
+        throw new Error(getCloudApiDetail(body, response));
+      }
+      persistAccountSyncPreflightReceipt(preflightReceipt);
+      setAccountSyncPreflightReceipt(preflightReceipt);
+      const receipt =
+        buildAccountSyncBridgeProbeReceiptFromPreflight(preflightReceipt);
       persistAccountSyncBridgeProbeReceipt(receipt);
       setAccountBridgeProbeReceipt(receipt);
       const [nextPagePending, nextDatabasePending] = await Promise.all([
@@ -25105,9 +25102,9 @@ function AccountSyncBridgeProbePanel({
             账号同步桥只读检查
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            不上传、不改队列，只读取云端 manifest summary 的 count / deleted /
-            watermark，用来判断当前登录账号在另一台设备是否能读到同一份核心
-            metadata。同步中心打开时，如果本机没有 30 分钟内的新鲜回执，会自动做一次
+            不上传、不改队列，复用账号同步体检读取核心 metadata 域的可读状态和条数，
+            用来判断当前登录账号在另一台设备是否能读到同一份核心 metadata。
+            同步中心打开时，如果本机没有 30 分钟内的新鲜回执，会自动做一次
             metadata-only 预检；如果上次是 partial/blocked，只短暂保留 2 分钟，
             账号状态变化或过期后会重新预检。你仍然可以手动重查。
           </p>
@@ -25152,8 +25149,9 @@ function AccountSyncBridgeProbePanel({
                   {domain.count === null ? "未读" : `${domain.count} 条`}
                 </div>
                 <p className="mt-1 break-words text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
-                  删除 {domain.deleted ?? "未读"} · watermark{" "}
-                  {domain.watermark ?? "未读"}
+                  {domain.watermark
+                    ? `watermark ${domain.watermark}`
+                    : "轻量账号同步体检回执，不触发日历/会议 metadata 重扫。"}
                 </p>
                 {domain.message ? (
                   <p className="mt-1 text-[11px] leading-4 text-amber-700 dark:text-amber-300">
