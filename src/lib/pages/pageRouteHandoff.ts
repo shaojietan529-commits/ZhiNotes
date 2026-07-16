@@ -2,7 +2,7 @@ import { DEFAULT_OWNER_ID } from "@/lib/utils/id";
 import type { Page } from "@/lib/utils/types";
 
 const PAGE_ROUTE_HANDOFF_PREFIX = "zhinote.page.routeHandoff.";
-const PAGE_ROUTE_HANDOFF_TTL_MS = 2 * 60 * 1000;
+const PAGE_ROUTE_HANDOFF_TTL_MS = 10 * 60 * 1000;
 const PAGE_ROUTE_HANDOFF_REUSE_FRESH_MS = 60 * 1000;
 const PAGE_ROUTE_HANDOFF_MAX_ITEMS = 20;
 const PAGE_ROUTE_HANDOFF_PRUNE_INTERVAL_MS = 15 * 1000;
@@ -91,7 +91,7 @@ export function rememberPageRouteHandoff(
     cached_at: new Date(now).toISOString(),
     expires_at: new Date(now + PAGE_ROUTE_HANDOFF_TTL_MS).toISOString(),
     privacy_boundary:
-      "This handoff is a short-lived route transition cache for fast page first paint. It stores page metadata only and never stores page body HTML/text, Yjs editor state, database row values, comments, files, credentials, or raw cache dumps. It does not enter sync_log, does not upload, and is never a cloud source of truth.",
+      "This handoff is a short-lived route transition cache retained for up to 10 minutes for fast page first paint during slow loads, refreshes, and deployment swaps. It stores page metadata only and never stores page body HTML/text, Yjs editor state, database row values, comments, files, credentials, or raw cache dumps. It does not enter sync_log, does not upload, and is never a cloud source of truth.",
     boundary: {
       stores_page_body_text: false,
       stores_page_yjs: false,

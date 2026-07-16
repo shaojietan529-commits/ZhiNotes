@@ -1,7 +1,7 @@
 import type { Page } from "@/lib/utils/types";
 
 const PENDING_PAGE_DRAFT_PREFIX = "zhinote.page.pendingDraft.";
-const PENDING_PAGE_DRAFT_TTL_MS = 2 * 60 * 1000;
+const PENDING_PAGE_DRAFT_TTL_MS = 15 * 60 * 1000;
 const PENDING_PAGE_DRAFT_MAX_ITEMS = 12;
 const PENDING_PAGE_DRAFT_MAX_CHARS = 900 * 1024;
 const PENDING_PAGE_DRAFT_DEBOUNCE_CHARS = 32 * 1024;
@@ -161,7 +161,7 @@ function rememberPendingPageDraftInSessionStorage(
     cached_at: new Date().toISOString(),
     expires_at: new Date(expiresAt).toISOString(),
     privacy_boundary:
-      "Short-lived same-tab recovery draft. This may store page body HTML only in sessionStorage so a refresh can recover an unsaved optimistic edit. It never uploads, never writes server data, never enters sync_log, never stores Yjs, and is cleared after the local cache confirms the page write.",
+      "Short-lived same-tab recovery draft retained for up to 15 minutes. This may store page body HTML only in sessionStorage so a slow route load, refresh, or deployment swap can recover an unsaved optimistic edit. It never uploads, never writes server data, never enters sync_log, never stores Yjs, and is cleared after the local cache confirms the page write.",
     boundary: {
       session_storage_only: true,
       stores_page_body_html: true,

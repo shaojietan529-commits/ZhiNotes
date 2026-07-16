@@ -355,8 +355,38 @@ function run() {
     [
       files.pageRouteHandoff,
       pageRouteHandoff,
+      "PAGE_ROUTE_HANDOFF_TTL_MS = 10 * 60 * 1000",
+      "Route handoff must stay long enough to survive slow loads, refreshes, and deployment swaps without becoming a source of truth.",
+    ],
+    [
+      files.pageRouteHandoff,
+      pageRouteHandoff,
+      "retained for up to 10 minutes",
+      "Route handoff privacy copy must explain the longer local-only recovery window.",
+    ],
+    [
+      files.pageRouteHandoff,
+      pageRouteHandoff,
       "stores_page_body_text: false",
       "Route handoff must remain metadata-only.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "PENDING_PAGE_DRAFT_TTL_MS = 15 * 60 * 1000",
+      "Pending drafts must stay recoverable long enough for slow route loads, refreshes, and deployment swaps.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "retained for up to 15 minutes",
+      "Pending draft privacy copy must explain the longer same-tab recovery window.",
+    ],
+    [
+      files.pendingPageDrafts,
+      pendingPageDrafts,
+      "session_storage_only: true",
+      "Pending drafts must remain same-tab local recovery data rather than cloud source-of-truth data.",
     ],
     [
       files.pendingPageDrafts,
