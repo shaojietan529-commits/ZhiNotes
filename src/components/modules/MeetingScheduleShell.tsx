@@ -3132,9 +3132,11 @@ export default function MeetingScheduleShell() {
   const runMeetingCreateActivation = useCallback(
     (dateKey: string) => {
       if (!claimMeetingCreateActivation(dateKey)) return;
+      // Create the local meeting draft before warmup work so the + button
+      // paints feedback immediately even when the calendar is busy.
+      quickCreateMeetingForDate(dateKey);
       warmMeetingPeekOpen();
       hydrateMeetingDateKey(dateKey);
-      quickCreateMeetingForDate(dateKey);
     },
     [
       claimMeetingCreateActivation,

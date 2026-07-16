@@ -2142,9 +2142,11 @@ export default function DailyNotesShell() {
   const runDailyCreateActivation = useCallback(
     (dateKey: string) => {
       if (!claimDailyCreateActivation(dateKey)) return;
+      // Put the optimistic page shell on screen first. Route/modal warmup and
+      // date hydration are helpful, but they must never make the + button feel inert.
+      void addNote(dateKey);
       warmDailyCreateOpenPath();
       hydrateDailyDateKey(dateKey);
-      void addNote(dateKey);
     },
     [
       addNote,
