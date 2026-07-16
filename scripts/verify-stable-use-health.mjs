@@ -175,6 +175,7 @@ function verifySourceContracts() {
   assertIncludes(healthSource, "device_handoff_requires_required_receipts_pending_after_zero: true", "device handoff must require required receipts to clear pendingAfter");
   assertIncludes(healthSource, "failed_required_receipt_blocks_device_handoff: true", "failed required receipts must block device handoff");
   assertIncludes(healthSource, "uncleared_required_receipt_blocks_device_handoff: true", "uncleared required receipts must block device handoff");
+  assertIncludes(healthSource, "stale_required_receipt_blocks_device_handoff: true", "stale required receipts must block device handoff");
   assertIncludes(healthSource, "pendingAfter=0", "two-day policy copy must mention pendingAfter=0 for handoff");
   assertIncludes(healthSource, "account_sync_preflight_policy", "health response must expose the account sync preflight policy");
   assertIncludes(healthSource, 'policy_status: "metadata-only-scoped-core-preflight"', "account preflight policy must stay metadata-only");
@@ -722,6 +723,11 @@ function verifyRouteResult(result) {
     true,
     "two_day_sync_policy.uncleared_required_receipt_blocks_device_handoff"
   );
+  assertEqual(
+    twoDaySyncPolicy.stale_required_receipt_blocks_device_handoff,
+    true,
+    "two_day_sync_policy.stale_required_receipt_blocks_device_handoff"
+  );
   for (const surface of [
     "page",
     "daily",
@@ -757,6 +763,11 @@ function verifyRouteResult(result) {
   if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("失败回执")) {
     failures.push(
       "two_day_sync_policy.user_facing_copy must say failed required receipts block device handoff"
+    );
+  }
+  if (!String(twoDaySyncPolicy.user_facing_copy ?? "").includes("过期回执")) {
+    failures.push(
+      "two_day_sync_policy.user_facing_copy must say stale required receipts block device handoff"
     );
   }
   const accountSyncPreflightPolicy = body?.account_sync_preflight_policy ?? {};

@@ -3554,6 +3554,30 @@ function run() {
     "Cloud sync control plane must not double-count page/database sync_log pending rows in the global pending total."
   );
   assertIncludes(
+    files.cloudSyncControlPlane,
+    cloudSyncControlPlane,
+    "handoff_readiness_status",
+    "Cloud sync control plane must expose handoff readiness status."
+  );
+  assertIncludes(
+    files.cloudSyncControlPlane,
+    cloudSyncControlPlane,
+    "handoff_sync_outcome_evidence_status",
+    "Cloud sync control plane must expose sync outcome evidence status."
+  );
+  assertIncludes(
+    files.cloudSyncControlPlane,
+    cloudSyncControlPlane,
+    "handoff_stale_required_outcome_domains",
+    "Cloud sync control plane must expose stale required handoff outcome domains."
+  );
+  assertIncludes(
+    files.cloudSyncControlPlane,
+    cloudSyncControlPlane,
+    "getDeviceHandoffNextAction",
+    "Cloud sync control plane must explain stale/failed/uncleared handoff blockers."
+  );
+  assertIncludes(
     files.cloudUploadReliabilityReport,
     cloudUploadReliabilityReport,
     "input.syncSummary?.failed ?? 0",

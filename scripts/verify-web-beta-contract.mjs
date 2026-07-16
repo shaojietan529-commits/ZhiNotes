@@ -14889,6 +14889,26 @@ function run() {
       "Cloud sync control plane must include device handoff instructions.",
     ],
     [
+      "handoff_readiness_status",
+      "Cloud sync control plane must expose handoff readiness status in its summary.",
+    ],
+    [
+      "handoff_sync_outcome_evidence_status",
+      "Cloud sync control plane must expose sync outcome evidence status in its summary.",
+    ],
+    [
+      "handoff_stale_required_outcome_domains",
+      "Cloud sync control plane must expose stale required outcome domains.",
+    ],
+    [
+      "last_drain_outcome_evidence_status",
+      "Cloud sync control plane must expose the latest drain outcome evidence status.",
+    ],
+    [
+      "getDeviceHandoffNextAction",
+      "Cloud sync control plane must explain stale/failed/uncleared handoff blockers.",
+    ],
+    [
       "buildCloudSyncControlPlane",
       "Cloud sync control plane builder must be exported.",
     ],
@@ -14940,6 +14960,14 @@ function run() {
     [
       "plane.summary.file_waiting_rows",
       "SyncShell must show file waiting rows in the cloud sync control plane summary.",
+    ],
+    [
+      "plane.summary.handoff_readiness_status",
+      "SyncShell must show handoff readiness status in the cloud sync control plane summary.",
+    ],
+    [
+      "plane.summary.handoff_stale_required_outcome_domains",
+      "SyncShell must show stale handoff outcome domains in the cloud sync control plane summary.",
     ],
     [
       "onWarmup={() => void handleRunHotCacheWarmup()}",

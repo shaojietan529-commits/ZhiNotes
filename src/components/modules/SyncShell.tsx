@@ -27787,7 +27787,11 @@ function CloudSyncControlPlanePanel({
         <CacheRebuildFact
           label="切换设备"
           value={plane.can_switch_device_now ? "可以" : "等待"}
-          detail={plane.summary.oldest_pending_age_label}
+          detail={`handoff ${formatSyncHandoffReadinessStatus(
+            plane.summary.handoff_readiness_status
+          )} · 证据 ${formatSyncOutcomeEvidenceStatus(
+            plane.summary.handoff_sync_outcome_evidence_status
+          )} · 过期 ${plane.summary.handoff_stale_required_outcome_domains}`}
         />
       </div>
 

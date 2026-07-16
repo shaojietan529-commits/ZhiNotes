@@ -6,7 +6,11 @@ import type { CloudUploadReliabilityReport } from "@/lib/sync/cloudUploadReliabi
 import type { HotCacheWarmupPlan } from "@/lib/sync/hotCacheWarmupPlan";
 import type { HotCacheWarmupReceipt } from "@/lib/sync/hotCacheWarmupReceipt";
 import type { LocalFirstCloudInputPlan } from "@/lib/sync/localFirstCloudInputPlan";
-import type { SyncHandoffReadinessReceipt } from "@/lib/sync/syncHandoffReadinessReceipt";
+import type {
+  SyncHandoffReadinessReceipt,
+  SyncHandoffReadinessStatus,
+  SyncOutcomeEvidenceStatus,
+} from "@/lib/sync/syncHandoffReadinessReceipt";
 import type { SyncUploadDrainReceipt } from "@/lib/sync/syncUploadDrainReceipt";
 import type { SyncLogSummary } from "@/lib/db/local/queries";
 
@@ -140,7 +144,15 @@ export interface CloudSyncControlPlane {
     database_sync_enabled: boolean;
     file_sync_enabled: boolean;
     oldest_pending_age_label: string;
+    handoff_readiness_status: SyncHandoffReadinessStatus;
+    handoff_sync_outcome_evidence_status: SyncOutcomeEvidenceStatus;
+    handoff_stale_required_outcome_domains: number;
+    handoff_oldest_sync_outcome_age_label: string;
     last_drain_safe_to_switch_device: boolean;
+    last_drain_outcome_evidence_status:
+      | SyncUploadDrainReceipt["summary"]["outcome_evidence_status"]
+      | null;
+    last_drain_stale_required_outcome_domains: number;
     hot_cache_ready_jobs: number;
     hot_cache_pending_rows_protected: number;
   };
@@ -191,6 +203,10 @@ export function buildCloudSyncControlPlane(
   const fileSyncEnabled = input.fileStatus.enabled;
   const lastDrainSafeToSwitchDevice =
     input.lastDrainReceipt?.summary.safe_to_switch_device_now ?? false;
+  const lastDrainOutcomeEvidenceStatus =
+    input.lastDrainReceipt?.summary.outcome_evidence_status ?? null;
+  const lastDrainStaleRequiredOutcomeDomains =
+    input.lastDrainReceipt?.summary.outcome_evidence_stale_required_domains ?? 0;
   const hotCacheReadyJobs = input.hotCacheWarmupPlan.jobs.filter(
     (job) => job.status === "ready"
   ).length;
@@ -317,7 +333,18 @@ export function buildCloudSyncControlPlane(
       file_sync_enabled: fileSyncEnabled,
       oldest_pending_age_label:
         input.handoffReadinessReceipt.summary.oldest_pending_age_label,
+      handoff_readiness_status: input.handoffReadinessReceipt.status,
+      handoff_sync_outcome_evidence_status:
+        input.handoffReadinessReceipt.summary.sync_outcome_evidence_status,
+      handoff_stale_required_outcome_domains:
+        input.handoffReadinessReceipt.summary
+          .sync_outcome_stale_required_domains,
+      handoff_oldest_sync_outcome_age_label:
+        input.handoffReadinessReceipt.summary.oldest_sync_outcome_age_label,
       last_drain_safe_to_switch_device: lastDrainSafeToSwitchDevice,
+      last_drain_outcome_evidence_status: lastDrainOutcomeEvidenceStatus,
+      last_drain_stale_required_outcome_domains:
+        lastDrainStaleRequiredOutcomeDomains,
       hot_cache_ready_jobs: hotCacheReadyJobs,
       hot_cache_pending_rows_protected:
         input.hotCacheWarmupPlan.summary.pending_rows_protected,
@@ -460,13 +487,32 @@ function buildDecisions(input: {
       evidence: `handoff=${input.input.handoffReadinessReceipt.status}; lastDrainSafe=${input.lastDrainSafeToSwitchDevice}.`,
       nextAction: input.canSwitchDeviceNow
         ? "可以在另一台设备打开同一账号。"
-        : "等 pending、failed、manual review 清零，并确认 durable ACK。",
+        : getDeviceHandoffNextAction(input.input.handoffReadinessReceipt),
       blocksTyping: false,
       blocksNavigation: false,
       blocksCacheRebuild: !input.canSwitchDeviceNow,
       blocksDeviceHandoff: !input.canSwitchDeviceNow,
     }),
   ];
+}
+
+function getDeviceHandoffNextAction(
+  handoffReadinessReceipt: SyncHandoffReadinessReceipt
+) {
+  const summary = handoffReadinessReceipt.summary;
+  if (summary.sync_outcome_stale_required_domains > 0) {
+    return "必需同步回执已过期；先重新运行补传全部或对应域同步，拿到新的 ok 且 pendingAfter=0 回执。";
+  }
+  if (summary.sync_outcome_failed_required_domains > 0) {
+    return "必需同步回执包含失败；先处理失败回执，再考虑换设备。";
+  }
+  if (summary.sync_outcome_uncleared_required_domains > 0) {
+    return "必需同步回执还显示 pendingAfter 未清零；等待后台补传或重新运行补传全部。";
+  }
+  if (summary.sync_outcome_missing_required_domains > 0) {
+    return "缺少必需同步回执；先运行页面/数据库/必要文件同步，生成新的 metadata-only 回执。";
+  }
+  return "等 pending、failed、manual review 清零，并确认 durable ACK。";
 }
 
 function buildInstructions(input: {
