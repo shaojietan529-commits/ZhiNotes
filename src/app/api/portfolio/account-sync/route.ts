@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import {
-  accountMissingEnv,
-  getAccountConfig,
+  accountIdentityMissingEnv,
+  getAccountIdentityConfig,
   getSessionAccount,
   kvGet,
   kvSet,
   normalizeEmail,
   readSessionToken,
-  type AccountConfig,
+  type AccountIdentityConfig,
 } from "@/lib/account/server";
 import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
 
@@ -25,7 +25,7 @@ const MAX_PAYLOAD_BYTES = 1024 * 1024;
 const MAX_SHARE_MEMBERS = 20;
 
 async function readEmailList(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   key: string
 ): Promise<string[]> {
   const raw = await kvGet(config.kv, key);
@@ -42,7 +42,7 @@ async function readEmailList(
 }
 
 async function writeEmailList(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   key: string,
   list: string[]
 ): Promise<void> {
@@ -50,12 +50,12 @@ async function writeEmailList(
 }
 
 export async function POST(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return NextResponse.json(
       {
         error: "account system not configured",
-        missing_env: accountMissingEnv(),
+        missing_env: accountIdentityMissingEnv(),
       },
       { status: 501 }
     );

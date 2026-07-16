@@ -71,6 +71,14 @@ function run() {
       "Account sync preflight must inspect the current database account-sync cloud index.",
     ],
     [
+      "getAccountIdentityConfig",
+      "Account sync preflight must use identity config so Resend email setup does not block existing sessions.",
+    ],
+    [
+      "accountIdentityMissingEnv",
+      "Account sync preflight must report identity config gaps without requiring the email sender.",
+    ],
+    [
       "getSessionAccount(config, token)",
       "Account sync preflight must verify the existing account session before reading cloud metadata.",
     ],
@@ -137,6 +145,9 @@ function run() {
     ["kvDel(", "Account sync preflight must not delete KV data."],
     ["fetch(\"/api/pages/account-sync\"", "Account sync preflight route must not call client sync routes."],
     ["fetch('/api/pages/account-sync'", "Account sync preflight route must not call client sync routes."],
+    ["getAccountConfig", "Account sync preflight must not require full email-code config."],
+    ["accountMissingEnv", "Account sync preflight must not report email sender gaps as sync blockers."],
+    ["RESEND_API_KEY", "Account sync preflight must not depend on the Resend email sender."],
     ["console.", "Account sync preflight must not log private account or sync metadata."],
   ]) {
     assertNotIncludes(files.route, route, snippet, message);

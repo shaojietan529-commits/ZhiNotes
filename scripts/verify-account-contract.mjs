@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 // Verifies the multi-account email-code login contract:
-// - Everything stays inactive (501) until RESEND_API_KEY +
+// - Sending new login codes stays inactive (501) until RESEND_API_KEY +
 //   ZHINOTES_ACCOUNT_ALLOWED_EMAILS + KV are configured.
+// - Existing sessions and account-scoped sync only require the lighter
+//   identity config: ZHINOTES_ACCOUNT_ALLOWED_EMAILS + KV.
 // - Verification codes are stored only as salted hashes, single-use,
 //   short-lived, attempt-limited, and send-rate-limited.
 // - Sessions are httpOnly cookies backed by revocable KV records.
@@ -32,7 +34,9 @@ const server = read("src/lib/account/server.ts");
 const sessionResponses = read("src/lib/account/sessionResponses.ts");
 const accountSyncPreflight = read("src/app/api/account/sync-preflight/route.ts");
 for (const token of [
+  "getAccountIdentityConfig",
   "getAccountConfig",
+  "accountIdentityMissingEnv",
   "ZHINOTES_ACCOUNT_ALLOWED_EMAILS",
   "RESEND_API_KEY",
   "createHash",
@@ -112,7 +116,7 @@ check(
   "账号同步预检 API 不能接触页面正文、数据库单元格值、直接写删 KV 或日志输出"
 );
 
-// 2. Routes: all gated, none log, cookie httpOnly
+// 2. Routes: gated at the right layer, none log, cookie httpOnly
 const routes = [
   "src/app/api/account/login/start/route.ts",
   "src/app/api/account/login/verify/route.ts",
@@ -121,13 +125,30 @@ const routes = [
 ];
 for (const rel of routes) {
   const src = read(rel);
-  check(src.includes("getAccountConfig"), `${rel} 缺少 getAccountConfig 门控`);
   check(!src.includes("console."), `${rel} 不应该写日志`);
 }
 const start = read(routes[0]);
+check(start.includes("getAccountConfig"), "login/start 必须使用完整邮件配置");
+check(start.includes("accountMissingEnv"), "login/start 缺少完整邮件配置缺失提示");
 check(start.includes("501"), "login/start 未配置时应返回 501");
 check(start.includes("maskEmail"), "login/start 响应应使用掩码邮箱");
 const verify = read(routes[1]);
+for (const [label, src] of [
+  ["login/verify", verify],
+  ["account/me", read(routes[2])],
+  ["account/logout", read(routes[3])],
+]) {
+  check(
+    src.includes("getAccountIdentityConfig"),
+    `${label} 必须使用轻量身份配置，不能因为 Resend 缺失影响已登录会话`
+  );
+  check(
+    !src.includes("getAccountConfig") &&
+      !src.includes("RESEND_API_KEY") &&
+      !src.includes("accountMissingEnv"),
+    `${label} 不应依赖完整邮件配置或 RESEND_API_KEY`
+  );
+}
 check(
   verify.includes("accountSessionCookieOptions(request)"),
   "verify 的会话 cookie 必须走统一 accountSessionCookieOptions helper，不能只设置当前 host"
@@ -701,7 +722,7 @@ const accountSync = read("src/app/api/portfolio/account-sync/route.ts");
 const portfolioAccountSyncClient = read("src/lib/portfolio/accountSync.ts");
 const portfolioPasscodeSyncClient = read("src/lib/portfolio/cloudSync.ts");
 for (const token of [
-  "getAccountConfig",
+  "getAccountIdentityConfig",
   "readSessionToken",
   "getSessionAccount",
   "501",
@@ -786,7 +807,7 @@ check(
 // 7. Page cloud sync: session-gated route, opt-in client toggle, no logging
 const pageSyncRoute = read("src/app/api/pages/account-sync/route.ts");
 for (const token of [
-  "getAccountConfig",
+  "getAccountIdentityConfig",
   "readSessionToken",
   "getSessionAccount",
   "501",

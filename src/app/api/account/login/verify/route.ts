@@ -3,9 +3,9 @@ import { maskEmail } from "@/lib/cloud/api";
 import {
   SESSION_COOKIE_NAME,
   accountDisplayName,
-  accountMissingEnv,
+  accountIdentityMissingEnv,
   accountSessionCookieOptions,
-  getAccountConfig,
+  getAccountIdentityConfig,
   normalizeEmail,
   verifyLoginCode,
 } from "@/lib/account/server";
@@ -15,12 +15,12 @@ export const dynamic = "force-dynamic";
 // Step 2 of email-code login: exchange the 6-digit code for a long-lived
 // httpOnly session cookie (90 days, slides forward on activity).
 export async function POST(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return NextResponse.json(
       {
         error: "account system not configured",
-        missing_env: accountMissingEnv(),
+        missing_env: accountIdentityMissingEnv(),
       },
       { status: 501 }
     );

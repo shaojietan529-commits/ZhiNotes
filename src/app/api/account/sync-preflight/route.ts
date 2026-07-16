@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import {
-  accountMissingEnv,
-  getAccountConfig,
+  accountIdentityMissingEnv,
+  getAccountIdentityConfig,
   getSessionAccount,
   kvGet,
   readSessionToken,
+  type KvEnv,
 } from "@/lib/account/server";
 import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
 import { maskEmail } from "@/lib/cloud/api";
@@ -66,7 +67,7 @@ interface AccountSyncPreflightPayload {
 
 export async function GET(request: Request) {
   const generatedAt = new Date().toISOString();
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return NextResponse.json(
       buildPayload({
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
             "账号云同步配置未完成，无法读取数据库云端索引。"
           ),
         ],
-        missingEnv: accountMissingEnv(),
+        missingEnv: accountIdentityMissingEnv(),
       }),
       { status: 501 }
     );
@@ -249,7 +250,7 @@ export async function GET(request: Request) {
 }
 
 async function readJsonIndex(
-  kv: NonNullable<ReturnType<typeof getAccountConfig>>["kv"],
+  kv: KvEnv,
   key: string
 ) {
   const raw = await kvGet(kv, key);

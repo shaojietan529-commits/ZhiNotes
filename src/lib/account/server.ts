@@ -1,8 +1,8 @@
 // Server-side helpers for the multi-account email-code login system.
 // Storage is the project's Redis/KV store (same one the portfolio sync
-// uses); emails go out through Resend. Everything stays inactive (501)
-// until the owner sets RESEND_API_KEY and ZHINOTES_ACCOUNT_ALLOWED_EMAILS,
-// so deploying this code changes nothing by itself.
+// uses); emails go out through Resend. Existing sessions and account-scoped
+// sync only need KV + ZHINOTES_ACCOUNT_ALLOWED_EMAILS, while sending a new
+// login code additionally needs RESEND_API_KEY.
 //
 // Privacy: verification codes are stored only as salted SHA-256 hashes,
 // raw emails are never logged, and responses only carry masked emails.
@@ -63,43 +63,65 @@ function kvEnv(): KvEnv | null {
   return { url, token };
 }
 
-export interface AccountConfig {
+export interface AccountIdentityConfig {
   kv: KvEnv;
-  resendApiKey: string;
-  emailFrom: string;
   allowedEmails: Set<string>;
 }
 
-// Returns null (→ caller responds 501) until the owner configures the
-// email service and the login allowlist.
-export function getAccountConfig(): AccountConfig | null {
-  const kv = kvEnv();
-  const resendApiKey = process.env.RESEND_API_KEY ?? "";
+export interface AccountConfig extends AccountIdentityConfig {
+  resendApiKey: string;
+  emailFrom: string;
+}
+
+function allowedEmailsFromEnv(): Set<string> {
   const allowlistRaw = process.env.ZHINOTES_ACCOUNT_ALLOWED_EMAILS ?? "";
-  const allowedEmails = new Set(
+  return new Set(
     allowlistRaw
       .split(",")
       .map((item) => item.trim().toLowerCase())
       .filter((item) => item.includes("@"))
   );
-  if (!kv || !resendApiKey || allowedEmails.size === 0) return null;
+}
+
+// Returns null until the owner configures the identity store. This lighter
+// config is enough to validate an existing session and run account-scoped
+// sync; it deliberately does not require the email sending service.
+export function getAccountIdentityConfig(): AccountIdentityConfig | null {
+  const kv = kvEnv();
+  const allowedEmails = allowedEmailsFromEnv();
+  if (!kv || allowedEmails.size === 0) return null;
+  return { kv, allowedEmails };
+}
+
+// Returns null (→ caller responds 501) until the owner configures the
+// email service and the login allowlist. Only login-code sending needs this
+// full config; existing sessions and sync paths should use identity config.
+export function getAccountConfig(): AccountConfig | null {
+  const identity = getAccountIdentityConfig();
+  const resendApiKey = process.env.RESEND_API_KEY ?? "";
+  if (!identity || !resendApiKey) return null;
   return {
-    kv,
+    ...identity,
     resendApiKey,
     emailFrom:
       process.env.ZHINOTES_ACCOUNT_EMAIL_FROM ??
       "ZhiNotes <onboarding@resend.dev>",
-    allowedEmails,
   };
+}
+
+export function accountIdentityMissingEnv(): string[] {
+  const missing: string[] = [];
+  if (!kvEnv()) missing.push("KV_REST_API_URL / KV_REST_API_TOKEN");
+  if (allowedEmailsFromEnv().size === 0) {
+    missing.push("ZHINOTES_ACCOUNT_ALLOWED_EMAILS");
+  }
+  return missing;
 }
 
 export function accountMissingEnv(): string[] {
   const missing: string[] = [];
-  if (!kvEnv()) missing.push("KV_REST_API_URL / KV_REST_API_TOKEN");
+  missing.push(...accountIdentityMissingEnv());
   if (!process.env.RESEND_API_KEY) missing.push("RESEND_API_KEY");
-  if (!(process.env.ZHINOTES_ACCOUNT_ALLOWED_EMAILS ?? "").includes("@")) {
-    missing.push("ZHINOTES_ACCOUNT_ALLOWED_EMAILS");
-  }
   return missing;
 }
 
@@ -391,7 +413,7 @@ export type VerifyCodeResult =
   | { status: "too-many-attempts" };
 
 export async function verifyLoginCode(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   code: string
 ): Promise<VerifyCodeResult> {
@@ -441,7 +463,7 @@ export async function verifyLoginCode(
 }
 
 async function ensureAccount(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<AccountRecord> {
   const userKey = `${USER_KEY_PREFIX}${email}`;
@@ -467,7 +489,7 @@ async function ensureAccount(
 }
 
 export async function updateAccountDisplayName(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   account: AccountRecord,
   displayName: string
 ): Promise<AccountRecord> {
@@ -498,7 +520,7 @@ export function readSessionToken(request: Request): string | null {
 // Looks up the session and slides its expiry forward, so active users
 // never get logged out.
 export async function getSessionAccount(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   sessionToken: string
 ): Promise<AccountRecord | null> {
   const sessionKey = `${SESSION_KEY_PREFIX}${sessionToken}`;
@@ -525,7 +547,7 @@ export async function getSessionAccount(
 }
 
 export async function deleteSession(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   sessionToken: string
 ): Promise<void> {
   await kvDel(config.kv, `${SESSION_KEY_PREFIX}${sessionToken}`);

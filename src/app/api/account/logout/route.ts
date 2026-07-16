@@ -3,7 +3,7 @@ import {
   SESSION_COOKIE_NAME,
   accountSessionCookieDeleteOptions,
   deleteSession,
-  getAccountConfig,
+  getAccountIdentityConfig,
   readSessionToken,
 } from "@/lib/account/server";
 
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // Revokes the server-side session and clears the cookie.
 export async function POST(request: Request) {
   const token = readSessionToken(request);
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (config && token) {
     try {
       await deleteSession(config, token);

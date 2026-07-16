@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import {
-  accountMissingEnv,
-  getAccountConfig,
+  accountIdentityMissingEnv,
+  getAccountIdentityConfig,
   getSessionAccount,
   kvGet,
   kvSet,
   readSessionToken,
-  type AccountConfig,
+  type AccountIdentityConfig,
 } from "@/lib/account/server";
 import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
 import { generateId } from "@/lib/utils/id";
@@ -219,7 +219,7 @@ function toMetadataRecord(record: PageRecord): PageRecord {
 }
 
 async function readIndex(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<Record<string, IndexEntry>> {
   const raw = await kvGet(config.kv, `${INDEX_KEY_PREFIX}${email}`);
@@ -278,7 +278,7 @@ function normalizeChangeLog(entries: PageChangeLogEntry[]): PageChangeLogEntry[]
 }
 
 async function readChangeLog(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<PageChangeLogEntry[]> {
   const raw = await kvGet(config.kv, `${CHANGE_LOG_KEY_PREFIX}${email}`);
@@ -297,7 +297,7 @@ async function readChangeLog(
 }
 
 async function appendChangeLog(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   entries: PageChangeLogEntry[]
 ): Promise<void> {
@@ -377,7 +377,7 @@ function canUseChangeLogFromCursor(
 }
 
 async function readChangedPageRecordsFromChangeLog(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   cursorText: string | undefined
 ): Promise<{
@@ -535,7 +535,7 @@ function withDailyDateProperty(record: PageRecord, dateKey: string): string {
 }
 
 async function readIndexedPages(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   index: Record<string, IndexEntry>
 ): Promise<PageRecord[]> {
@@ -560,7 +560,7 @@ async function readIndexedPages(
 }
 
 async function readPageRecordsByIds(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   ids: string[]
 ): Promise<PageRecord[]> {
@@ -584,7 +584,7 @@ async function readPageRecordsByIds(
 }
 
 async function getPageChangesSince(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   since: string,
   limit: number
@@ -656,7 +656,7 @@ async function getPageChangesSince(
 }
 
 async function repairDailyImportPlacement(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<DailyRepairResult> {
   const index = await readIndex(config, email);
@@ -791,7 +791,7 @@ function buildDailyManifest(active: PageRecord[]): DailyManifestResult {
 }
 
 async function getDailyManifest(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<DailyManifestResult> {
   const index = await readIndex(config, email);
@@ -800,7 +800,7 @@ async function getDailyManifest(
 }
 
 async function getDailyMetadata(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<DailyMetadataResult> {
   const index = await readIndex(config, email);
@@ -923,7 +923,7 @@ function sanitizeMeetingCache(value: unknown): MeetingCalendarCache | null {
 }
 
 async function readMeetingCalendarCacheSnapshot(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<MeetingCalendarCache | null> {
   try {
@@ -939,7 +939,7 @@ async function readMeetingCalendarCacheSnapshot(
 }
 
 async function writeMeetingCalendarCache(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   cache: MeetingCalendarCache
 ): Promise<void> {
@@ -1002,7 +1002,7 @@ function selectMeetingCalendarMetadata(
 }
 
 async function getMeetingCalendarMetadata(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   startDate: string | null,
   endDate: string | null,
@@ -1062,7 +1062,7 @@ async function getMeetingCalendarMetadata(
 }
 
 async function getPageMetadata(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<PageMetadataResult> {
   const index = await readIndex(config, email);
@@ -1077,7 +1077,7 @@ async function getPageMetadata(
 }
 
 async function getModuleRootMetadata(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<PageMetadataResult> {
   const index = await readIndex(config, email);
@@ -1194,7 +1194,7 @@ function sanitizeDailyCache(value: unknown): DailyCalendarCache | null {
 }
 
 async function readDailyCalendarCacheSnapshot(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<DailyCalendarCache | null> {
   try {
@@ -1210,7 +1210,7 @@ async function readDailyCalendarCacheSnapshot(
 }
 
 async function writeDailyCalendarCache(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   cache: DailyCalendarCache
 ): Promise<void> {
@@ -1358,7 +1358,7 @@ function createMeetingCalendarCacheFromRecords(
 }
 
 async function refreshDailyCalendarCacheFromChangeLog(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   cache: DailyCalendarCache,
   summary: IndexSummary
@@ -1380,7 +1380,7 @@ async function refreshDailyCalendarCacheFromChangeLog(
 }
 
 async function refreshMeetingCalendarCacheFromChangeLog(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   cache: MeetingCalendarCache,
   summary: IndexSummary
@@ -1402,7 +1402,7 @@ async function refreshMeetingCalendarCacheFromChangeLog(
 }
 
 async function updateCalendarCachesForPageWrites(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   records: PageRecord[],
   previousSummary: IndexSummary,
@@ -1499,7 +1499,7 @@ function selectDailyCalendarMetadata(
 }
 
 async function getDailyCalendarMetadata(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   startDate: string | null,
   endDate: string | null,
@@ -1559,12 +1559,12 @@ async function getDailyCalendarMetadata(
 }
 
 export async function GET(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return NextResponse.json(
       {
         error: "account system not configured",
-        missing_env: accountMissingEnv(),
+        missing_env: accountIdentityMissingEnv(),
       },
       { status: 501 }
     );
@@ -1608,12 +1608,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return NextResponse.json(
       {
         error: "account system not configured",
-        missing_env: accountMissingEnv(),
+        missing_env: accountIdentityMissingEnv(),
       },
       { status: 501 }
     );

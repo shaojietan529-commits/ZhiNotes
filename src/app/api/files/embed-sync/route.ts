@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  getAccountConfig,
+  getAccountIdentityConfig,
   getSessionAccount,
   kvGet,
   kvSet,
@@ -34,7 +34,7 @@ interface PullBody {
 }
 
 export async function POST(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return NextResponse.json(
       { error: "account-not-configured" },

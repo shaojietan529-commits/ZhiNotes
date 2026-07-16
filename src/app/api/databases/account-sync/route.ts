@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import {
-  accountMissingEnv,
-  getAccountConfig,
+  accountIdentityMissingEnv,
+  getAccountIdentityConfig,
   getSessionAccount,
   kvGet,
   kvSet,
   readSessionToken,
-  type AccountConfig,
+  type AccountIdentityConfig,
 } from "@/lib/account/server";
 import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
 
@@ -200,7 +200,7 @@ function sanitizeRecord(value: unknown): DatabaseSyncRecord | null {
 }
 
 async function readIndex(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<Record<string, DatabaseSyncIndexEntry>> {
   const raw = await kvGet(config.kv, `${INDEX_KEY_PREFIX}${email}`);
@@ -300,7 +300,7 @@ function normalizeChangeLog(
 }
 
 async function readChangeLog(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<DatabaseSyncChangeLogEntry[]> {
   const raw = await kvGet(config.kv, `${CHANGE_LOG_KEY_PREFIX}${email}`);
@@ -319,7 +319,7 @@ async function readChangeLog(
 }
 
 async function appendChangeLog(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   entries: DatabaseSyncChangeLogEntry[]
 ): Promise<void> {
@@ -364,7 +364,7 @@ function summarizeIndex(
 }
 
 async function readRecordsByKeys(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   keys: string[]
 ): Promise<DatabaseSyncRecord[]> {
@@ -391,7 +391,7 @@ async function readRecordsByKeys(
 }
 
 async function getChangesSince(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   since: string,
   limit: number
@@ -457,7 +457,7 @@ async function getChangesSince(
 }
 
 async function getDatabaseMetadata(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   limit: number
 ): Promise<DatabaseSyncMetadataResult> {
@@ -483,7 +483,7 @@ async function getDatabaseMetadata(
 }
 
 async function getDatabaseRecords(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string,
   databaseId: string,
   offset: number,
@@ -525,12 +525,12 @@ async function getDatabaseRecords(
 }
 
 export async function POST(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return NextResponse.json(
       {
         error: "account system not configured",
-        missing_env: accountMissingEnv(),
+        missing_env: accountIdentityMissingEnv(),
       },
       { status: 501 }
     );

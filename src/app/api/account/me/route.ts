@@ -3,9 +3,9 @@ import { maskEmail } from "@/lib/cloud/api";
 import {
   SESSION_COOKIE_NAME,
   accountDisplayName,
-  accountMissingEnv,
+  accountIdentityMissingEnv,
   accountSessionCookieOptions,
-  getAccountConfig,
+  getAccountIdentityConfig,
   getSessionAccount,
   normalizeDisplayName,
   readSessionToken,
@@ -17,12 +17,12 @@ export const dynamic = "force-dynamic";
 
 // Who am I? Validates the session cookie and refreshes its 90-day expiry.
 export async function GET(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return NextResponse.json(
       {
         error: "account system not configured",
-        missing_env: accountMissingEnv(),
+        missing_env: accountIdentityMissingEnv(),
       },
       { status: 501 }
     );
@@ -62,12 +62,12 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return NextResponse.json(
       {
         error: "account system not configured",
-        missing_env: accountMissingEnv(),
+        missing_env: accountIdentityMissingEnv(),
       },
       { status: 501 }
     );

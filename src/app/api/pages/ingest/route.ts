@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import {
-  getAccountConfig,
+  getAccountIdentityConfig,
   getSessionAccount,
   kvGet,
   kvSet,
   readSessionToken,
-  type AccountConfig,
+  type AccountIdentityConfig,
 } from "@/lib/account/server";
 import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
 import { generateId } from "@/lib/utils/id";
@@ -92,7 +92,7 @@ function getBearerToken(request: Request): string | null {
 }
 
 async function authenticateRequest(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   request: Request
 ): Promise<{ email: string } | null> {
   // Method 1: session cookie (browser extension, same origin)
@@ -113,7 +113,7 @@ async function authenticateRequest(
 }
 
 async function validateApiKey(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   key: string
 ): Promise<string | null> {
   if (!key || key.length < 10) return null;
@@ -153,7 +153,7 @@ function isDailyRoot(page: StoredPage | null): boolean {
 // if the account has not synced a daily root yet (caller falls back to a
 // top-level page).
 async function resolveDailyRootId(
-  config: AccountConfig,
+  config: AccountIdentityConfig,
   email: string
 ): Promise<string | null> {
   const cacheKey = `${DAILY_ROOT_CACHE_PREFIX}${email}`;
@@ -212,7 +212,7 @@ function prop(type: string, name: string, value: string): PageProperty {
 }
 
 export async function POST(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return corsJson({ error: "account-not-configured" }, { status: 501 });
   }
@@ -343,7 +343,7 @@ export async function POST(request: Request) {
 
 // GET: generate/retrieve API key for the current session
 export async function GET(request: Request) {
-  const config = getAccountConfig();
+  const config = getAccountIdentityConfig();
   if (!config) {
     return corsJson({ error: "account-not-configured" }, { status: 501 });
   }

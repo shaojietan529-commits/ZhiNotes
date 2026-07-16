@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  getAccountConfig,
+  getAccountIdentityConfig,
   getSessionAccount,
   readSessionToken,
 } from "@/lib/account/server";
@@ -195,7 +195,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const accountConfig = getAccountConfig();
+  const accountConfig = getAccountIdentityConfig();
   if (!accountConfig) {
     return queueJson(
       queueFailurePayload({
