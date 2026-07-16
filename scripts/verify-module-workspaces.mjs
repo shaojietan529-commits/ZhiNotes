@@ -83,6 +83,9 @@ const pageBodyHydrationStatus = read(
 );
 const pagePeekModal = read("src/components/page/PagePeekModal.tsx");
 const lazyPagePeekModal = read("src/components/page/LazyPagePeekModal.tsx");
+const pageRouteQuickDraftInput = read(
+  "src/components/page/PageRouteQuickDraftInput.tsx"
+);
 const pageShell = read("src/components/providers/PageShell.tsx");
 const pageCloudSaveStatus = read("src/lib/pages/pageCloudSaveStatus.ts");
 const dailyCalendarLoadStatus = read("src/lib/sync/dailyCalendarLoadStatus.ts");
@@ -520,6 +523,9 @@ check(
     !pageShell.includes('from "@/lib/pages/pageSnapshotUpdates"') &&
     pageShell.includes("const Editor = dynamic(loadEditorModule") &&
     pageShell.includes("loading: () => <PageBodySkeleton />") &&
+    pageShell.includes("PageRouteQuickDraftInput") &&
+    pageShell.includes("quickDraft={") &&
+    pageShell.includes("void loadEditorModule()\n          .catch(() => undefined)\n          .then(() => {") &&
     !pageShell.includes("import Editor from \"@/components/editor/Editor\"") &&
     !pageShell.includes('from "@/lib/pages/cloudPageMutations"') &&
     pageShell.includes("return scheduleEditorMount(() => {\n      void loadEditorModule();\n      setEditorMounted(true);") &&
@@ -1299,6 +1305,17 @@ check(
     lazyPagePeekModal.includes("新页面已在本机创建，完整编辑器正在载入。") &&
     lazyPagePeekModal.includes("打开完整页面继续编辑 ↗") &&
     lazyPagePeekModal.includes("已先显示本地页面信息") &&
+    pageRouteQuickDraftInput.includes('data-testid="page-route-quick-draft-input"') &&
+    pageRouteQuickDraftInput.includes("rememberPendingPageDraft(nextPage)") &&
+    pageRouteQuickDraftInput.includes("upsertPages([nextPage])") &&
+    pageRouteQuickDraftInput.includes("function quickDraftTextToHtml") &&
+    pageRouteQuickDraftInput.includes("function escapeQuickDraftHtml") &&
+    pageRouteQuickDraftInput.includes("快速输入已暂存在本机草稿") &&
+    !pageRouteQuickDraftInput.includes("fetch(") &&
+    !pageRouteQuickDraftInput.includes("recordSyncChange") &&
+    !pageRouteQuickDraftInput.includes("queueCloudPagePush") &&
+    !pageRouteQuickDraftInput.includes("pushCloudPages") &&
+    !pageRouteQuickDraftInput.includes("window.localStorage") &&
     pagePeekModal.includes("onReady?: (pageId: string) => void") &&
     pagePeekModal.includes("onReady?.(pageId)") &&
     pagePeekModal.includes("const localFirstSeedPage = currentFallbackPage ?? currentInitialPage") &&

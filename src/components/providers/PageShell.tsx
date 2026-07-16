@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type ReactNode,
 } from "react";
 import dynamic from "next/dynamic";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -22,6 +23,7 @@ import {
 import type { PagePropertiesProps } from "@/components/page/PageProperties";
 import type { PageActionsMenuProps } from "@/components/page/PageActionsMenu";
 import PageRouteSkeleton from "@/components/page/PageRouteSkeleton";
+import PageRouteQuickDraftInput from "@/components/page/PageRouteQuickDraftInput";
 import {
   getPagePropertyTypeIcon,
   parsePageProperties,
@@ -578,9 +580,13 @@ function PageContent({ pageId }: { pageId: string }) {
       let cancelled = false;
       queueMicrotask(() => {
         if (cancelled) return;
-        void loadEditorModule();
-        setEditorMounted(true);
-        mountedEditorPageIdRef.current = pageId;
+        void loadEditorModule()
+          .catch(() => undefined)
+          .then(() => {
+            if (cancelled) return;
+            setEditorMounted(true);
+            mountedEditorPageIdRef.current = pageId;
+          });
       });
       return () => {
         cancelled = true;
@@ -1790,6 +1796,11 @@ function PageContent({ pageId }: { pageId: string }) {
               largeBody={hasLargeBodyForEditor}
               contentLength={pageBodyHtmlLength}
               statusLabel={bodyHydrationLabel}
+              quickDraft={
+                isOptimisticPageDraft ? (
+                  <PageRouteQuickDraftInput pageId={pageId} initialPage={page} />
+                ) : null
+              }
             />
           )}
 
@@ -2170,12 +2181,14 @@ function PageBodySkeleton({
   largeBody = false,
   contentLength = 0,
   statusLabel,
+  quickDraft,
 }: {
   metadataOnly?: boolean;
   optimisticDraft?: boolean;
   largeBody?: boolean;
   contentLength?: number;
   statusLabel?: string | null;
+  quickDraft?: ReactNode;
 }) {
   const loadingMessage = optimisticDraft
     ? "新页面已在本机创建，标题和属性可以先确认，编辑器正在准备…"
@@ -2187,6 +2200,7 @@ function PageBodySkeleton({
 
   return (
     <div className="min-h-[220px] rounded-md border border-zinc-100 bg-zinc-50/60 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/30">
+      {quickDraft}
       <div className="mb-4 h-3 w-40 rounded bg-zinc-200/80 dark:bg-zinc-800" />
       <div className="space-y-3">
         <div className="h-3 w-full max-w-2xl rounded bg-zinc-200/70 dark:bg-zinc-800/80" />

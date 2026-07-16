@@ -13,6 +13,12 @@ const files = {
   meetingShell: "src/components/modules/MeetingScheduleShell.tsx",
   pageShell: "src/components/providers/PageShell.tsx",
   lazyPagePeekModal: "src/components/page/LazyPagePeekModal.tsx",
+  pageRouteQuickDraftInput: "src/components/page/PageRouteQuickDraftInput.tsx",
+  pageRouteSkeleton: "src/components/page/PageRouteSkeleton.tsx",
+  pageRouteLocalFirstLoadingShell:
+    "src/components/page/PageRouteLocalFirstLoadingShell.tsx",
+  pageRouteLocalFirstLoadingEnhancer:
+    "src/components/page/PageRouteLocalFirstLoadingEnhancer.tsx",
   localFirstPageNavigation: "src/lib/pages/localFirstPageNavigation.ts",
   localFirstPageNavigationHook: "src/hooks/useLocalFirstPageNavigation.ts",
   pageRouteHandoff: "src/lib/pages/pageRouteHandoff.ts",
@@ -65,6 +71,16 @@ function run() {
   const meetingShell = readProjectFile(files.meetingShell);
   const pageShell = readProjectFile(files.pageShell);
   const lazyPagePeekModal = readProjectFile(files.lazyPagePeekModal);
+  const pageRouteQuickDraftInput = readProjectFile(
+    files.pageRouteQuickDraftInput
+  );
+  const pageRouteSkeleton = readProjectFile(files.pageRouteSkeleton);
+  const pageRouteLocalFirstLoadingShell = readProjectFile(
+    files.pageRouteLocalFirstLoadingShell
+  );
+  const pageRouteLocalFirstLoadingEnhancer = readProjectFile(
+    files.pageRouteLocalFirstLoadingEnhancer
+  );
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
   );
@@ -412,6 +428,18 @@ function run() {
 
   for (const [snippet, message] of [
     [
+      "PageRouteQuickDraftInput",
+      "PageShell must expose local quick draft input while an optimistic page waits for the editor bundle.",
+    ],
+    [
+      "quickDraft={",
+      "PageShell and route skeletons must have a quick draft slot during local-first loading.",
+    ],
+    [
+      "void loadEditorModule()\n          .catch(() => undefined)\n          .then(() => {",
+      "Optimistic pages must keep the local draft shell visible until the editor bundle is ready.",
+    ],
+    [
       "readPageShellEditableHeaderSeed(pageId)",
       "PageShell must seed the header from local draft/route handoff before body hydration.",
     ],
@@ -465,6 +493,77 @@ function run() {
     ],
   ]) {
     assertIncludes(files.pageShell, pageShell, snippet, message);
+  }
+
+  for (const [sourceLabel, source, snippet, message] of [
+    [
+      files.pageRouteSkeleton,
+      pageRouteSkeleton,
+      "quickDraft?: ReactNode",
+      "Route skeleton must reserve an interactive local draft slot.",
+    ],
+    [
+      files.pageRouteLocalFirstLoadingShell,
+      pageRouteLocalFirstLoadingShell,
+      "PageRouteQuickDraftInput",
+      "Client route loading shell must show quick draft input for optimistic pages.",
+    ],
+    [
+      files.pageRouteLocalFirstLoadingEnhancer,
+      pageRouteLocalFirstLoadingEnhancer,
+      "PageRouteQuickDraftInput",
+      "Hydrated route loading enhancer must preserve quick draft input for optimistic pages.",
+    ],
+  ]) {
+    assertIncludes(sourceLabel, source, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      'data-testid="page-route-quick-draft-input"',
+      "Full-page quick draft input must expose a stable diagnostic hook.",
+    ],
+    [
+      "rememberPendingPageDraft(nextPage)",
+      "Full-page quick draft must save into local pending drafts.",
+    ],
+    [
+      "upsertPages([nextPage])",
+      "Full-page quick draft must update the in-memory page index immediately.",
+    ],
+    [
+      "function quickDraftTextToHtml",
+      "Full-page quick draft must convert plain text to editor HTML locally.",
+    ],
+    [
+      "function escapeQuickDraftHtml",
+      "Full-page quick draft must escape text before storing HTML.",
+    ],
+    [
+      "快速输入已暂存在本机草稿",
+      "Full-page quick draft must explain that it is local-first.",
+    ],
+  ]) {
+    assertIncludes(
+      files.pageRouteQuickDraftInput,
+      pageRouteQuickDraftInput,
+      snippet,
+      message
+    );
+  }
+  for (const snippet of [
+    "fetch(",
+    "recordSyncChange",
+    "queueCloudPagePush",
+    "pushCloudPages",
+    "window.localStorage",
+  ]) {
+    assertExcludes(
+      files.pageRouteQuickDraftInput,
+      pageRouteQuickDraftInput,
+      snippet,
+      "Full-page quick draft must stay local/session-only and out of cloud sync."
+    );
   }
 
   for (const [snippet, message] of [

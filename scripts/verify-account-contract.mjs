@@ -3106,6 +3106,9 @@ const pageRouteLocalFirstLoadingEnhancer = read(
   "src/components/page/PageRouteLocalFirstLoadingEnhancer.tsx"
 );
 const pageRouteSkeleton = read("src/components/page/PageRouteSkeleton.tsx");
+const pageRouteQuickDraftInput = read(
+  "src/components/page/PageRouteQuickDraftInput.tsx"
+);
 check(
   !pageShell.includes('from "@/hooks/usePages"') &&
     !pageShell.includes("usePages({") &&
@@ -3135,12 +3138,29 @@ check(
       "useWorkspaceStore.getState().getPageById"
     ) &&
     pageRouteLocalFirstLoadingShell.includes("readLocalFirstPageRouteSeed") &&
+    pageRouteLocalFirstLoadingShell.includes("PageRouteQuickDraftInput") &&
+    pageRouteLocalFirstLoadingEnhancer.includes("PageRouteQuickDraftInput") &&
     pageRouteLocalFirstLoadingShell.includes("previewPage.title") &&
     pageRouteLocalFirstLoadingShell.includes("previewPage.icon") &&
     pageRouteLocalFirstLoadingShell.includes("previewPage.properties") &&
     pageRouteSkeleton.includes("preview?:") &&
+    pageRouteSkeleton.includes("quickDraft?: ReactNode") &&
     pageRouteSkeleton.includes('data-testid="page-route-preview-title"'),
   "页面动态路由、route loading、动态组件 fallback、单页缓存读取等待态都必须显示页面骨架；route loading 必须先服务端显示骨架，再在浏览器可用时用本地交接标题/图标增强"
+);
+check(
+  pageRouteQuickDraftInput.includes('data-testid="page-route-quick-draft-input"') &&
+    pageRouteQuickDraftInput.includes("rememberPendingPageDraft(nextPage)") &&
+    pageRouteQuickDraftInput.includes("upsertPages([nextPage])") &&
+    pageRouteQuickDraftInput.includes("function quickDraftTextToHtml") &&
+    pageRouteQuickDraftInput.includes("function escapeQuickDraftHtml") &&
+    pageRouteQuickDraftInput.includes("快速输入已暂存在本机草稿") &&
+    !pageRouteQuickDraftInput.includes("fetch(") &&
+    !pageRouteQuickDraftInput.includes("recordSyncChange") &&
+    !pageRouteQuickDraftInput.includes("queueCloudPagePush") &&
+    !pageRouteQuickDraftInput.includes("pushCloudPages") &&
+    !pageRouteQuickDraftInput.includes("window.localStorage"),
+  "完整页面加载中的快速输入只能写本机草稿和内存索引，不能直接进入账号云同步或 localStorage"
 );
 check(
   pageRouteSkeleton.includes("本地缓存会先加载") &&

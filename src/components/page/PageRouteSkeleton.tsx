@@ -1,5 +1,8 @@
+import type { ReactNode } from "react";
+
 type PageRouteSkeletonProps = {
   message?: string;
+  quickDraft?: ReactNode;
   preview?: {
     title?: string;
     icon?: string | null;
@@ -21,6 +24,7 @@ const PAGE_ROUTE_PREVIEW_PROPERTY_ICONS: Record<string, string> = {
 
 export default function PageRouteSkeleton({
   message = "正在打开页面，本地缓存会先加载，云端同步在后台继续。",
+  quickDraft,
   preview,
 }: PageRouteSkeletonProps) {
   const previewTitle = preview?.title?.trim();
@@ -128,6 +132,7 @@ export default function PageRouteSkeleton({
               </div>
             </>
           )}
+          {quickDraft}
           <div className="min-h-[260px] animate-pulse rounded-md border border-zinc-100 bg-zinc-50/60 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/30">
             <div className="mb-4 h-3 w-40 rounded bg-zinc-200/80 dark:bg-zinc-800" />
             <div className="space-y-3">

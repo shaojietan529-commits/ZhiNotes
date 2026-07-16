@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import PageRouteQuickDraftInput from "@/components/page/PageRouteQuickDraftInput";
 import PageRouteSkeleton from "@/components/page/PageRouteSkeleton";
 import { readPageRouteHandoff } from "@/lib/pages/pageRouteHandoff";
 import { readPendingPageDraft } from "@/lib/pages/pendingPageDrafts";
@@ -16,6 +17,11 @@ export default function PageRouteLocalFirstLoadingEnhancer() {
     <>
       <style>{`.page-route-server-loading-shell{display:none}`}</style>
       <PageRouteSkeleton
+        quickDraft={
+          previewPage.content_text === "" && pageId ? (
+            <PageRouteQuickDraftInput pageId={pageId} initialPage={previewPage} />
+          ) : undefined
+        }
         preview={{
           title: previewPage.title,
           icon: previewPage.icon,
