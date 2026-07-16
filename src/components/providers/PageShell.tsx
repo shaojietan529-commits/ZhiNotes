@@ -126,6 +126,7 @@ const PAGE_SYNC_STATUS_FIRST_REFRESH_DELAY_MS = 900;
 const PAGE_SYNC_STATUS_FIRST_REFRESH_IDLE_TIMEOUT_MS = 2500;
 const PAGE_BODY_HYDRATION_PERFORMANCE_THRESHOLD_MS = 500;
 const EMPTY_PAGE_SYNC_STATUS: PendingCloudPageSyncStatus = {
+  initialized: false,
   enabled: true,
   pending: 0,
   queued: 0,

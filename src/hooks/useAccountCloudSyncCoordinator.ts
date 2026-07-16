@@ -249,13 +249,18 @@ export function useAccountCloudSyncCoordinator() {
     globalSyncLogExtraPendingTotal > 0 ||
     globalSyncLogExtraFailedTotal > 0 ||
     globalSyncLogExtraManualReviewTotal > 0;
+  const coreSyncStatusKnown =
+    pageSync.pendingStatus.initialized &&
+    databaseSync.pendingStatus.initialized;
   const enabledDomainCount =
-    (pageSync.pendingStatus.enabled ||
+    (!pageSync.pendingStatus.initialized ||
+    pageSync.pendingStatus.enabled ||
     pageSync.state !== "disabled" ||
     pageVisibleSyncWork
       ? 1
       : 0) +
-    (databaseSync.pendingStatus.enabled ||
+    (!databaseSync.pendingStatus.initialized ||
+    databaseSync.pendingStatus.enabled ||
     databaseSync.state !== "disabled" ||
     databaseVisibleSyncWork
       ? 1
@@ -319,6 +324,7 @@ export function useAccountCloudSyncCoordinator() {
           }`
     : null;
   const initializingEnabledDomain =
+    !coreSyncStatusKnown ||
     (pageSync.pendingStatus.enabled && pageSync.state === "disabled") ||
     (databaseSync.pendingStatus.enabled && databaseSync.state === "disabled");
   const syncBlockedBySignedOut =
@@ -368,6 +374,7 @@ export function useAccountCloudSyncCoordinator() {
       globalSyncLogExtraPendingTotal > 0
         ? `其他本地队列 ${globalSyncLogExtraPendingTotal}（同步中心处理）`
         : null,
+      coreSyncStatusKnown ? null : "核心同步状态读取中",
       authRetryDetail,
       syncCenterVisibleOnlyPendingTotal > 0
         ? `同步中心待处理 ${syncCenterVisibleOnlyPendingTotal}`
@@ -414,6 +421,7 @@ export function useAccountCloudSyncCoordinator() {
     accountUncertainByAuthRetry,
     authRetryDetail,
     authRetryUnconfiguredDomainLabel,
+    coreSyncStatusKnown,
     databasePendingTotal,
     filePendingTotal,
     globalSyncLogExtraPendingTotal,

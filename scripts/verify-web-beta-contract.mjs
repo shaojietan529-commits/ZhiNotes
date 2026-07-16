@@ -6985,6 +6985,18 @@ function run() {
   assertSourceIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
+    "coreSyncStatusKnown",
+    "Account cloud sync coordinator must keep the account sync indicator in checking state until core page/database sync status has initialized."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "核心同步状态读取中",
+    "Account cloud sync coordinator must explain first-load core sync status checks to avoid false disabled/synced UI."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
     "initializingEnabledDomain",
     "Account cloud sync coordinator must distinguish enabled-but-initializing domains from fully synced domains."
   );

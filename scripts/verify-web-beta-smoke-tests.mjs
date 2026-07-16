@@ -16636,6 +16636,30 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "initialized: true",
+    "Smoke verifier must keep page pending sync status marked initialized after local config has been read."
+  );
+  assertIncludes(
+    files.accountDatabaseSync,
+    accountDatabaseSync,
+    "initialized: true",
+    "Smoke verifier must keep database pending sync status marked initialized after local config has been read."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "coreSyncStatusKnown",
+    "Smoke verifier must keep account sync status from claiming disabled/synced before page/database sync status is initialized."
+  );
+  assertIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "核心同步状态读取中",
+    "Smoke verifier must keep first-load sync status copy visible."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "export async function getPendingCloudPageSyncStatusWithSyncLog",
     "Smoke verifier must keep page sync_log pending status visible to the sync dashboard."
   );

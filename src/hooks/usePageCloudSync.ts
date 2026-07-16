@@ -59,6 +59,7 @@ const PAGE_PENDING_STORAGE_KEYS = new Set([
 ]);
 
 const EMPTY_PAGE_PENDING_STATUS: PendingCloudPageSyncStatus = {
+  initialized: false,
   enabled: false,
   pending: 0,
   queued: 0,

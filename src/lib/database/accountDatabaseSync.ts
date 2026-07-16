@@ -211,6 +211,7 @@ export interface DatabaseSyncLastOutcome {
 }
 
 export interface PendingCloudDatabaseSyncStatus {
+  initialized: boolean;
   enabled: boolean;
   pending: number;
   queued: number;
@@ -1828,6 +1829,7 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
     .map((key) => ({ key, failedAt: pendingMeta[key]?.lastFailureAt ?? "" }))
     .sort((left, right) => right.failedAt.localeCompare(left.failedAt))[0]?.key;
   return {
+    initialized: true,
     enabled: isDatabaseSyncEnabled(),
     pending: pendingKeys.length,
     queued: queuedCloudDatabasePush.size,

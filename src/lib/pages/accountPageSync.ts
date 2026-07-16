@@ -179,6 +179,7 @@ export interface PageSyncLastOutcome {
 }
 
 export interface PendingCloudPageSyncStatus {
+  initialized: boolean;
   enabled: boolean;
   pending: number;
   queued: number;
@@ -2504,6 +2505,7 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
     .sort((left, right) => right.failedAt.localeCompare(left.failedAt))[0]?.id;
 
   return {
+    initialized: true,
     enabled: isPageSyncEnabled(),
     pending: pendingIds.length,
     queued: queuedCloudPush.size,

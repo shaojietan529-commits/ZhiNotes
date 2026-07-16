@@ -56,6 +56,7 @@ const DATABASE_PENDING_STORAGE_KEYS = new Set([
 ]);
 
 const EMPTY_DATABASE_PENDING_STATUS: PendingCloudDatabaseSyncStatus = {
+  initialized: false,
   enabled: false,
   pending: 0,
   queued: 0,

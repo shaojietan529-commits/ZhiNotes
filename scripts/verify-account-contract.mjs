@@ -4385,6 +4385,8 @@ check(
     accountCloudSyncCoordinator.includes("authRetryUntilLabel,") &&
     accountCloudSyncCoordinator.includes("buildAccountLocalUseReadiness") &&
     accountCloudSyncCoordinator.includes("const syncErrorWithoutAuthRetry =") &&
+    accountCloudSyncCoordinator.includes("coreSyncStatusKnown") &&
+    accountCloudSyncCoordinator.includes("核心同步状态读取中") &&
     accountCloudSyncCoordinator.includes('accountUncertainByAuthRetry\n                ? "checking"') &&
     accountCloudSyncCoordinator.includes('"checking"') &&
     accountCloudSyncCoordinator.includes("initializingEnabledDomain") &&

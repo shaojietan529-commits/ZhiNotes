@@ -2585,6 +2585,7 @@ function SyncDashboard() {
   );
   const [databasePendingStatus, setDatabasePendingStatus] =
     useState<PendingCloudDatabaseSyncStatus>(() => ({
+      initialized: true,
       enabled: isDatabaseSyncEnabled(),
       pending: 0,
       queued: 0,
