@@ -4009,6 +4009,12 @@ check(
       "authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}"
     ) &&
     syncDashboardShell.includes(
+      "authRetryUnconfiguredDomainLabel={"
+    ) &&
+    syncDashboardShell.includes(
+      "authRetryUnconfirmedDomainLabel={"
+    ) &&
+    syncDashboardShell.includes(
       "authRetryStatusLabel={syncLocalUseQueueSnapshot.authRetryStatusLabel}"
     ) &&
     syncDashboardShell.includes(
@@ -4016,6 +4022,9 @@ check(
     ) &&
     syncDashboardShell.includes(
       'if (status === "unconfirmed") return "账号临时不可确认";'
+    ) &&
+    syncDashboardShell.includes(
+      'if (status === "unconfigured") return "云端未配置";'
     ) &&
     syncDashboardShell.includes("formatSyncAuthRetryStatus") &&
     syncDashboardShell.includes(
@@ -4026,6 +4035,8 @@ check(
       'data-auth-retry-local-input-can-continue="true"'
     ) &&
     syncDashboardShell.includes("账号会话暂时无法确认") &&
+    syncDashboardShell.includes("云端未配置") &&
+    syncDashboardShell.includes("这不是登出") &&
     syncDashboardShell.includes("本地输入可以继续") &&
     syncDashboardShell.includes("不会因为临时无法确认账号就自动登出") &&
     syncDashboardShell.includes(
@@ -4034,6 +4045,8 @@ check(
     syncDashboardShell.includes(
       "data-auth-retry-domains={authRetryDomainLabel}"
     ) &&
+    syncDashboardShell.includes("data-auth-retry-unconfigured-domains") &&
+    syncDashboardShell.includes("data-auth-retry-unconfirmed-domains") &&
     syncDashboardShell.includes(
       "data-auth-retry-statuses={authRetryStatusLabel}"
     ) &&
@@ -4398,7 +4411,13 @@ check(
     accountLocalUseReadiness.includes("fileQueueBlocksCloudHandoff") &&
     accountLocalUseReadiness.includes("formatAuthRetryDetail") &&
     accountLocalUseReadiness.includes("authRetryDomainLabel") &&
+    accountLocalUseReadiness.includes("authRetryUnconfiguredDomainLabel") &&
+    accountLocalUseReadiness.includes("authRetryUnconfirmedDomainLabel") &&
     accountLocalUseReadiness.includes("authRetryUntilLabel") &&
+    accountLocalUseReadiness.includes("云端未配置：") &&
+    accountLocalUseReadiness.includes("这不是登出，本地输入已保留") &&
+    accountLocalUseReadiness.includes("账号临时不可确认：") &&
+    accountLocalUseReadiness.includes("不会因此自动登出") &&
     accountLocalUseReadiness.includes("账号重试：") &&
     accountLocalUseReadiness.includes("reads_page_body_text: false") &&
     accountLocalUseReadiness.includes("reads_database_row_values: false") &&

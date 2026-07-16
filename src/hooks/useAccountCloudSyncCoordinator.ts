@@ -276,6 +276,24 @@ export function useAccountCloudSyncCoordinator() {
   ]
     .filter((value): value is string => Boolean(value))
     .join("/");
+  const authRetryUnconfiguredDomainLabel = [
+    pageSync.pendingStatus.authRetryStatus === "unconfigured" ? "页面" : null,
+    databaseSync.pendingStatus.authRetryStatus === "unconfigured"
+      ? "数据库"
+      : null,
+    fileSync.status.authRetryStatus === "unconfigured" ? "文件" : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join("/");
+  const authRetryUnconfirmedDomainLabel = [
+    pageSync.pendingStatus.authRetryStatus === "unconfirmed" ? "页面" : null,
+    databaseSync.pendingStatus.authRetryStatus === "unconfirmed"
+      ? "数据库"
+      : null,
+    fileSync.status.authRetryStatus === "unconfirmed" ? "文件" : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join("/");
   const authRetryUntil =
     [
       pageSync.pendingStatus.authRetryUntil,
@@ -288,9 +306,17 @@ export function useAccountCloudSyncCoordinator() {
   const authRetryUntilLabel =
     formatLastSyncTime(authRetryUntil) ?? authRetryUntil;
   const authRetryDetail = authRetryDomainLabel
-    ? `账号重试 ${authRetryDomainLabel}${
-        authRetryUntilLabel ? `，下次 ${authRetryUntilLabel}` : ""
-      }`
+    ? authRetryUnconfiguredDomainLabel
+      ? `云端未配置 ${authRetryUnconfiguredDomainLabel}${
+          authRetryUntilLabel ? `，下次检查 ${authRetryUntilLabel}` : ""
+        }`
+      : authRetryUnconfirmedDomainLabel
+        ? `账号临时不可确认 ${authRetryUnconfirmedDomainLabel}${
+            authRetryUntilLabel ? `，下次重试 ${authRetryUntilLabel}` : ""
+          }`
+        : `账号重试 ${authRetryDomainLabel}${
+            authRetryUntilLabel ? `，下次 ${authRetryUntilLabel}` : ""
+          }`
     : null;
   const initializingEnabledDomain =
     (pageSync.pendingStatus.enabled && pageSync.state === "disabled") ||
@@ -363,6 +389,8 @@ export function useAccountCloudSyncCoordinator() {
           : "";
       const accountRetryNote = syncBlockedBySignedOut
         ? "；账号未确认，本地输入已保留，会低频检查登录状态"
+        : authRetryUnconfiguredDomainLabel
+          ? "；云端未配置，本地输入已保留，这不是登出，配置完成后再补传"
         : accountUncertainByAuthRetry
           ? "；账号临时不可确认，本地输入已保留，系统会重试"
         : "";
@@ -385,6 +413,7 @@ export function useAccountCloudSyncCoordinator() {
   }, [
     accountUncertainByAuthRetry,
     authRetryDetail,
+    authRetryUnconfiguredDomainLabel,
     databasePendingTotal,
     filePendingTotal,
     globalSyncLogExtraPendingTotal,
@@ -420,10 +449,14 @@ export function useAccountCloudSyncCoordinator() {
         fileFailedTotal: fileSync.status.failed,
         fileManualReviewTotal: fileSync.status.manualReviewCount,
         authRetryDomainLabel,
+        authRetryUnconfiguredDomainLabel,
+        authRetryUnconfirmedDomainLabel,
         authRetryUntilLabel,
       }),
     [
       authRetryDomainLabel,
+      authRetryUnconfiguredDomainLabel,
+      authRetryUnconfirmedDomainLabel,
       authRetryUntilLabel,
       databasePendingTotal,
       enabledDomainCount,
@@ -490,6 +523,8 @@ export function useAccountCloudSyncCoordinator() {
     title,
     authRetryActive: Boolean(authRetryDomainLabel),
     authRetryDomainLabel,
+    authRetryUnconfiguredDomainLabel,
+    authRetryUnconfirmedDomainLabel,
     authRetryUntilLabel,
     pageSync,
     databaseSync,

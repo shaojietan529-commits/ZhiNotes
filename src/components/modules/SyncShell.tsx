@@ -3340,6 +3340,24 @@ function SyncDashboard() {
     ]
       .filter((value): value is string => Boolean(value))
       .join("/");
+    const authRetryUnconfiguredDomainLabel = [
+      pagePendingStatus.authRetryStatus === "unconfigured" ? "页面" : null,
+      databasePendingStatus.authRetryStatus === "unconfigured"
+        ? "数据库"
+        : null,
+      fileEmbedPendingStatus.authRetryStatus === "unconfigured" ? "文件" : null,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join("/");
+    const authRetryUnconfirmedDomainLabel = [
+      pagePendingStatus.authRetryStatus === "unconfirmed" ? "页面" : null,
+      databasePendingStatus.authRetryStatus === "unconfirmed"
+        ? "数据库"
+        : null,
+      fileEmbedPendingStatus.authRetryStatus === "unconfirmed" ? "文件" : null,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join("/");
     const authRetryUntil =
       [
         pagePendingStatus.authRetryUntil,
@@ -3367,7 +3385,11 @@ function SyncDashboard() {
       .filter((value): value is string => Boolean(value))
       .join(" / ");
     const authRetryDetail = authRetryDomainLabel
-      ? `${authRetryDomainLabel}同步保持待上传，本地输入可以继续；系统会重试，不会因为临时无法确认账号就自动登出。`
+      ? authRetryUnconfiguredDomainLabel
+        ? `${authRetryUnconfiguredDomainLabel}云端未配置；本地输入可以继续，这不是登出，也不会清空 pending。配置完成后再补传，暂时不要换设备或重建缓存。`
+        : authRetryUnconfirmedDomainLabel
+          ? `${authRetryUnconfirmedDomainLabel}账号临时不可确认；本地输入可以继续，系统会重试，不会因为临时无法确认账号就自动登出。`
+          : `${authRetryDomainLabel}同步保持待上传，本地输入可以继续；系统会重试，不会因为临时无法确认账号就自动登出。`
       : "";
     return {
       pendingTotal,
@@ -3385,6 +3407,8 @@ function SyncDashboard() {
       fileFailedTotal: fileEmbedPendingStatus.failed,
       fileManualReviewTotal: fileEmbedPendingStatus.manualReviewCount,
       authRetryDomainLabel,
+      authRetryUnconfiguredDomainLabel,
+      authRetryUnconfirmedDomainLabel,
       authRetryStatusLabel,
       authRetryDetail,
       authRetryUntilLabel: authRetryUntil ? formatDate(authRetryUntil) : null,
@@ -3431,6 +3455,10 @@ function SyncDashboard() {
       fileFailedTotal: syncLocalUseQueueSnapshot.fileFailedTotal,
       fileManualReviewTotal: syncLocalUseQueueSnapshot.fileManualReviewTotal,
       authRetryDomainLabel: syncLocalUseQueueSnapshot.authRetryDomainLabel,
+      authRetryUnconfiguredDomainLabel:
+        syncLocalUseQueueSnapshot.authRetryUnconfiguredDomainLabel,
+      authRetryUnconfirmedDomainLabel:
+        syncLocalUseQueueSnapshot.authRetryUnconfirmedDomainLabel,
       authRetryUntilLabel: syncLocalUseQueueSnapshot.authRetryUntilLabel,
     });
   }, [syncLocalUseQueueSnapshot]);
@@ -8451,6 +8479,12 @@ function SyncDashboard() {
           failedTotal={syncLocalUseQueueSnapshot.failedTotal}
           manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
           authRetryDomainLabel={syncLocalUseQueueSnapshot.authRetryDomainLabel}
+          authRetryUnconfiguredDomainLabel={
+            syncLocalUseQueueSnapshot.authRetryUnconfiguredDomainLabel
+          }
+          authRetryUnconfirmedDomainLabel={
+            syncLocalUseQueueSnapshot.authRetryUnconfirmedDomainLabel
+          }
           authRetryStatusLabel={syncLocalUseQueueSnapshot.authRetryStatusLabel}
           authRetryDetail={syncLocalUseQueueSnapshot.authRetryDetail}
           authRetryUntilLabel={syncLocalUseQueueSnapshot.authRetryUntilLabel}
@@ -22396,6 +22430,8 @@ function SyncOperationalStatusStrip({
   failedTotal,
   manualReviewTotal,
   authRetryDomainLabel,
+  authRetryUnconfiguredDomainLabel,
+  authRetryUnconfirmedDomainLabel,
   authRetryStatusLabel,
   authRetryDetail,
   authRetryUntilLabel,
@@ -22414,6 +22450,8 @@ function SyncOperationalStatusStrip({
   failedTotal: number;
   manualReviewTotal: number;
   authRetryDomainLabel: string;
+  authRetryUnconfiguredDomainLabel: string;
+  authRetryUnconfirmedDomainLabel: string;
   authRetryStatusLabel: string;
   authRetryDetail: string;
   authRetryUntilLabel: string | null;
@@ -22487,6 +22525,8 @@ function SyncOperationalStatusStrip({
       }
       data-auth-retry-active={Boolean(authRetryDomainLabel)}
       data-auth-retry-domains={authRetryDomainLabel}
+      data-auth-retry-unconfigured-domains={authRetryUnconfiguredDomainLabel}
+      data-auth-retry-unconfirmed-domains={authRetryUnconfirmedDomainLabel}
       data-auth-retry-statuses={authRetryStatusLabel}
       data-auth-retry-until={authRetryUntilLabel ?? ""}
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
@@ -22545,14 +22585,27 @@ function SyncOperationalStatusStrip({
             <p
               data-testid="sync-auth-retry-local-use-note"
               data-auth-retry-domains={authRetryDomainLabel}
+              data-auth-retry-unconfigured-domains={
+                authRetryUnconfiguredDomainLabel
+              }
+              data-auth-retry-unconfirmed-domains={
+                authRetryUnconfirmedDomainLabel
+              }
               data-auth-retry-statuses={authRetryStatusLabel}
               data-auth-retry-until={authRetryUntilLabel ?? ""}
               data-auth-retry-local-input-can-continue="true"
               className="mt-2 max-w-3xl rounded-md bg-sky-50 px-3 py-2 text-[11px] leading-4 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
             >
-              账号会话暂时无法确认：{authRetryStatusLabel || authRetryDomainLabel}
-              。{authRetryDetail}
-              {authRetryUntilLabel ? ` 下次自动重试 ${authRetryUntilLabel}。` : ""}
+              {authRetryUnconfiguredDomainLabel
+                ? "云端未配置"
+                : "账号会话暂时无法确认"}
+              ：{authRetryStatusLabel || authRetryDomainLabel}。
+              {authRetryDetail}
+              {authRetryUntilLabel
+                ? authRetryUnconfiguredDomainLabel
+                  ? ` 下次检查 ${authRetryUntilLabel}。`
+                  : ` 下次自动重试 ${authRetryUntilLabel}。`
+                : ""}
             </p>
           ) : null}
           <div
@@ -22567,6 +22620,12 @@ function SyncOperationalStatusStrip({
             )}
             data-auth-retry-active={Boolean(authRetryDomainLabel)}
             data-auth-retry-domains={authRetryDomainLabel}
+            data-auth-retry-unconfigured-domains={
+              authRetryUnconfiguredDomainLabel
+            }
+            data-auth-retry-unconfirmed-domains={
+              authRetryUnconfirmedDomainLabel
+            }
             data-auth-retry-statuses={authRetryStatusLabel}
             data-auth-retry-until={authRetryUntilLabel ?? ""}
             data-sidebar-readiness-label={sidebarReadinessMirrorLabel}

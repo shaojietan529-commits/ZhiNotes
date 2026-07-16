@@ -77,6 +77,8 @@ interface AccountLocalUseReadinessInput {
   fileFailedTotal?: number;
   fileManualReviewTotal?: number;
   authRetryDomainLabel?: string;
+  authRetryUnconfiguredDomainLabel?: string;
+  authRetryUnconfirmedDomainLabel?: string;
   authRetryUntilLabel?: string | null;
 }
 
@@ -177,6 +179,19 @@ function formatQueueBreakdown(breakdown: AccountLocalUseQueueBreakdown) {
 function formatAuthRetryDetail(input: AccountLocalUseReadinessInput) {
   const domainLabel = input.authRetryDomainLabel?.trim();
   if (!domainLabel) return "";
+  const unconfiguredDomainLabel =
+    input.authRetryUnconfiguredDomainLabel?.trim();
+  if (unconfiguredDomainLabel) {
+    return `云端未配置：${unconfiguredDomainLabel}；这不是登出，本地输入已保留，配置完成后再补传${
+      input.authRetryUntilLabel ? `，下次检查 ${input.authRetryUntilLabel}` : ""
+    }`;
+  }
+  const unconfirmedDomainLabel = input.authRetryUnconfirmedDomainLabel?.trim();
+  if (unconfirmedDomainLabel) {
+    return `账号临时不可确认：${unconfirmedDomainLabel}；本地输入已保留，不会因此自动登出${
+      input.authRetryUntilLabel ? `，下次重试 ${input.authRetryUntilLabel}` : ""
+    }`;
+  }
   return `账号重试：${domainLabel}${
     input.authRetryUntilLabel ? `，下次 ${input.authRetryUntilLabel}` : ""
   }`;
