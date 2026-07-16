@@ -16765,6 +16765,22 @@ function run() {
       "Sync UI must expose fresh account bridge probe evidence in the two-day gate.",
     ],
     [
+      "data-queue-handoff-ready",
+      "Sync UI must expose queue/receipt handoff readiness in the two-day gate.",
+    ],
+    [
+      "data-handoff-blocked-by-account-bridge-probe",
+      "Sync UI must expose account bridge handoff blockers in the two-day gate.",
+    ],
+    [
+      "data-handoff-sync-outcome-evidence-status",
+      "Sync UI must expose handoff sync outcome evidence status in the two-day gate.",
+    ],
+    [
+      "data-handoff-stale-required-outcome-domains",
+      "Sync UI must expose stale handoff outcome domains in the two-day gate.",
+    ],
+    [
       "data-account-sync-bridge-expires-at",
       "Sync UI must expose account bridge probe expiry in the two-day gate.",
     ],

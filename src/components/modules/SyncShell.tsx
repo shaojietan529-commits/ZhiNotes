@@ -26645,6 +26645,19 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
       data-two-day-usability-verdict={gate.verdict}
       data-can-keep-using-now={String(gate.can_keep_using_now)}
       data-can-switch-devices-now={String(gate.can_switch_devices_now)}
+      data-queue-handoff-ready={String(gate.summary.queue_handoff_ready)}
+      data-handoff-blocked-by-queue-or-receipt={String(
+        gate.summary.handoff_blocked_by_queue_or_receipt
+      )}
+      data-handoff-blocked-by-account-bridge-probe={String(
+        gate.summary.handoff_blocked_by_account_bridge_probe
+      )}
+      data-handoff-sync-outcome-evidence-status={
+        gate.summary.handoff_sync_outcome_evidence_status
+      }
+      data-handoff-stale-required-outcome-domains={
+        gate.summary.handoff_stale_required_outcome_domains
+      }
       data-all-platform-sync-minimum-ready={String(
         gate.all_platform_sync_minimum_ready
       )}
@@ -26764,7 +26777,13 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
         <CacheRebuildFact
           label="跨设备"
           value={gate.can_switch_devices_now ? "可以" : "等待"}
-          detail="云 ACK 后再交接"
+          detail={`队列/回执 ${
+            gate.summary.queue_handoff_ready ? "OK" : "待确认"
+          } · 同步桥 ${
+            gate.summary.handoff_blocked_by_account_bridge_probe
+              ? "待检查"
+              : "OK"
+          }`}
         />
         <CacheRebuildFact
           label="全平台同步"
@@ -26789,6 +26808,15 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
           detail={`${gate.summary.account_sync_bridge_readable_domains}/4 域 · ${
             gate.summary.account_sync_bridge_probe_fresh ? "有效" : "需重查"
           }`}
+        />
+        <CacheRebuildFact
+          label="回执证据"
+          value={formatSyncOutcomeEvidenceStatus(
+            gate.summary.handoff_sync_outcome_evidence_status
+          )}
+          detail={`handoff ${formatSyncHandoffReadinessStatus(
+            gate.summary.handoff_readiness_status
+          )} · 过期 ${gate.summary.handoff_stale_required_outcome_domains}`}
         />
         <CacheRebuildFact
           label="ACK账本"

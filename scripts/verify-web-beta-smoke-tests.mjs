@@ -3659,6 +3659,26 @@ function run() {
       "Two-day usability gate summary must expose the account sync bridge probe status.",
     ],
     [
+      "queue_handoff_ready",
+      "Two-day usability gate summary must separately expose queue/receipt handoff readiness.",
+    ],
+    [
+      "handoff_blocked_by_queue_or_receipt",
+      "Two-day usability gate summary must expose queue/receipt handoff blockers.",
+    ],
+    [
+      "handoff_blocked_by_account_bridge_probe",
+      "Two-day usability gate summary must expose account bridge handoff blockers.",
+    ],
+    [
+      "handoff_sync_outcome_evidence_status",
+      "Two-day usability gate summary must expose handoff sync outcome evidence status.",
+    ],
+    [
+      "handoff_stale_required_outcome_domains",
+      "Two-day usability gate summary must expose stale handoff outcome domains.",
+    ],
+    [
       "account_sync_bridge_readable_domains",
       "Two-day usability gate summary must expose readable account sync bridge domains.",
     ],
@@ -4110,6 +4130,22 @@ function run() {
     [
       "data-account-sync-bridge-probe-fresh",
       "Sync UI must expose whether the account bridge probe receipt is fresh on the two-day gate.",
+    ],
+    [
+      "data-queue-handoff-ready",
+      "Sync UI must expose queue/receipt handoff readiness in the two-day gate.",
+    ],
+    [
+      "data-handoff-blocked-by-account-bridge-probe",
+      "Sync UI must expose account bridge handoff blockers in the two-day gate.",
+    ],
+    [
+      "data-handoff-sync-outcome-evidence-status",
+      "Sync UI must expose handoff sync outcome evidence status in the two-day gate.",
+    ],
+    [
+      "data-handoff-stale-required-outcome-domains",
+      "Sync UI must expose stale handoff outcome domains in the two-day gate.",
     ],
     [
       "data-account-sync-bridge-expires-at",

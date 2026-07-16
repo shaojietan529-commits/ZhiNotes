@@ -100,6 +100,13 @@ export interface TwoDayUsabilityGate {
     file_sync_enabled: boolean;
     safe_to_keep_typing: boolean;
     safe_to_switch_device_now: boolean;
+    queue_handoff_ready: boolean;
+    handoff_blocked_by_queue_or_receipt: boolean;
+    handoff_blocked_by_account_bridge_probe: boolean;
+    handoff_readiness_status: CloudSyncControlPlane["summary"]["handoff_readiness_status"];
+    handoff_sync_outcome_evidence_status:
+      CloudSyncControlPlane["summary"]["handoff_sync_outcome_evidence_status"];
+    handoff_stale_required_outcome_domains: number;
     sync_domain_coverage_complete: boolean;
     ack_ledger_ready: boolean;
     ack_ledger_remaining_blockers: number;
@@ -263,6 +270,14 @@ export function buildTwoDayUsabilityGate(
       file_sync_enabled: reliability.file_sync_enabled,
       safe_to_keep_typing: reliability.safe_to_keep_typing,
       safe_to_switch_device_now: canSwitchDevicesNow,
+      queue_handoff_ready: queueHandoffReady,
+      handoff_blocked_by_queue_or_receipt: !queueHandoffReady,
+      handoff_blocked_by_account_bridge_probe: !accountBridgeProbeReady,
+      handoff_readiness_status: plane.summary.handoff_readiness_status,
+      handoff_sync_outcome_evidence_status:
+        plane.summary.handoff_sync_outcome_evidence_status,
+      handoff_stale_required_outcome_domains:
+        plane.summary.handoff_stale_required_outcome_domains,
       sync_domain_coverage_complete: coverage.coverageComplete,
       ack_ledger_ready: ackLedgerReady,
       ack_ledger_remaining_blockers:
