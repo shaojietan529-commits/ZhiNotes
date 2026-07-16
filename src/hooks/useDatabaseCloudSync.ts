@@ -550,7 +550,9 @@ export function useDatabaseCloudSync() {
     const handleLocalDatabaseUpdate = (event: Event) => {
       const message = (event as CustomEvent<DatabaseUpdateMessage>).detail;
       if (message?.reason !== "local-refresh") return;
-      scheduleQuickSync(EDIT_DEBOUNCE_MS);
+      scheduleQuickSync(EDIT_DEBOUNCE_MS, {
+        forceAccountGate: shouldForceAccountGateForInteractiveRetry(),
+      });
     };
     const handleStatus = (event: Event) => {
       const detail = (event as CustomEvent<PendingCloudDatabaseSyncStatus>)

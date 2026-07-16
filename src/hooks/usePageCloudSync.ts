@@ -508,7 +508,11 @@ export function usePageCloudSync() {
       }
       if (editSyncTimer !== undefined) window.clearTimeout(editSyncTimer);
       editSyncTimer = window.setTimeout(() => {
-        void runSync({ quick: true });
+        void runSync({
+          quick: true,
+          forceLease: true,
+          forceAccountGate: shouldForceAccountGateForInteractiveRetry(),
+        });
       }, EDIT_DEBOUNCE_MS);
     };
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();

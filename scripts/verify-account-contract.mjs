@@ -2707,11 +2707,13 @@ check(
     pageCloudSyncHook.includes("handleLocalPageUpdate") &&
     pageCloudSyncHook.includes('message?.reason !== "local-refresh"') &&
     pageCloudSyncHook.includes('message?.reason !== "cloud-push"') &&
-    pageCloudSyncHook.includes("window.setTimeout(() => {\n        void runSync({ quick: true });") &&
+    pageCloudSyncHook.includes(
+      "window.setTimeout(() => {\n        void runSync({\n          quick: true,\n          forceLease: true,\n          forceAccountGate: shouldForceAccountGateForInteractiveRetry(),\n        });"
+    ) &&
     pageCloudSyncHook.includes("window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)") &&
     pageCloudSyncHook.includes("window.removeEventListener(PAGE_LOCAL_UPDATE_EVENT, handleLocalPageUpdate)") &&
     pageCloudSyncHook.includes("window.clearTimeout(editSyncTimer)"),
-  "页面本地编辑/新建应通知当前标签页后台同步，并用 4 秒防抖 quick sync 补传云端，避免等下一轮轮询"
+  "页面本地编辑/新建应通知当前标签页后台同步，并用 4 秒防抖 quick sync 补传云端；若账号刚从临时失败恢复，应按 10 秒交互节流重新确认账号，避免等下一轮轮询或完整后台退避"
 );
 check(
   databaseCloudSyncHook.includes("getPendingCloudDatabaseSyncStatus") &&
@@ -2856,6 +2858,22 @@ check(
     databaseCloudSyncHook.includes("DATABASE_PENDING_STORAGE_KEYS") &&
     databaseCloudSyncHook.includes('DATABASE_PENDING_STORAGE_KEYS.has(event.key ?? "")'),
   "数据库云同步 hook 应监听 pending/status 事件和跨 tab storage 变化，并在队列有待上传内容时低延迟触发 quick sync；若 pending 队列正处于账号重试状态，应有边界地重新确认账号，避免可登录状态下等完整个退避窗口"
+);
+check(
+  databaseCloudSyncHook.includes("DATABASE_LOCAL_UPDATE_EVENT") &&
+    databaseCloudSyncHook.includes("type DatabaseUpdateMessage") &&
+    databaseCloudSyncHook.includes("handleLocalDatabaseUpdate") &&
+    databaseCloudSyncHook.includes('message?.reason !== "local-refresh"') &&
+    databaseCloudSyncHook.includes(
+      "scheduleQuickSync(EDIT_DEBOUNCE_MS, {\n        forceAccountGate: shouldForceAccountGateForInteractiveRetry(),\n      });"
+    ) &&
+    databaseCloudSyncHook.includes(
+      "window.addEventListener(\n      DATABASE_LOCAL_UPDATE_EVENT,\n      handleLocalDatabaseUpdate\n    )"
+    ) &&
+    databaseCloudSyncHook.includes(
+      "window.removeEventListener(\n        DATABASE_LOCAL_UPDATE_EVENT,\n        handleLocalDatabaseUpdate\n      )"
+    ),
+  "数据库本地编辑应通知当前标签页后台同步；若账号刚从临时失败恢复，应按 10 秒交互节流重新确认账号，避免表格/数据库更新等完整后台退避"
 );
 check(
   databaseCloudSyncHook.includes("rerunAfterCurrentSyncRef") &&
