@@ -699,8 +699,58 @@ type SyncQueueAction =
   | "two-device-smoke-runbook"
   | "two-device-smoke-owner-receipt"
   | "two-device-smoke-filled-receipt"
+  | "account-sync-preflight"
   | "account-bridge-probe"
   | "replay-test-plan";
+type AccountSyncPreflightStatus =
+  | "not-run"
+  | "ready"
+  | "partial"
+  | "unconfigured"
+  | "signed-out"
+  | "unconfirmed";
+type AccountSyncPreflightCheckStatus = "pass" | "blocked";
+type AccountSyncPreflightCheck = {
+  id: string;
+  status: AccountSyncPreflightCheckStatus;
+  label: string;
+  detail: string;
+};
+type AccountSyncPreflightBoundary = {
+  reads_account_session: boolean;
+  extends_account_session_ttl: boolean;
+  reads_cloud_kv_metadata: boolean;
+  reads_page_body_text: boolean;
+  reads_database_row_values: boolean;
+  reads_file_bytes: boolean;
+  uploads_workspace_data: boolean;
+  mutates_workspace_data: boolean;
+  clears_local_cache: boolean;
+  enables_sync_push: boolean;
+  enables_sync_pull: boolean;
+};
+type AccountSyncPreflightSummary = {
+  account_session_ready: boolean;
+  page_cloud_index_readable: boolean;
+  database_cloud_index_readable: boolean;
+  page_cloud_records: number | null;
+  database_cloud_records: number | null;
+  cloud_metadata_domains_ready: number;
+  cloud_metadata_domains_required: number;
+  keeps_session_cookie: boolean;
+  next_action: string;
+};
+type AccountSyncPreflightReceipt = {
+  format: "zhinote-account-sync-preflight";
+  format_version: 1;
+  status: Exclude<AccountSyncPreflightStatus, "not-run">;
+  generated_at: string;
+  account_hint: string | null;
+  boundary: AccountSyncPreflightBoundary;
+  summary: AccountSyncPreflightSummary;
+  checks: AccountSyncPreflightCheck[];
+  missing_env?: string[];
+};
 type AccountSyncBridgeProbeStatus = "not-run" | "ready" | "blocked" | "partial";
 type AccountSyncBridgeProbeDomainId = "pages" | "daily" | "meetings" | "databases";
 type AccountSyncBridgeProbeDomain = {
@@ -960,6 +1010,13 @@ interface CloudAlphaWorkspace {
 const CORE_MANIFEST_DATE_START_DATE = "2000-01-01";
 const CORE_MANIFEST_DATE_END_DATE = "2099-12-31";
 const CORE_MANIFEST_DATE_DIFF_ROW_LIMIT = 40;
+const ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY =
+  "zhinote.sync.accountSyncPreflightReceipt.v1";
+const ACCOUNT_SYNC_PREFLIGHT_READY_TTL_MS = 10 * 60 * 1000;
+const ACCOUNT_SYNC_PREFLIGHT_RETRY_TTL_MS = 2 * 60 * 1000;
+const ACCOUNT_SYNC_PREFLIGHT_AUTO_DELAY_MS = 900;
+const ACCOUNT_SYNC_PREFLIGHT_PRIVACY_NOTE =
+  "只读取账号会话状态和页面/数据库云端索引 metadata；不读正文、不上传、不清缓存，也不启用 push/pull。";
 const ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY =
   "zhinote.sync.accountBridgeProbeReceipt.v1";
 const ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS = 30 * 60 * 1000;
@@ -985,6 +1042,250 @@ const TWO_DEVICE_SMOKE_OWNER_DRAFT_PRIVACY_NOTE =
   "本地验收草稿只保存 smoke 步骤 ID、通过/失败/阻塞状态和用户手写的脱敏短备注；不要写页面正文、会议链接、文件名、数据库行值、token 或凭据。";
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_POLICY =
   "只保存在本机浏览器 localStorage，用于刷新后继续验收；不会上传到云端，不写 sync_log，不作为自动宣称同步通过的证据。";
+
+function readStoredAccountSyncPreflightReceipt(): AccountSyncPreflightReceipt | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY);
+    if (!raw) return null;
+    const receipt = normalizeAccountSyncPreflightReceipt(JSON.parse(raw));
+    const expiresAt = accountSyncPreflightEffectiveExpiresAt(receipt);
+    if (!receipt || expiresAt <= Date.now()) {
+      window.localStorage.removeItem(ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY);
+      return null;
+    }
+    return receipt;
+  } catch {
+    try {
+      window.localStorage.removeItem(ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY);
+    } catch {
+      // This local UI receipt is optional; sync correctness never depends on it.
+    }
+    return null;
+  }
+}
+
+function persistAccountSyncPreflightReceipt(
+  receipt: AccountSyncPreflightReceipt
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY,
+      JSON.stringify(receipt)
+    );
+  } catch {
+    // Losing this UI receipt does not affect local input or pending queues.
+  }
+}
+
+function isFreshAccountSyncPreflightReceipt(
+  receipt: AccountSyncPreflightReceipt | null
+): boolean {
+  if (!receipt) return false;
+  const expiresAt = accountSyncPreflightEffectiveExpiresAt(receipt);
+  return Number.isFinite(expiresAt) && expiresAt > Date.now();
+}
+
+function isFreshReadyAccountSyncPreflightReceipt(
+  receipt: AccountSyncPreflightReceipt | null
+): boolean {
+  return receipt?.status === "ready" && isFreshAccountSyncPreflightReceipt(receipt);
+}
+
+function accountSyncPreflightEffectiveExpiresAt(
+  receipt: AccountSyncPreflightReceipt | null
+): number {
+  if (!receipt) return 0;
+  const generatedAt = Date.parse(receipt.generated_at);
+  if (!Number.isFinite(generatedAt)) return 0;
+  const ttlMs =
+    receipt.status === "ready"
+      ? ACCOUNT_SYNC_PREFLIGHT_READY_TTL_MS
+      : ACCOUNT_SYNC_PREFLIGHT_RETRY_TTL_MS;
+  return generatedAt + ttlMs;
+}
+
+function normalizeAccountSyncPreflightReceipt(
+  value: unknown
+): AccountSyncPreflightReceipt | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<AccountSyncPreflightReceipt>;
+  if (
+    candidate.format !== "zhinote-account-sync-preflight" ||
+    candidate.format_version !== 1 ||
+    !isAccountSyncPreflightPayloadStatus(candidate.status) ||
+    typeof candidate.generated_at !== "string" ||
+    Number.isNaN(Date.parse(candidate.generated_at)) ||
+    (candidate.account_hint !== null &&
+      typeof candidate.account_hint !== "string") ||
+    !Array.isArray(candidate.checks)
+  ) {
+    return null;
+  }
+
+  const boundary = normalizeAccountSyncPreflightBoundary(candidate.boundary);
+  const summary = normalizeAccountSyncPreflightSummary(candidate.summary);
+  const checks = candidate.checks
+    .map(normalizeAccountSyncPreflightCheck)
+    .filter((item): item is AccountSyncPreflightCheck => Boolean(item));
+  const missingEnv = getStringArray(candidate.missing_env);
+  if (!boundary || !summary || checks.length === 0) return null;
+
+  return {
+    format: "zhinote-account-sync-preflight",
+    format_version: 1,
+    status: candidate.status,
+    generated_at: candidate.generated_at,
+    account_hint: candidate.account_hint ?? null,
+    boundary,
+    summary,
+    checks,
+    ...(missingEnv.length > 0 ? { missing_env: missingEnv } : {}),
+  };
+}
+
+function normalizeAccountSyncPreflightBoundary(
+  value: unknown
+): AccountSyncPreflightBoundary | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const keys: (keyof AccountSyncPreflightBoundary)[] = [
+    "reads_account_session",
+    "extends_account_session_ttl",
+    "reads_cloud_kv_metadata",
+    "reads_page_body_text",
+    "reads_database_row_values",
+    "reads_file_bytes",
+    "uploads_workspace_data",
+    "mutates_workspace_data",
+    "clears_local_cache",
+    "enables_sync_push",
+    "enables_sync_pull",
+  ];
+  if (keys.some((key) => typeof record[key] !== "boolean")) return null;
+  return Object.fromEntries(
+    keys.map((key) => [key, record[key] as boolean])
+  ) as AccountSyncPreflightBoundary;
+}
+
+function normalizeAccountSyncPreflightSummary(
+  value: unknown
+): AccountSyncPreflightSummary | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.account_session_ready !== "boolean" ||
+    typeof record.page_cloud_index_readable !== "boolean" ||
+    typeof record.database_cloud_index_readable !== "boolean" ||
+    (record.page_cloud_records !== null &&
+      typeof record.page_cloud_records !== "number") ||
+    (record.database_cloud_records !== null &&
+      typeof record.database_cloud_records !== "number") ||
+    typeof record.cloud_metadata_domains_ready !== "number" ||
+    typeof record.cloud_metadata_domains_required !== "number" ||
+    typeof record.keeps_session_cookie !== "boolean" ||
+    typeof record.next_action !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    account_session_ready: record.account_session_ready,
+    page_cloud_index_readable: record.page_cloud_index_readable,
+    database_cloud_index_readable: record.database_cloud_index_readable,
+    page_cloud_records: record.page_cloud_records,
+    database_cloud_records: record.database_cloud_records,
+    cloud_metadata_domains_ready: record.cloud_metadata_domains_ready,
+    cloud_metadata_domains_required: record.cloud_metadata_domains_required,
+    keeps_session_cookie: record.keeps_session_cookie,
+    next_action: record.next_action,
+  };
+}
+
+function normalizeAccountSyncPreflightCheck(
+  value: unknown
+): AccountSyncPreflightCheck | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Partial<AccountSyncPreflightCheck>;
+  if (
+    typeof record.id !== "string" ||
+    !isAccountSyncPreflightCheckStatus(record.status) ||
+    typeof record.label !== "string" ||
+    typeof record.detail !== "string"
+  ) {
+    return null;
+  }
+  return {
+    id: record.id,
+    status: record.status,
+    label: record.label,
+    detail: record.detail,
+  };
+}
+
+function isAccountSyncPreflightPayloadStatus(
+  value: unknown
+): value is Exclude<AccountSyncPreflightStatus, "not-run"> {
+  return (
+    value === "ready" ||
+    value === "partial" ||
+    value === "unconfigured" ||
+    value === "signed-out" ||
+    value === "unconfirmed"
+  );
+}
+
+function isAccountSyncPreflightCheckStatus(
+  value: unknown
+): value is AccountSyncPreflightCheckStatus {
+  return value === "pass" || value === "blocked";
+}
+
+function buildAccountSyncPreflightClientErrorReceipt(
+  message: string
+): AccountSyncPreflightReceipt {
+  return {
+    format: "zhinote-account-sync-preflight",
+    format_version: 1,
+    status: "unconfirmed",
+    generated_at: new Date().toISOString(),
+    account_hint: null,
+    boundary: {
+      reads_account_session: true,
+      extends_account_session_ttl: false,
+      reads_cloud_kv_metadata: false,
+      reads_page_body_text: false,
+      reads_database_row_values: false,
+      reads_file_bytes: false,
+      uploads_workspace_data: false,
+      mutates_workspace_data: false,
+      clears_local_cache: false,
+      enables_sync_push: false,
+      enables_sync_pull: false,
+    },
+    summary: {
+      account_session_ready: false,
+      page_cloud_index_readable: false,
+      database_cloud_index_readable: false,
+      page_cloud_records: null,
+      database_cloud_records: null,
+      cloud_metadata_domains_ready: 0,
+      cloud_metadata_domains_required: 2,
+      keeps_session_cookie: true,
+      next_action:
+        "同步体检请求暂时没有完成；这不是登出。本地输入和 pending 队列保留，稍后可重试。",
+    },
+    checks: [
+      {
+        id: "account-sync-preflight-request",
+        status: "blocked",
+        label: "账号同步体检请求",
+        detail: message,
+      },
+    ],
+  };
+}
 
 function buildAccountSyncBridgeProbeDomain(input: {
   id: AccountSyncBridgeProbeDomainId;
@@ -2103,6 +2404,7 @@ function SyncDashboard() {
   const router = useRouter();
   const cloudCallbackHandoffHandledRef = useRef(false);
   const cloudHandoffAutoRecoverStartedRef = useRef(false);
+  const accountSyncPreflightAutoRunRef = useRef(false);
   const accountBridgeProbeAutoRunRef = useRef(false);
   const { pages } = usePages();
   const { favoriteIds } = usePageFavorites();
@@ -2194,6 +2496,10 @@ function SyncDashboard() {
   const [syncDrainReceipt, setSyncDrainReceipt] =
     useState<SyncUploadDrainReceipt | null>(null);
   const [syncDrainMessage, setSyncDrainMessage] = useState<string | null>(null);
+  const [accountSyncPreflightReceipt, setAccountSyncPreflightReceipt] =
+    useState<AccountSyncPreflightReceipt | null>(() =>
+      readStoredAccountSyncPreflightReceipt()
+    );
   const [accountBridgeProbeReceipt, setAccountBridgeProbeReceipt] =
     useState<AccountSyncBridgeProbeReceipt | null>(() =>
       readStoredAccountSyncBridgeProbeReceipt()
@@ -2601,14 +2907,28 @@ function SyncDashboard() {
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY) {
+      if (event.key === ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY) {
+        setAccountSyncPreflightReceipt(readStoredAccountSyncPreflightReceipt());
+      } else if (event.key === ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY) {
         setAccountBridgeProbeReceipt(readStoredAccountSyncBridgeProbeReceipt());
       } else if (event.key === TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY) {
         setTwoDeviceSmokeOwnerDraft(readStoredTwoDeviceSmokeOwnerDraft());
       }
     };
     const handleAccountProfileUpdated = () => {
+      accountSyncPreflightAutoRunRef.current = false;
       accountBridgeProbeAutoRunRef.current = false;
+      const storedPreflight = readStoredAccountSyncPreflightReceipt();
+      if (storedPreflight && storedPreflight.status !== "ready") {
+        try {
+          window.localStorage.removeItem(ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY);
+        } catch {
+          // Losing a local UI receipt is safe; the next preflight will rebuild it.
+        }
+        setAccountSyncPreflightReceipt(null);
+      } else {
+        setAccountSyncPreflightReceipt(storedPreflight);
+      }
       const stored = readStoredAccountSyncBridgeProbeReceipt();
       if (stored && stored.status !== "ready") {
         try {
@@ -2634,6 +2954,23 @@ function SyncDashboard() {
       );
     };
   }, []);
+
+  useEffect(() => {
+    if (!accountSyncPreflightReceipt) return;
+    const expiresAt = accountSyncPreflightEffectiveExpiresAt(
+      accountSyncPreflightReceipt
+    );
+    if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
+      accountSyncPreflightAutoRunRef.current = false;
+      setAccountSyncPreflightReceipt(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      accountSyncPreflightAutoRunRef.current = false;
+      setAccountSyncPreflightReceipt(readStoredAccountSyncPreflightReceipt());
+    }, expiresAt - Date.now() + 250);
+    return () => window.clearTimeout(timer);
+  }, [accountSyncPreflightReceipt]);
 
   useEffect(() => {
     if (!accountBridgeProbeReceipt) return;
@@ -6305,6 +6642,59 @@ function SyncDashboard() {
     }
   };
 
+  const handleRunAccountSyncPreflight = useCallback(async () => {
+    setBusyQueueAction("account-sync-preflight");
+    try {
+      const response = await fetchSyncCloudApiWithTimeout(
+        "/api/account/sync-preflight"
+      );
+      const body = await readCloudApiBody(response);
+      const receipt = normalizeAccountSyncPreflightReceipt(body);
+      if (!receipt) {
+        throw new Error(getCloudApiDetail(body, response));
+      }
+      persistAccountSyncPreflightReceipt(receipt);
+      setAccountSyncPreflightReceipt(receipt);
+      const [nextPagePending, nextDatabasePending] = await Promise.all([
+        getPendingCloudPageSyncStatusWithSyncLog(),
+        getPendingCloudDatabaseSyncStatus(),
+      ]);
+      setPagePendingStatus(nextPagePending);
+      setDatabasePendingStatus(nextDatabasePending);
+    } catch (err) {
+      console.error("[Zhinote] Failed to run account sync preflight:", err);
+      const receipt = buildAccountSyncPreflightClientErrorReceipt(
+        err instanceof Error ? err.message : "未知错误"
+      );
+      persistAccountSyncPreflightReceipt(receipt);
+      setAccountSyncPreflightReceipt(receipt);
+    } finally {
+      setBusyQueueAction(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (accountSyncPreflightAutoRunRef.current) return;
+    if (busyQueueAction !== null) return;
+    if (isFreshReadyAccountSyncPreflightReceipt(accountSyncPreflightReceipt)) {
+      return;
+    }
+    accountSyncPreflightAutoRunRef.current = true;
+    let didRun = false;
+    const timer = window.setTimeout(() => {
+      didRun = true;
+      void handleRunAccountSyncPreflight();
+    }, ACCOUNT_SYNC_PREFLIGHT_AUTO_DELAY_MS);
+    return () => {
+      window.clearTimeout(timer);
+      if (!didRun) accountSyncPreflightAutoRunRef.current = false;
+    };
+  }, [
+    accountSyncPreflightReceipt,
+    busyQueueAction,
+    handleRunAccountSyncPreflight,
+  ]);
+
   const handleRunAccountBridgeProbe = useCallback(async () => {
     setBusyQueueAction("account-bridge-probe");
     try {
@@ -6348,10 +6738,15 @@ function SyncDashboard() {
       return;
     }
     accountBridgeProbeAutoRunRef.current = true;
+    let didRun = false;
     const timer = window.setTimeout(() => {
+      didRun = true;
       void handleRunAccountBridgeProbe();
     }, ACCOUNT_SYNC_BRIDGE_PROBE_AUTO_DELAY_MS);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      if (!didRun) accountBridgeProbeAutoRunRef.current = false;
+    };
   }, [accountBridgeProbeReceipt, busyQueueAction, handleRunAccountBridgeProbe]);
 
   const handleRunCoreManifestCompare = async () => {
@@ -8036,6 +8431,12 @@ function SyncDashboard() {
               ?.scrollIntoView({ behavior: "smooth", block: "start" })
           }
           onOpenAccount={() => router.push("/account")}
+        />
+
+        <AccountSyncPreflightPanel
+          receipt={accountSyncPreflightReceipt}
+          busy={busyQueueAction === "account-sync-preflight"}
+          onRun={() => void handleRunAccountSyncPreflight()}
         />
 
         <AccountSyncBridgeProbePanel
@@ -24119,6 +24520,194 @@ function SyncHandoffQuickFact({
         {detail}
       </div>
     </div>
+  );
+}
+
+function formatAccountSyncPreflightStatus(status: AccountSyncPreflightStatus) {
+  if (status === "ready") return "可同步";
+  if (status === "partial") return "部分可用";
+  if (status === "unconfigured") return "云端未配置";
+  if (status === "signed-out") return "未登录";
+  if (status === "unconfirmed") return "临时无法确认";
+  return "未体检";
+}
+
+function accountSyncPreflightStatusClass(status: AccountSyncPreflightStatus) {
+  if (status === "ready") {
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+  }
+  if (status === "partial" || status === "unconfirmed") {
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+  }
+  if (status === "signed-out" || status === "unconfigured") {
+    return "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+  }
+  return "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300";
+}
+
+function AccountSyncPreflightPanel({
+  receipt,
+  busy,
+  onRun,
+}: {
+  receipt: AccountSyncPreflightReceipt | null;
+  busy: boolean;
+  onRun: () => void;
+}) {
+  const status = receipt?.status ?? "not-run";
+  const expiresAt = accountSyncPreflightEffectiveExpiresAt(receipt);
+  return (
+    <section
+      data-testid="account-sync-preflight"
+      data-account-sync-preflight-status={status}
+      data-account-sync-preflight-account-ready={String(
+        receipt?.summary.account_session_ready ?? false
+      )}
+      data-account-sync-preflight-page-readable={String(
+        receipt?.summary.page_cloud_index_readable ?? false
+      )}
+      data-account-sync-preflight-database-readable={String(
+        receipt?.summary.database_cloud_index_readable ?? false
+      )}
+      data-account-sync-preflight-boundary="metadata-only"
+      data-account-sync-preflight-storage-key={ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY}
+      data-account-sync-preflight-auto-delay-ms={String(
+        ACCOUNT_SYNC_PREFLIGHT_AUTO_DELAY_MS
+      )}
+      className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+              P0 账号同步体检
+            </p>
+            <span
+              className={`rounded-md px-2 py-1 text-[10px] font-medium ${accountSyncPreflightStatusClass(
+                status
+              )}`}
+            >
+              {formatAccountSyncPreflightStatus(status)}
+            </span>
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-zinc-950 dark:text-zinc-50">
+            账号、页面、数据库云端链路
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+            打开同步中心时会自动做一次只读体检：确认账号 session、页面云端索引、
+            数据库云端索引是否可读。不读正文、不上传、不清缓存；
+            如果状态是“临时无法确认”，它不是登出，本地输入和 pending 队列会保留。
+          </p>
+        </div>
+        <button
+          type="button"
+          data-testid="account-sync-preflight-run"
+          onClick={onRun}
+          disabled={busy}
+          className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+        >
+          {busy ? "体检中..." : "只读体检同步链路"}
+        </button>
+      </div>
+
+      {receipt ? (
+        <div className="mt-3 space-y-3">
+          <div className="grid gap-2 md:grid-cols-3">
+            {receipt.checks.map((check) => (
+              <div
+                key={check.id}
+                data-testid="account-sync-preflight-check"
+                data-account-sync-preflight-check-id={check.id}
+                data-account-sync-preflight-check-status={check.status}
+                className="rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {check.label}
+                  </span>
+                  <span
+                    className={`rounded-md px-2 py-1 text-[10px] ${
+                      check.status === "pass"
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                    }`}
+                  >
+                    {check.status === "pass" ? "通过" : "阻断"}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-zinc-600 dark:text-zinc-300">
+                  {check.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <SyncHandoffQuickFact
+              label="账号"
+              value={
+                receipt.summary.account_session_ready
+                  ? receipt.account_hint ?? "已确认"
+                  : "未确认"
+              }
+              detail={
+                receipt.summary.keeps_session_cookie
+                  ? "临时无法确认会保留 cookie，不自动登出。"
+                  : "账号体检结果来自当前 session。"
+              }
+            />
+            <SyncHandoffQuickFact
+              label="页面索引"
+              value={
+                receipt.summary.page_cloud_index_readable
+                  ? `${receipt.summary.page_cloud_records ?? 0} 条`
+                  : "不可读"
+              }
+              detail="只读页面云端索引 metadata，不读取页面正文。"
+            />
+            <SyncHandoffQuickFact
+              label="数据库索引"
+              value={
+                receipt.summary.database_cloud_index_readable
+                  ? `${receipt.summary.database_cloud_records ?? 0} 条`
+                  : "不可读"
+              }
+              detail="只读数据库云端索引 metadata，不读取行值。"
+            />
+            <SyncHandoffQuickFact
+              label="可读域"
+              value={`${receipt.summary.cloud_metadata_domains_ready}/${receipt.summary.cloud_metadata_domains_required}`}
+              detail="页面和数据库两个核心云端 metadata 域。"
+            />
+          </div>
+
+          {receipt.missing_env && receipt.missing_env.length > 0 ? (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:bg-red-950 dark:text-red-300">
+              云端配置缺失：{receipt.missing_env.join(", ")}
+            </p>
+          ) : null}
+
+          <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            下一步：{receipt.summary.next_action}
+          </p>
+          <p className="rounded-md bg-zinc-50 px-3 py-2 text-[11px] leading-4 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            体检时间 {formatDate(receipt.generated_at)}；本机结果保留到{" "}
+            {Number.isFinite(expiresAt)
+              ? formatDate(new Date(expiresAt).toISOString())
+              : "未知"}
+            。刷新页面会先复用本机回执，过期后自动重新体检。
+          </p>
+          <p className="rounded-md bg-blue-50 px-3 py-2 text-[11px] leading-4 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+            {ACCOUNT_SYNC_PREFLIGHT_PRIVACY_NOTE}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          还没有体检结果。这个检查只读账号和云端索引 metadata，不会读取正文、
+          不会上传数据，也不会改变本地缓存。
+        </p>
+      )}
+    </section>
   );
 }
 

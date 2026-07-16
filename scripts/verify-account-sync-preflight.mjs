@@ -10,6 +10,7 @@ const failures = [];
 const files = {
   packageJson: "package.json",
   route: "src/app/api/account/sync-preflight/route.ts",
+  syncShell: "src/components/modules/SyncShell.tsx",
   privateAlpha: "scripts/verify-private-alpha-p0.mjs",
   webBetaFull: "scripts/verify-web-beta-full.mjs",
   accountVerifier: "scripts/verify-account-contract.mjs",
@@ -39,6 +40,7 @@ function assertNotIncludes(relativePath, source, snippet, message) {
 function run() {
   const packageJsonSource = readProjectFile(files.packageJson);
   const route = readProjectFile(files.route);
+  const syncShell = readProjectFile(files.syncShell);
   const privateAlpha = readProjectFile(files.privateAlpha);
   const webBetaFull = readProjectFile(files.webBetaFull);
   const accountVerifier = readProjectFile(files.accountVerifier);
@@ -138,6 +140,55 @@ function run() {
     ["console.", "Account sync preflight must not log private account or sync metadata."],
   ]) {
     assertNotIncludes(files.route, route, snippet, message);
+  }
+
+  for (const [snippet, message] of [
+    [
+      '"account-sync-preflight"',
+      "Sync Center must expose the account sync preflight as a queue action.",
+    ],
+    [
+      "ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY",
+      "Sync Center must persist only a local preflight UI receipt.",
+    ],
+    [
+      'fetchSyncCloudApiWithTimeout(\n        "/api/account/sync-preflight"',
+      "Sync Center must call the read-only account sync preflight route.",
+    ],
+    [
+      "readStoredAccountSyncPreflightReceipt",
+      "Sync Center must reuse local preflight receipts after refresh.",
+    ],
+    [
+      "data-testid=\"account-sync-preflight\"",
+      "Sync Center must render a stable account sync preflight panel.",
+    ],
+    [
+      "data-testid=\"account-sync-preflight-run\"",
+      "Sync Center must expose a manual account sync preflight rerun button.",
+    ],
+    [
+      "data-account-sync-preflight-status",
+      "Sync Center must expose the preflight status for smoke checks.",
+    ],
+    [
+      "data-account-sync-preflight-boundary=\"metadata-only\"",
+      "Sync Center must disclose that the preflight is metadata-only.",
+    ],
+    [
+      "不读正文、不上传、不清缓存",
+      "Sync Center must tell the user that the preflight does not read content, upload, or clear cache.",
+    ],
+    [
+      "临时无法确认",
+      "Sync Center must distinguish transient account uncertainty from sign-out.",
+    ],
+    [
+      "if (!didRun) accountSyncPreflightAutoRunRef.current = false;",
+      "Sync Center must reset the preflight auto-run flag when a scheduled check is cancelled before it fires.",
+    ],
+  ]) {
+    assertIncludes(files.syncShell, syncShell, snippet, message);
   }
 
   for (const [relativePath, source, label] of [
