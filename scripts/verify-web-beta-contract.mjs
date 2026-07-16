@@ -3122,8 +3122,28 @@ function run() {
       "Daily visible-month fallback must stay bounded.",
     ],
     [
+      "boundedTargetedFallbackLimit",
+      "Daily visible-month fallback must honor caller-provided first-paint range limits.",
+    ],
+    [
+      "Math.min(DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT, boundedRangeLimit)",
+      "Daily targeted fallback must clamp large imported months when the calendar only needs first-paint metadata.",
+    ],
+    [
+      "boundedFallbackScanLimit",
+      "Daily broad unindexed fallback must honor caller-provided first-paint range limits.",
+    ],
+    [
+      "Math.min(DAILY_CALENDAR_FALLBACK_SCAN_LIMIT, boundedRangeLimit)",
+      "Daily broad unindexed fallback must remain bounded during large Notion imports.",
+    ],
+    [
       "DAILY_CALENDAR_CHILD_FALLBACK_LIMIT",
       "Daily date-parent child fallback must stay bounded.",
+    ],
+    [
+      "boundedChildFallbackLimit",
+      "Daily date-parent child fallback must honor caller-provided first-paint range limits.",
     ],
   ]) {
     assertSourceIncludes(files.localQueries, localQueries, snippet, message);

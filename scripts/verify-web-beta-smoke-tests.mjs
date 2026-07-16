@@ -7398,6 +7398,18 @@ function run() {
   assertIncludes(
     files.dailyNotesShell,
     dailyNotesShell,
+    "DAILY_CALENDAR_FIRST_PAINT_FALLBACK_RANGE_LIMIT",
+    "Daily empty first-paint fallback must cap old-import metadata reads to the visible calendar capacity."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
+    "rangeLimit: DAILY_CALENDAR_FIRST_PAINT_FALLBACK_RANGE_LIMIT",
+    "Daily empty first-paint fallback must pass the bounded range limit into local metadata recovery."
+  );
+  assertIncludes(
+    files.dailyNotesShell,
+    dailyNotesShell,
     'source: "local-fallback-metadata"',
     "Daily background fallback metadata must refresh the hot cache after first paint."
   );

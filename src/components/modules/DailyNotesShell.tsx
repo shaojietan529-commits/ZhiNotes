@@ -168,6 +168,8 @@ const DAILY_CALENDAR_REVEAL_BUFFER = 2;
 const DAILY_CALENDAR_RENDER_DAY_LIMIT =
   DAILY_CALENDAR_VISIBLE_LIMIT + DAILY_CALENDAR_EXPAND_BATCH;
 const DAILY_CALENDAR_MANUAL_DAY_LOAD_LIMIT = 160;
+const DAILY_CALENDAR_FIRST_PAINT_FALLBACK_RANGE_LIMIT =
+  DAILY_CALENDAR_RENDER_DAY_LIMIT * 42;
 const DAILY_CALENDAR_INITIAL_HYDRATED_DAY_LIMIT = 14;
 const DAILY_CALENDAR_HYDRATION_BATCH = 7;
 const DAILY_CALENDAR_HYDRATION_FRAME_DELAY_MS = 24;
@@ -1248,6 +1250,7 @@ export default function DailyNotesShell() {
             endDate,
             recentLimit: recentMetadataLimit,
             includeUnindexedFallback: true,
+            rangeLimit: DAILY_CALENDAR_FIRST_PAINT_FALLBACK_RANGE_LIMIT,
           });
           if (loadRequestRef.current !== requestId) return;
           const fallbackById = new Map(byId);

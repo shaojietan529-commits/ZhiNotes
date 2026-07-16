@@ -1558,6 +1558,18 @@ export async function listDailyPageMetadataForCalendar({
     typeof rangeLimit === "number" && Number.isFinite(rangeLimit)
       ? Math.max(1, Math.floor(rangeLimit))
       : null;
+  const boundedTargetedFallbackLimit =
+    boundedRangeLimit === null
+      ? DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT
+      : Math.min(DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT, boundedRangeLimit);
+  const boundedFallbackScanLimit =
+    boundedRangeLimit === null
+      ? DAILY_CALENDAR_FALLBACK_SCAN_LIMIT
+      : Math.min(DAILY_CALENDAR_FALLBACK_SCAN_LIMIT, boundedRangeLimit);
+  const boundedChildFallbackLimit =
+    boundedRangeLimit === null
+      ? DAILY_CALENDAR_CHILD_FALLBACK_LIMIT
+      : Math.min(DAILY_CALENDAR_CHILD_FALLBACK_LIMIT, boundedRangeLimit);
   const parentIdCache = new Map<string, string | null>();
   const dateParentIdsForChildren = new Set<string>();
   const isDailyScopePage = (page: Page): boolean => {
@@ -1658,7 +1670,7 @@ export async function listDailyPageMetadataForCalendar({
            AND (${tokenWhere})
          ORDER BY p.updated_at DESC
          LIMIT ?`,
-        [...tokenBinds, DAILY_CALENDAR_TARGETED_FALLBACK_LIMIT]
+        [...tokenBinds, boundedTargetedFallbackLimit]
       );
       for (const row of targetedFallbackRows) {
         const dateKey = inferDailyDateKeyInRange(
@@ -1680,7 +1692,7 @@ export async function listDailyPageMetadataForCalendar({
          AND ${dailyDateCandidateWhere("p")}
        ORDER BY p.updated_at DESC
        LIMIT ?`,
-      [DAILY_CALENDAR_FALLBACK_SCAN_LIMIT]
+      [boundedFallbackScanLimit]
     );
     for (const row of fallbackRows) {
       if (!isDailyScopePage(row)) continue;
@@ -1708,7 +1720,7 @@ export async function listDailyPageMetadataForCalendar({
          AND p.parent_id IN (${placeholders})
        ORDER BY p.parent_id ASC, p.position ASC, p.updated_at DESC
        LIMIT ?`,
-      [...childParentIds, DAILY_CALENDAR_CHILD_FALLBACK_LIMIT]
+      [...childParentIds, boundedChildFallbackLimit]
     );
     for (const row of childRows) addIfDailyScope(row);
   }
