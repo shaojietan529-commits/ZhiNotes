@@ -29,6 +29,8 @@ export interface TwoDayUsabilityGateInput {
     status: "not-run" | "ready" | "blocked" | "partial";
     readable_domains: number;
     blocked_domains: number;
+    checked_at: string | null;
+    expires_at: string | null;
   } | null;
   generatedAt?: string;
 }
@@ -107,8 +109,11 @@ export interface TwoDayUsabilityGate {
       | "ready"
       | "blocked"
       | "partial";
+    account_sync_bridge_probe_fresh: boolean;
     account_sync_bridge_readable_domains: number;
     account_sync_bridge_blocked_domains: number;
+    account_sync_bridge_checked_at: string | null;
+    account_sync_bridge_expires_at: string | null;
     performance_samples: number;
   };
   primary_blocker: TwoDayUsabilityGateItem | null;
@@ -143,17 +148,29 @@ export function buildTwoDayUsabilityGate(
   const coverage = input.pendingDomainCoverage;
   const accountBridgeProbe = input.accountSyncBridgeProbe ?? null;
   const accountBridgeProbeStatus = accountBridgeProbe?.status ?? "not-run";
-  const accountBridgeProbeReady = accountBridgeProbeStatus === "ready";
+  const accountBridgeProbeReadableDomains =
+    accountBridgeProbe?.readable_domains ?? 0;
+  const accountBridgeProbeBlockedDomains =
+    accountBridgeProbe?.blocked_domains ?? 0;
+  const accountBridgeProbeFresh = isFreshAccountBridgeProbe(
+    accountBridgeProbe,
+    generatedAt
+  );
+  const accountBridgeProbeReady =
+    Boolean(accountBridgeProbe) &&
+    accountBridgeProbeStatus === "ready" &&
+    accountBridgeProbeReadableDomains === 4 &&
+    accountBridgeProbeFresh;
   const ackLedgerReady =
     input.ackLedgerServerReadiness.can_query_server_ledger_now &&
     input.ackLedgerServerReadiness.summary.remaining_blockers === 0;
   const canKeepUsingNow =
     plane.can_keep_typing_now && reliability.safe_to_keep_typing;
-  const canSwitchDevicesNow =
+  const queueHandoffReady =
     plane.can_switch_device_now && reliability.safe_to_switch_device_now;
+  const canSwitchDevicesNow = queueHandoffReady && accountBridgeProbeReady;
   const allPlatformSyncMinimumReady =
     canSwitchDevicesNow &&
-    accountBridgeProbeReady &&
     coverage.coverageComplete &&
     reliability.cloud_workspace_linked &&
     reliability.page_sync_enabled &&
@@ -166,17 +183,19 @@ export function buildTwoDayUsabilityGate(
 
   const gates = buildGateItems({
     canKeepUsingNow,
-    canSwitchDevicesNow,
+    canSwitchDevicesNow: queueHandoffReady,
     allPlatformSyncMinimumReady,
     plane,
     reliability,
     fluidity,
     coverage,
     accountBridgeProbeStatus,
-    accountBridgeProbeReadableDomains:
-      accountBridgeProbe?.readable_domains ?? 0,
-    accountBridgeProbeBlockedDomains:
-      accountBridgeProbe?.blocked_domains ?? 0,
+    accountBridgeProbeFresh,
+    accountBridgeProbeReady,
+    accountBridgeProbeReadableDomains,
+    accountBridgeProbeBlockedDomains,
+    accountBridgeProbeCheckedAt: accountBridgeProbe?.checked_at ?? null,
+    accountBridgeProbeExpiresAt: accountBridgeProbe?.expires_at ?? null,
     ackLedgerServerReadiness: input.ackLedgerServerReadiness,
   });
   const blockers = gates.filter((gate) => gate.status === "block").length;
@@ -243,7 +262,7 @@ export function buildTwoDayUsabilityGate(
       database_sync_enabled: reliability.database_sync_enabled,
       file_sync_enabled: reliability.file_sync_enabled,
       safe_to_keep_typing: reliability.safe_to_keep_typing,
-      safe_to_switch_device_now: reliability.safe_to_switch_device_now,
+      safe_to_switch_device_now: canSwitchDevicesNow,
       sync_domain_coverage_complete: coverage.coverageComplete,
       ack_ledger_ready: ackLedgerReady,
       ack_ledger_remaining_blockers:
@@ -251,10 +270,11 @@ export function buildTwoDayUsabilityGate(
       ack_ledger_next_action:
         input.ackLedgerServerReadiness.summary.next_action,
       account_sync_bridge_probe_status: accountBridgeProbeStatus,
-      account_sync_bridge_readable_domains:
-        accountBridgeProbe?.readable_domains ?? 0,
-      account_sync_bridge_blocked_domains:
-        accountBridgeProbe?.blocked_domains ?? 0,
+      account_sync_bridge_probe_fresh: accountBridgeProbeFresh,
+      account_sync_bridge_readable_domains: accountBridgeProbeReadableDomains,
+      account_sync_bridge_blocked_domains: accountBridgeProbeBlockedDomains,
+      account_sync_bridge_checked_at: accountBridgeProbe?.checked_at ?? null,
+      account_sync_bridge_expires_at: accountBridgeProbe?.expires_at ?? null,
       performance_samples: fluidity.performance_samples,
     },
     primary_blocker: primaryBlocker,
@@ -423,8 +443,12 @@ function buildGateItems(input: {
   fluidity: CloudNativeFluidityReport["summary"];
   coverage: PendingDomainCoverageReport;
   accountBridgeProbeStatus: "not-run" | "ready" | "blocked" | "partial";
+  accountBridgeProbeFresh: boolean;
+  accountBridgeProbeReady: boolean;
   accountBridgeProbeReadableDomains: number;
   accountBridgeProbeBlockedDomains: number;
+  accountBridgeProbeCheckedAt: string | null;
+  accountBridgeProbeExpiresAt: string | null;
   ackLedgerServerReadiness: SyncAckLedgerServerReadiness;
 }): TwoDayUsabilityGateItem[] {
   const ackLedgerReady =
@@ -510,23 +534,19 @@ function buildGateItems(input: {
     gate({
       id: "account-sync-bridge-probe",
       title: "账号同步桥可读性",
-      status:
-        input.accountBridgeProbeStatus === "ready"
-          ? "pass"
-          : input.accountBridgeProbeStatus === "blocked"
-            ? "block"
-            : "warn",
-      evidence:
-        input.accountBridgeProbeStatus === "ready"
-          ? "页面、每日纪要、会议和数据库四个核心 metadata 域均已通过只读检查。"
-          : input.accountBridgeProbeStatus === "not-run"
-            ? "账号同步桥还没有运行只读检查；不能声称真实两设备同步已准备好。"
-            : `账号同步桥只读检查为 ${input.accountBridgeProbeStatus}：${input.accountBridgeProbeReadableDomains} 个域可读，${input.accountBridgeProbeBlockedDomains} 个域不可读。`,
-      nextAction:
-        input.accountBridgeProbeStatus === "ready"
-          ? "继续跑真实两设备 smoke，并保留 owner receipt。"
-          : input.accountBridgeProbeStatus === "not-run"
-            ? "先在同步中心运行“只读检查账号同步桥”，确认核心 metadata 域能被当前账号读到。"
+      status: input.accountBridgeProbeReady
+        ? "pass"
+        : input.accountBridgeProbeStatus === "blocked"
+          ? "block"
+          : "warn",
+      evidence: accountBridgeProbeEvidence(input),
+      nextAction: input.accountBridgeProbeReady
+        ? "继续跑真实两设备 smoke，并保留 owner receipt。"
+        : input.accountBridgeProbeStatus === "not-run"
+          ? "先在同步中心运行“只读检查账号同步桥”，确认核心 metadata 域能被当前账号读到。"
+          : input.accountBridgeProbeStatus === "ready" &&
+              !input.accountBridgeProbeFresh
+            ? "重新运行只读检查账号同步桥，拿到未过期回执后再切换设备。"
             : "先处理不可读域的登录、同步开关或云接口状态；本地输入和 pending 队列继续保留。",
     }),
     gate({
@@ -575,6 +595,40 @@ function buildGateItems(input: {
   ];
 }
 
+function accountBridgeProbeEvidence(input: {
+  accountBridgeProbeStatus: "not-run" | "ready" | "blocked" | "partial";
+  accountBridgeProbeFresh: boolean;
+  accountBridgeProbeReady: boolean;
+  accountBridgeProbeReadableDomains: number;
+  accountBridgeProbeBlockedDomains: number;
+  accountBridgeProbeCheckedAt: string | null;
+  accountBridgeProbeExpiresAt: string | null;
+}) {
+  const receiptWindow = `检查时间 ${input.accountBridgeProbeCheckedAt ?? "无"}；过期时间 ${
+    input.accountBridgeProbeExpiresAt ?? "无"
+  }。`;
+
+  if (input.accountBridgeProbeReady) {
+    return `页面、每日纪要、会议和数据库四个核心 metadata 域均已通过只读检查，且回执仍在有效期内。${receiptWindow}`;
+  }
+  if (input.accountBridgeProbeStatus === "not-run") {
+    return "账号同步桥还没有运行只读检查；不能声称真实两设备同步已准备好。";
+  }
+  if (
+    input.accountBridgeProbeStatus === "ready" &&
+    !input.accountBridgeProbeFresh
+  ) {
+    return `账号同步桥回执已过期或时间无效；不能作为换设备证据。${receiptWindow}`;
+  }
+  if (
+    input.accountBridgeProbeStatus === "ready" &&
+    input.accountBridgeProbeReadableDomains !== 4
+  ) {
+    return `账号同步桥只读检查只有 ${input.accountBridgeProbeReadableDomains}/4 域可读，仍有 ${input.accountBridgeProbeBlockedDomains} 个域不可读。${receiptWindow}`;
+  }
+  return `账号同步桥只读检查为 ${input.accountBridgeProbeStatus}：${input.accountBridgeProbeReadableDomains} 个域可读，${input.accountBridgeProbeBlockedDomains} 个域不可读。${receiptWindow}`;
+}
+
 function gate(input: {
   id: TwoDayUsabilityGateItem["id"];
   title: string;
@@ -611,4 +665,21 @@ function getNextAction(
 
 function enabledLabel(enabled: boolean) {
   return enabled ? "开启" : "关闭";
+}
+
+function isFreshAccountBridgeProbe(
+  probe: TwoDayUsabilityGateInput["accountSyncBridgeProbe"],
+  generatedAt: string
+) {
+  if (!probe?.checked_at || !probe.expires_at) return false;
+  const checkedAt = Date.parse(probe.checked_at);
+  const expiresAt = Date.parse(probe.expires_at);
+  const now = Date.parse(generatedAt);
+  return (
+    !Number.isNaN(checkedAt) &&
+    !Number.isNaN(expiresAt) &&
+    !Number.isNaN(now) &&
+    checkedAt <= now &&
+    expiresAt > now
+  );
 }

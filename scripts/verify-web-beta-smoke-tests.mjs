@@ -3639,6 +3639,26 @@ function run() {
       "Two-day usability gate summary must expose readable account sync bridge domains.",
     ],
     [
+      "account_sync_bridge_probe_fresh",
+      "Two-day usability gate summary must expose whether the account sync bridge receipt is fresh.",
+    ],
+    [
+      "account_sync_bridge_checked_at",
+      "Two-day usability gate summary must expose the account sync bridge check time.",
+    ],
+    [
+      "account_sync_bridge_expires_at",
+      "Two-day usability gate summary must expose the account sync bridge expiry time.",
+    ],
+    [
+      "const canSwitchDevicesNow = queueHandoffReady && accountBridgeProbeReady",
+      "Two-day usability gate must include fresh account bridge readiness before allowing device handoff.",
+    ],
+    [
+      "账号同步桥回执已过期或时间无效；不能作为换设备证据。",
+      "Two-day usability gate must explain stale account bridge receipts before handoff.",
+    ],
+    [
       "账号同步桥只读检查显示页面、每日纪要、会议、数据库四个核心 metadata 域均可读。",
       "Two-day usability gate must require account bridge probe evidence before claiming sync is usable.",
     ],
@@ -3773,6 +3793,10 @@ function run() {
     [
       "account_sync_bridge_probe_ready",
       "Two-device sync smoke runbook must expose account bridge probe readiness.",
+    ],
+    [
+      "account_sync_bridge_probe_fresh",
+      "Two-device sync smoke runbook next action must require the two-day gate's fresh account bridge proof.",
     ],
     [
       "account-sync-bridge-probe",
@@ -4048,12 +4072,32 @@ function run() {
       "Sync UI must pass the account sync bridge probe receipt into the two-day usability gate.",
     ],
     [
+      "checked_at: accountBridgeProbeReceipt.checked_at",
+      "Sync UI must pass account bridge probe check time into the two-day usability gate.",
+    ],
+    [
+      "expires_at: accountBridgeProbeReceipt.expires_at",
+      "Sync UI must pass account bridge probe expiry into the two-day usability gate.",
+    ],
+    [
       "data-account-sync-bridge-probe-status",
       "Sync UI must expose the account bridge probe status on the two-day gate.",
     ],
     [
+      "data-account-sync-bridge-probe-fresh",
+      "Sync UI must expose whether the account bridge probe receipt is fresh on the two-day gate.",
+    ],
+    [
+      "data-account-sync-bridge-expires-at",
+      "Sync UI must expose account bridge probe expiry on the two-day gate.",
+    ],
+    [
       "gate.summary.account_sync_bridge_readable_domains",
       "Sync UI must show the account bridge readable domain count in the two-day gate summary.",
+    ],
+    [
+      "gate.summary.account_sync_bridge_probe_fresh",
+      "Sync UI must show whether the account bridge receipt is fresh in the two-day gate facts.",
     ],
     [
       "同步桥",

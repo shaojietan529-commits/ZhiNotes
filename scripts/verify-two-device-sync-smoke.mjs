@@ -11,6 +11,7 @@ const files = {
   privateAlphaVerifier: "scripts/verify-private-alpha-p0.mjs",
   webBetaFullVerifier: "scripts/verify-web-beta-full.mjs",
   runbook: "src/lib/sync/twoDeviceSyncSmokeRunbook.ts",
+  twoDayGate: "src/lib/sync/twoDayUsabilityGate.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
 };
 
@@ -44,6 +45,7 @@ function run() {
   const privateAlphaVerifier = readProjectFile(files.privateAlphaVerifier);
   const webBetaFullVerifier = readProjectFile(files.webBetaFullVerifier);
   const runbook = readProjectFile(files.runbook);
+  const twoDayGate = readProjectFile(files.twoDayGate);
   const syncShell = readProjectFile(files.syncShell);
   const packageJson = packageJsonSource
     ? JSON.parse(packageJsonSource)
@@ -104,6 +106,10 @@ function run() {
     [
       "account_sync_bridge_probe_ready",
       "Two-device runbook must expose account bridge probe readiness.",
+    ],
+    [
+      "account_sync_bridge_probe_fresh",
+      "Two-device runbook next action must require a fresh account bridge probe from the two-day gate.",
     ],
     [
       "isFreshAccountBridgeProbe",
@@ -187,6 +193,35 @@ function run() {
       stepId,
       `Two-device runbook must include the ${stepId} step`
     );
+  }
+
+  for (const [snippet, message] of [
+    [
+      "account_sync_bridge_probe_fresh",
+      "Two-day usability gate must expose whether the account bridge probe receipt is fresh.",
+    ],
+    [
+      "account_sync_bridge_checked_at",
+      "Two-day usability gate must expose the account bridge probe check time.",
+    ],
+    [
+      "account_sync_bridge_expires_at",
+      "Two-day usability gate must expose the account bridge probe expiry time.",
+    ],
+    [
+      "isFreshAccountBridgeProbe",
+      "Two-day usability gate must reject expired account bridge receipts before allowing handoff.",
+    ],
+    [
+      "const canSwitchDevicesNow = queueHandoffReady && accountBridgeProbeReady",
+      "Two-day usability gate must include fresh account bridge readiness in device handoff readiness.",
+    ],
+    [
+      "账号同步桥回执已过期或时间无效；不能作为换设备证据。",
+      "Two-day usability gate must explain stale account bridge receipts in plain Chinese.",
+    ],
+  ]) {
+    assertIncludes(files.twoDayGate, twoDayGate, snippet, message);
   }
 
   for (const [snippet, message] of [
@@ -282,6 +317,14 @@ function run() {
     [
       "accountSyncBridgeProbe: accountBridgeProbeReceipt",
       "Sync UI must pass the account bridge receipt into the two-device smoke runbook.",
+    ],
+    [
+      "checked_at: accountBridgeProbeReceipt.checked_at",
+      "Sync UI must pass the account bridge probe check time into handoff gates.",
+    ],
+    [
+      "expires_at: accountBridgeProbeReceipt.expires_at",
+      "Sync UI must pass the account bridge probe expiry time into handoff gates.",
     ],
     [
       "buildAccountSyncBridgeProbeReceiptFromPreflight",

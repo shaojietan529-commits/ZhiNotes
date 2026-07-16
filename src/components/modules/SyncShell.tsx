@@ -4305,6 +4305,8 @@ function SyncDashboard() {
               status: accountBridgeProbeReceipt.status,
               readable_domains: accountBridgeProbeReceipt.readable_domains,
               blocked_domains: accountBridgeProbeReceipt.blocked_domains,
+              checked_at: accountBridgeProbeReceipt.checked_at,
+              expires_at: accountBridgeProbeReceipt.expires_at,
             }
           : null,
         ackLedgerServerReadiness: syncAckLedgerServerReadiness,
@@ -26590,6 +26592,15 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
       data-account-sync-bridge-blocked-domains={
         gate.summary.account_sync_bridge_blocked_domains
       }
+      data-account-sync-bridge-probe-fresh={String(
+        gate.summary.account_sync_bridge_probe_fresh
+      )}
+      data-account-sync-bridge-checked-at={
+        gate.summary.account_sync_bridge_checked_at ?? ""
+      }
+      data-account-sync-bridge-expires-at={
+        gate.summary.account_sync_bridge_expires_at ?? ""
+      }
       data-two-day-user-decision-mode={gate.user_decision.mode}
       data-two-day-user-decision-next-action={gate.user_decision.next_action}
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
@@ -26706,7 +26717,9 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
           value={formatAccountSyncBridgeProbeStatus(
             gate.summary.account_sync_bridge_probe_status
           )}
-          detail={`${gate.summary.account_sync_bridge_readable_domains}/4 域可读`}
+          detail={`${gate.summary.account_sync_bridge_readable_domains}/4 域 · ${
+            gate.summary.account_sync_bridge_probe_fresh ? "有效" : "需重查"
+          }`}
         />
         <CacheRebuildFact
           label="ACK账本"

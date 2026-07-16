@@ -720,12 +720,13 @@ function getNextAction(input: {
   if (input.readyToRun) {
     return "可以准备两端 smoke，但先让 pending 清零，避免把旧队列误认为新测试失败。";
   }
-  if (
-    input.input.gate.can_target_two_day_sync_beta &&
-    input.input.reliability.summary.cloud_workspace_linked &&
-    input.input.gate.summary.account_sync_bridge_probe_status === "ready" &&
-    input.input.gate.summary.account_sync_bridge_readable_domains === 4 &&
-    input.input.reliability.summary.page_sync_enabled &&
+	  if (
+	    input.input.gate.can_target_two_day_sync_beta &&
+	    input.input.reliability.summary.cloud_workspace_linked &&
+	    input.input.gate.summary.account_sync_bridge_probe_status === "ready" &&
+	    input.input.gate.summary.account_sync_bridge_probe_fresh &&
+	    input.input.gate.summary.account_sync_bridge_readable_domains === 4 &&
+	    input.input.reliability.summary.page_sync_enabled &&
     input.input.reliability.summary.database_sync_enabled &&
     input.input.reliability.summary.file_sync_enabled &&
     !input.input.reliability.summary.auth_retry_active &&

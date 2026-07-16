@@ -16705,6 +16705,22 @@ function run() {
       "Sync UI must pass the account bridge receipt into the two-device smoke runbook.",
     ],
     [
+      "checked_at: accountBridgeProbeReceipt.checked_at",
+      "Sync UI must pass account bridge probe check time into handoff gates.",
+    ],
+    [
+      "expires_at: accountBridgeProbeReceipt.expires_at",
+      "Sync UI must pass account bridge probe expiry into handoff gates.",
+    ],
+    [
+      "data-account-sync-bridge-probe-fresh",
+      "Sync UI must expose fresh account bridge probe evidence in the two-day gate.",
+    ],
+    [
+      "data-account-sync-bridge-expires-at",
+      "Sync UI must expose account bridge probe expiry in the two-day gate.",
+    ],
+    [
       "data-two-device-sync-account-bridge-probe-ready",
       "Sync UI must expose account bridge probe readiness in the two-device smoke gate.",
     ],
@@ -22200,6 +22216,12 @@ function run() {
     twoDeviceSyncVerifier,
     'format: "zhinote-two-device-sync-smoke-verification-receipt"',
     "Focused two-device sync verifier must emit a stable receipt."
+  );
+  assertSourceIncludes(
+    files.twoDeviceSyncVerifier,
+    twoDeviceSyncVerifier,
+    "account_sync_bridge_probe_fresh",
+    "Focused two-device sync verifier must enforce fresh account bridge probe evidence."
   );
   assertSourceIncludes(
     files.webBetaFullVerifier,
