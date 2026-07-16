@@ -153,6 +153,18 @@ function run() {
       "本地 sync_log rows 只在 remote ACK cursor 前进后标记 synced",
       "Two-device owner receipt must require remote ACK cursor evidence.",
     ],
+    [
+      "必需同步回执 pendingAfter=0",
+      "Two-device owner receipt must require explicit pendingAfter=0 sync receipts.",
+    ],
+    [
+      "A/B 双向可见证据",
+      "Two-device owner receipt must require bidirectional cross-device visibility evidence.",
+    ],
+    [
+      "A 创建/编辑后 B 可见；B 再编辑后 A 可见",
+      "Two-device owner receipt must describe the bidirectional visibility workflow.",
+    ],
   ]) {
     assertIncludes(files.runbook, runbook, snippet, message);
   }
@@ -386,6 +398,30 @@ function run() {
     [
       "48h scoped 证据",
       "Sync UI must label scoped two-device evidence separately from full evidence.",
+    ],
+    [
+      'data-testid="two-device-smoke-owner-evidence-fields"',
+      "Sync UI must visibly render the owner evidence fields.",
+    ],
+    [
+      "data-two-device-smoke-owner-evidence-count",
+      "Sync UI must expose the owner evidence field count.",
+    ],
+    [
+      "ownerReceipt.owner_evidence_fields.map",
+      "Sync UI must render each owner evidence field from the receipt contract.",
+    ],
+    [
+      'data-testid="two-device-smoke-owner-evidence-field"',
+      "Sync UI must expose stable per-field evidence test ids.",
+    ],
+    [
+      "跑真实两端 smoke 前先按这些字段准备脱敏证据",
+      "Sync UI copy must explain how to prepare owner evidence before the real smoke.",
+    ],
+    [
+      "不填正文、数据库行值、文件名、验证码、cookie 或 token",
+      "Sync UI copy must preserve the privacy boundary for evidence collection.",
     ],
   ]) {
     assertIncludes(files.syncShell, syncShell, snippet, message);

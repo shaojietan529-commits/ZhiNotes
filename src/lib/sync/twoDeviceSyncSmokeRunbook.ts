@@ -573,6 +573,24 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
         privacy_note: "只写时间和状态，不写私密内容。",
       },
       {
+        id: "required-receipt-pending-after-zero",
+        label: "必需同步回执 pendingAfter=0",
+        placeholder:
+          "Page pendingAfter=0；Database pendingAfter=0；如文件元数据参与测试也记录 pendingAfter=0。",
+        required: true,
+        privacy_note:
+          "只写状态、时间和脱敏 ID，不写正文、数据库行值、文件名或文件内容。",
+      },
+      {
+        id: "cross-device-visible-proof",
+        label: "A/B 双向可见证据",
+        placeholder:
+          "A 创建/编辑后 B 可见；B 再编辑后 A 可见；记录两端可见时间。",
+        required: true,
+        privacy_note:
+          "只写脱敏标题或 ID 和时间，不写正文、行值、文件内容、cookie 或 token。",
+      },
+      {
         id: "ack-ledger-evidence",
         label: "ACK 账本证据",
         placeholder:

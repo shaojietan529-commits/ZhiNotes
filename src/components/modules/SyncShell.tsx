@@ -26590,6 +26590,48 @@ function TwoDeviceSyncSmokeRunbookPanel({
       </div>
 
       <div
+        className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+        data-testid="two-device-smoke-owner-evidence-fields"
+        data-two-device-smoke-owner-evidence-count={
+          ownerReceipt.owner_evidence_fields.length
+        }
+      >
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          必填证据字段
+        </div>
+        <p className="mt-1">
+          跑真实两端 smoke 前先按这些字段准备脱敏证据；这里只记录 metadata，
+          不填正文、数据库行值、文件名、验证码、cookie 或 token。
+        </p>
+        <div className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+          {ownerReceipt.owner_evidence_fields.map((field) => (
+            <div
+              key={field.id}
+              className="grid gap-1 py-2 md:grid-cols-[12rem_1fr]"
+              data-testid="two-device-smoke-owner-evidence-field"
+              data-owner-evidence-field-id={field.id}
+              data-owner-evidence-required={String(field.required)}
+            >
+              <div>
+                <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                  {field.label}
+                </span>
+                <span className="ml-2 rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {field.required ? "必填" : "可选"}
+                </span>
+              </div>
+              <div className="space-y-1 text-zinc-500 dark:text-zinc-400">
+                <p>{field.placeholder}</p>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                  {field.privacy_note}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
         className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-800 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-200"
         data-testid="two-device-smoke-owner-draft"
         data-owner-draft-status={ownerDraftSummary.status}
