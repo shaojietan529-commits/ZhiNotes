@@ -3569,6 +3569,23 @@ check(
   "同步页手动上传 workspace settings 时应把失败原因写回 sync_log"
 );
 check(
+  syncDashboardShell.includes("attemptedWorkspaceSettingKeys") &&
+    syncDashboardShell.includes("workspace settings sync interrupted") &&
+    syncDashboardShell.includes(
+      "未确认的设置已保留为失败待重试"
+    ),
+  "workspace_settings 上传中断时应把未 ACK 的 in_flight 行回落为 failed 待重试"
+);
+check(
+  syncDashboardShell.includes("attemptedAccountSettingKeys") &&
+    syncDashboardShell.includes("attemptedModuleSettingRowIds") &&
+    syncDashboardShell.includes("account/module settings sync interrupted") &&
+    syncDashboardShell.includes(
+      "未确认的设置已保留为失败待重试"
+    ),
+  "account/module settings 上传中断时应把未 ACK 的 in_flight 行回落为 failed 待重试"
+);
+check(
   syncDashboardShell.includes(
     `const [settings, pendingEntries] = await Promise.all([
         listWorkspaceSettings(),

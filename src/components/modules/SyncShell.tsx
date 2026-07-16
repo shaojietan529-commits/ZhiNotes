@@ -5153,6 +5153,7 @@ function SyncDashboard() {
 
     setBusyCloudAction("workspace-settings");
     setHotCacheSaveMessage("正在扫描 workspace_settings pending queue...");
+    let attemptedWorkspaceSettingKeys: SupportedWorkspaceSettingSyncKey[] = [];
     try {
       const [settings, pendingEntries] = await Promise.all([
         listWorkspaceSettings(),
@@ -5185,6 +5186,7 @@ function SyncDashboard() {
       const failedKeys: SupportedWorkspaceSettingSyncKey[] = [];
       const failedMessages: string[] = [];
       await markWorkspaceSettingSyncLogEntriesAttempted(plan.upload_keys);
+      attemptedWorkspaceSettingKeys = [...plan.upload_keys];
 
       for (const key of plan.upload_keys) {
         const setting = settingsByKey.get(key);
@@ -5262,10 +5264,31 @@ function SyncDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to sync workspace settings:", err);
+      if (attemptedWorkspaceSettingKeys.length > 0) {
+        try {
+          await markWorkspaceSettingSyncLogEntriesFailed(
+            attemptedWorkspaceSettingKeys,
+            err instanceof Error
+              ? `workspace settings sync interrupted: ${err.message}`
+              : "workspace settings sync interrupted"
+          );
+          const [nextSyncSummary, nextSyncEntries] = await Promise.all([
+            getSyncLogSummary(),
+            getPendingSyncLogEntries(25),
+          ]);
+          setSyncSummary(nextSyncSummary);
+          setSyncEntries(nextSyncEntries);
+        } catch (statusError) {
+          console.error(
+            "[Zhinote] Failed to mark workspace settings sync as failed:",
+            statusError
+          );
+        }
+      }
       setHotCacheSaveMessage(
         err instanceof Error
-          ? `云端同步失败：${err.message}`
-          : "云端同步失败：未知错误。"
+          ? `云端同步失败：${err.message}；未确认的设置已保留为失败待重试。`
+          : "云端同步失败：未知错误；未确认的设置已保留为失败待重试。"
       );
     } finally {
       setBusyCloudAction(null);
@@ -5290,6 +5313,8 @@ function SyncDashboard() {
     setAccountModuleSettingsSyncMessage(
       "正在扫描 account_settings / module_settings pending queue..."
     );
+    let attemptedAccountSettingKeys: SupportedAccountSettingSyncKey[] = [];
+    let attemptedModuleSettingRowIds: string[] = [];
     try {
       const [latestAccountSettings, latestModuleSettings, pendingEntries] =
         await Promise.all([
@@ -5344,6 +5369,10 @@ function SyncDashboard() {
           plan.upload_module_rows.map((row) => row.row_id)
         ),
       ]);
+      attemptedAccountSettingKeys = [...plan.upload_account_keys];
+      attemptedModuleSettingRowIds = plan.upload_module_rows.map(
+        (row) => row.row_id
+      );
 
       for (const key of plan.upload_account_keys) {
         const setting = accountSettingsByKey.get(key);
@@ -5482,10 +5511,46 @@ function SyncDashboard() {
       );
     } catch (err) {
       console.error("[Zhinote] Failed to sync account/module settings:", err);
+      if (
+        attemptedAccountSettingKeys.length > 0 ||
+        attemptedModuleSettingRowIds.length > 0
+      ) {
+        try {
+          await Promise.all([
+            attemptedAccountSettingKeys.length > 0
+              ? markAccountSettingSyncLogEntriesFailed(
+                  attemptedAccountSettingKeys,
+                  err instanceof Error
+                    ? `account/module settings sync interrupted: ${err.message}`
+                    : "account/module settings sync interrupted"
+                )
+              : Promise.resolve(0),
+            attemptedModuleSettingRowIds.length > 0
+              ? markModuleSettingSyncLogEntriesFailed(
+                  attemptedModuleSettingRowIds,
+                  err instanceof Error
+                    ? `account/module settings sync interrupted: ${err.message}`
+                    : "account/module settings sync interrupted"
+                )
+              : Promise.resolve(0),
+          ]);
+          const [nextSyncSummary, nextSyncEntries] = await Promise.all([
+            getSyncLogSummary(),
+            getPendingSyncLogEntries(25),
+          ]);
+          setSyncSummary(nextSyncSummary);
+          setSyncEntries(nextSyncEntries);
+        } catch (statusError) {
+          console.error(
+            "[Zhinote] Failed to mark account/module settings sync as failed:",
+            statusError
+          );
+        }
+      }
       setAccountModuleSettingsSyncMessage(
         err instanceof Error
-          ? `账号/模块设置云端同步失败：${err.message}`
-          : "账号/模块设置云端同步失败：未知错误。"
+          ? `账号/模块设置云端同步失败：${err.message}；未确认的设置已保留为失败待重试。`
+          : "账号/模块设置云端同步失败：未知错误；未确认的设置已保留为失败待重试。"
       );
     } finally {
       setBusyCloudAction(null);
