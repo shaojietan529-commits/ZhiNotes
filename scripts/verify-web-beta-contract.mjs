@@ -5824,8 +5824,14 @@ function run() {
   assertSourceExcludes(
     files.pageCloudSync,
     pageCloudSync,
-    'authRetryStateRef.current = "signed-out";\n      recordPageSyncAuthRetryStatus("ok");',
+    'authRetryStateRef.current = "signed-out";\n        recordPageSyncAuthRetryStatus("ok");',
     "Page cloud sync hook must not record ok account checks as signed-out."
+  );
+  assertSourceIncludes(
+    files.pageCloudSync,
+    pageCloudSync,
+    'seenLocalCacheRecoverySignalRef.current = signal.id;\n        authRetryAfterRef.current = 0;\n        authRetryStateRef.current = "synced";\n        recordPageSyncAuthRetryStatus("ok");',
+    "Page local-cache recovery success must reset the retry state to synced."
   );
   assertSourceIncludes(
     files.pageCloudSync,
@@ -6431,8 +6437,14 @@ function run() {
   assertSourceExcludes(
     files.databaseCloudSync,
     databaseCloudSync,
-    'authRetryStateRef.current = "signed-out";\n      recordDatabaseSyncAuthRetryStatus("ok");',
+    'authRetryStateRef.current = "signed-out";\n        recordDatabaseSyncAuthRetryStatus("ok");',
     "Database cloud sync hook must not record ok account checks as signed-out."
+  );
+  assertSourceIncludes(
+    files.databaseCloudSync,
+    databaseCloudSync,
+    'seenLocalCacheRecoverySignalRef.current = signal.id;\n        authRetryAfterRef.current = 0;\n        authRetryStateRef.current = "synced";\n        recordDatabaseSyncAuthRetryStatus("ok");',
+    "Database local-cache recovery success must reset the retry state to synced."
   );
   assertSourceIncludes(
     files.databaseCloudSync,

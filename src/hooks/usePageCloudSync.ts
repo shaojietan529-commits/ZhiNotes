@@ -378,7 +378,7 @@ export function usePageCloudSync() {
       if (result.status === "ok") {
         seenLocalCacheRecoverySignalRef.current = signal.id;
         authRetryAfterRef.current = 0;
-        authRetryStateRef.current = "signed-out";
+        authRetryStateRef.current = "synced";
         recordPageSyncAuthRetryStatus("ok");
         setStateIfMounted("synced");
         setLastSyncAtIfMounted(getLastPageSyncAt());

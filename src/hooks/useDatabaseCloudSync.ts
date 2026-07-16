@@ -391,7 +391,7 @@ export function useDatabaseCloudSync() {
       if (result.status === "ok") {
         seenLocalCacheRecoverySignalRef.current = signal.id;
         authRetryAfterRef.current = 0;
-        authRetryStateRef.current = "signed-out";
+        authRetryStateRef.current = "synced";
         recordDatabaseSyncAuthRetryStatus("ok");
         setStateIfMounted("synced");
         setLastSyncAtIfMounted(getLastDatabaseSyncAt());
