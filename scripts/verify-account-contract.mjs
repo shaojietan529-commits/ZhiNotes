@@ -1277,6 +1277,16 @@ check(
   "页面同步客户端应暴露只读 pending 上传状态、sync_log pending、最早排队时间、样本 id、最近同步回执和当前页 pending 判断，供同步页/页面壳展示和补传前后对账"
 );
 check(
+  pageSyncClient.includes("PAGE_SYNC_STATUS_ENRICH_DELAY_MS") &&
+    pageSyncClient.includes("schedulePageSyncStatusEnrichment") &&
+    pageSyncClient.includes(
+      "dispatchPageSyncStatusChanged(getPendingCloudPageSyncStatus())"
+    ) &&
+    pageSyncClient.includes("getPendingCloudPageSyncStatusWithSyncLog().then") &&
+    pageSyncClient.includes("dispatchPageSyncStatusChanged(status)"),
+  "页面同步状态事件应先广播轻量本地状态，再去抖补发包含 sync_log 的完整状态，避免侧边栏/同步中心短暂低估待上传内容"
+);
+check(
   syncDashboardShell.includes("页面 pending 上传队列") &&
     syncDashboardShell.includes("只保存 page id 和排队时间，不保存页面正文") &&
     syncDashboardShell.includes("最早排队") &&

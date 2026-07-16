@@ -16546,6 +16546,30 @@ function run() {
   assertIncludes(
     files.accountPageSync,
     accountPageSync,
+    "PAGE_SYNC_STATUS_ENRICH_DELAY_MS",
+    "Smoke verifier must keep page status events enriched with local sync_log counts."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "schedulePageSyncStatusEnrichment",
+    "Smoke verifier must keep sidebar and sync-center page pending counts fresh after queue changes."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "dispatchPageSyncStatusChanged(getPendingCloudPageSyncStatus())",
+    "Smoke verifier must keep lightweight page status broadcasts immediate before the enriched receipt."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
+    "getPendingCloudPageSyncStatusWithSyncLog().then",
+    "Smoke verifier must keep sync_log-enriched page pending status receipts wired to status events."
+  );
+  assertIncludes(
+    files.accountPageSync,
+    accountPageSync,
     "if (pendingChanged || !wasQueued) emitPageSyncStatusChanged();",
     "Smoke verifier must keep repeated same-page page sync queueing cheap during typing."
   );

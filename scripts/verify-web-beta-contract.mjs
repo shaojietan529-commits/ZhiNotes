@@ -26491,6 +26491,30 @@ function run() {
     [
       files.accountPageSync,
       accountPageSync,
+      "PAGE_SYNC_STATUS_ENRICH_DELAY_MS",
+      "Account page sync status events must debounce an enriched sync_log status broadcast after the lightweight local event.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "schedulePageSyncStatusEnrichment",
+      "Account page sync status events must keep sidebar and sync-center pending counts fresh without waiting for the next poll.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "dispatchPageSyncStatusChanged(getPendingCloudPageSyncStatus())",
+      "Account page sync status events must still publish a lightweight local status immediately.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
+      "getPendingCloudPageSyncStatusWithSyncLog().then",
+      "Account page sync status events must follow with a sync_log-enriched status receipt.",
+    ],
+    [
+      files.accountPageSync,
+      accountPageSync,
       "if (pendingChanged || !wasQueued) emitPageSyncStatusChanged();",
       "Account page sync must avoid rewriting pending metadata and rebroadcasting status on every keystroke for an already queued page.",
     ],

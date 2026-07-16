@@ -87,8 +87,11 @@ const EMPTY_CLOUD_PAGE_ACK_MESSAGE =
   "云端没有返回任何页面 ACK，已保留本地待上传状态并稍后重试。";
 const PARTIAL_CLOUD_PAGE_ACK_MESSAGE =
   "云端只确认了部分页面记录，未确认的记录已保留在 pending queue 并稍后重试。";
+const PAGE_SYNC_STATUS_ENRICH_DELAY_MS = 80;
 let queuedCloudPush = new Map<string, RemotePageRecord>();
 let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
+let pageSyncStatusEnrichTimer: ReturnType<typeof setTimeout> | null = null;
+let pageSyncStatusEnrichGeneration = 0;
 let metadataDeltaInFlight: Promise<CloudPageMetadataDeltaResult> | null = null;
 let lastMetadataDeltaAt = 0;
 let lastMetadataDeltaResult: CloudPageMetadataDeltaResult | null = null;
@@ -2583,13 +2586,33 @@ export function getCloudPageSyncItemStatus(
   };
 }
 
-function emitPageSyncStatusChanged(): void {
+function dispatchPageSyncStatusChanged(status?: PendingCloudPageSyncStatus): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
-    new CustomEvent(PAGE_SYNC_STATUS_EVENT, {
-      detail: getPendingCloudPageSyncStatus(),
-    })
+    new CustomEvent(PAGE_SYNC_STATUS_EVENT, { detail: status })
   );
+}
+
+function schedulePageSyncStatusEnrichment(): void {
+  if (typeof window === "undefined") return;
+  pageSyncStatusEnrichGeneration += 1;
+  const generation = pageSyncStatusEnrichGeneration;
+  if (pageSyncStatusEnrichTimer) {
+    clearTimeout(pageSyncStatusEnrichTimer);
+  }
+  pageSyncStatusEnrichTimer = setTimeout(() => {
+    pageSyncStatusEnrichTimer = null;
+    void getPendingCloudPageSyncStatusWithSyncLog().then((status) => {
+      if (generation !== pageSyncStatusEnrichGeneration) return;
+      dispatchPageSyncStatusChanged(status);
+    });
+  }, PAGE_SYNC_STATUS_ENRICH_DELAY_MS);
+}
+
+function emitPageSyncStatusChanged(): void {
+  if (typeof window === "undefined") return;
+  dispatchPageSyncStatusChanged(getPendingCloudPageSyncStatus());
+  schedulePageSyncStatusEnrichment();
 }
 
 function normalizePendingCloudPushError(
