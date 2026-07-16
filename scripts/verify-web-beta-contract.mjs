@@ -22606,6 +22606,14 @@ function run() {
       "buildStableUseHealthResponse()",
       "Stable-use health route must return the shared health response.",
     ],
+    [
+      '"Cache-Control"',
+      "Stable-use health route must declare an explicit cache-control response header.",
+    ],
+    [
+      '"no-store, max-age=0"',
+      "Stable-use health route must prevent cached stable-use status responses.",
+    ],
   ]) {
     assertSourceIncludes(
       files.stableUseHealthRoute,
@@ -22614,7 +22622,7 @@ function run() {
       message
     );
   }
-  for (const forbiddenSnippet of ["cookies", "headers", "request:"]) {
+  for (const forbiddenSnippet of ["cookies", "headers()", "next/headers", "request:"]) {
     if (stableUseHealthRoute.includes(forbiddenSnippet)) {
       fail(
         `Stable-use health route must not inspect request state: found ${forbiddenSnippet}`

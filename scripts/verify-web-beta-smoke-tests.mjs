@@ -19468,7 +19468,12 @@ function run() {
     [
       files.stableUseHealthRoute,
       stableUseHealthRoute,
-      ["export async function GET()", "buildStableUseHealthResponse()"],
+      [
+        "export async function GET()",
+        "buildStableUseHealthResponse()",
+        '"Cache-Control"',
+        '"no-store, max-age=0"',
+      ],
     ],
     [
       files.stableUseHealthVerifier,
@@ -19548,7 +19553,7 @@ function run() {
       );
     }
   }
-  for (const forbiddenSnippet of ["cookies", "headers", "request:"]) {
+  for (const forbiddenSnippet of ["cookies", "headers()", "next/headers", "request:"]) {
     assertExcludes(
       files.stableUseHealthRoute,
       stableUseHealthRoute,

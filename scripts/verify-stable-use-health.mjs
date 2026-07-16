@@ -92,9 +92,12 @@ function verifySourceContracts() {
   );
   assertIncludes(routeSource, "export async function GET()", "health route GET must not accept request input");
   assertIncludes(routeSource, "buildStableUseHealthResponse()", "health route must return the shared stable-use health response");
+  assertIncludes(routeSource, '"Cache-Control"', "health route must declare an explicit cache-control response header");
+  assertIncludes(routeSource, '"no-store, max-age=0"', "health route must prevent cached stable-use status responses");
   assertNotIncludes(routeSource, "request:", "health route must not inspect request data");
   assertNotIncludes(routeSource, "cookies", "health route must not read cookies");
-  assertNotIncludes(routeSource, "headers", "health route must not read headers");
+  assertNotIncludes(routeSource, "headers()", "health route must not read request headers");
+  assertNotIncludes(routeSource, "next/headers", "health route must not import request header helpers");
   assertIncludes(healthSource, 'format: "zhinote-stable-use-health"', "health response must expose a stable format");
   assertIncludes(healthSource, 'health_status: "stable-use-active"', "health response must identify stable-use mode");
   assertIncludes(healthSource, 'local_input_policy: "local-first-then-pending-queue"', "health response must preserve local-first input policy");
@@ -208,6 +211,12 @@ function verifyRouteResult(result) {
   if (result.statusCode !== 200) {
     failures.push(`Expected HTTP 200, received ${result.statusCode}`);
     return;
+  }
+  const cacheControl = String(result.headers["cache-control"] ?? "");
+  if (!cacheControl.includes("no-store") || !cacheControl.includes("max-age=0")) {
+    failures.push(
+      `cache-control: expected no-store, max-age=0, got ${JSON.stringify(cacheControl)}`
+    );
   }
   const body = result.body;
   assertEqual(body?.format, "zhinote-stable-use-health", "format");
@@ -1060,6 +1069,7 @@ function printReceipt(result, status, port, devServer) {
     server_base_url: devServer?.baseUrl ?? null,
     active_dev_pid: devServer?.activePid ?? null,
     http_status: result?.statusCode ?? null,
+    cache_control: result?.headers?.["cache-control"] ?? null,
     duration_ms: result ? Math.round(result.durationMs) : null,
     stable_use_health_status: result?.body?.health_status ?? null,
     stable_use_routes: Array.isArray(result?.body?.stable_use_routes)
