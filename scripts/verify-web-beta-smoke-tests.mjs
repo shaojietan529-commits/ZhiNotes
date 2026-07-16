@@ -20873,13 +20873,13 @@ function run() {
   assertIncludes(
     files.localFirstPageNavigation,
     localFirstPageNavigation,
-    "LOCAL_FIRST_ROUTE_CREATE_FALLBACK_MS = 600",
-    "Shared page navigation must keep a fast hard fallback for page creation when client routing does not start."
+    "LOCAL_FIRST_ROUTE_CREATE_FALLBACK_MS = 350",
+    "Shared page navigation must keep a near-immediate hard fallback for page creation when client routing does not start."
   );
   assertIncludes(
     files.localFirstPageNavigation,
     localFirstPageNavigation,
-    "LOCAL_FIRST_ROUTE_OPEN_FALLBACK_MS = 900",
+    "LOCAL_FIRST_ROUTE_OPEN_FALLBACK_MS = 700",
     "Shared page navigation must keep a bounded hard fallback for normal page opens when client routing does not start."
   );
   assertIncludes(

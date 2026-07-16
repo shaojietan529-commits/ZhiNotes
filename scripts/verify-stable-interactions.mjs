@@ -343,6 +343,18 @@ function run() {
     [
       files.localFirstPageNavigationHook,
       localFirstPageNavigationHook,
+      "LOCAL_FIRST_ROUTE_CREATE_FALLBACK_MS = 350",
+      "Shared page navigation must use a near-immediate hard fallback for create-and-enter flows when client routing stalls.",
+    ],
+    [
+      files.localFirstPageNavigationHook,
+      localFirstPageNavigationHook,
+      "LOCAL_FIRST_ROUTE_OPEN_FALLBACK_MS = 700",
+      "Shared page navigation must keep normal page opens bounded when client routing stalls.",
+    ],
+    [
+      files.localFirstPageNavigationHook,
+      localFirstPageNavigationHook,
       "if (window.location.pathname !== startedPath) return;",
       "Shared page navigation hard fallback must not override a different user navigation.",
     ],

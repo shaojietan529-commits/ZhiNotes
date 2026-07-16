@@ -10,8 +10,8 @@ import {
 } from "@/lib/pages/localFirstPageNavigation";
 import type { Page } from "@/lib/utils/types";
 
-const LOCAL_FIRST_ROUTE_CREATE_FALLBACK_MS = 600;
-const LOCAL_FIRST_ROUTE_OPEN_FALLBACK_MS = 900;
+const LOCAL_FIRST_ROUTE_CREATE_FALLBACK_MS = 350;
+const LOCAL_FIRST_ROUTE_OPEN_FALLBACK_MS = 700;
 let localFirstRouteAttempt = 0;
 
 export function useLocalFirstPageNavigation() {
