@@ -71,6 +71,26 @@ function run() {
       "Account sync preflight must inspect the current database account-sync cloud index.",
     ],
     [
+      "CORE_METADATA_DOMAIN_REQUIRED_COUNT = 4",
+      "Account sync preflight must treat Page, Daily, ZhiHui, and Database as the four P0 metadata domains.",
+    ],
+    [
+      "daily-cloud-metadata",
+      "Account sync preflight must expose Daily notes as a distinct core metadata domain.",
+    ],
+    [
+      "meeting-cloud-metadata",
+      "Account sync preflight must expose ZhiHui meetings as a distinct core metadata domain.",
+    ],
+    [
+      "daily_cloud_metadata_readable",
+      "Account sync preflight summary must report Daily metadata readability.",
+    ],
+    [
+      "meeting_cloud_metadata_readable",
+      "Account sync preflight summary must report ZhiHui metadata readability.",
+    ],
+    [
       "getAccountIdentityConfig",
       "Account sync preflight must use identity config so Resend email setup does not block existing sessions.",
     ],
@@ -131,6 +151,10 @@ function run() {
       "Account sync preflight must explain readiness for the real two-device smoke.",
     ],
     [
+      "页面、每日纪要、ZhiHui 和数据库云端 metadata 均可读",
+      "Account sync preflight ready copy must match the four-domain two-device smoke scope.",
+    ],
+    [
       "本地输入继续保留并进入 pending",
       "Account sync preflight must preserve local-first behavior when a metadata domain is blocked.",
     ],
@@ -183,8 +207,24 @@ function run() {
       "Sync Center must expose the preflight status for smoke checks.",
     ],
     [
+      "data-account-sync-preflight-daily-readable",
+      "Sync Center must expose Daily metadata preflight readability for smoke checks.",
+    ],
+    [
+      "data-account-sync-preflight-meeting-readable",
+      "Sync Center must expose ZhiHui metadata preflight readability for smoke checks.",
+    ],
+    [
       "data-account-sync-preflight-boundary=\"metadata-only\"",
       "Sync Center must disclose that the preflight is metadata-only.",
+    ],
+    [
+      "页面、每日纪要、ZhiHui、数据库云端链路",
+      "Sync Center preflight copy must use the same four-domain scope as the two-device smoke runbook.",
+    ],
+    [
+      "页面、每日纪要、ZhiHui 和数据库四个核心云端 metadata 域",
+      "Sync Center preflight summary must explain the four core metadata domains.",
     ],
     [
       "不读正文、不上传、不清缓存",

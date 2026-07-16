@@ -253,7 +253,8 @@ function run() {
     "Excel import/export requires the xlsx dependency."
   );
   for (const snippet of [
-    "getAccountConfig()",
+    "getAccountIdentityConfig()",
+    "accountIdentityMissingEnv",
     "readSessionToken(request)",
     "getSessionAccount(config, token)",
     'body.action === "changes-since"',
@@ -278,8 +279,19 @@ function run() {
       files.databaseAccountSyncRoute,
       databaseAccountSyncRoute,
       snippet,
-      "Database cloud sync must be session-gated, incremental, bounded, and stale-write safe."
+      "Database cloud sync must be session-gated, identity-config scoped, incremental, bounded, and stale-write safe."
     );
+  }
+  for (const forbidden of [
+    "getAccountConfig()",
+    "accountMissingEnv",
+    "RESEND_API_KEY",
+  ]) {
+    if (databaseAccountSyncRoute.includes(forbidden)) {
+      failures.push(
+        "database account-sync route must use lightweight identity config so existing sessions are not blocked by email sender setup"
+      );
+    }
   }
   if (databaseAccountSyncRoute.includes("console.")) {
     failures.push("database account-sync route must not write logs");

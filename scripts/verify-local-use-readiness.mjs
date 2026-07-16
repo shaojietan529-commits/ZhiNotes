@@ -125,9 +125,10 @@ check(
 );
 check(
   readiness.includes('status: "ready"') &&
-    readiness.includes("cloudHandoffReady: true") &&
+    readiness.includes("cloudHandoffReady: handoffBlockers.length === 0") &&
+    readiness.includes("deviceHandoffReady: handoffBlockers.length === 0") &&
     readiness.includes("当前没有 pending、failed 或 manual review 队列"),
-  "只有 pending/failed/manual review 全清零时才能声明云端交接就绪"
+  "只有 pending/failed/manual review 全清零且无账号/核心域 handoff blocker 时才能声明云端交接就绪"
 );
 
 check(

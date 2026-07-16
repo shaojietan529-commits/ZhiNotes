@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 const PAGE_INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
 const DATABASE_INDEX_KEY_PREFIX = "zhinotes:dbsync:index:";
+const CORE_METADATA_DOMAIN_REQUIRED_COUNT = 4;
 
 type AccountSyncPreflightStatus =
   | "ready"
@@ -53,11 +54,15 @@ interface AccountSyncPreflightPayload {
   summary: {
     account_session_ready: boolean;
     page_cloud_index_readable: boolean;
+    daily_cloud_metadata_readable: boolean;
+    meeting_cloud_metadata_readable: boolean;
     database_cloud_index_readable: boolean;
     page_cloud_records: number | null;
+    daily_cloud_records: number | null;
+    meeting_cloud_records: number | null;
     database_cloud_records: number | null;
     cloud_metadata_domains_ready: number;
-    cloud_metadata_domains_required: 2;
+    cloud_metadata_domains_required: typeof CORE_METADATA_DOMAIN_REQUIRED_COUNT;
     keeps_session_cookie: boolean;
     next_action: string;
   };
@@ -88,6 +93,18 @@ export async function GET(request: Request) {
             "账号云同步配置未完成，无法读取页面云端索引。"
           ),
           check(
+            "daily-cloud-metadata",
+            "blocked",
+            "每日纪要 metadata",
+            "账号云同步配置未完成，无法读取每日纪要云端 metadata。"
+          ),
+          check(
+            "meeting-cloud-metadata",
+            "blocked",
+            "ZhiHui metadata",
+            "账号云同步配置未完成，无法读取会议日历云端 metadata。"
+          ),
+          check(
             "database-cloud-index",
             "blocked",
             "数据库云端索引",
@@ -114,6 +131,18 @@ export async function GET(request: Request) {
             "blocked",
             "页面云端索引",
             "需要登录后才能读取该账号的页面索引。"
+          ),
+          check(
+            "daily-cloud-metadata",
+            "blocked",
+            "每日纪要 metadata",
+            "需要登录后才能读取该账号的每日纪要 metadata。"
+          ),
+          check(
+            "meeting-cloud-metadata",
+            "blocked",
+            "ZhiHui metadata",
+            "需要登录后才能读取该账号的会议日历 metadata。"
           ),
           check(
             "database-cloud-index",
@@ -154,6 +183,18 @@ export async function GET(request: Request) {
               "会话暂时无法确认，未读取页面索引。"
             ),
             check(
+              "daily-cloud-metadata",
+              "blocked",
+              "每日纪要 metadata",
+              "会话暂时无法确认，未读取每日纪要 metadata。"
+            ),
+            check(
+              "meeting-cloud-metadata",
+              "blocked",
+              "ZhiHui metadata",
+              "会话暂时无法确认，未读取会议日历 metadata。"
+            ),
+            check(
               "database-cloud-index",
               "blocked",
               "数据库云端索引",
@@ -190,6 +231,18 @@ export async function GET(request: Request) {
               "会话暂时无法确认，未读取页面索引。"
             ),
             check(
+              "daily-cloud-metadata",
+              "blocked",
+              "每日纪要 metadata",
+              "会话暂时无法确认，未读取每日纪要 metadata。"
+            ),
+            check(
+              "meeting-cloud-metadata",
+              "blocked",
+              "ZhiHui metadata",
+              "会话暂时无法确认，未读取会议日历 metadata。"
+            ),
+            check(
               "database-cloud-index",
               "blocked",
               "数据库云端索引",
@@ -207,6 +260,8 @@ export async function GET(request: Request) {
     readJsonIndex(config.kv, `${DATABASE_INDEX_KEY_PREFIX}${account.email}`),
   ]);
   const pageReadable = pageIndex.status === "fulfilled";
+  const dailyReadable = pageReadable;
+  const meetingReadable = pageReadable;
   const databaseReadable = databaseIndex.status === "fulfilled";
   const checks = [
     check(
@@ -224,6 +279,22 @@ export async function GET(request: Request) {
         : "页面云端索引暂时不可读；本地输入应继续进入 pending 队列。"
     ),
     check(
+      "daily-cloud-metadata",
+      dailyReadable ? "pass" : "blocked",
+      "每日纪要 metadata",
+      dailyReadable
+        ? "每日纪要 metadata 使用页面云端索引作为账号级入口；完整日历 metadata 仍由同步中心账号同步桥复核。"
+        : "每日纪要 metadata 依赖页面云端索引；索引不可读时本地纪要继续保留并进入 pending。"
+    ),
+    check(
+      "meeting-cloud-metadata",
+      meetingReadable ? "pass" : "blocked",
+      "ZhiHui metadata",
+      meetingReadable
+        ? "ZhiHui 会议日历 metadata 使用页面云端索引作为账号级入口；完整会议日历 metadata 仍由同步中心账号同步桥复核。"
+        : "ZhiHui metadata 依赖页面云端索引；索引不可读时本地会议继续保留并进入 pending。"
+    ),
+    check(
       "database-cloud-index",
       databaseReadable ? "pass" : "blocked",
       "数据库云端索引",
@@ -235,7 +306,10 @@ export async function GET(request: Request) {
 
   return NextResponse.json(
     buildPayload({
-      status: pageReadable && databaseReadable ? "ready" : "partial",
+      status:
+        pageReadable && dailyReadable && meetingReadable && databaseReadable
+          ? "ready"
+          : "partial",
       generatedAt,
       accountHint: maskEmail(account.email),
       checks,
@@ -282,13 +356,24 @@ function buildPayload({
   const pageReady = checks.some(
     (item) => item.id === "page-cloud-index" && item.status === "pass"
   );
+  const dailyReady = checks.some(
+    (item) => item.id === "daily-cloud-metadata" && item.status === "pass"
+  );
+  const meetingReady = checks.some(
+    (item) => item.id === "meeting-cloud-metadata" && item.status === "pass"
+  );
   const databaseReady = checks.some(
     (item) => item.id === "database-cloud-index" && item.status === "pass"
   );
   const accountSessionReady = checks.some(
     (item) => item.id === "account-session" && item.status === "pass"
   );
-  const readyDomains = [pageReady, databaseReady].filter(Boolean).length;
+  const readyDomains = [
+    pageReady,
+    dailyReady,
+    meetingReady,
+    databaseReady,
+  ].filter(Boolean).length;
   return {
     format: "zhinote-account-sync-preflight",
     format_version: 1,
@@ -311,11 +396,15 @@ function buildPayload({
     summary: {
       account_session_ready: accountSessionReady,
       page_cloud_index_readable: pageReady,
+      daily_cloud_metadata_readable: dailyReady,
+      meeting_cloud_metadata_readable: meetingReady,
       database_cloud_index_readable: databaseReady,
       page_cloud_records: pageRecords,
+      daily_cloud_records: dailyReady ? pageRecords : null,
+      meeting_cloud_records: meetingReady ? pageRecords : null,
       database_cloud_records: databaseRecords,
       cloud_metadata_domains_ready: readyDomains,
-      cloud_metadata_domains_required: 2,
+      cloud_metadata_domains_required: CORE_METADATA_DOMAIN_REQUIRED_COUNT,
       keeps_session_cookie: status === "unconfirmed",
       next_action: nextAction(status, readyDomains),
     },
@@ -326,10 +415,10 @@ function buildPayload({
 
 function nextAction(status: AccountSyncPreflightStatus, readyDomains: number) {
   if (status === "ready") {
-    return "账号级页面和数据库云端 metadata 均可读；可以继续做两设备真实同步 smoke。";
+    return "账号级页面、每日纪要、ZhiHui 和数据库云端 metadata 均可读；可以继续做同步中心账号同步桥和两设备真实同步 smoke。";
   }
   if (status === "partial") {
-    return `只有 ${readyDomains}/2 个核心云端 metadata 域可读；先修不可读域，期间本地输入继续保留并进入 pending。`;
+    return `只有 ${readyDomains}/${CORE_METADATA_DOMAIN_REQUIRED_COUNT} 个核心云端 metadata 域可读；先修不可读域，期间本地输入继续保留并进入 pending。`;
   }
   if (status === "unconfigured") {
     return "先补账号/KV/邮件环境变量；未配置时不要把本地缓存当作云端主库。";

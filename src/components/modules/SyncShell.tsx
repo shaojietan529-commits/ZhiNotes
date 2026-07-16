@@ -732,8 +732,12 @@ type AccountSyncPreflightBoundary = {
 type AccountSyncPreflightSummary = {
   account_session_ready: boolean;
   page_cloud_index_readable: boolean;
+  daily_cloud_metadata_readable: boolean;
+  meeting_cloud_metadata_readable: boolean;
   database_cloud_index_readable: boolean;
   page_cloud_records: number | null;
+  daily_cloud_records: number | null;
+  meeting_cloud_records: number | null;
   database_cloud_records: number | null;
   cloud_metadata_domains_ready: number;
   cloud_metadata_domains_required: number;
@@ -1177,9 +1181,15 @@ function normalizeAccountSyncPreflightSummary(
   if (
     typeof record.account_session_ready !== "boolean" ||
     typeof record.page_cloud_index_readable !== "boolean" ||
+    typeof record.daily_cloud_metadata_readable !== "boolean" ||
+    typeof record.meeting_cloud_metadata_readable !== "boolean" ||
     typeof record.database_cloud_index_readable !== "boolean" ||
     (record.page_cloud_records !== null &&
       typeof record.page_cloud_records !== "number") ||
+    (record.daily_cloud_records !== null &&
+      typeof record.daily_cloud_records !== "number") ||
+    (record.meeting_cloud_records !== null &&
+      typeof record.meeting_cloud_records !== "number") ||
     (record.database_cloud_records !== null &&
       typeof record.database_cloud_records !== "number") ||
     typeof record.cloud_metadata_domains_ready !== "number" ||
@@ -1193,8 +1203,12 @@ function normalizeAccountSyncPreflightSummary(
   return {
     account_session_ready: record.account_session_ready,
     page_cloud_index_readable: record.page_cloud_index_readable,
+    daily_cloud_metadata_readable: record.daily_cloud_metadata_readable,
+    meeting_cloud_metadata_readable: record.meeting_cloud_metadata_readable,
     database_cloud_index_readable: record.database_cloud_index_readable,
     page_cloud_records: record.page_cloud_records,
+    daily_cloud_records: record.daily_cloud_records,
+    meeting_cloud_records: record.meeting_cloud_records,
     database_cloud_records: record.database_cloud_records,
     cloud_metadata_domains_ready: record.cloud_metadata_domains_ready,
     cloud_metadata_domains_required: record.cloud_metadata_domains_required,
@@ -1267,11 +1281,15 @@ function buildAccountSyncPreflightClientErrorReceipt(
     summary: {
       account_session_ready: false,
       page_cloud_index_readable: false,
+      daily_cloud_metadata_readable: false,
+      meeting_cloud_metadata_readable: false,
       database_cloud_index_readable: false,
       page_cloud_records: null,
+      daily_cloud_records: null,
+      meeting_cloud_records: null,
       database_cloud_records: null,
       cloud_metadata_domains_ready: 0,
-      cloud_metadata_domains_required: 2,
+      cloud_metadata_domains_required: 4,
       keeps_session_cookie: true,
       next_action:
         "同步体检请求暂时没有完成；这不是登出。本地输入和 pending 队列保留，稍后可重试。",
@@ -24752,6 +24770,12 @@ function AccountSyncPreflightPanel({
       data-account-sync-preflight-page-readable={String(
         receipt?.summary.page_cloud_index_readable ?? false
       )}
+      data-account-sync-preflight-daily-readable={String(
+        receipt?.summary.daily_cloud_metadata_readable ?? false
+      )}
+      data-account-sync-preflight-meeting-readable={String(
+        receipt?.summary.meeting_cloud_metadata_readable ?? false
+      )}
       data-account-sync-preflight-database-readable={String(
         receipt?.summary.database_cloud_index_readable ?? false
       )}
@@ -24777,11 +24801,12 @@ function AccountSyncPreflightPanel({
             </span>
           </div>
           <h2 className="mt-2 text-base font-semibold text-zinc-950 dark:text-zinc-50">
-            账号、页面、数据库云端链路
+            账号、页面、每日纪要、ZhiHui、数据库云端链路
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             打开同步中心时会自动做一次只读体检：确认账号 session、页面云端索引、
-            数据库云端索引是否可读。不读正文、不上传、不清缓存；
+            每日纪要 metadata、ZhiHui metadata、数据库云端索引是否可读。
+            不读正文、不上传、不清缓存；
             如果状态是“临时无法确认”，它不是登出，本地输入和 pending 队列会保留。
           </p>
         </div>
@@ -24828,7 +24853,7 @@ function AccountSyncPreflightPanel({
             ))}
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
             <SyncHandoffQuickFact
               label="账号"
               value={
@@ -24852,6 +24877,24 @@ function AccountSyncPreflightPanel({
               detail="只读页面云端索引 metadata，不读取页面正文。"
             />
             <SyncHandoffQuickFact
+              label="每日纪要"
+              value={
+                receipt.summary.daily_cloud_metadata_readable
+                  ? `${receipt.summary.daily_cloud_records ?? 0} 条`
+                  : "不可读"
+              }
+              detail="每日纪要 metadata 属于页面云端索引下的核心使用域。"
+            />
+            <SyncHandoffQuickFact
+              label="ZhiHui"
+              value={
+                receipt.summary.meeting_cloud_metadata_readable
+                  ? `${receipt.summary.meeting_cloud_records ?? 0} 条`
+                  : "不可读"
+              }
+              detail="会议日历 metadata 属于页面云端索引下的核心使用域。"
+            />
+            <SyncHandoffQuickFact
               label="数据库索引"
               value={
                 receipt.summary.database_cloud_index_readable
@@ -24863,7 +24906,7 @@ function AccountSyncPreflightPanel({
             <SyncHandoffQuickFact
               label="可读域"
               value={`${receipt.summary.cloud_metadata_domains_ready}/${receipt.summary.cloud_metadata_domains_required}`}
-              detail="页面和数据库两个核心云端 metadata 域。"
+              detail="页面、每日纪要、ZhiHui 和数据库四个核心云端 metadata 域。"
             />
           </div>
 
