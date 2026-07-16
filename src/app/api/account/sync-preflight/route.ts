@@ -13,6 +13,10 @@ import { maskEmail } from "@/lib/cloud/api";
 export const dynamic = "force-dynamic";
 
 const PAGE_INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
+const DAILY_CALENDAR_CACHE_KEY_PREFIX =
+  "zhinotes:pagesync:daily-calendar-cache:";
+const MEETING_CALENDAR_CACHE_KEY_PREFIX =
+  "zhinotes:pagesync:meeting-calendar-cache:";
 const DATABASE_INDEX_KEY_PREFIX = "zhinotes:dbsync:index:";
 const CORE_METADATA_DOMAIN_REQUIRED_COUNT = 4;
 
@@ -68,6 +72,19 @@ interface AccountSyncPreflightPayload {
   };
   checks: AccountSyncPreflightCheck[];
   missing_env?: string[];
+}
+
+interface CloudIndexSummary {
+  recordCount: number;
+  deletedCount: number;
+  watermark: string;
+}
+
+interface CalendarMetadataCacheSummary {
+  recordCount: number;
+  cachePresent: boolean;
+  watermark: string;
+  stale: boolean;
 }
 
 export async function GET(request: Request) {
@@ -255,13 +272,45 @@ export async function GET(request: Request) {
     );
   }
 
-  const [pageIndex, databaseIndex] = await Promise.allSettled([
-    readJsonIndex(config.kv, `${PAGE_INDEX_KEY_PREFIX}${account.email}`),
+  const [pageIndex, dailyCache, meetingCache, databaseIndex] = await Promise.allSettled([
+    readCloudIndexSummary(config.kv, `${PAGE_INDEX_KEY_PREFIX}${account.email}`),
+    readCalendarMetadataCacheSummary({
+      kv: config.kv,
+      key: `${DAILY_CALENDAR_CACHE_KEY_PREFIX}${account.email}`,
+      recordsKey: "notes",
+      indexWatermark: null,
+    }),
+    readCalendarMetadataCacheSummary({
+      kv: config.kv,
+      key: `${MEETING_CALENDAR_CACHE_KEY_PREFIX}${account.email}`,
+      recordsKey: "meetings",
+      indexWatermark: null,
+    }),
     readJsonIndex(config.kv, `${DATABASE_INDEX_KEY_PREFIX}${account.email}`),
   ]);
   const pageReadable = pageIndex.status === "fulfilled";
-  const dailyReadable = pageReadable;
-  const meetingReadable = pageReadable;
+  const pageWatermark = pageReadable ? pageIndex.value.watermark : null;
+  const dailySummary =
+    dailyCache.status === "fulfilled" && pageWatermark
+      ? withStaleFlag(dailyCache.value, pageWatermark)
+      : dailyCache.status === "fulfilled"
+        ? dailyCache.value
+        : null;
+  const meetingSummary =
+    meetingCache.status === "fulfilled" && pageWatermark
+      ? withStaleFlag(meetingCache.value, pageWatermark)
+      : meetingCache.status === "fulfilled"
+        ? meetingCache.value
+        : null;
+  const emptyPageIndex = pageReadable && pageIndex.value.recordCount === 0;
+  const dailyReadable =
+    pageReadable &&
+    (emptyPageIndex ||
+      Boolean(dailySummary?.cachePresent && !dailySummary.stale));
+  const meetingReadable =
+    pageReadable &&
+    (emptyPageIndex ||
+      Boolean(meetingSummary?.cachePresent && !meetingSummary.stale));
   const databaseReadable = databaseIndex.status === "fulfilled";
   const checks = [
     check(
@@ -283,16 +332,16 @@ export async function GET(request: Request) {
       dailyReadable ? "pass" : "blocked",
       "每日纪要 metadata",
       dailyReadable
-        ? "每日纪要 metadata 使用页面云端索引作为账号级入口；完整日历 metadata 仍由同步中心账号同步桥复核。"
-        : "每日纪要 metadata 依赖页面云端索引；索引不可读时本地纪要继续保留并进入 pending。"
+        ? `每日纪要 metadata cache 可读，识别到 ${dailySummary?.recordCount ?? 0} 条当前云端纪要清单。`
+        : dailyBlockedDetail(pageReadable, dailySummary)
     ),
     check(
       "meeting-cloud-metadata",
       meetingReadable ? "pass" : "blocked",
       "ZhiHui metadata",
       meetingReadable
-        ? "ZhiHui 会议日历 metadata 使用页面云端索引作为账号级入口；完整会议日历 metadata 仍由同步中心账号同步桥复核。"
-        : "ZhiHui metadata 依赖页面云端索引；索引不可读时本地会议继续保留并进入 pending。"
+        ? `ZhiHui 会议日历 metadata cache 可读，识别到 ${meetingSummary?.recordCount ?? 0} 条当前云端会议清单。`
+        : meetingBlockedDetail(pageReadable, meetingSummary)
     ),
     check(
       "database-cloud-index",
@@ -315,6 +364,8 @@ export async function GET(request: Request) {
       checks,
       pageRecords:
         pageIndex.status === "fulfilled" ? pageIndex.value.recordCount : null,
+      dailyRecords: dailyReadable ? (dailySummary?.recordCount ?? 0) : null,
+      meetingRecords: meetingReadable ? (meetingSummary?.recordCount ?? 0) : null,
       databaseRecords:
         databaseIndex.status === "fulfilled"
           ? databaseIndex.value.recordCount
@@ -336,6 +387,81 @@ async function readJsonIndex(
   return { recordCount: Object.keys(parsed).length };
 }
 
+async function readCloudIndexSummary(
+  kv: KvEnv,
+  key: string
+): Promise<CloudIndexSummary> {
+  const raw = await kvGet(kv, key);
+  if (!raw) return { recordCount: 0, deletedCount: 0, watermark: "0:0:" };
+  const parsed = JSON.parse(raw) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("invalid cloud index");
+  }
+
+  let recordCount = 0;
+  let deletedCount = 0;
+  let maxUpdatedAt = "";
+  for (const entry of Object.values(parsed as Record<string, unknown>)) {
+    recordCount += 1;
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    if (record.d === 1) deletedCount += 1;
+    if (typeof record.u === "string" && record.u > maxUpdatedAt) {
+      maxUpdatedAt = record.u;
+    }
+  }
+  return {
+    recordCount,
+    deletedCount,
+    watermark: `${recordCount}:${deletedCount}:${maxUpdatedAt}`,
+  };
+}
+
+async function readCalendarMetadataCacheSummary({
+  kv,
+  key,
+  recordsKey,
+  indexWatermark,
+}: {
+  kv: KvEnv;
+  key: string;
+  recordsKey: "notes" | "meetings";
+  indexWatermark: string | null;
+}): Promise<CalendarMetadataCacheSummary> {
+  const raw = await kvGet(kv, key);
+  if (!raw) {
+    return {
+      recordCount: 0,
+      cachePresent: false,
+      watermark: "",
+      stale: true,
+    };
+  }
+  const parsed = JSON.parse(raw) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("invalid calendar metadata cache");
+  }
+  const record = parsed as Record<string, unknown>;
+  const entries = Array.isArray(record[recordsKey]) ? record[recordsKey] : [];
+  const watermark = typeof record.watermark === "string" ? record.watermark : "";
+  return {
+    recordCount: entries.length,
+    cachePresent: true,
+    watermark,
+    stale: Boolean(indexWatermark && watermark !== indexWatermark),
+  };
+}
+
+function withStaleFlag(
+  summary: CalendarMetadataCacheSummary,
+  indexWatermark: string
+): CalendarMetadataCacheSummary {
+  return {
+    ...summary,
+    stale: summary.watermark !== indexWatermark,
+  };
+}
+
 function buildPayload({
   status,
   generatedAt,
@@ -343,6 +469,8 @@ function buildPayload({
   checks,
   missingEnv,
   pageRecords = null,
+  dailyRecords = null,
+  meetingRecords = null,
   databaseRecords = null,
 }: {
   status: AccountSyncPreflightStatus;
@@ -351,6 +479,8 @@ function buildPayload({
   checks: AccountSyncPreflightCheck[];
   missingEnv?: string[];
   pageRecords?: number | null;
+  dailyRecords?: number | null;
+  meetingRecords?: number | null;
   databaseRecords?: number | null;
 }): AccountSyncPreflightPayload {
   const pageReady = checks.some(
@@ -400,8 +530,8 @@ function buildPayload({
       meeting_cloud_metadata_readable: meetingReady,
       database_cloud_index_readable: databaseReady,
       page_cloud_records: pageRecords,
-      daily_cloud_records: dailyReady ? pageRecords : null,
-      meeting_cloud_records: meetingReady ? pageRecords : null,
+      daily_cloud_records: dailyRecords,
+      meeting_cloud_records: meetingRecords,
       database_cloud_records: databaseRecords,
       cloud_metadata_domains_ready: readyDomains,
       cloud_metadata_domains_required: CORE_METADATA_DOMAIN_REQUIRED_COUNT,
@@ -411,6 +541,38 @@ function buildPayload({
     checks,
     ...(missingEnv ? { missing_env: missingEnv } : {}),
   };
+}
+
+function dailyBlockedDetail(
+  pageReadable: boolean,
+  summary: CalendarMetadataCacheSummary | null
+) {
+  if (!pageReadable) {
+    return "每日纪要 metadata 依赖页面云端索引；索引不可读时本地纪要继续保留并进入 pending。";
+  }
+  if (!summary?.cachePresent) {
+    return "每日纪要 metadata cache 尚未生成；先打开每日纪要或运行同步中心账号同步桥，让云端生成可复用的轻量日历清单。";
+  }
+  if (summary.stale) {
+    return `每日纪要 metadata cache 落后于页面云端索引；当前只看到 ${summary.recordCount} 条旧清单，需重新拉取 metadata 后再做两设备 smoke。`;
+  }
+  return "每日纪要 metadata cache 暂时不可确认；本地纪要继续保留并进入 pending。";
+}
+
+function meetingBlockedDetail(
+  pageReadable: boolean,
+  summary: CalendarMetadataCacheSummary | null
+) {
+  if (!pageReadable) {
+    return "ZhiHui metadata 依赖页面云端索引；索引不可读时本地会议继续保留并进入 pending。";
+  }
+  if (!summary?.cachePresent) {
+    return "ZhiHui 会议日历 metadata cache 尚未生成；先打开 ZhiHui 或运行同步中心账号同步桥，让云端生成可复用的轻量会议清单。";
+  }
+  if (summary.stale) {
+    return `ZhiHui 会议日历 metadata cache 落后于页面云端索引；当前只看到 ${summary.recordCount} 条旧清单，需重新拉取 metadata 后再做两设备 smoke。`;
+  }
+  return "ZhiHui metadata cache 暂时不可确认；本地会议继续保留并进入 pending。";
 }
 
 function nextAction(status: AccountSyncPreflightStatus, readyDomains: number) {

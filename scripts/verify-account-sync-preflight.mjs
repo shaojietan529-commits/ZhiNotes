@@ -71,6 +71,30 @@ function run() {
       "Account sync preflight must inspect the current database account-sync cloud index.",
     ],
     [
+      "DAILY_CALENDAR_CACHE_KEY_PREFIX",
+      "Account sync preflight must inspect Daily's metadata cache instead of treating the page index as a Daily manifest.",
+    ],
+    [
+      "MEETING_CALENDAR_CACHE_KEY_PREFIX",
+      "Account sync preflight must inspect ZhiHui's metadata cache instead of treating the page index as a meeting manifest.",
+    ],
+    [
+      "readCalendarMetadataCacheSummary",
+      "Account sync preflight must summarize calendar metadata caches without reading page bodies.",
+    ],
+    [
+      "metadata cache 可读",
+      "Account sync preflight must report readable Daily/ZhiHui metadata cache counts.",
+    ],
+    [
+      "metadata cache 尚未生成",
+      "Account sync preflight must explain when calendar metadata caches need to be generated.",
+    ],
+    [
+      "metadata cache 落后于页面云端索引",
+      "Account sync preflight must block stale calendar metadata caches instead of reporting false readiness.",
+    ],
+    [
       "CORE_METADATA_DOMAIN_REQUIRED_COUNT = 4",
       "Account sync preflight must treat Page, Daily, ZhiHui, and Database as the four P0 metadata domains.",
     ],
@@ -173,6 +197,8 @@ function run() {
     ["accountMissingEnv", "Account sync preflight must not report email sender gaps as sync blockers."],
     ["RESEND_API_KEY", "Account sync preflight must not depend on the Resend email sender."],
     ["console.", "Account sync preflight must not log private account or sync metadata."],
+    ["const dailyReadable = pageReadable;", "Daily metadata readiness must not be a direct alias of page index readiness."],
+    ["const meetingReadable = pageReadable;", "ZhiHui metadata readiness must not be a direct alias of page index readiness."],
   ]) {
     assertNotIncludes(files.route, route, snippet, message);
   }
