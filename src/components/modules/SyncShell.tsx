@@ -13565,6 +13565,28 @@ function CloudAlphaPanel({
           />
         </div>
 
+        <div
+          className="mt-3 rounded-md border border-blue-100 bg-blue-50/60 p-3 dark:border-blue-950 dark:bg-blue-950/20"
+          data-testid="cloud-setup-owner-steps"
+          data-cloud-setup-owner-step-count={
+            setupDiagnostics.owner_setup_steps.length
+          }
+        >
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-[11px] font-semibold text-blue-950 dark:text-blue-100">
+              云同步修复顺序
+            </div>
+            <div className="text-[10px] text-blue-700/80 dark:text-blue-200/80">
+              只显示变量名和步骤，不读取密钥值
+            </div>
+          </div>
+          <div className="mt-2 grid gap-2 lg:grid-cols-2">
+            {setupDiagnostics.owner_setup_steps.map((step) => (
+              <CloudSetupOwnerStepRow key={step.id} step={step} />
+            ))}
+          </div>
+        </div>
+
         {setupDiagnostics.environment_gaps.length > 0 && (
           <div
             className="mt-3 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
@@ -13945,6 +13967,63 @@ function CloudAlphaSmallRow({
       </div>
     </div>
   );
+}
+
+function CloudSetupOwnerStepRow({
+  step,
+}: {
+  step: CloudSetupDiagnostics["owner_setup_steps"][number];
+}) {
+  return (
+    <article
+      className="rounded-md bg-white px-2 py-2 text-[11px] leading-4 text-zinc-600 dark:bg-zinc-950 dark:text-zinc-300"
+      data-testid="cloud-setup-owner-step"
+      data-cloud-setup-owner-step-id={step.id}
+      data-cloud-setup-owner-step-status={step.status}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+          {step.title}
+        </div>
+        <span className={cloudSetupOwnerStepPillClass(step.status)}>
+          {formatCloudSetupOwnerStepStatus(step.status)}
+        </span>
+      </div>
+      <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+        {step.evidence}
+      </p>
+      <p className="mt-1 text-zinc-700 dark:text-zinc-200">
+        {step.owner_action}
+      </p>
+    </article>
+  );
+}
+
+function formatCloudSetupOwnerStepStatus(
+  status: CloudSetupDiagnostics["owner_setup_steps"][number]["status"]
+) {
+  const labels: Record<
+    CloudSetupDiagnostics["owner_setup_steps"][number]["status"],
+    string
+  > = {
+    pass: "完成",
+    warn: "等待",
+    block: "阻断",
+  };
+  return labels[status];
+}
+
+function cloudSetupOwnerStepPillClass(
+  status: CloudSetupDiagnostics["owner_setup_steps"][number]["status"]
+) {
+  const base = "shrink-0 rounded px-1.5 py-0.5 text-[10px]";
+  if (status === "pass") {
+    return `${base} bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200`;
+  }
+  if (status === "warn") {
+    return `${base} bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200`;
+  }
+  return `${base} bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200`;
 }
 
 function formatCloudSetupDiagnosticStatus(

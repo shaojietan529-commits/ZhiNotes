@@ -54,6 +54,21 @@ export interface CloudSetupDiagnosticGate {
   next_action: string;
 }
 
+export interface CloudSetupOwnerStep {
+  id:
+    | "configure-deployment-env"
+    | "enable-cloud-write-gate"
+    | "login-account"
+    | "connect-workspace"
+    | "run-bootstrap"
+    | "confirm-sync-domains"
+    | "drain-local-queues";
+  title: string;
+  status: CloudSetupDiagnosticGateStatus;
+  evidence: string;
+  owner_action: string;
+}
+
 export interface CloudSetupDiagnostics {
   format: "zhinote-cloud-setup-diagnostics";
   format_version: 1;
@@ -83,6 +98,7 @@ export interface CloudSetupDiagnostics {
   environment_gaps: CloudSetupEnvironmentGap[];
   runtime_environment_gaps: CloudSetupEnvironmentGap[];
   gates: CloudSetupDiagnosticGate[];
+  owner_setup_steps: CloudSetupOwnerStep[];
   next_actions: string[];
   privacy_note: string;
   boundary: {
@@ -334,6 +350,11 @@ export function buildCloudSetupDiagnostics(
     environment_gaps: environmentGaps,
     runtime_environment_gaps: runtimeEnvironmentGaps,
     gates,
+    owner_setup_steps: buildOwnerSetupSteps({
+      environmentGaps,
+      gates,
+      runtimeEnvironmentGaps,
+    }),
     next_actions: buildNextActions(gates),
     privacy_note:
       "Generated in the browser from metadata only. It explains why cloud sync cannot yet be trusted without reading note body text, database values, file names, file bytes, secret values, tokens, or cookies. It does not write server data, upload workspace data, enable sync, or enable AI.",
@@ -355,6 +376,123 @@ export function buildCloudSetupDiagnostics(
       enables_ai: false,
     },
   };
+}
+
+function buildOwnerSetupSteps(input: {
+  environmentGaps: CloudSetupEnvironmentGap[];
+  gates: CloudSetupDiagnosticGate[];
+  runtimeEnvironmentGaps: CloudSetupEnvironmentGap[];
+}): CloudSetupOwnerStep[] {
+  const gateById = new Map(input.gates.map((gate) => [gate.id, gate]));
+  const environmentGate = requiredGate(gateById, "environment");
+  const writeGate = requiredGate(gateById, "write-gate");
+  const sessionGate = requiredGate(gateById, "session");
+  const workspaceGate = requiredGate(gateById, "workspace-link");
+  const bootstrapGate = requiredGate(gateById, "bootstrap-proof");
+  const syncDomainGate = requiredGate(gateById, "sync-domain-toggles");
+  const queueGate = requiredGate(gateById, "local-queues");
+  const runtimeKeys = formatOwnerSetupEnvKeys(
+    input.runtimeEnvironmentGaps.length > 0
+      ? input.runtimeEnvironmentGaps
+      : input.environmentGaps
+  );
+
+  return [
+    {
+      id: "configure-deployment-env",
+      title: "1. 配置部署环境变量",
+      status: environmentGate.status,
+      evidence: environmentGate.evidence,
+      owner_action:
+        environmentGate.status === "pass"
+          ? "环境变量检查已通过；继续下一步。"
+          : `在部署平台（Vercel）配置 ${runtimeKeys}；不要把密钥值贴到聊天。配置后重新部署，再回同步中心点只读体检。`,
+    },
+    {
+      id: "enable-cloud-write-gate",
+      title: "2. 打开云写入保护开关",
+      status: writeGate.status,
+      evidence: writeGate.evidence,
+      owner_action:
+        writeGate.status === "pass"
+          ? "写入开关已启用；继续登录和 workspace 检查。"
+          : "确认要进入私有 alpha 同步后，把 ZHINOTES_ALLOW_CLOUD_WRITES 设为 true；未确认前保持关闭，本地写作不受影响。",
+    },
+    {
+      id: "login-account",
+      title: "3. 登录账号",
+      status: sessionGate.status,
+      evidence: sessionGate.evidence,
+      owner_action:
+        sessionGate.status === "pass"
+          ? "当前浏览器已有账号 session；继续检查 workspace。"
+          : "用账号页发送登录链接或验证码；临时失败只会显示未确认，不会自动清空本地输入。",
+    },
+    {
+      id: "connect-workspace",
+      title: "4. 创建或连接云 workspace",
+      status: workspaceGate.status,
+      evidence: workspaceGate.evidence,
+      owner_action:
+        workspaceGate.status === "pass"
+          ? "本地 workspace 已绑定云 workspace；继续启动检查。"
+          : "登录后先列出或创建空云 workspace，再连接本地 workspace；这一步只保存 workspace 元数据，不上传笔记正文。",
+    },
+    {
+      id: "run-bootstrap",
+      title: "5. 运行启动检查",
+      status: bootstrapGate.status,
+      evidence: bootstrapGate.evidence,
+      owner_action:
+        bootstrapGate.status === "pass"
+          ? "启动检查证明已记录；继续确认同步域。"
+          : "点击启动检查，确认当前账号能访问这个云 workspace；通过前不要把它当作云端主库。",
+    },
+    {
+      id: "confirm-sync-domains",
+      title: "6. 确认核心同步域",
+      status: syncDomainGate.status,
+      evidence: syncDomainGate.evidence,
+      owner_action:
+        syncDomainGate.status === "pass"
+          ? "页面、数据库和文件队列都可见；继续清队列。"
+          : "先确认页面、数据库和文件元数据同步域都可见；缺口未补齐前不要做跨设备验收。",
+    },
+    {
+      id: "drain-local-queues",
+      title: "7. 清 pending / failed / manual review",
+      status: queueGate.status,
+      evidence: queueGate.evidence,
+      owner_action:
+        queueGate.status === "pass"
+          ? "队列已清零；可以进入两设备 smoke test。"
+          : "先补传或复核本地队列；pending、failed、manual review 未清零前，不要切换设备接力或重建缓存。",
+    },
+  ];
+}
+
+function requiredGate(
+  gateById: Map<CloudSetupDiagnosticGate["id"], CloudSetupDiagnosticGate>,
+  id: CloudSetupDiagnosticGate["id"]
+) {
+  const gate = gateById.get(id);
+  if (!gate) {
+    return {
+      id,
+      title: id,
+      status: "block" as const,
+      evidence: "诊断门禁缺失。",
+      next_action: "先修复 cloud setup diagnostics gate 列表。",
+    };
+  }
+  return gate;
+}
+
+function formatOwnerSetupEnvKeys(gaps: CloudSetupEnvironmentGap[]) {
+  if (gaps.length === 0) return "剩余必需环境变量";
+  const shown = gaps.slice(0, 4).map((gap) => gap.key).join("、");
+  const remaining = gaps.length - Math.min(gaps.length, 4);
+  return `${shown}${remaining > 0 ? ` 等 ${remaining} 项` : ""}`;
 }
 
 function buildEnvironmentGaps(preflight: WebBetaEnvironmentPreflight | null) {

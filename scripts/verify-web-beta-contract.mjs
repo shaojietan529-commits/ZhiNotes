@@ -5406,6 +5406,30 @@ function run() {
       "Cloud setup diagnostics must separate runtime blockers from broader launch blockers.",
     ],
     [
+      "owner_setup_steps: CloudSetupOwnerStep[]",
+      "Cloud setup diagnostics must expose owner-readable setup steps.",
+    ],
+    [
+      "buildOwnerSetupSteps",
+      "Cloud setup diagnostics must build a guided owner setup sequence.",
+    ],
+    [
+      "configure-deployment-env",
+      "Cloud setup diagnostics must include a deployment environment setup step.",
+    ],
+    [
+      "enable-cloud-write-gate",
+      "Cloud setup diagnostics must include the cloud write gate step.",
+    ],
+    [
+      "drain-local-queues",
+      "Cloud setup diagnostics must include a queue-drain step before handoff.",
+    ],
+    [
+      "不要把密钥值贴到聊天",
+      "Cloud setup diagnostics must warn users not to paste secret values into chat.",
+    ],
+    [
       "CLOUD_SETUP_RUNTIME_ENV_KEYS",
       "Cloud setup diagnostics must classify account/workspace runtime environment keys.",
     ],
@@ -5501,6 +5525,26 @@ function run() {
     [
       "云同步体检",
       "Sync UI must label the cloud setup diagnostics in Chinese.",
+    ],
+    [
+      'data-testid="cloud-setup-owner-steps"',
+      "Sync UI must render the owner setup sequence.",
+    ],
+    [
+      "云同步修复顺序",
+      "Sync UI must label the owner setup sequence in Chinese.",
+    ],
+    [
+      'data-testid="cloud-setup-owner-step"',
+      "Sync UI must expose each owner setup step as a stable target.",
+    ],
+    [
+      "data-cloud-setup-owner-step-status",
+      "Sync UI must expose owner setup step status.",
+    ],
+    [
+      "只显示变量名和步骤，不读取密钥值",
+      "Sync UI must tell users that setup steps do not read secret values.",
     ],
     [
       'data-testid="cloud-alpha-sync-path-boundary"',
