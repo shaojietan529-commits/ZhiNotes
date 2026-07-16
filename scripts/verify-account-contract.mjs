@@ -2570,6 +2570,12 @@ check(
     !pageCloudSyncHook.includes(
       'authRetryStateRef.current = "signed-out";\n        recordPageSyncAuthRetryStatus("ok");'
     ) &&
+    !pageCloudSyncHook.includes(
+      'authRetryStateRef.current = "signed-out";\n        recordPageSyncAuthRetryStatus("disabled");'
+    ) &&
+    pageCloudSyncHook.includes(
+      'authRetryAfterRef.current = 0;\n        authRetryStateRef.current = "disabled";\n        recordPageSyncAuthRetryStatus("disabled");'
+    ) &&
     pageCloudSyncHook.includes(
       'seenLocalCacheRecoverySignalRef.current = signal.id;\n        authRetryAfterRef.current = 0;\n        authRetryStateRef.current = "synced";\n        recordPageSyncAuthRetryStatus("ok");'
     ) &&
@@ -2715,6 +2721,12 @@ check(
     ) &&
     !databaseCloudSyncHook.includes(
       'authRetryStateRef.current = "signed-out";\n        recordDatabaseSyncAuthRetryStatus("ok");'
+    ) &&
+    !databaseCloudSyncHook.includes(
+      'authRetryStateRef.current = "signed-out";\n        recordDatabaseSyncAuthRetryStatus("disabled");'
+    ) &&
+    databaseCloudSyncHook.includes(
+      'authRetryAfterRef.current = 0;\n        authRetryStateRef.current = "disabled";\n        recordDatabaseSyncAuthRetryStatus("disabled");'
     ) &&
     databaseCloudSyncHook.includes(
       'seenLocalCacheRecoverySignalRef.current = signal.id;\n        authRetryAfterRef.current = 0;\n        authRetryStateRef.current = "synced";\n        recordDatabaseSyncAuthRetryStatus("ok");'

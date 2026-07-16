@@ -415,7 +415,8 @@ export function useDatabaseCloudSync() {
         recordDatabaseSyncAuthRetryStatus("unconfirmed");
         setStateIfMounted("error");
       } else if (result.status === "disabled") {
-        authRetryStateRef.current = "signed-out";
+        authRetryAfterRef.current = 0;
+        authRetryStateRef.current = "disabled";
         recordDatabaseSyncAuthRetryStatus("disabled");
         setStateIfMounted("disabled");
       } else {

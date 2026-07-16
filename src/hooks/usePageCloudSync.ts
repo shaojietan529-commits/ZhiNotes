@@ -399,7 +399,8 @@ export function usePageCloudSync() {
         recordPageSyncAuthRetryStatus("unconfirmed");
         setStateIfMounted("error");
       } else if (result.status === "disabled") {
-        authRetryStateRef.current = "signed-out";
+        authRetryAfterRef.current = 0;
+        authRetryStateRef.current = "disabled";
         recordPageSyncAuthRetryStatus("disabled");
         setStateIfMounted("disabled");
       } else {
