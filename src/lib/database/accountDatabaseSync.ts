@@ -658,6 +658,14 @@ function markPendingCloudDatabasePushKey(key: string): void {
   }
 }
 
+function markPendingCloudDatabasePushRecords(
+  records: CloudDatabaseRecord[]
+): void {
+  for (const record of records) {
+    markPendingCloudDatabasePushKey(getRemoteDatabaseRecordKey(record));
+  }
+}
+
 function clearPendingCloudDatabasePushKeys(keys: string[]): void {
   if (keys.length === 0) return;
   const acknowledged = new Set(keys.filter(isValidRecordKey));
@@ -1496,6 +1504,7 @@ export async function pushCloudDatabaseRecords(
     });
     return { status: "ok", accepted: [], skipped: [] };
   }
+  markPendingCloudDatabasePushRecords(records);
   markPendingCloudDatabasePushAttemptRecords(records);
   emitDatabaseSyncStatusChanged();
   const res = await call({ action: "push", records });
@@ -1597,10 +1606,11 @@ function markPendingCloudDatabasePushAttemptRecords(
   const next: PendingCloudDatabasePushMeta = { ...meta };
   for (const record of records) {
     const key = getRemoteDatabaseRecordKey(record);
-    if (!meta[key] || !isValidRecordKey(key)) continue;
+    if (!isValidRecordKey(key)) continue;
+    const previous = meta[key];
     next[key] = {
-      ...meta[key],
-      queuedAt: meta[key].queuedAt,
+      ...previous,
+      queuedAt: previous?.queuedAt ?? attemptedAt,
       lastAttemptAt: attemptedAt,
     };
   }
@@ -1619,10 +1629,10 @@ function markPendingCloudDatabasePushFailedRecords(
   for (const record of records) {
     const key = getRemoteDatabaseRecordKey(record);
     const previous = meta[key];
-    if (!previous || !isValidRecordKey(key)) continue;
+    if (!isValidRecordKey(key)) continue;
     next[key] = {
       ...previous,
-      queuedAt: previous.queuedAt,
+      queuedAt: previous?.queuedAt ?? failedAt,
       lastAttemptAt: failedAt,
       lastFailureAt: failedAt,
       lastError: reason,
