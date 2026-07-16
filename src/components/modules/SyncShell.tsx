@@ -5156,7 +5156,7 @@ function SyncDashboard() {
     try {
       const [settings, pendingEntries] = await Promise.all([
         listWorkspaceSettings(),
-        getPendingSyncLogEntries(500),
+        getPendingWorkspaceSettingSyncLogEntries(),
       ]);
       const plan = buildWorkspaceSettingsPendingSyncPlan({
         pendingEntries,
@@ -5295,7 +5295,7 @@ function SyncDashboard() {
         await Promise.all([
           listAccountSettings(),
           listModuleSettings(),
-          getPendingSyncLogEntries(500),
+          getPendingAccountModuleSettingSyncLogEntries(),
         ]);
       const plan = buildAccountModuleSettingsPendingSyncPlan({
         pendingEntries,

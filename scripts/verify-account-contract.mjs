@@ -3569,6 +3569,23 @@ check(
   "同步页手动上传 workspace settings 时应把失败原因写回 sync_log"
 );
 check(
+  syncDashboardShell.includes(
+    `const [settings, pendingEntries] = await Promise.all([
+        listWorkspaceSettings(),
+        getPendingWorkspaceSettingSyncLogEntries(),`
+  ),
+  "workspace_settings 上传应直接扫描设置专属 pending 队列，不能被大量页面/数据库 sync_log 挤出前 500 条"
+);
+check(
+  syncDashboardShell.includes(
+    `await Promise.all([
+          listAccountSettings(),
+          listModuleSettings(),
+          getPendingAccountModuleSettingSyncLogEntries(),`
+  ),
+  "account/module settings 上传应直接扫描账号/模块设置专属 pending 队列，不能被大量页面/数据库 sync_log 挤出前 500 条"
+);
+check(
   syncDashboardShell.includes("formatSyncLogStatus") &&
     syncDashboardShell.includes("失败待重试") &&
     syncDashboardShell.includes("下次重试") &&
