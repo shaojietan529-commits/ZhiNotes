@@ -131,6 +131,32 @@ export interface StableUseTwoDaySyncPolicy {
   user_facing_copy: string;
 }
 
+export interface StableUseAccountSyncPreflightPolicy {
+  policy_status: "metadata-only-scoped-core-preflight";
+  preflight_route: "/api/account/sync-preflight";
+  sync_center_route: "/modules/sync#account-sync-preflight";
+  required_metadata_domain_count: 4;
+  required_metadata_domains: Array<
+    | "page-cloud-index"
+    | "daily-cloud-metadata"
+    | "meeting-cloud-metadata"
+    | "database-cloud-index"
+  >;
+  page_metadata_required: true;
+  daily_metadata_required: true;
+  zhihui_metadata_required: true;
+  database_metadata_required: true;
+  ready_requires_all_required_domains_readable: true;
+  stale_or_partial_receipt_blocks_device_handoff: true;
+  metadata_only: true;
+  can_read_page_body_text: false;
+  can_read_database_row_values: false;
+  can_upload_workspace_data: false;
+  can_clear_local_cache: false;
+  can_enable_sync: false;
+  user_facing_copy: string;
+}
+
 export interface StableUseHealthResponse {
   format: "zhinote-stable-use-health";
   format_version: 1;
@@ -154,6 +180,7 @@ export interface StableUseHealthResponse {
   development_lane_policy: StableUseDevelopmentLanePolicy;
   bulk_import_first_paint_policy: StableUseBulkImportFirstPaintPolicy;
   two_day_sync_policy: StableUseTwoDaySyncPolicy;
+  account_sync_preflight_policy: StableUseAccountSyncPreflightPolicy;
   required_before_shipping_changes: string[];
   boundary: {
     deployment_health_metadata_only: true;
@@ -287,6 +314,34 @@ const STABLE_USE_TWO_DAY_SYNC_POLICY: StableUseTwoDaySyncPolicy = {
     "48 小时目标是私有 beta 可稳定使用：写作先本地保存，页面/每日纪要/ZhiHui/数据库/文件元数据/设置的同步状态必须可见；health check 只提供 scoped 验收入口，不能直接宣称 scoped 或完整同步 ready；页面/数据库必需回执必须 ok 且 pendingAfter=0，失败回执或 pendingAfter 未清不能换设备；只有同步中心 runbook 显示 ready、真实两设备 smoke 跑通并且 pending、failed、manual review 清零后，才能声称全平台同步可用。",
 };
 
+const STABLE_USE_ACCOUNT_SYNC_PREFLIGHT_POLICY: StableUseAccountSyncPreflightPolicy =
+  {
+    policy_status: "metadata-only-scoped-core-preflight",
+    preflight_route: "/api/account/sync-preflight",
+    sync_center_route: "/modules/sync#account-sync-preflight",
+    required_metadata_domain_count: 4,
+    required_metadata_domains: [
+      "page-cloud-index",
+      "daily-cloud-metadata",
+      "meeting-cloud-metadata",
+      "database-cloud-index",
+    ],
+    page_metadata_required: true,
+    daily_metadata_required: true,
+    zhihui_metadata_required: true,
+    database_metadata_required: true,
+    ready_requires_all_required_domains_readable: true,
+    stale_or_partial_receipt_blocks_device_handoff: true,
+    metadata_only: true,
+    can_read_page_body_text: false,
+    can_read_database_row_values: false,
+    can_upload_workspace_data: false,
+    can_clear_local_cache: false,
+    can_enable_sync: false,
+    user_facing_copy:
+      "两设备同步验收前，必须先在同步中心跑 metadata-only 账号同步预检；Page、每日纪要、ZhiHui、数据库四个核心域全部可读，且回执未过期，才允许继续做真实双设备 smoke。",
+  };
+
 function buildStableUseDevelopmentLanePolicy(input: {
   stableUseRoutes: string[];
   experimentalRoutes: string[];
@@ -383,6 +438,7 @@ export function buildStableUseHealthResponse(input: {
     bulk_import_first_paint_policy:
       STABLE_USE_BULK_IMPORT_FIRST_PAINT_POLICY,
     two_day_sync_policy: STABLE_USE_TWO_DAY_SYNC_POLICY,
+    account_sync_preflight_policy: STABLE_USE_ACCOUNT_SYNC_PREFLIGHT_POLICY,
     required_before_shipping_changes: [
       "Run the focused verifier for the changed surface.",
       "Run npm run verify:route-smoke for stable route, sidebar, module, account, Daily, ZhiHui, or sync-center changes.",
@@ -392,6 +448,6 @@ export function buildStableUseHealthResponse(input: {
     ],
     boundary: STABLE_USE_HEALTH_BOUNDARY,
     privacy_note:
-      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, static account-session uncertainty policy, static hot-cache safety policy, static development-lane policy, static bulk-import first-paint policy, and static two-day sync stabilization policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
+      "This health response is deployment metadata plus the static sync-domain taxonomy, static coverage report, static account-session uncertainty policy, static hot-cache safety policy, static development-lane policy, static bulk-import first-paint policy, static two-day sync stabilization policy, and static account sync preflight policy only. It does not read browser storage, local sync queues, page body text, database row values, file names, file bytes, secrets, tokens, cookies, or cloud payload bodies; it does not send external network requests, write server data, upload workspace data, clear cache, enable sync, or enable AI.",
   };
 }

@@ -176,6 +176,23 @@ function verifySourceContracts() {
   assertIncludes(healthSource, "failed_required_receipt_blocks_device_handoff: true", "failed required receipts must block device handoff");
   assertIncludes(healthSource, "uncleared_required_receipt_blocks_device_handoff: true", "uncleared required receipts must block device handoff");
   assertIncludes(healthSource, "pendingAfter=0", "two-day policy copy must mention pendingAfter=0 for handoff");
+  assertIncludes(healthSource, "account_sync_preflight_policy", "health response must expose the account sync preflight policy");
+  assertIncludes(healthSource, 'policy_status: "metadata-only-scoped-core-preflight"', "account preflight policy must stay metadata-only");
+  assertIncludes(healthSource, 'preflight_route: "/api/account/sync-preflight"', "account preflight policy must point to the preflight route");
+  assertIncludes(healthSource, 'sync_center_route: "/modules/sync#account-sync-preflight"', "account preflight policy must point to the sync-center preflight entry");
+  assertIncludes(healthSource, "required_metadata_domain_count: 4", "account preflight policy must require four core metadata domains");
+  assertIncludes(healthSource, '"page-cloud-index"', "account preflight policy must require page metadata");
+  assertIncludes(healthSource, '"daily-cloud-metadata"', "account preflight policy must require Daily metadata");
+  assertIncludes(healthSource, '"meeting-cloud-metadata"', "account preflight policy must require ZhiHui metadata");
+  assertIncludes(healthSource, '"database-cloud-index"', "account preflight policy must require database metadata");
+  assertIncludes(healthSource, "ready_requires_all_required_domains_readable: true", "account preflight policy must require every core domain to be readable");
+  assertIncludes(healthSource, "stale_or_partial_receipt_blocks_device_handoff: true", "account preflight policy must block handoff on stale or partial receipts");
+  assertIncludes(healthSource, "metadata_only: true", "account preflight policy must be metadata-only");
+  assertIncludes(healthSource, "can_read_page_body_text: false", "account preflight policy must not read page body text");
+  assertIncludes(healthSource, "can_read_database_row_values: false", "account preflight policy must not read database row values");
+  assertIncludes(healthSource, "can_upload_workspace_data: false", "account preflight policy must not upload workspace data");
+  assertIncludes(healthSource, "can_clear_local_cache: false", "account preflight policy must not clear local cache");
+  assertIncludes(healthSource, "can_enable_sync: false", "account preflight policy must not enable sync");
   assertIncludes(healthSource, 'coverage_source: "static-pending-domain-catalog"', "health response must mark coverage as static metadata");
   assertIncludes(healthSource, "git pull --rebase before git push; never force push.", "health response must preserve safe push guidance");
   for (const flag of requiredTopLevelFalseFlags) {
@@ -742,6 +759,68 @@ function verifyRouteResult(result) {
       "two_day_sync_policy.user_facing_copy must say failed required receipts block device handoff"
     );
   }
+  const accountSyncPreflightPolicy = body?.account_sync_preflight_policy ?? {};
+  assertEqual(
+    accountSyncPreflightPolicy.policy_status,
+    "metadata-only-scoped-core-preflight",
+    "account_sync_preflight_policy.policy_status"
+  );
+  assertEqual(
+    accountSyncPreflightPolicy.preflight_route,
+    "/api/account/sync-preflight",
+    "account_sync_preflight_policy.preflight_route"
+  );
+  assertEqual(
+    accountSyncPreflightPolicy.sync_center_route,
+    "/modules/sync#account-sync-preflight",
+    "account_sync_preflight_policy.sync_center_route"
+  );
+  assertEqual(
+    accountSyncPreflightPolicy.required_metadata_domain_count,
+    4,
+    "account_sync_preflight_policy.required_metadata_domain_count"
+  );
+  for (const domain of [
+    "page-cloud-index",
+    "daily-cloud-metadata",
+    "meeting-cloud-metadata",
+    "database-cloud-index",
+  ]) {
+    if (!accountSyncPreflightPolicy.required_metadata_domains?.includes(domain)) {
+      failures.push(
+        `account_sync_preflight_policy.required_metadata_domains missing ${domain}`
+      );
+    }
+  }
+  for (const [field, expected] of [
+    ["page_metadata_required", true],
+    ["daily_metadata_required", true],
+    ["zhihui_metadata_required", true],
+    ["database_metadata_required", true],
+    ["ready_requires_all_required_domains_readable", true],
+    ["stale_or_partial_receipt_blocks_device_handoff", true],
+    ["metadata_only", true],
+    ["can_read_page_body_text", false],
+    ["can_read_database_row_values", false],
+    ["can_upload_workspace_data", false],
+    ["can_clear_local_cache", false],
+    ["can_enable_sync", false],
+  ]) {
+    assertEqual(
+      accountSyncPreflightPolicy[field],
+      expected,
+      `account_sync_preflight_policy.${field}`
+    );
+  }
+  if (
+    !String(accountSyncPreflightPolicy.user_facing_copy ?? "").includes(
+      "四个核心域全部可读"
+    )
+  ) {
+    failures.push(
+      "account_sync_preflight_policy.user_facing_copy must require all four core domains"
+    );
+  }
   if (
     !Array.isArray(body?.required_before_shipping_changes) ||
     !body.required_before_shipping_changes.some((item) =>
@@ -1047,6 +1126,16 @@ function printReceipt(result, status, port, devServer) {
     two_day_sync_owner_smoke_required:
       result?.body?.two_day_sync_policy
         ?.owner_smoke_required_before_full_sync_claim ?? null,
+    account_sync_preflight_status:
+      result?.body?.account_sync_preflight_policy?.policy_status ?? null,
+    account_sync_preflight_required_domains:
+      result?.body?.account_sync_preflight_policy
+        ?.required_metadata_domain_count ?? null,
+    account_sync_preflight_metadata_only:
+      result?.body?.account_sync_preflight_policy?.metadata_only ?? null,
+    account_sync_preflight_blocks_partial_handoff:
+      result?.body?.account_sync_preflight_policy
+        ?.stale_or_partial_receipt_blocks_device_handoff ?? null,
     registered_sync_domains:
       result?.body?.sync_domain_coverage?.registered_domain_count ?? null,
     visible_registered_sync_domains:
