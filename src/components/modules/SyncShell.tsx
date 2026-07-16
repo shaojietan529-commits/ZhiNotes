@@ -24609,6 +24609,13 @@ function SyncUploadSafetyPanel({
                     ? "OK"
                     : "待确认"
                   : "无待补"
+              }${
+                drainReceipt.summary.oldest_required_sync_outcome_age_ms !==
+                null
+                  ? ` · 最老 ${formatQueuePendingAge(
+                      drainReceipt.summary.oldest_required_sync_outcome_age_ms
+                    )}`
+                  : ""
               }`}
             />
           </div>
@@ -25395,6 +25402,7 @@ function formatSyncUploadDrainOutcomeEvidenceStatus(
   if (status === "ready") return "已齐";
   if (status === "missing-required") return "缺回执";
   if (status === "failed-required") return "有失败";
+  if (status === "stale-required") return "已过期";
   return "未清零";
 }
 

@@ -15325,6 +15325,26 @@ function run() {
       "Sync upload drain receipt must expose outcome evidence status.",
     ],
     [
+      "stale-required",
+      "Sync upload drain receipt must block stale outcome evidence before device handoff.",
+    ],
+    [
+      "outcome_evidence_stale_after_ms",
+      "Sync upload drain receipt must publish the stale evidence window.",
+    ],
+    [
+      "outcome_evidence_stale_required_domains",
+      "Sync upload drain receipt must count stale required outcome domains.",
+    ],
+    [
+      "oldest_required_sync_outcome_age_ms",
+      "Sync upload drain receipt must expose the oldest required outcome age.",
+    ],
+    [
+      "SYNC_UPLOAD_DRAIN_OUTCOME_STALE_MS",
+      "Sync upload drain receipt must use an explicit freshness threshold.",
+    ],
+    [
       "reads_page_sync_outcome_summary: true",
       "Sync upload drain receipt must declare page sync outcome metadata reads.",
     ],

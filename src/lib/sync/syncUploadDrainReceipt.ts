@@ -11,7 +11,10 @@ export type SyncUploadDrainOutcomeEvidenceStatus =
   | "ready"
   | "missing-required"
   | "failed-required"
-  | "uncleared-required";
+  | "uncleared-required"
+  | "stale-required";
+
+const SYNC_UPLOAD_DRAIN_OUTCOME_STALE_MS = 30 * 60 * 1000;
 
 export interface SyncUploadDrainResultSnapshot {
   status: string;
@@ -99,6 +102,9 @@ export interface SyncUploadDrainReceipt {
     safe_to_switch_device_now: boolean;
     required_sync_outcomes_ready: boolean;
     outcome_evidence_status: SyncUploadDrainOutcomeEvidenceStatus;
+    outcome_evidence_stale_after_ms: number;
+    outcome_evidence_stale_required_domains: number;
+    oldest_required_sync_outcome_age_ms: number | null;
     page_sync_outcome_ready: boolean;
     database_sync_outcome_ready: boolean;
     file_sync_outcome_required: boolean;
@@ -212,6 +218,7 @@ export function buildSyncUploadDrainReceipt(
     fileBefore,
     fileAfter,
     fileResult: input.fileResult,
+    generatedAt,
   });
   const disabledDomains = domains.filter((domain) => !domain.enabled).length;
   const blockedStatuses = domains.filter(
@@ -285,6 +292,11 @@ export function buildSyncUploadDrainReceipt(
       safe_to_switch_device_now: safeToSwitchDeviceNow,
       required_sync_outcomes_ready: outcomeEvidence.requiredReady,
       outcome_evidence_status: outcomeEvidence.status,
+      outcome_evidence_stale_after_ms: SYNC_UPLOAD_DRAIN_OUTCOME_STALE_MS,
+      outcome_evidence_stale_required_domains:
+        outcomeEvidence.staleRequiredDomains,
+      oldest_required_sync_outcome_age_ms:
+        outcomeEvidence.oldestRequiredOutcomeAgeMs,
       page_sync_outcome_ready: outcomeEvidence.pageReady,
       database_sync_outcome_ready: outcomeEvidence.databaseReady,
       file_sync_outcome_required: outcomeEvidence.fileRequired,
@@ -313,9 +325,12 @@ function buildOutcomeEvidence(input: {
   fileBefore: number;
   fileAfter: number;
   fileResult: SyncUploadDrainResultSnapshot;
+  generatedAt: string;
 }): {
   requiredReady: boolean;
   status: SyncUploadDrainOutcomeEvidenceStatus;
+  staleRequiredDomains: number;
+  oldestRequiredOutcomeAgeMs: number | null;
   pageReady: boolean;
   databaseReady: boolean;
   fileRequired: boolean;
@@ -323,14 +338,23 @@ function buildOutcomeEvidence(input: {
 } {
   const pageOutcome = input.afterPageStatus.lastOutcome;
   const databaseOutcome = input.afterDatabaseStatus.lastOutcome;
+  const pageOutcomeAgeMs = getOutcomeAgeMs(pageOutcome?.at, input.generatedAt);
+  const databaseOutcomeAgeMs = getOutcomeAgeMs(
+    databaseOutcome?.at,
+    input.generatedAt
+  );
+  const pageOutcomeFresh = isOutcomeFresh(pageOutcomeAgeMs);
+  const databaseOutcomeFresh = isOutcomeFresh(databaseOutcomeAgeMs);
   const pageReady =
     input.afterPageStatus.enabled &&
     pageOutcome?.status === "ok" &&
-    pageOutcome.pendingAfter === 0;
+    pageOutcome.pendingAfter === 0 &&
+    pageOutcomeFresh;
   const databaseReady =
     input.afterDatabaseStatus.enabled &&
     databaseOutcome?.status === "ok" &&
-    databaseOutcome.pendingAfter === 0;
+    databaseOutcome.pendingAfter === 0 &&
+    databaseOutcomeFresh;
   const fileRequired =
     input.fileBefore > 0 ||
     input.fileAfter > 0 ||
@@ -342,17 +366,46 @@ function buildOutcomeEvidence(input: {
     (input.fileResult.skipped ?? 0) > 0 ||
     input.fileResult.status !== "ok";
   const fileOutcome = input.afterFileStatus.lastOutcome;
+  const fileOutcomeAgeMs = getOutcomeAgeMs(fileOutcome?.at, input.generatedAt);
+  const fileOutcomeFresh = isOutcomeFresh(fileOutcomeAgeMs);
   const fileReady =
     !fileRequired ||
     (fileOutcome?.status === "ok" &&
       fileOutcome.pendingAfter === 0 &&
       input.afterFileStatus.failed === 0 &&
-      input.afterFileStatus.manualReviewCount === 0);
+      input.afterFileStatus.manualReviewCount === 0 &&
+      fileOutcomeFresh);
+  const staleRequiredDomains =
+    (input.afterPageStatus.enabled &&
+    pageOutcome?.status === "ok" &&
+    pageOutcome.pendingAfter === 0 &&
+    !pageOutcomeFresh
+      ? 1
+      : 0) +
+    (input.afterDatabaseStatus.enabled &&
+    databaseOutcome?.status === "ok" &&
+    databaseOutcome.pendingAfter === 0 &&
+    !databaseOutcomeFresh
+      ? 1
+      : 0) +
+    (fileRequired &&
+    fileOutcome?.status === "ok" &&
+    fileOutcome.pendingAfter === 0 &&
+    !fileOutcomeFresh
+      ? 1
+      : 0);
+  const oldestRequiredOutcomeAgeMs = getOldestOutcomeAgeMs([
+    pageOutcomeAgeMs,
+    databaseOutcomeAgeMs,
+    fileRequired ? fileOutcomeAgeMs : null,
+  ]);
 
   if (pageReady && databaseReady && fileReady) {
     return {
       requiredReady: true,
       status: "ready",
+      staleRequiredDomains,
+      oldestRequiredOutcomeAgeMs,
       pageReady,
       databaseReady,
       fileRequired,
@@ -370,20 +423,46 @@ function buildOutcomeEvidence(input: {
     (pageOutcome?.pendingAfter ?? 0) > 0 ||
     (databaseOutcome?.pendingAfter ?? 0) > 0 ||
     (fileRequired && (fileOutcome?.pendingAfter ?? 0) > 0);
+  const hasStaleRequired = staleRequiredDomains > 0;
   const status: SyncUploadDrainOutcomeEvidenceStatus = hasFailedRequired
     ? "failed-required"
     : hasUnclearedRequired
       ? "uncleared-required"
-      : "missing-required";
+      : hasStaleRequired
+        ? "stale-required"
+        : "missing-required";
 
   return {
     requiredReady: false,
     status,
+    staleRequiredDomains,
+    oldestRequiredOutcomeAgeMs,
     pageReady,
     databaseReady,
     fileRequired,
     fileReady,
   };
+}
+
+function getOutcomeAgeMs(
+  outcomeAt: string | null | undefined,
+  generatedAt: string
+): number | null {
+  if (!outcomeAt) return null;
+  const outcomeMs = Date.parse(outcomeAt);
+  const generatedMs = Date.parse(generatedAt);
+  if (Number.isNaN(outcomeMs) || Number.isNaN(generatedMs)) return null;
+  return Math.max(0, generatedMs - outcomeMs);
+}
+
+function isOutcomeFresh(ageMs: number | null): boolean {
+  return ageMs !== null && ageMs <= SYNC_UPLOAD_DRAIN_OUTCOME_STALE_MS;
+}
+
+function getOldestOutcomeAgeMs(ages: Array<number | null>): number | null {
+  const values = ages.filter((age): age is number => age !== null);
+  if (values.length === 0) return null;
+  return Math.max(...values);
 }
 
 function getPageWaitingRows(status: PendingCloudPageSyncStatus): number {
@@ -437,6 +516,9 @@ function getNextAction(input: {
   }
   if (input.outcomeEvidenceStatus === "uncleared-required") {
     return "最近同步回执仍显示 pendingAfter 未归零，继续等待后台补传或再次运行补传全部。";
+  }
+  if (input.outcomeEvidenceStatus === "stale-required") {
+    return "最近同步回执已过期；重新运行补传全部，拿到新的 outcome=ok、pendingAfter=0 后再换设备。";
   }
   if (input.manualReviewRowsAfter > 0) {
     return "存在反复失败的记录，导出处理包并按 page id、database key 或 file id 做人工排查。";

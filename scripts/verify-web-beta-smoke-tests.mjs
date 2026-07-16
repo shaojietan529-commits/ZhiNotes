@@ -4389,6 +4389,24 @@ function run() {
   assertIncludes(
     files.syncUploadDrainReceipt,
     syncUploadDrainReceipt,
+    "stale-required",
+    "Sync upload drain receipt must block stale outcome evidence before device handoff."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "outcome_evidence_stale_after_ms",
+    "Sync upload drain receipt must publish the stale evidence window."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
+    "oldest_required_sync_outcome_age_ms",
+    "Sync upload drain receipt must expose the oldest required outcome age."
+  );
+  assertIncludes(
+    files.syncUploadDrainReceipt,
+    syncUploadDrainReceipt,
     "reads_page_sync_outcome_summary: true",
     "Sync upload drain receipt must declare that it reads page sync outcome metadata."
   );
