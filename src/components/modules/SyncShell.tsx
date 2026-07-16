@@ -2618,6 +2618,10 @@ function SyncDashboard() {
     useState<AccountSyncPreflightReceipt | null>(() =>
       readStoredAccountSyncPreflightReceipt()
     );
+  const [
+    accountMetadataCacheWarmupMessage,
+    setAccountMetadataCacheWarmupMessage,
+  ] = useState<CloudAlphaMessage | null>(null);
   const [accountBridgeProbeReceipt, setAccountBridgeProbeReceipt] =
     useState<AccountSyncBridgeProbeReceipt | null>(() =>
       readStoredAccountSyncBridgeProbeReceipt()
@@ -6818,8 +6822,9 @@ function SyncDashboard() {
 
   const handleWarmAccountSyncMetadataCaches = useCallback(async () => {
     setBusyQueueAction("account-sync-metadata-cache-warmup");
+    setAccountMetadataCacheWarmupMessage(null);
     try {
-      await Promise.all([
+      const [dailyResult, meetingResult] = await Promise.all([
         fetchDailyCloudMetadata({
           startDate: CORE_MANIFEST_DATE_START_DATE,
           endDate: CORE_MANIFEST_DATE_END_DATE,
@@ -6844,6 +6849,29 @@ function SyncDashboard() {
       ]);
       setPagePendingStatus(nextPagePending);
       setDatabasePendingStatus(nextDatabasePending);
+      const unresolved = [
+        dailyResult.status === "ok"
+          ? null
+          : `Daily：${formatPageSyncStatus(dailyResult.status)}${
+              dailyResult.message ? `，${dailyResult.message}` : ""
+            }`,
+        meetingResult.status === "ok"
+          ? null
+          : `ZhiHui：${formatPageSyncStatus(meetingResult.status)}${
+              meetingResult.message ? `，${meetingResult.message}` : ""
+            }`,
+      ].filter((item): item is string => Boolean(item));
+      setAccountMetadataCacheWarmupMessage({
+        tone: unresolved.length > 0 ? "warning" : "success",
+        title:
+          unresolved.length > 0
+            ? "metadata cache 修复仍需重试"
+            : "metadata cache 已重新体检",
+        detail:
+          unresolved.length > 0
+            ? `${unresolved.join("；")}。本地输入和 pending 队列已保留。`
+            : "已显式请求 Daily/ZhiHui metadata 并刷新账号同步体检；没有上传、清缓存或改正文。",
+      });
     } catch (err) {
       console.error("[Zhinote] Failed to warm account sync metadata caches:", err);
       const receipt = buildAccountSyncPreflightClientErrorReceipt(
@@ -6851,6 +6879,14 @@ function SyncDashboard() {
       );
       persistAccountSyncPreflightReceipt(receipt);
       setAccountSyncPreflightReceipt(receipt);
+      setAccountMetadataCacheWarmupMessage({
+        tone: "warning",
+        title: "metadata cache 修复暂未完成",
+        detail:
+          err instanceof Error
+            ? `${err.message}。本地输入和 pending 队列已保留。`
+            : "未知错误。本地输入和 pending 队列已保留。",
+      });
     } finally {
       setBusyQueueAction(null);
     }
@@ -8612,6 +8648,7 @@ function SyncDashboard() {
           receipt={accountSyncPreflightReceipt}
           busy={busyQueueAction === "account-sync-preflight"}
           warmBusy={busyQueueAction === "account-sync-metadata-cache-warmup"}
+          warmMessage={accountMetadataCacheWarmupMessage}
           onRun={() => void handleRunAccountSyncPreflight()}
           onWarmMetadataCaches={() => void handleWarmAccountSyncMetadataCaches()}
         />
@@ -24880,12 +24917,14 @@ function AccountSyncPreflightPanel({
   receipt,
   busy,
   warmBusy,
+  warmMessage,
   onRun,
   onWarmMetadataCaches,
 }: {
   receipt: AccountSyncPreflightReceipt | null;
   busy: boolean;
   warmBusy: boolean;
+  warmMessage: CloudAlphaMessage | null;
   onRun: () => void;
   onWarmMetadataCaches: () => void;
 }) {
@@ -25078,6 +25117,21 @@ function AccountSyncPreflightPanel({
           {hasMetadataCacheGap ? (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
               {ACCOUNT_SYNC_METADATA_CACHE_WARMUP_NOTE}
+            </p>
+          ) : null}
+          {warmMessage ? (
+            <p
+              data-testid="account-sync-metadata-cache-warmup-message"
+              className={`rounded-md px-3 py-2 text-[11px] leading-4 ${
+                warmMessage.tone === "success"
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                  : warmMessage.tone === "error"
+                    ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                    : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+              }`}
+            >
+              <span className="font-medium">{warmMessage.title}</span>
+              <span className="ml-1">{warmMessage.detail}</span>
             </p>
           ) : null}
         </div>

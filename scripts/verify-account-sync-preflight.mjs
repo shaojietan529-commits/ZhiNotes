@@ -237,6 +237,10 @@ function run() {
       "Sync Center must expose a manual Daily/ZhiHui metadata cache warmup button.",
     ],
     [
+      "data-testid=\"account-sync-metadata-cache-warmup-message\"",
+      "Sync Center must show a completion or retry message after metadata cache warmup.",
+    ],
+    [
       "fetchDailyCloudMetadata({",
       "Sync Center metadata cache warmup must explicitly request Daily cloud metadata.",
     ],
@@ -251,6 +255,10 @@ function run() {
     [
       "不上传、不清缓存、不改正文或数据库行值",
       "Sync Center metadata cache warmup copy must disclose that it does not upload, clear cache, or mutate content.",
+    ],
+    [
+      "本地输入和 pending 队列已保留",
+      "Sync Center metadata cache warmup failures must keep local-first continuity visible.",
     ],
     [
       "data-account-sync-preflight-status",
