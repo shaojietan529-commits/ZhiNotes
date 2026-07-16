@@ -332,6 +332,26 @@ function run() {
       "Sync UI must expose per-step owner results.",
     ],
     [
+      "TWO_DEVICE_SMOKE_SCOPED_OWNER_STEP_IDS",
+      "Sync UI must define a scoped 48h owner-evidence step set.",
+    ],
+    [
+      "scoped_evidence_ready",
+      "Sync UI owner draft summary must expose whether scoped owner evidence is ready.",
+    ],
+    [
+      "data-two-device-smoke-owner-draft-scoped-ready",
+      "Sync UI must expose scoped owner evidence readiness as a stable data attribute.",
+    ],
+    [
+      'data-testid="two-device-smoke-owner-scoped-evidence"',
+      "Sync UI must render a visible scoped owner evidence summary.",
+    ],
+    [
+      "不等于完整平台同步通过",
+      "Scoped owner evidence copy must not claim full-platform sync completion.",
+    ],
+    [
       "onUpdateOwnerDraftResult",
       "Sync UI must let the owner record pass/fail/blocked results.",
     ],

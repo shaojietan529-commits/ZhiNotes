@@ -746,6 +746,13 @@ type TwoDeviceSmokeOwnerDraftSummary = {
   failed: number;
   blocked: number;
   not_recorded: number;
+  scoped_status: "empty" | "in-progress" | "complete" | "has-failures";
+  scoped_evidence_ready: boolean;
+  scoped_total: number;
+  scoped_passed: number;
+  scoped_failed: number;
+  scoped_blocked: number;
+  scoped_not_recorded: number;
   updated_at: string | null;
 };
 type CoreManifestCompareStatus =
@@ -915,6 +922,17 @@ const ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE =
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY =
   "zhinote.sync.twoDeviceSmokeOwnerDraft.v1";
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_NOTE_LIMIT = 180;
+const TWO_DEVICE_SMOKE_SCOPED_OWNER_STEP_IDS = [
+  "same-account-session",
+  "account-sync-bridge-probe",
+  "sync-domain-coverage-check",
+  "page-note-sync",
+  "daily-note-sync",
+  "zhihui-meeting-sync",
+  "database-row-sync",
+  "file-report-metadata-sync",
+  "final-device-handoff",
+] as const;
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_PRIVACY_NOTE =
   "本地验收草稿只保存 smoke 步骤 ID、通过/失败/阻塞状态和用户手写的脱敏短备注；不要写页面正文、会议链接、文件名、数据库行值、token 或凭据。";
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_POLICY =
@@ -1248,10 +1266,10 @@ function updateTwoDeviceSmokeOwnerDraftStep(input: {
   };
 }
 
-function buildTwoDeviceSmokeOwnerDraftSummary(
+function countTwoDeviceSmokeOwnerDraftResults(
   draft: TwoDeviceSmokeOwnerDraft | null,
   stepIds: string[]
-): TwoDeviceSmokeOwnerDraftSummary {
+) {
   let passed = 0;
   let failed = 0;
   let blocked = 0;
@@ -1283,6 +1301,36 @@ function buildTwoDeviceSmokeOwnerDraftSummary(
     failed,
     blocked,
     not_recorded: notRecorded,
+  };
+}
+
+function buildTwoDeviceSmokeOwnerDraftSummary(
+  draft: TwoDeviceSmokeOwnerDraft | null,
+  stepIds: string[],
+  scopedStepIds: readonly string[] = TWO_DEVICE_SMOKE_SCOPED_OWNER_STEP_IDS
+): TwoDeviceSmokeOwnerDraftSummary {
+  const full = countTwoDeviceSmokeOwnerDraftResults(draft, stepIds);
+  const scoped = countTwoDeviceSmokeOwnerDraftResults(
+    draft,
+    scopedStepIds.filter((stepId) => stepIds.includes(stepId))
+  );
+  return {
+    status: full.status,
+    total: full.total,
+    passed: full.passed,
+    failed: full.failed,
+    blocked: full.blocked,
+    not_recorded: full.not_recorded,
+    scoped_status: scoped.status,
+    scoped_evidence_ready:
+      scoped.total > 0 &&
+      scoped.status === "complete" &&
+      scoped.passed === scoped.total,
+    scoped_total: scoped.total,
+    scoped_passed: scoped.passed,
+    scoped_failed: scoped.failed,
+    scoped_blocked: scoped.blocked,
+    scoped_not_recorded: scoped.not_recorded,
     updated_at: draft?.updated_at ?? null,
   };
 }
@@ -25507,6 +25555,21 @@ function TwoDeviceSyncSmokeRunbookPanel({
       data-two-device-smoke-owner-draft-not-recorded={String(
         ownerDraftSummary.not_recorded
       )}
+      data-two-device-smoke-owner-draft-scoped-status={
+        ownerDraftSummary.scoped_status
+      }
+      data-two-device-smoke-owner-draft-scoped-ready={String(
+        ownerDraftSummary.scoped_evidence_ready
+      )}
+      data-two-device-smoke-owner-draft-scoped-passed={String(
+        ownerDraftSummary.scoped_passed
+      )}
+      data-two-device-smoke-owner-draft-scoped-total={String(
+        ownerDraftSummary.scoped_total
+      )}
+      data-two-device-smoke-owner-draft-scoped-not-recorded={String(
+        ownerDraftSummary.scoped_not_recorded
+      )}
       data-two-device-smoke-owner-draft-storage="localStorage"
       data-two-device-smoke-owner-draft-privacy="metadata-only"
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
@@ -25653,6 +25716,27 @@ function TwoDeviceSyncSmokeRunbookPanel({
               {ownerDraftSummary.failed}；阻塞 {ownerDraftSummary.blocked}；未记录{" "}
               {ownerDraftSummary.not_recorded}。这个草稿只保存在本机浏览器，
               不会上传，也不会让系统自动宣称两端同步通过。
+            </p>
+            <p
+              className="mt-2 rounded-md bg-white/70 px-2 py-1 text-[11px] text-blue-800 dark:bg-blue-950/60 dark:text-blue-100"
+              data-testid="two-device-smoke-owner-scoped-evidence"
+              data-two-device-smoke-owner-scoped-status={
+                ownerDraftSummary.scoped_status
+              }
+              data-two-device-smoke-owner-scoped-ready={String(
+                ownerDraftSummary.scoped_evidence_ready
+              )}
+            >
+              48h scoped 证据：
+              {ownerDraftSummary.scoped_evidence_ready
+                ? "已完成"
+                : "未完成"}
+              ，核心步骤 {ownerDraftSummary.scoped_passed}/
+              {ownerDraftSummary.scoped_total} 通过；失败{" "}
+              {ownerDraftSummary.scoped_failed}；阻塞{" "}
+              {ownerDraftSummary.scoped_blocked}；未记录{" "}
+              {ownerDraftSummary.scoped_not_recorded}。这个状态只说明 scoped
+              beta owner evidence 是否填齐，不等于完整平台同步通过。
             </p>
           </div>
           <div className="shrink-0 rounded-md bg-white/70 px-2 py-1 text-[11px] text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
