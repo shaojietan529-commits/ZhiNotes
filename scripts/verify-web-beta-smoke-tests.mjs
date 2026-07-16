@@ -1529,6 +1529,10 @@ function run() {
       "Daily note creation must release a stale create lock before refusing a new local-first draft.",
     ],
     [
+      "releaseStaleDailyCreateLock();",
+      "Daily note create pointer activation must release stale locks before treating + as blocked.",
+    ],
+    [
       "已释放 + 按钮",
       "Daily note creation stale-lock recovery must visibly tell the user they can retry.",
     ],
@@ -6289,6 +6293,18 @@ function run() {
     [
       'publishCalendarStatus("optimistic-draft"',
       "Meeting calendar must make local-first meeting creation visible.",
+    ],
+    [
+      "MEETING_CREATE_STUCK_UNLOCK_MS",
+      "Meeting calendar creation must define a bounded stale-lock release so one stuck create cannot disable all + buttons.",
+    ],
+    [
+      "releaseStaleMeetingCreateLock(now);",
+      "Meeting calendar create activation must release a stale create lock before refusing a new local-first draft.",
+    ],
+    [
+      "会议新建等待过久，已释放 + 按钮",
+      "Meeting calendar stale-lock recovery must visibly tell the user they can retry.",
     ],
     [
       "includeUnindexedFallback: false",
@@ -13893,9 +13909,11 @@ function run() {
   );
   for (const snippet of [
     "const creatingMeetingDateKeyRef = useRef<string | null>(null)",
+    "const creatingMeetingStartedAtRef = useRef<number | null>(null)",
     "creatingMeetingDateKeyRef.current = dateKey",
     "const addMeetingOnPointerDown = useCallback",
     "const addMeetingOnMouseDown = useCallback",
+    "releaseStaleMeetingCreateLock();",
     "onPointerDown={(event) => addMeetingOnPointerDown(event, key)}",
     "onMouseDown={(event) => addMeetingOnMouseDown(event, key)}",
     "type MeetingCreateButtonState =",

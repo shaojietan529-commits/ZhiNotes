@@ -2156,11 +2156,14 @@ export default function DailyNotesShell() {
       event: MouseEvent<HTMLButtonElement> | PointerEvent<HTMLButtonElement>,
       dateKey: string
     ) => {
+      if (creatingDateKeyRef.current) {
+        releaseStaleDailyCreateLock();
+      }
       if (creatingDateKeyRef.current) return;
       event.preventDefault();
       runDailyCreateActivation(dateKey);
     },
-    [runDailyCreateActivation]
+    [releaseStaleDailyCreateLock, runDailyCreateActivation]
   );
 
   const addNoteOnMouseDown = useCallback(

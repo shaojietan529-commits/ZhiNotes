@@ -152,6 +152,7 @@ const MEETING_PEEK_EDITOR_WARMUP_IDLE_TIMEOUT_MS = 2000;
 // Keep create fallbacks short so calendar + never feels inert on heavy imports.
 const MEETING_PEEK_CREATE_READY_RETRY_MS = 450;
 const MEETING_CREATE_ACTIVATION_DEDUPE_MS = 800;
+const MEETING_CREATE_STUCK_UNLOCK_MS = 5000;
 const MEETING_INTAKE_TIMEOUT_MS = 8000;
 const MEETING_AGENT_QUEUE_TIMEOUT_MS = 12000;
 const MEETING_LOCAL_METADATA_REFRESH_DELAY_MS = 120;
@@ -458,6 +459,7 @@ export default function MeetingScheduleShell() {
     string | null
   >(null);
   const creatingMeetingDateKeyRef = useRef<string | null>(null);
+  const creatingMeetingStartedAtRef = useRef<number | null>(null);
   const meetingCreateActivationRef = useRef<{
     dateKey: string;
     startedAt: number;
@@ -2010,6 +2012,45 @@ export default function MeetingScheduleShell() {
     ]
   );
 
+  const releaseStaleMeetingCreateLock = useCallback(
+    (now = getLocalPerformanceNow()) => {
+      const lockedDateKey = creatingMeetingDateKeyRef.current;
+      const lockedStartedAt = creatingMeetingStartedAtRef.current;
+      if (!lockedDateKey || lockedStartedAt === null) return false;
+      if (now - lockedStartedAt < MEETING_CREATE_STUCK_UNLOCK_MS) return false;
+
+      const lockedDraftPageId =
+        openingDraftRef.current?.dateKey === lockedDateKey
+          ? openingDraftRef.current.pageId
+          : null;
+      creatingMeetingDateKeyRef.current = null;
+      creatingMeetingStartedAtRef.current = null;
+      meetingCreateActivationRef.current = null;
+      setCreatingMeetingDateKey((current) =>
+        current === lockedDateKey ? null : current
+      );
+      setOpeningDraftAndRef((current) =>
+        current?.dateKey === lockedDateKey ? null : current
+      );
+      if (lockedDraftPageId) {
+        setOpeningMeetingId((current) =>
+          current === lockedDraftPageId ? null : current
+        );
+        setPeekInitialPage((current) =>
+          current?.id === lockedDraftPageId ? null : current
+        );
+        setPeekPageId((current) =>
+          current === lockedDraftPageId ? null : current
+        );
+      }
+      setIntakeMessage(
+        `${lockedDateKey} 的会议新建等待过久，已释放 + 按钮；本地会议草稿不会被删除，可以重新点击。`
+      );
+      return true;
+    },
+    [setOpeningDraftAndRef]
+  );
+
   const createMeetingPage = useCallback(
     (
       draft: MeetingFormState,
@@ -2542,8 +2583,13 @@ export default function MeetingScheduleShell() {
 
   const handleCreate = useCallback(() => {
     const targetDateKey = form.date || toDateKey(new Date());
+    const createStartedAt = getLocalPerformanceNow();
+    if (creatingMeetingDateKeyRef.current !== null) {
+      releaseStaleMeetingCreateLock(createStartedAt);
+    }
     if (creatingMeetingDateKeyRef.current !== null) return;
     creatingMeetingDateKeyRef.current = targetDateKey;
+    creatingMeetingStartedAtRef.current = createStartedAt;
     setCreatingMeetingDateKey(targetDateKey);
     setIntakeError("");
     setIntakeMessage("正在创建会议页面，后台会继续保存到账号云端…");
@@ -2567,6 +2613,7 @@ export default function MeetingScheduleShell() {
       window.setTimeout(() => {
         if (creatingMeetingDateKeyRef.current === targetDateKey) {
           creatingMeetingDateKeyRef.current = null;
+          creatingMeetingStartedAtRef.current = null;
         }
         if (!mountedRef.current) return;
         setCreatingMeetingDateKey((current) =>
@@ -2579,6 +2626,7 @@ export default function MeetingScheduleShell() {
     focusCalendarDate,
     form,
     openCreatedMeetingPage,
+    releaseStaleMeetingCreateLock,
   ]);
 
   const handleImportInvite = useCallback(async () => {
@@ -3008,8 +3056,13 @@ export default function MeetingScheduleShell() {
 
   const quickCreateMeetingForDate = useCallback(
     (dateKey: string) => {
+      const createStartedAt = getLocalPerformanceNow();
+      if (creatingMeetingDateKeyRef.current !== null) {
+        releaseStaleMeetingCreateLock(createStartedAt);
+      }
       if (creatingMeetingDateKeyRef.current !== null) return;
       creatingMeetingDateKeyRef.current = dateKey;
+      creatingMeetingStartedAtRef.current = createStartedAt;
       setCreatingMeetingDateKey(dateKey);
       setIntakeError("");
       setIntakeMessage(`${dateKey} 的会议页面正在弹出，后台会继续保存到账号云端…`);
@@ -3042,6 +3095,7 @@ export default function MeetingScheduleShell() {
         window.setTimeout(() => {
           if (creatingMeetingDateKeyRef.current === dateKey) {
             creatingMeetingDateKeyRef.current = null;
+            creatingMeetingStartedAtRef.current = null;
           }
           if (!mountedRef.current) return;
           setCreatingMeetingDateKey((current) =>
@@ -3054,12 +3108,16 @@ export default function MeetingScheduleShell() {
       createMeetingPage,
       focusCalendarDate,
       openCreatedMeetingPage,
+      releaseStaleMeetingCreateLock,
     ]
   );
 
   const claimMeetingCreateActivation = useCallback((dateKey: string) => {
-    if (creatingMeetingDateKeyRef.current !== null) return false;
     const now = getLocalPerformanceNow();
+    if (creatingMeetingDateKeyRef.current !== null) {
+      releaseStaleMeetingCreateLock(now);
+    }
+    if (creatingMeetingDateKeyRef.current !== null) return false;
     const current = meetingCreateActivationRef.current;
     if (
       current?.dateKey === dateKey &&
@@ -3069,7 +3127,7 @@ export default function MeetingScheduleShell() {
     }
     meetingCreateActivationRef.current = { dateKey, startedAt: now };
     return true;
-  }, []);
+  }, [releaseStaleMeetingCreateLock]);
 
   const runMeetingCreateActivation = useCallback(
     (dateKey: string) => {
@@ -3089,21 +3147,27 @@ export default function MeetingScheduleShell() {
   const addMeetingOnMouseDown = useCallback(
     (event: MouseEvent<HTMLButtonElement>, dateKey: string) => {
       if (event.button !== 0) return;
+      if (creatingMeetingDateKeyRef.current !== null) {
+        releaseStaleMeetingCreateLock();
+      }
       if (creatingMeetingDateKeyRef.current !== null) return;
       event.preventDefault();
       runMeetingCreateActivation(dateKey);
     },
-    [runMeetingCreateActivation]
+    [releaseStaleMeetingCreateLock, runMeetingCreateActivation]
   );
 
   const addMeetingOnPointerDown = useCallback(
     (event: PointerEvent<HTMLButtonElement>, dateKey: string) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (creatingMeetingDateKeyRef.current !== null) {
+        releaseStaleMeetingCreateLock();
+      }
       if (creatingMeetingDateKeyRef.current !== null) return;
       event.preventDefault();
       runMeetingCreateActivation(dateKey);
     },
-    [runMeetingCreateActivation]
+    [releaseStaleMeetingCreateLock, runMeetingCreateActivation]
   );
 
   const addMeetingOnClick = useCallback(
