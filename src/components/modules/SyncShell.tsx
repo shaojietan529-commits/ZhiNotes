@@ -26197,6 +26197,8 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
       data-account-sync-bridge-blocked-domains={
         gate.summary.account_sync_bridge_blocked_domains
       }
+      data-two-day-user-decision-mode={gate.user_decision.mode}
+      data-two-day-user-decision-next-action={gate.user_decision.next_action}
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -26230,6 +26232,55 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
           {gate.summary.blockers} block
         </div>
       </div>
+
+      <article
+        data-testid="two-day-user-decision"
+        data-two-day-user-decision-mode={gate.user_decision.mode}
+        data-two-day-user-decision-safe-actions={
+          gate.user_decision.safe_actions.length
+        }
+        data-two-day-user-decision-blocked-actions={
+          gate.user_decision.blocked_actions.length
+        }
+        className="mt-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-3 text-xs leading-5 text-blue-900 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-100"
+      >
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="text-sm font-semibold">
+              当前建议：{gate.user_decision.headline}
+            </div>
+            <p className="mt-1">{gate.user_decision.detail}</p>
+            <p className="mt-2 rounded-md bg-white/70 px-2 py-1 text-[11px] text-blue-800 dark:bg-blue-950/60 dark:text-blue-100">
+              主要风险：{gate.user_decision.primary_risk}
+            </p>
+          </div>
+          <div className="shrink-0 rounded-md bg-white/70 px-2 py-1 text-[11px] font-medium text-blue-800 dark:bg-blue-950/60 dark:text-blue-100">
+            {formatTwoDayUserDecisionMode(gate.user_decision.mode)}
+          </div>
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
+          <div>
+            <div className="font-semibold">现在可以做</div>
+            <ul className="mt-1 space-y-1">
+              {gate.user_decision.safe_actions.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div className="font-semibold">现在不要做</div>
+            <ul className="mt-1 space-y-1">
+              {gate.user_decision.blocked_actions.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div className="font-semibold">唯一下一步</div>
+            <p className="mt-1">{gate.user_decision.next_action}</p>
+          </div>
+        </div>
+      </article>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <CacheRebuildFact
@@ -26912,6 +26963,18 @@ function TwoDayUsabilityVerdictPill({
       {labels[verdict]}
     </span>
   );
+}
+
+function formatTwoDayUserDecisionMode(
+  mode: TwoDayUsabilityGate["user_decision"]["mode"]
+) {
+  const labels: Record<TwoDayUsabilityGate["user_decision"]["mode"], string> = {
+    "ready-for-owner-smoke": "可开始验收",
+    "drain-before-handoff": "先别换设备",
+    "continue-local-use": "可继续使用",
+    "p0-blocked": "P0阻断",
+  };
+  return labels[mode];
 }
 
 function TwoDayUsabilityGatePill({

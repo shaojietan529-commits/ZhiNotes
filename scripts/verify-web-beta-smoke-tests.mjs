@@ -3595,6 +3595,34 @@ function run() {
       "Two-day usability gate must distinguish scoped beta feasibility from full-platform readiness.",
     ],
     [
+      "user_decision",
+      "Two-day usability gate must expose a user-facing decision summary.",
+    ],
+    [
+      "ready-for-owner-smoke",
+      "Two-day usability gate must distinguish when real owner smoke can start.",
+    ],
+    [
+      "drain-before-handoff",
+      "Two-day usability gate must warn the user to drain queues before switching devices.",
+    ],
+    [
+      "continue-local-use",
+      "Two-day usability gate must support a stable current-device use mode.",
+    ],
+    [
+      "p0-blocked",
+      "Two-day usability gate must expose P0 blocked mode.",
+    ],
+    [
+      "可以继续本机写作，但先别换设备",
+      "Two-day usability gate must give a plain Chinese user decision during queue drain.",
+    ],
+    [
+      "不要把另一台设备当作最新版本",
+      "Two-day usability gate must explicitly block device handoff before queues are clear.",
+    ],
+    [
       "accountSyncBridgeProbe?:",
       "Two-day usability gate must accept the account sync bridge read-only probe receipt.",
     ],
@@ -3946,6 +3974,30 @@ function run() {
     [
       "data-can-target-two-day-sync-beta",
       "Sync UI must expose whether scoped two-day sync beta is targetable.",
+    ],
+    [
+      "data-testid=\"two-day-user-decision\"",
+      "Sync UI must render the plain-language two-day user decision.",
+    ],
+    [
+      "data-two-day-user-decision-mode",
+      "Sync UI must expose the two-day user decision mode.",
+    ],
+    [
+      "当前建议：",
+      "Sync UI must show the two-day user decision as a current recommendation.",
+    ],
+    [
+      "现在可以做",
+      "Sync UI must list safe actions for the current two-day sync state.",
+    ],
+    [
+      "现在不要做",
+      "Sync UI must list blocked actions for the current two-day sync state.",
+    ],
+    [
+      "唯一下一步",
+      "Sync UI must show one next action for the current two-day sync state.",
     ],
     [
       "data-two-day-next-best-action",

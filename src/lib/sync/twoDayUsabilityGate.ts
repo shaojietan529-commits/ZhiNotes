@@ -13,6 +13,12 @@ export type TwoDayDeliveryAnswer = "yes-scoped-beta" | "not-safe-yet";
 
 export type TwoDayUsabilityGateStatus = "pass" | "warn" | "block";
 
+export type TwoDayUsabilityDecisionMode =
+  | "ready-for-owner-smoke"
+  | "drain-before-handoff"
+  | "continue-local-use"
+  | "p0-blocked";
+
 export interface TwoDayUsabilityGateInput {
   cloudSyncControlPlane: CloudSyncControlPlane;
   cloudUploadReliabilityReport: CloudUploadReliabilityReport;
@@ -107,6 +113,15 @@ export interface TwoDayUsabilityGate {
   };
   primary_blocker: TwoDayUsabilityGateItem | null;
   primary_warning: TwoDayUsabilityGateItem | null;
+  user_decision: {
+    mode: TwoDayUsabilityDecisionMode;
+    headline: string;
+    detail: string;
+    primary_risk: string;
+    next_action: string;
+    safe_actions: string[];
+    blocked_actions: string[];
+  };
   next_best_action: string;
   evidence_required_before_claim: string[];
   gates: TwoDayUsabilityGateItem[];
@@ -175,6 +190,10 @@ export function buildTwoDayUsabilityGate(
       : canKeepUsingNow && blockers === 0
         ? "usable-while-sync-drains"
         : "p0-blocked";
+  const nextBestAction =
+    primaryBlocker?.next_action ??
+    primaryWarning?.next_action ??
+    "保持 P0 冻结，只修阻断可用性的同步、登录和性能问题；然后跑真实两设备 smoke。";
 
   return {
     format: "zhinote-two-day-usability-gate",
@@ -240,10 +259,18 @@ export function buildTwoDayUsabilityGate(
     },
     primary_blocker: primaryBlocker,
     primary_warning: primaryWarning,
-    next_best_action:
-      primaryBlocker?.next_action ??
-      primaryWarning?.next_action ??
-      "保持 P0 冻结，只修阻断可用性的同步、登录和性能问题；然后跑真实两设备 smoke。",
+    user_decision: buildUserDecision({
+      allPlatformSyncMinimumReady,
+      blockers,
+      canKeepUsingNow,
+      canSwitchDevicesNow,
+      nextBestAction,
+      primaryBlocker,
+      primaryWarning,
+      reliability,
+      verdict,
+    }),
+    next_best_action: nextBestAction,
     evidence_required_before_claim: [
       "同步中心显示 pending、failed、manual review 全部清零。",
       "账号认证退避为无，临时接口失败不会自动登出任一设备。",
@@ -280,6 +307,110 @@ export function buildTwoDayUsabilityGate(
     ],
     next_24h_action: getNextAction("24h", gates, reliability),
     next_48h_action: getNextAction("48h", gates, reliability),
+  };
+}
+
+function buildUserDecision(input: {
+  allPlatformSyncMinimumReady: boolean;
+  blockers: number;
+  canKeepUsingNow: boolean;
+  canSwitchDevicesNow: boolean;
+  nextBestAction: string;
+  primaryBlocker: TwoDayUsabilityGateItem | null;
+  primaryWarning: TwoDayUsabilityGateItem | null;
+  reliability: CloudUploadReliabilityReport["summary"];
+  verdict: TwoDayUsabilityVerdict;
+}): TwoDayUsabilityGate["user_decision"] {
+  const queueSummary = `${input.reliability.total_waiting_rows} 待上传 / ${input.reliability.failed_rows} 失败 / ${input.reliability.manual_review_rows} 人工处理`;
+  const primaryRisk =
+    input.primaryBlocker?.evidence ??
+    input.primaryWarning?.evidence ??
+    "暂无 P0 阻断；继续保持小步验证。";
+
+  if (!input.canKeepUsingNow || input.verdict === "p0-blocked") {
+    return {
+      mode: "p0-blocked",
+      headline: "先处理 P0 阻断，再继续扩展功能",
+      detail: `当前不能把它当作稳定同步版本使用。队列状态：${queueSummary}。`,
+      primary_risk: primaryRisk,
+      next_action: input.nextBestAction,
+      safe_actions: [
+        "可以查看已有页面和同步中心状态。",
+        "可以导出本地验收清单或手动备份。",
+      ],
+      blocked_actions: [
+        "不要切换到另一台设备继续写。",
+        "不要清缓存、重建缓存或批量覆盖云端。",
+        "不要声称 48 小时 scoped sync beta 已经可用。",
+      ],
+    };
+  }
+
+  if (
+    input.allPlatformSyncMinimumReady &&
+    input.canSwitchDevicesNow &&
+    input.blockers === 0
+  ) {
+    return {
+      mode: "ready-for-owner-smoke",
+      headline: "可以开始真实两设备验收",
+      detail:
+        "核心同步状态达到最低可测条件；下一步用两台真实登录设备跑 Page、每日纪要、ZhiHui、数据库和文件元数据 smoke。",
+      primary_risk: primaryRisk,
+      next_action: input.nextBestAction,
+      safe_actions: [
+        "可以按同步中心 runbook 做两设备测试。",
+        "可以记录脱敏 owner evidence。",
+        "可以在 pending 清零后做一次短时间设备交接。",
+      ],
+      blocked_actions: [
+        "owner evidence 填完前，不要宣称完整全平台同步通过。",
+        "不要用真实私密正文、数据库行值或文件内容当测试样本。",
+      ],
+    };
+  }
+
+  if (
+    input.reliability.total_waiting_rows > 0 ||
+    input.reliability.failed_rows > 0 ||
+    input.reliability.manual_review_rows > 0 ||
+    input.reliability.auth_retry_active ||
+    !input.canSwitchDevicesNow
+  ) {
+    return {
+      mode: "drain-before-handoff",
+      headline: "可以继续本机写作，但先别换设备",
+      detail: `本地输入会先保存；云端还需要补传、重试或人工复核。队列状态：${queueSummary}。`,
+      primary_risk: primaryRisk,
+      next_action: input.nextBestAction,
+      safe_actions: [
+        "可以继续在当前设备写页面、每日纪要和会议。",
+        "可以等后台补传或手动重试 pending 队列。",
+        "可以查看同步中心确认哪些域仍在等待。",
+      ],
+      blocked_actions: [
+        "pending、failed、manual review 清零前，不要把另一台设备当作最新版本。",
+        "账号退避恢复前，不要清缓存或重建本地热缓存。",
+        "不要把本地显示正常误判为云端已经 ACK。",
+      ],
+    };
+  }
+
+  return {
+    mode: "continue-local-use",
+    headline: "可以稳定使用当前设备",
+    detail:
+      "本地输入和核心页面可继续使用；下一步仍要收集真实两设备证据，才能确认跨设备同步。",
+    primary_risk: primaryRisk,
+    next_action: input.nextBestAction,
+    safe_actions: [
+      "可以继续正常写作和查看每日纪要。",
+      "可以打开同步中心准备两设备 smoke。",
+    ],
+    blocked_actions: [
+      "没有 owner smoke 前，不要声称全平台同步已经完成。",
+      "不要开启 AI、批量恢复或文件大对象上传作为默认后台动作。",
+    ],
   };
 }
 
