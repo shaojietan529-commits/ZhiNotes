@@ -909,6 +909,7 @@ const CORE_MANIFEST_DATE_DIFF_ROW_LIMIT = 40;
 const ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY =
   "zhinote.sync.accountBridgeProbeReceipt.v1";
 const ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS = 30 * 60 * 1000;
+const ACCOUNT_SYNC_BRIDGE_PROBE_AUTO_DELAY_MS = 1_200;
 const ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE =
   "只读取云端 manifest summary 的 count、deleted、watermark 和状态；不读取页面正文、数据库行值、评论、文件名、文件字节、token 或凭据，也不上传数据、不修改 pending 队列。";
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY =
@@ -1064,6 +1065,14 @@ function readStoredAccountSyncBridgeProbeReceipt(): AccountSyncBridgeProbeReceip
     }
     return null;
   }
+}
+
+function isFreshAccountSyncBridgeProbeReceipt(
+  receipt: AccountSyncBridgeProbeReceipt | null
+): boolean {
+  if (!receipt) return false;
+  const expiresAt = Date.parse(receipt.expires_at);
+  return Number.isFinite(expiresAt) && expiresAt > Date.now();
 }
 
 function persistAccountSyncBridgeProbeReceipt(
@@ -1899,6 +1908,7 @@ function SyncDashboard() {
   const router = useRouter();
   const cloudCallbackHandoffHandledRef = useRef(false);
   const cloudHandoffAutoRecoverStartedRef = useRef(false);
+  const accountBridgeProbeAutoRunRef = useRef(false);
   const { pages } = usePages();
   const { favoriteIds } = usePageFavorites();
   const [databases, setDatabases] = useState<Database[]>([]);
@@ -5972,7 +5982,7 @@ function SyncDashboard() {
     }
   };
 
-  const handleRunAccountBridgeProbe = async () => {
+  const handleRunAccountBridgeProbe = useCallback(async () => {
     setBusyQueueAction("account-bridge-probe");
     try {
       const [pageSummary, dailySummary, meetingSummary, databaseSummary] =
@@ -6006,7 +6016,20 @@ function SyncDashboard() {
     } finally {
       setBusyQueueAction(null);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (accountBridgeProbeAutoRunRef.current) return;
+    if (busyQueueAction !== null) return;
+    if (isFreshAccountSyncBridgeProbeReceipt(accountBridgeProbeReceipt)) {
+      return;
+    }
+    accountBridgeProbeAutoRunRef.current = true;
+    const timer = window.setTimeout(() => {
+      void handleRunAccountBridgeProbe();
+    }, ACCOUNT_SYNC_BRIDGE_PROBE_AUTO_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [accountBridgeProbeReceipt, busyQueueAction, handleRunAccountBridgeProbe]);
 
   const handleRunCoreManifestCompare = async () => {
     setCoreManifestCompareBusy(true);
@@ -23817,6 +23840,11 @@ function AccountSyncBridgeProbePanel({
       data-account-sync-bridge-probe-storage-key={
         ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY
       }
+      data-account-sync-bridge-auto-probe="missing-or-expired-receipt"
+      data-account-sync-bridge-auto-delay-ms={String(
+        ACCOUNT_SYNC_BRIDGE_PROBE_AUTO_DELAY_MS
+      )}
+      data-account-sync-bridge-probe-privacy="metadata-only"
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -23839,7 +23867,8 @@ function AccountSyncBridgeProbePanel({
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             不上传、不改队列，只读取云端 manifest summary 的 count / deleted /
             watermark，用来判断当前登录账号在另一台设备是否能读到同一份核心
-            metadata。
+            metadata。同步中心打开时，如果本机没有 30 分钟内的新鲜回执，会自动做一次
+            metadata-only 预检；你仍然可以手动重查。
           </p>
         </div>
         <button

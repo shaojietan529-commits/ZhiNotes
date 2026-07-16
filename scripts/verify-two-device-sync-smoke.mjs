@@ -248,6 +248,30 @@ function run() {
       "Sync UI must pass the account bridge receipt into the two-device smoke runbook.",
     ],
     [
+      "ACCOUNT_SYNC_BRIDGE_PROBE_AUTO_DELAY_MS",
+      "Sync UI must define a bounded delay before auto-running the metadata-only account bridge probe.",
+    ],
+    [
+      "accountBridgeProbeAutoRunRef",
+      "Sync UI must guard the automatic account bridge probe so it runs at most once per dashboard mount.",
+    ],
+    [
+      "isFreshAccountSyncBridgeProbeReceipt(accountBridgeProbeReceipt)",
+      "Sync UI must skip the automatic account bridge probe when a fresh receipt already exists.",
+    ],
+    [
+      'data-account-sync-bridge-auto-probe="missing-or-expired-receipt"',
+      "Sync UI must disclose that the account bridge auto probe only runs for missing or expired receipts.",
+    ],
+    [
+      'data-account-sync-bridge-probe-privacy="metadata-only"',
+      "Sync UI must expose the account bridge probe privacy boundary as metadata-only.",
+    ],
+    [
+      "metadata-only 预检",
+      "Sync UI copy must explain that the automatic account bridge check is metadata-only.",
+    ],
+    [
       "data-two-device-sync-account-bridge-probe-ready",
       "Sync UI must expose account bridge readiness in the two-device smoke gate.",
     ],
