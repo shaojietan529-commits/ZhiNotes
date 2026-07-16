@@ -507,6 +507,38 @@ function run() {
       "Sync UI owner draft summary must expose pendingAfter=0 evidence readiness.",
     ],
     [
+      "TWO_DEVICE_SMOKE_OWNER_DRAFT_TTL_MS",
+      "Sync UI owner draft evidence must have an explicit freshness TTL.",
+    ],
+    [
+      "owner_evidence_fresh",
+      "Sync UI owner draft summary must expose whether owner evidence is still fresh.",
+    ],
+    [
+      "owner_evidence_expires_at",
+      "Sync UI owner draft summary must expose when owner evidence expires.",
+    ],
+    [
+      "data-two-device-smoke-owner-draft-fresh",
+      "Sync UI must expose owner draft freshness as a stable data attribute.",
+    ],
+    [
+      "data-two-device-smoke-owner-draft-expires-at",
+      "Sync UI must expose owner draft expiry as a stable data attribute.",
+    ],
+    [
+      'data-testid="two-device-smoke-owner-draft-freshness"',
+      "Sync UI must visibly render owner draft freshness.",
+    ],
+    [
+      "过期后不能作为换设备证据",
+      "Sync UI copy must explain stale owner evidence cannot be used for device handoff.",
+    ],
+    [
+      "证据已过期",
+      "Sync UI and filled receipt must explain stale owner evidence in plain Chinese.",
+    ],
+    [
       "data-two-device-smoke-owner-draft-scoped-ready",
       "Sync UI must expose scoped owner evidence readiness as a stable data attribute.",
     ],

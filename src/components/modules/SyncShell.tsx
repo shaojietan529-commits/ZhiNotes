@@ -820,6 +820,10 @@ type TwoDeviceSmokeOwnerDraftSummary = {
   ack_evidence_ready: boolean;
   bidirectional_visibility_evidence_ready: boolean;
   pending_after_zero_evidence_ready: boolean;
+  owner_evidence_fresh: boolean;
+  owner_evidence_stale: boolean;
+  owner_evidence_expires_at: string | null;
+  owner_evidence_age_minutes: number | null;
   updated_at: string | null;
 };
 type TwoDeviceSmokeOwnerFilledReceipt = {
@@ -1043,6 +1047,7 @@ const ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE =
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_KEY =
   "zhinote.sync.twoDeviceSmokeOwnerDraft.v1";
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_NOTE_LIMIT = 180;
+const TWO_DEVICE_SMOKE_OWNER_DRAFT_TTL_MS = 30 * 60 * 1000;
 const TWO_DEVICE_SMOKE_SCOPED_OWNER_STEP_IDS = [
   "same-account-session",
   "account-sync-bridge-probe",
@@ -1076,7 +1081,7 @@ const TWO_DEVICE_SMOKE_DEVICE_HANDOFF_OWNER_STEP_IDS = [
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_PRIVACY_NOTE =
   "本地验收草稿只保存 smoke 步骤 ID、通过/失败/阻塞状态和用户手写的脱敏短备注；不要写页面正文、会议链接、文件名、数据库行值、token 或凭据。";
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_STORAGE_POLICY =
-  "只保存在本机浏览器 localStorage，用于刷新后继续验收；不会上传到云端，不写 sync_log，不作为自动宣称同步通过的证据。";
+  "只保存在本机浏览器 localStorage，用于刷新后继续验收；30 分钟后过期，过期后不能作为换设备证据；不会上传到云端，不写 sync_log，不作为自动宣称同步通过的证据。";
 
 function readStoredAccountSyncPreflightReceipt(): AccountSyncPreflightReceipt | null {
   if (typeof window === "undefined") return null;
@@ -1743,10 +1748,42 @@ function isTwoDeviceSmokeOwnerDraftStepPassed(
   return draft?.steps[stepId]?.result === "pass";
 }
 
+function getTwoDeviceSmokeOwnerDraftFreshness(
+  draft: TwoDeviceSmokeOwnerDraft | null,
+  nowMs: number
+) {
+  if (!draft) {
+    return {
+      fresh: false,
+      stale: false,
+      expires_at: null,
+      age_minutes: null,
+    };
+  }
+  const updatedAt = Date.parse(draft.updated_at);
+  if (!Number.isFinite(updatedAt)) {
+    return {
+      fresh: false,
+      stale: true,
+      expires_at: null,
+      age_minutes: null,
+    };
+  }
+  const expiresAt = updatedAt + TWO_DEVICE_SMOKE_OWNER_DRAFT_TTL_MS;
+  const fresh = expiresAt > nowMs;
+  return {
+    fresh,
+    stale: !fresh,
+    expires_at: new Date(expiresAt).toISOString(),
+    age_minutes: Math.max(0, Math.floor((nowMs - updatedAt) / 60_000)),
+  };
+}
+
 function buildTwoDeviceSmokeOwnerDraftSummary(
   draft: TwoDeviceSmokeOwnerDraft | null,
   stepIds: string[],
-  scopedStepIds: readonly string[] = TWO_DEVICE_SMOKE_SCOPED_OWNER_STEP_IDS
+  scopedStepIds: readonly string[] = TWO_DEVICE_SMOKE_SCOPED_OWNER_STEP_IDS,
+  nowMs: number = Date.now()
 ): TwoDeviceSmokeOwnerDraftSummary {
   const full = countTwoDeviceSmokeOwnerDraftResults(draft, stepIds);
   const scoped = countTwoDeviceSmokeOwnerDraftResults(
@@ -1781,6 +1818,7 @@ function buildTwoDeviceSmokeOwnerDraftSummary(
     isTwoDeviceSmokeOwnerDraftStepPassed(draft, "final-device-handoff");
   const pendingAfterZeroEvidenceReady =
     ackEvidenceReady && bidirectionalVisibilityEvidenceReady;
+  const freshness = getTwoDeviceSmokeOwnerDraftFreshness(draft, nowMs);
   return {
     status: full.status,
     total: full.total,
@@ -1792,7 +1830,8 @@ function buildTwoDeviceSmokeOwnerDraftSummary(
     scoped_evidence_ready:
       scoped.total > 0 &&
       scoped.status === "complete" &&
-      scoped.passed === scoped.total,
+      scoped.passed === scoped.total &&
+      freshness.fresh,
     scoped_total: scoped.total,
     scoped_passed: scoped.passed,
     scoped_failed: scoped.failed,
@@ -1806,7 +1845,8 @@ function buildTwoDeviceSmokeOwnerDraftSummary(
       accountBridgeEvidenceReady &&
       ackEvidenceReady &&
       bidirectionalVisibilityEvidenceReady &&
-      pendingAfterZeroEvidenceReady,
+      pendingAfterZeroEvidenceReady &&
+      freshness.fresh,
     device_handoff_required_total: deviceHandoff.total,
     device_handoff_required_passed: deviceHandoff.passed,
     device_handoff_required_failed: deviceHandoff.failed,
@@ -1819,6 +1859,10 @@ function buildTwoDeviceSmokeOwnerDraftSummary(
     bidirectional_visibility_evidence_ready:
       bidirectionalVisibilityEvidenceReady,
     pending_after_zero_evidence_ready: pendingAfterZeroEvidenceReady,
+    owner_evidence_fresh: freshness.fresh,
+    owner_evidence_stale: freshness.stale,
+    owner_evidence_expires_at: freshness.expires_at,
+    owner_evidence_age_minutes: freshness.age_minutes,
     updated_at: draft?.updated_at ?? null,
   };
 }
@@ -1870,6 +1914,8 @@ function buildTwoDeviceSmokeOwnerFilledReceipt(input: {
     input.ownerDraftSummary.failed > 0 || input.ownerDraftSummary.blocked > 0;
   const nextAction = hasFailures
     ? "先处理结果收据里的失败或阻塞项；未清零前不能声称两端同步通过。"
+    : input.ownerDraftSummary.owner_evidence_stale
+      ? "证据已过期；重新跑账号同步桥、ACK 和 A/B 双向可见检查后，再把它作为换设备证据。"
     : input.ownerDraftSummary.device_handoff_evidence_ready
       ? "换设备硬门槛已填齐，可以作为 owner evidence 保存；仍不能自动宣称完整平台同步通过，最终上线前还要保留真实双设备记录。"
     : input.ownerDraftSummary.status === "complete"
@@ -1910,7 +1956,7 @@ function buildTwoDeviceSmokeOwnerFilledReceipt(input: {
     privacy_note:
       "这份结果收据只导出 owner 在本机填写的步骤状态和脱敏短备注；不要把正文、数据库行值、文件名、会议链接、验证码、cookie 或 token 填进备注。",
     storage_policy:
-      "本地下载 JSON 文件；不会上传到云端，不写 sync_log，不清 pending 队列，也不会让系统自动宣称两端同步通过。",
+      "本地下载 JSON 文件；30 分钟后过期，过期后不能作为换设备证据；不会上传到云端，不写 sync_log，不清 pending 队列，也不会让系统自动宣称两端同步通过。",
     next_action: nextAction,
   };
 }
@@ -2631,6 +2677,8 @@ function SyncDashboard() {
     useState<TwoDeviceSmokeOwnerDraft | null>(() =>
       readStoredTwoDeviceSmokeOwnerDraft()
     );
+  const [twoDeviceSmokeOwnerDraftNowMs, setTwoDeviceSmokeOwnerDraftNowMs] =
+    useState(() => Date.now());
   const [coreManifestCompareReport, setCoreManifestCompareReport] =
     useState<CoreManifestCompareReport | null>(null);
   const [coreManifestCompareBusy, setCoreManifestCompareBusy] =
@@ -2890,6 +2938,13 @@ function SyncDashboard() {
       );
       window.removeEventListener("storage", handleSyncLogStorageRefresh);
     };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setTwoDeviceSmokeOwnerDraftNowMs(Date.now());
+    }, 60_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -4358,9 +4413,15 @@ function SyncDashboard() {
     () =>
       buildTwoDeviceSmokeOwnerDraftSummary(
         twoDeviceSmokeOwnerDraft,
-        twoDeviceSyncSmokeRunbook.steps.map((step) => step.id)
+        twoDeviceSyncSmokeRunbook.steps.map((step) => step.id),
+        TWO_DEVICE_SMOKE_SCOPED_OWNER_STEP_IDS,
+        twoDeviceSmokeOwnerDraftNowMs
       ),
-    [twoDeviceSmokeOwnerDraft, twoDeviceSyncSmokeRunbook]
+    [
+      twoDeviceSmokeOwnerDraft,
+      twoDeviceSmokeOwnerDraftNowMs,
+      twoDeviceSyncSmokeRunbook,
+    ]
   );
   const twoDeviceSmokeOwnerFilledReceipt = useMemo(
     () =>
@@ -27004,6 +27065,20 @@ function TwoDeviceSyncSmokeRunbookPanel({
       data-two-device-smoke-owner-draft-pending-after-zero-ready={String(
         ownerDraftSummary.pending_after_zero_evidence_ready
       )}
+      data-two-device-smoke-owner-draft-fresh={String(
+        ownerDraftSummary.owner_evidence_fresh
+      )}
+      data-two-device-smoke-owner-draft-stale={String(
+        ownerDraftSummary.owner_evidence_stale
+      )}
+      data-two-device-smoke-owner-draft-expires-at={
+        ownerDraftSummary.owner_evidence_expires_at ?? ""
+      }
+      data-two-device-smoke-owner-draft-age-minutes={
+        ownerDraftSummary.owner_evidence_age_minutes === null
+          ? ""
+          : String(ownerDraftSummary.owner_evidence_age_minutes)
+      }
       data-two-device-smoke-owner-draft-storage="localStorage"
       data-two-device-smoke-owner-draft-privacy="metadata-only"
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
@@ -27285,7 +27360,38 @@ function TwoDeviceSyncSmokeRunbookPanel({
               已通过 {ownerDraftSummary.passed}/{ownerDraftSummary.total}；失败{" "}
               {ownerDraftSummary.failed}；阻塞 {ownerDraftSummary.blocked}；未记录{" "}
               {ownerDraftSummary.not_recorded}。这个草稿只保存在本机浏览器，
-              不会上传，也不会让系统自动宣称两端同步通过。
+              30 分钟后过期；过期后不能作为换设备证据，不会上传，也不会让系统自动宣称两端同步通过。
+            </p>
+            <p
+              className={`mt-2 rounded-md px-2 py-1 text-[11px] ${
+                ownerDraftSummary.owner_evidence_fresh
+                  ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-100"
+                  : "bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-100"
+              }`}
+              data-testid="two-device-smoke-owner-draft-freshness"
+              data-two-device-smoke-owner-draft-fresh={String(
+                ownerDraftSummary.owner_evidence_fresh
+              )}
+              data-two-device-smoke-owner-draft-stale={String(
+                ownerDraftSummary.owner_evidence_stale
+              )}
+              data-two-device-smoke-owner-draft-expires-at={
+                ownerDraftSummary.owner_evidence_expires_at ?? ""
+              }
+            >
+              证据有效期：
+              {ownerDraftSummary.owner_evidence_fresh
+                ? "有效"
+                : ownerDraftSummary.owner_evidence_stale
+                  ? "证据已过期"
+                  : "尚未记录"}
+              {ownerDraftSummary.owner_evidence_age_minutes === null
+                ? ""
+                : `，已记录 ${ownerDraftSummary.owner_evidence_age_minutes} 分钟`}
+              {ownerDraftSummary.owner_evidence_expires_at
+                ? `，到期 ${formatDate(ownerDraftSummary.owner_evidence_expires_at)}`
+                : ""}
+              。过期后请重新跑同步桥、ACK 和 A/B 双向可见检查。
             </p>
             <p
               className="mt-2 rounded-md bg-white/70 px-2 py-1 text-[11px] text-blue-800 dark:bg-blue-950/60 dark:text-blue-100"
@@ -27339,6 +27445,8 @@ function TwoDeviceSyncSmokeRunbookPanel({
               {ownerDraftSummary.pending_after_zero_evidence_ready
                 ? "通过"
                 : "待补"}
+              ；证据新鲜度{" "}
+              {ownerDraftSummary.owner_evidence_fresh ? "有效" : "待重跑"}
               。
             </p>
           </div>
