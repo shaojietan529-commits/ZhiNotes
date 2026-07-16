@@ -3409,8 +3409,11 @@ check(
     dailyNotesShell.includes("onReady={handlePeekReady}") &&
     pagePeekModal.includes("onReady?: (pageId: string) => void") &&
     pagePeekModal.includes("readyOnLocalShell?: boolean;") &&
+    pagePeekModal.includes("readyOnLocalShell = true") &&
+    pagePeekModal.includes("if (!readyOnLocalShell && !editorMounted) return;") &&
     pagePeekModal.includes("readyNotifiedPageIdRef") &&
     pagePeekModal.includes("onReady?.(pageId)") &&
+    dailyNotesShell.includes("readyOnLocalShell={openingDraft?.pageId !== peekPageId}") &&
     dailyNotesShell.includes("window.setTimeout(() =>") &&
     dailyNotesShell.includes("current === dateKey ? null : current") &&
     !dailyNotesShell.includes("fetchCloudPageById") &&

@@ -3057,6 +3057,7 @@ export default function DailyNotesShell() {
           onClose={closeDailyPeekModal}
           onOpenFull={openDailyPeekFullPage}
           onReady={handlePeekReady}
+          readyOnLocalShell={openingDraft?.pageId !== peekPageId}
           onChanged={() =>
             void load({
               includeCloud: false,

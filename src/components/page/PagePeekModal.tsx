@@ -132,6 +132,7 @@ export default function PagePeekModal({
   onOpenFull,
   onReady,
   onChanged,
+  readyOnLocalShell = true,
 }: PagePeekModalProps) {
   const upsertPages = useWorkspaceStore((s) => s.upsertPages);
   const initialPeekPage = getInitialPeekPage(pageId, initialPage);
@@ -436,6 +437,7 @@ export default function PagePeekModal({
 
   useEffect(() => {
     if (!effectivePage || metadataLoading) return;
+    if (!readyOnLocalShell && !editorMounted) return;
     if (readyNotifiedPageIdRef.current !== pageId) {
       readyNotifiedPageIdRef.current = pageId;
       onReady?.(pageId);
@@ -470,7 +472,15 @@ export default function PagePeekModal({
         property_count: parsePageProperties(effectivePage.properties).length,
       },
     });
-  }, [effectivePage, isOptimisticDraft, metadataLoading, onReady, pageId]);
+  }, [
+    editorMounted,
+    effectivePage,
+    isOptimisticDraft,
+    metadataLoading,
+    onReady,
+    pageId,
+    readyOnLocalShell,
+  ]);
 
   const rememberPeekLocalDraft = useCallback(
     (updates: PeekPageUpdates) => {
