@@ -7,6 +7,7 @@
 //   short-lived, attempt-limited, and send-rate-limited.
 // - Sessions are httpOnly cookies backed by revocable KV records.
 // - No route or helper logs emails/codes; responses only carry masked emails.
+// Companion sync readiness check: npm run verify:account-sync-preflight
 
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -29,6 +30,7 @@ const read = (rel) => {
 // 1. Server helper: gating, hashing, limits
 const server = read("src/lib/account/server.ts");
 const sessionResponses = read("src/lib/account/sessionResponses.ts");
+const accountSyncPreflight = read("src/app/api/account/sync-preflight/route.ts");
 for (const token of [
   "getAccountConfig",
   "ZHINOTES_ACCOUNT_ALLOWED_EMAILS",
@@ -85,6 +87,29 @@ check(
     server.includes('sameSite: "lax"') &&
     server.includes("maxAge: SESSION_TTL_SECONDS"),
   "账号 cookie 必须集中到共享 helper：生产域名 zhi-note.com / www.zhi-note.com 共享会话，避免多端/多域名像不同账号"
+);
+check(
+  accountSyncPreflight.includes('format: "zhinote-account-sync-preflight"') &&
+    accountSyncPreflight.includes("PAGE_INDEX_KEY_PREFIX") &&
+    accountSyncPreflight.includes("DATABASE_INDEX_KEY_PREFIX") &&
+    accountSyncPreflight.includes("accountSessionUnconfirmedPayload") &&
+    accountSyncPreflight.includes("maskEmail(account.email)") &&
+    accountSyncPreflight.includes("reads_page_body_text: false") &&
+    accountSyncPreflight.includes("reads_database_row_values: false") &&
+    accountSyncPreflight.includes("uploads_workspace_data: false") &&
+    accountSyncPreflight.includes("mutates_workspace_data: false") &&
+    accountSyncPreflight.includes("clears_local_cache: false") &&
+    accountSyncPreflight.includes("enables_sync_push: false") &&
+    accountSyncPreflight.includes("enables_sync_pull: false"),
+  "账号同步预检 API 必须只读当前页面/数据库云端 metadata，临时失败保留 cookie，不能读取正文、上传、清缓存或打开统一 sync push/pull"
+);
+check(
+  !accountSyncPreflight.includes("content_text") &&
+    !accountSyncPreflight.includes("field_values") &&
+    !accountSyncPreflight.includes("kvSet(") &&
+    !accountSyncPreflight.includes("kvDel(") &&
+    !accountSyncPreflight.includes("console."),
+  "账号同步预检 API 不能接触页面正文、数据库单元格值、直接写删 KV 或日志输出"
 );
 
 // 2. Routes: all gated, none log, cookie httpOnly

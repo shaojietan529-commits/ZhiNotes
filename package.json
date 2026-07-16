@@ -20,6 +20,7 @@
     "verify:research-workflow": "node scripts/verify-research-workflow-contract.mjs",
     "verify:replay-harness": "node scripts/verify-replay-harness-safety.mjs",
     "verify:account": "node scripts/verify-account-contract.mjs",
+    "verify:account-sync-preflight": "node scripts/verify-account-sync-preflight.mjs",
     "verify:local-use-readiness": "node scripts/verify-local-use-readiness.mjs",
     "verify:sync-pending-domains": "node scripts/verify-sync-pending-domain-registry.mjs",
     "verify:two-device-sync": "node scripts/verify-two-device-sync-smoke.mjs",

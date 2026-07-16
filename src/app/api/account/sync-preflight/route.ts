@@ -1,0 +1,349 @@
+import { NextResponse } from "next/server";
+import {
+  accountMissingEnv,
+  getAccountConfig,
+  getSessionAccount,
+  kvGet,
+  readSessionToken,
+} from "@/lib/account/server";
+import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
+import { maskEmail } from "@/lib/cloud/api";
+
+export const dynamic = "force-dynamic";
+
+const PAGE_INDEX_KEY_PREFIX = "zhinotes:pagesync:index:";
+const DATABASE_INDEX_KEY_PREFIX = "zhinotes:dbsync:index:";
+
+type AccountSyncPreflightStatus =
+  | "ready"
+  | "partial"
+  | "unconfigured"
+  | "signed-out"
+  | "unconfirmed";
+
+type AccountSyncPreflightCheckStatus = "pass" | "blocked";
+
+interface AccountSyncPreflightCheck {
+  id: string;
+  status: AccountSyncPreflightCheckStatus;
+  label: string;
+  detail: string;
+}
+
+interface AccountSyncPreflightPayload {
+  format: "zhinote-account-sync-preflight";
+  format_version: 1;
+  status: AccountSyncPreflightStatus;
+  generated_at: string;
+  account_hint: string | null;
+  boundary: {
+    reads_account_session: true;
+    extends_account_session_ttl: boolean;
+    reads_cloud_kv_metadata: true;
+    reads_page_body_text: false;
+    reads_database_row_values: false;
+    reads_file_bytes: false;
+    uploads_workspace_data: false;
+    mutates_workspace_data: false;
+    clears_local_cache: false;
+    enables_sync_push: false;
+    enables_sync_pull: false;
+  };
+  summary: {
+    account_session_ready: boolean;
+    page_cloud_index_readable: boolean;
+    database_cloud_index_readable: boolean;
+    page_cloud_records: number | null;
+    database_cloud_records: number | null;
+    cloud_metadata_domains_ready: number;
+    cloud_metadata_domains_required: 2;
+    keeps_session_cookie: boolean;
+    next_action: string;
+  };
+  checks: AccountSyncPreflightCheck[];
+  missing_env?: string[];
+}
+
+export async function GET(request: Request) {
+  const generatedAt = new Date().toISOString();
+  const config = getAccountConfig();
+  if (!config) {
+    return NextResponse.json(
+      buildPayload({
+        status: "unconfigured",
+        generatedAt,
+        accountHint: null,
+        checks: [
+          check(
+            "account-config",
+            "blocked",
+            "账号云同步配置",
+            "账号系统或云端 KV 尚未完整配置。"
+          ),
+          check(
+            "page-cloud-index",
+            "blocked",
+            "页面云端索引",
+            "账号云同步配置未完成，无法读取页面云端索引。"
+          ),
+          check(
+            "database-cloud-index",
+            "blocked",
+            "数据库云端索引",
+            "账号云同步配置未完成，无法读取数据库云端索引。"
+          ),
+        ],
+        missingEnv: accountMissingEnv(),
+      }),
+      { status: 501 }
+    );
+  }
+
+  const token = readSessionToken(request);
+  if (!token) {
+    return NextResponse.json(
+      buildPayload({
+        status: "signed-out",
+        generatedAt,
+        accountHint: null,
+        checks: [
+          check("account-session", "blocked", "账号会话", "当前浏览器未登录。"),
+          check(
+            "page-cloud-index",
+            "blocked",
+            "页面云端索引",
+            "需要登录后才能读取该账号的页面索引。"
+          ),
+          check(
+            "database-cloud-index",
+            "blocked",
+            "数据库云端索引",
+            "需要登录后才能读取该账号的数据库索引。"
+          ),
+        ],
+      }),
+      { status: 401 }
+    );
+  }
+
+  let account;
+  try {
+    account = await getSessionAccount(config, token);
+  } catch {
+    return NextResponse.json(
+      {
+        ...accountSessionUnconfirmedPayload(
+          "账号同步预检暂时无法确认登录状态；不会清除当前登录，本地输入和待上传队列已保留。"
+        ),
+        ...buildPayload({
+          status: "unconfirmed",
+          generatedAt,
+          accountHint: null,
+          checks: [
+            check(
+              "account-session",
+              "blocked",
+              "账号会话",
+              "云端会话读取暂时失败；这不是登出。"
+            ),
+            check(
+              "page-cloud-index",
+              "blocked",
+              "页面云端索引",
+              "会话暂时无法确认，未读取页面索引。"
+            ),
+            check(
+              "database-cloud-index",
+              "blocked",
+              "数据库云端索引",
+              "会话暂时无法确认，未读取数据库索引。"
+            ),
+          ],
+        }),
+      },
+      { status: 503 }
+    );
+  }
+
+  if (!account) {
+    return NextResponse.json(
+      {
+        ...accountSessionUnconfirmedPayload(
+          "账号同步预检暂时无法确认登录状态；不会清除当前登录，本地输入和待上传队列已保留。"
+        ),
+        ...buildPayload({
+          status: "unconfirmed",
+          generatedAt,
+          accountHint: null,
+          checks: [
+            check(
+              "account-session",
+              "blocked",
+              "账号会话",
+              "云端暂时没有确认该 session；前端应保留登录兜底状态。"
+            ),
+            check(
+              "page-cloud-index",
+              "blocked",
+              "页面云端索引",
+              "会话暂时无法确认，未读取页面索引。"
+            ),
+            check(
+              "database-cloud-index",
+              "blocked",
+              "数据库云端索引",
+              "会话暂时无法确认，未读取数据库索引。"
+            ),
+          ],
+        }),
+      },
+      { status: 503 }
+    );
+  }
+
+  const [pageIndex, databaseIndex] = await Promise.allSettled([
+    readJsonIndex(config.kv, `${PAGE_INDEX_KEY_PREFIX}${account.email}`),
+    readJsonIndex(config.kv, `${DATABASE_INDEX_KEY_PREFIX}${account.email}`),
+  ]);
+  const pageReadable = pageIndex.status === "fulfilled";
+  const databaseReadable = databaseIndex.status === "fulfilled";
+  const checks = [
+    check(
+      "account-session",
+      "pass",
+      "账号会话",
+      "账号 session 可确认；预检会顺带延长 session TTL，避免活跃用户被动掉线。"
+    ),
+    check(
+      "page-cloud-index",
+      pageReadable ? "pass" : "blocked",
+      "页面云端索引",
+      pageReadable
+        ? "页面云端索引 metadata 可读。"
+        : "页面云端索引暂时不可读；本地输入应继续进入 pending 队列。"
+    ),
+    check(
+      "database-cloud-index",
+      databaseReadable ? "pass" : "blocked",
+      "数据库云端索引",
+      databaseReadable
+        ? "数据库云端索引 metadata 可读。"
+        : "数据库云端索引暂时不可读；本地输入应继续进入 pending 队列。"
+    ),
+  ];
+
+  return NextResponse.json(
+    buildPayload({
+      status: pageReadable && databaseReadable ? "ready" : "partial",
+      generatedAt,
+      accountHint: maskEmail(account.email),
+      checks,
+      pageRecords:
+        pageIndex.status === "fulfilled" ? pageIndex.value.recordCount : null,
+      databaseRecords:
+        databaseIndex.status === "fulfilled"
+          ? databaseIndex.value.recordCount
+          : null,
+    })
+  );
+}
+
+async function readJsonIndex(
+  kv: NonNullable<ReturnType<typeof getAccountConfig>>["kv"],
+  key: string
+) {
+  const raw = await kvGet(kv, key);
+  if (!raw) return { recordCount: 0 };
+  const parsed = JSON.parse(raw) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("invalid cloud index");
+  }
+  return { recordCount: Object.keys(parsed).length };
+}
+
+function buildPayload({
+  status,
+  generatedAt,
+  accountHint,
+  checks,
+  missingEnv,
+  pageRecords = null,
+  databaseRecords = null,
+}: {
+  status: AccountSyncPreflightStatus;
+  generatedAt: string;
+  accountHint: string | null;
+  checks: AccountSyncPreflightCheck[];
+  missingEnv?: string[];
+  pageRecords?: number | null;
+  databaseRecords?: number | null;
+}): AccountSyncPreflightPayload {
+  const pageReady = checks.some(
+    (item) => item.id === "page-cloud-index" && item.status === "pass"
+  );
+  const databaseReady = checks.some(
+    (item) => item.id === "database-cloud-index" && item.status === "pass"
+  );
+  const accountSessionReady = checks.some(
+    (item) => item.id === "account-session" && item.status === "pass"
+  );
+  const readyDomains = [pageReady, databaseReady].filter(Boolean).length;
+  return {
+    format: "zhinote-account-sync-preflight",
+    format_version: 1,
+    status,
+    generated_at: generatedAt,
+    account_hint: accountHint,
+    boundary: {
+      reads_account_session: true,
+      extends_account_session_ttl: accountSessionReady,
+      reads_cloud_kv_metadata: true,
+      reads_page_body_text: false,
+      reads_database_row_values: false,
+      reads_file_bytes: false,
+      uploads_workspace_data: false,
+      mutates_workspace_data: false,
+      clears_local_cache: false,
+      enables_sync_push: false,
+      enables_sync_pull: false,
+    },
+    summary: {
+      account_session_ready: accountSessionReady,
+      page_cloud_index_readable: pageReady,
+      database_cloud_index_readable: databaseReady,
+      page_cloud_records: pageRecords,
+      database_cloud_records: databaseRecords,
+      cloud_metadata_domains_ready: readyDomains,
+      cloud_metadata_domains_required: 2,
+      keeps_session_cookie: status === "unconfirmed",
+      next_action: nextAction(status, readyDomains),
+    },
+    checks,
+    ...(missingEnv ? { missing_env: missingEnv } : {}),
+  };
+}
+
+function nextAction(status: AccountSyncPreflightStatus, readyDomains: number) {
+  if (status === "ready") {
+    return "账号级页面和数据库云端 metadata 均可读；可以继续做两设备真实同步 smoke。";
+  }
+  if (status === "partial") {
+    return `只有 ${readyDomains}/2 个核心云端 metadata 域可读；先修不可读域，期间本地输入继续保留并进入 pending。`;
+  }
+  if (status === "unconfigured") {
+    return "先补账号/KV/邮件环境变量；未配置时不要把本地缓存当作云端主库。";
+  }
+  if (status === "signed-out") {
+    return "先登录账号；未登录时不要清 pending，也不要重建本地缓存。";
+  }
+  return "这是临时无法确认状态，不是登出；保留 cookie、本地输入和 pending 队列，稍后重试。";
+}
+
+function check(
+  id: string,
+  status: AccountSyncPreflightCheckStatus,
+  label: string,
+  detail: string
+): AccountSyncPreflightCheck {
+  return { id, status, label, detail };
+}

@@ -14,6 +14,13 @@ const verificationCommands = [
       "Check account/session stability, transient-error fallback, and sync gates.",
   },
   {
+    id: "verify-account-sync-preflight",
+    command: "npm run verify:account-sync-preflight",
+    args: ["run", "verify:account-sync-preflight"],
+    purpose:
+      "Check the read-only account sync preflight for current page/database cloud metadata readiness.",
+  },
+  {
     id: "verify-local-use-readiness",
     command: "npm run verify:local-use-readiness",
     args: ["run", "verify:local-use-readiness"],

@@ -14,6 +14,13 @@ const verificationCommands = [
       "Check login/session contracts, account sync guards, and local cache rebuild gates.",
   },
   {
+    id: "verify-account-sync-preflight",
+    command: "npm run verify:account-sync-preflight",
+    args: ["run", "verify:account-sync-preflight"],
+    purpose:
+      "Check the read-only account sync preflight for current page/database cloud metadata readiness.",
+  },
+  {
     id: "verify-module-workspaces",
     command: "npm run verify:module-workspaces",
     args: ["run", "verify:module-workspaces"],
