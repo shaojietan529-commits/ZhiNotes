@@ -2095,7 +2095,35 @@ export async function pushPendingLocalDatabaseChangesToCloud(): Promise<PushLoca
   }
   await markDatabaseSyncLogEntriesAttempted(pendingLogIds);
   emitDatabaseSyncStatusChanged();
-  const result = await pushCloudDatabaseRecordsInBatches(pending.records);
+  let result: PushLocalDatabasesResult;
+  try {
+    result = await pushCloudDatabaseRecordsInBatches(pending.records);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? `database sync_log push interrupted: ${error.message}`
+        : "database sync_log push interrupted";
+    await markDatabaseSyncLogEntriesFailed(pendingLogIds, message);
+    emitDatabaseSyncStatusChanged();
+    const next: PushLocalDatabasesResult = {
+      status: "error",
+      pushed: 0,
+      skipped: 0,
+      total: pending.entries.length,
+      message,
+    };
+    recordDatabaseSyncOutcome({
+      status: next.status,
+      source: "sync-log-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+      message: next.message ?? null,
+    });
+    return next;
+  }
   if (result.status !== "ok") {
     const acknowledged = new Set([
       ...(result.acceptedKeys ?? []),

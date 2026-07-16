@@ -3553,6 +3553,12 @@ check(
   "数据库 pending 上传失败时应保留 sync_log 并记录失败原因，成功后才标记 synced"
 );
 check(
+  databaseSyncClient.includes("database sync_log push interrupted") &&
+    databaseSyncClient.includes("markDatabaseSyncLogEntriesFailed(pendingLogIds, message)") &&
+    databaseSyncClient.includes('source: "sync-log-push"'),
+  "数据库 sync_log 上传中断时应把 in_flight 行回落为 failed 待重试"
+);
+check(
   localQueries.includes("markWorkspaceSettingSyncLogEntriesAttempted") &&
     localQueries.includes("markWorkspaceSettingSyncLogEntriesFailed") &&
     localQueries.includes("markWorkspaceSettingSyncLogEntriesStatus") &&
@@ -4557,6 +4563,12 @@ check(
     localQueries.includes("return markSyncLogEntriesAttempted(ids)") &&
     localQueries.includes("return markSyncLogEntriesFailed(ids, error, retryDelayMs)"),
   "页面 sync_log 应有独立的待补传读取、ACK、尝试和失败标记方法，且只处理 pages 表元数据"
+);
+check(
+  pageSyncClient.includes("page sync_log push interrupted") &&
+    pageSyncClient.includes("markPageSyncLogEntriesFailed(pendingLogIds, message)") &&
+    pageSyncClient.includes('source: "sync-log-push"'),
+  "页面 sync_log 上传中断时应把 in_flight 行回落为 failed 待重试"
 );
 check(
   localQueries.includes("emitKnowledgeSyncStatusEvent") &&

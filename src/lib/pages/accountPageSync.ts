@@ -1788,7 +1788,34 @@ export async function pushPendingLocalPageChangesToCloud(): Promise<PushLocalPag
   await markPageSyncLogEntriesAttempted(pendingLogIds);
   emitPageSyncStatusChanged();
 
-  const result = await pushCloudRecordsInBatches(pending.records.map(toRecord));
+  let result: Awaited<ReturnType<typeof pushCloudRecordsInBatches>>;
+  try {
+    result = await pushCloudRecordsInBatches(pending.records.map(toRecord));
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? `page sync_log push interrupted: ${error.message}`
+        : "page sync_log push interrupted";
+    await markPageSyncLogEntriesFailed(pendingLogIds, message);
+    recordPageSyncOutcome({
+      status: "error",
+      source: "sync-log-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skippedRemoteNewer: 0,
+      pendingAfter: getPendingCloudPushIds().length,
+      message,
+    });
+    emitPageSyncStatusChanged();
+    return {
+      status: "error",
+      pushed: 0,
+      skipped: 0,
+      total: pending.entries.length,
+      message,
+    };
+  }
   const acknowledged = new Set([...result.acceptedIds, ...result.skippedIds]);
   const acknowledgedLogIds = pending.entries
     .filter((entry) => acknowledged.has(entry.pageId))
