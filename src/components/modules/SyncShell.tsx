@@ -8711,6 +8711,16 @@ function SyncDashboard() {
           onExportFilledReceipt={handleExportTwoDeviceSyncSmokeFilledReceipt}
           onRunBridgeProbe={() => void handleRunAccountBridgeProbe()}
           onWarmMetadataCaches={() => void handleWarmAccountSyncMetadataCaches()}
+          onOpenAckLedgerContract={() =>
+            document
+              .getElementById("sync-ack-retry-ledger-contract")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+          onOpenAckLedgerServerReadiness={() =>
+            document
+              .getElementById("sync-ack-ledger-server-readiness")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
           onUpdateOwnerDraftResult={handleUpdateTwoDeviceSmokeOwnerDraftResult}
           onUpdateOwnerDraftNote={handleUpdateTwoDeviceSmokeOwnerDraftNote}
         />
@@ -26836,6 +26846,8 @@ function TwoDeviceSyncSmokeRunbookPanel({
   onExportFilledReceipt,
   onRunBridgeProbe,
   onWarmMetadataCaches,
+  onOpenAckLedgerContract,
+  onOpenAckLedgerServerReadiness,
   onUpdateOwnerDraftResult,
   onUpdateOwnerDraftNote,
 }: {
@@ -26853,6 +26865,8 @@ function TwoDeviceSyncSmokeRunbookPanel({
   onExportFilledReceipt: () => void;
   onRunBridgeProbe: () => void;
   onWarmMetadataCaches: () => void;
+  onOpenAckLedgerContract: () => void;
+  onOpenAckLedgerServerReadiness: () => void;
   onUpdateOwnerDraftResult: (
     stepId: string,
     result: TwoDeviceSmokeOwnerDraftResult
@@ -27100,6 +27114,54 @@ function TwoDeviceSyncSmokeRunbookPanel({
           value={runbook.summary.can_switch_devices_now ? "可以" : "等待"}
           detail="ACK 后"
         />
+      </div>
+
+      <div
+        className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100"
+        data-testid="two-device-sync-smoke-ack-evidence-actions"
+        data-two-device-sync-smoke-ack-ready={String(
+          runbook.summary.ack_ledger_ready
+        )}
+        data-two-device-sync-smoke-ack-contract-blockers={String(
+          runbook.summary.ack_ledger_contract_blocked_gates
+        )}
+        data-two-device-sync-smoke-ack-server-blockers={String(
+          runbook.summary.ack_ledger_server_readiness_remaining_blockers
+        )}
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="font-semibold text-amber-950 dark:text-amber-100">
+              ACK 证据路径
+            </div>
+            <p className="mt-1">
+              当前 ACK 账本{runbook.summary.ack_ledger_ready ? "已通过" : "未通过"}
+              ；合约阻塞 {runbook.summary.ack_ledger_contract_blocked_gates} 项，
+              服务端就绪阻塞{" "}
+              {runbook.summary.ack_ledger_server_readiness_remaining_blockers} 项。
+              只有 durable ACK、ack cursor、push/pull 启用和 pendingAfter=0
+              都有证据后，才允许把“另一台设备可接着用”标成通过。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="two-device-sync-smoke-open-ack-ledger-contract"
+              onClick={onOpenAckLedgerContract}
+              className="w-fit rounded-md bg-amber-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-amber-800 dark:bg-amber-100 dark:text-amber-950 dark:hover:bg-amber-200"
+            >
+              查看 ack/retry 合约
+            </button>
+            <button
+              type="button"
+              data-testid="two-device-sync-smoke-open-ack-server-readiness"
+              onClick={onOpenAckLedgerServerReadiness}
+              className="w-fit rounded-md border border-amber-300 px-3 py-2 text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:text-amber-100 dark:hover:bg-amber-900/40"
+            >
+              查看服务端就绪
+            </button>
+          </div>
+        </div>
       </div>
 
       <div

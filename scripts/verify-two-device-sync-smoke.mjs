@@ -364,6 +364,30 @@ function run() {
       "Sync UI must expose ACK ledger readiness.",
     ],
     [
+      'data-testid="two-device-sync-smoke-ack-evidence-actions"',
+      "Sync UI must expose ACK evidence actions near the two-device smoke runbook.",
+    ],
+    [
+      'data-testid="two-device-sync-smoke-open-ack-ledger-contract"',
+      "Sync UI must let the owner jump from two-device smoke to the ack/retry ledger contract.",
+    ],
+    [
+      'data-testid="two-device-sync-smoke-open-ack-server-readiness"',
+      "Sync UI must let the owner jump from two-device smoke to the ACK ledger server readiness receipt.",
+    ],
+    [
+      'getElementById("sync-ack-retry-ledger-contract")',
+      "Two-device smoke ACK action must target the existing ack/retry ledger contract section.",
+    ],
+    [
+      'getElementById("sync-ack-ledger-server-readiness")',
+      "Two-device smoke ACK action must target the existing ACK ledger server readiness section.",
+    ],
+    [
+      "ACK 证据路径",
+      "Sync UI must explain the ACK evidence path before claiming device handoff.",
+    ],
+    [
       "data-two-device-sync-full-platform-claim-blocked",
       "Sync UI must expose full-platform claim blocking.",
     ],
