@@ -8702,9 +8702,15 @@ function SyncDashboard() {
           filledReceiptExportBusy={
             busyQueueAction === "two-device-smoke-filled-receipt"
           }
+          bridgeProbeBusy={busyQueueAction === "account-bridge-probe"}
+          metadataWarmupBusy={
+            busyQueueAction === "account-sync-metadata-cache-warmup"
+          }
           onExport={handleExportTwoDeviceSyncSmokeRunbook}
           onExportOwnerReceipt={handleExportTwoDeviceSyncSmokeOwnerReceipt}
           onExportFilledReceipt={handleExportTwoDeviceSyncSmokeFilledReceipt}
+          onRunBridgeProbe={() => void handleRunAccountBridgeProbe()}
+          onWarmMetadataCaches={() => void handleWarmAccountSyncMetadataCaches()}
           onUpdateOwnerDraftResult={handleUpdateTwoDeviceSmokeOwnerDraftResult}
           onUpdateOwnerDraftNote={handleUpdateTwoDeviceSmokeOwnerDraftNote}
         />
@@ -26823,9 +26829,13 @@ function TwoDeviceSyncSmokeRunbookPanel({
   exportBusy,
   receiptExportBusy,
   filledReceiptExportBusy,
+  bridgeProbeBusy,
+  metadataWarmupBusy,
   onExport,
   onExportOwnerReceipt,
   onExportFilledReceipt,
+  onRunBridgeProbe,
+  onWarmMetadataCaches,
   onUpdateOwnerDraftResult,
   onUpdateOwnerDraftNote,
 }: {
@@ -26836,9 +26846,13 @@ function TwoDeviceSyncSmokeRunbookPanel({
   exportBusy: boolean;
   receiptExportBusy: boolean;
   filledReceiptExportBusy: boolean;
+  bridgeProbeBusy: boolean;
+  metadataWarmupBusy: boolean;
   onExport: () => void;
   onExportOwnerReceipt: () => void;
   onExportFilledReceipt: () => void;
+  onRunBridgeProbe: () => void;
+  onWarmMetadataCaches: () => void;
   onUpdateOwnerDraftResult: (
     stepId: string,
     result: TwoDeviceSmokeOwnerDraftResult
@@ -27086,6 +27100,43 @@ function TwoDeviceSyncSmokeRunbookPanel({
           value={runbook.summary.can_switch_devices_now ? "可以" : "等待"}
           detail="ACK 后"
         />
+      </div>
+
+      <div
+        className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+        data-testid="two-device-sync-smoke-readiness-actions"
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+              验收前快捷动作
+            </div>
+            <p className="mt-1">
+              如果同步桥不是 4/4 或 Daily/ZhiHui metadata 不可读，先在这里刷新；
+              这些动作不上传、不清缓存，也不会把结果自动标成两端同步通过。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="two-device-sync-smoke-run-bridge-probe"
+              onClick={onRunBridgeProbe}
+              disabled={bridgeProbeBusy || metadataWarmupBusy}
+              className="w-fit rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-wait disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-300"
+            >
+              {bridgeProbeBusy ? "检查中..." : "刷新同步桥"}
+            </button>
+            <button
+              type="button"
+              data-testid="two-device-sync-smoke-warm-metadata-cache"
+              onClick={onWarmMetadataCaches}
+              disabled={bridgeProbeBusy || metadataWarmupBusy}
+              className="w-fit rounded-md border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {metadataWarmupBusy ? "修复中..." : "修复 Daily/ZhiHui metadata"}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">

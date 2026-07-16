@@ -256,6 +256,30 @@ function run() {
       "Sync UI must expose a local runbook export action.",
     ],
     [
+      'data-testid="two-device-sync-smoke-readiness-actions"',
+      "Sync UI must expose two-device readiness repair actions near the runbook.",
+    ],
+    [
+      'data-testid="two-device-sync-smoke-run-bridge-probe"',
+      "Sync UI must let the owner refresh the metadata-only account bridge probe from the two-device runbook.",
+    ],
+    [
+      'data-testid="two-device-sync-smoke-warm-metadata-cache"',
+      "Sync UI must let the owner warm Daily/ZhiHui metadata cache from the two-device runbook.",
+    ],
+    [
+      "handleRunAccountBridgeProbe",
+      "Two-device runbook readiness action must reuse the existing account bridge probe handler.",
+    ],
+    [
+      "handleWarmAccountSyncMetadataCaches",
+      "Two-device runbook readiness action must reuse the explicit Daily/ZhiHui metadata cache warmup handler.",
+    ],
+    [
+      "不会把结果自动标成两端同步通过",
+      "Two-device runbook readiness actions must not auto-claim two-device sync success.",
+    ],
+    [
       "accountSyncBridgeProbe: accountBridgeProbeReceipt",
       "Sync UI must pass the account bridge receipt into the two-device smoke runbook.",
     ],
