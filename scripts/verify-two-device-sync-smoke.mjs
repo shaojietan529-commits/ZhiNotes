@@ -252,12 +252,36 @@ function run() {
       "Sync UI must define a bounded delay before auto-running the metadata-only account bridge probe.",
     ],
     [
+      "ACCOUNT_SYNC_BRIDGE_PROBE_RETRY_TTL_MS",
+      "Sync UI must give partial/blocked account bridge receipts a short retry TTL instead of caching failures for the full ready window.",
+    ],
+    [
+      "accountSyncBridgeProbeEffectiveExpiresAt",
+      "Sync UI must apply the short retry TTL even to older stored partial/blocked bridge receipts that still carry a long explicit expiry.",
+    ],
+    [
+      "Math.min(explicitExpiresAt, retryExpiresAt)",
+      "Sync UI must cap non-ready bridge receipt freshness at the short retry window.",
+    ],
+    [
+      "isFreshReadyAccountSyncBridgeProbeReceipt(accountBridgeProbeReceipt)",
+      "Sync UI must skip the automatic account bridge probe only when a fresh ready receipt exists.",
+    ],
+    [
+      "ACCOUNT_PROFILE_UPDATED_EVENT",
+      "Sync UI must listen for account profile/session updates so stale blocked bridge receipts do not hide a recovered login.",
+    ],
+    [
+      "partial/blocked 回执只保留 2 分钟",
+      "Sync UI copy must explain that failed account bridge probe receipts expire quickly and can be retried.",
+    ],
+    [
       "accountBridgeProbeAutoRunRef",
       "Sync UI must guard the automatic account bridge probe so it runs at most once per dashboard mount.",
     ],
     [
-      "isFreshAccountSyncBridgeProbeReceipt(accountBridgeProbeReceipt)",
-      "Sync UI must skip the automatic account bridge probe when a fresh receipt already exists.",
+      "isFreshReadyAccountSyncBridgeProbeReceipt(accountBridgeProbeReceipt)",
+      "Sync UI must skip the automatic account bridge probe only when a fresh ready receipt already exists.",
     ],
     [
       'data-account-sync-bridge-auto-probe="missing-or-expired-receipt"',

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import DatabaseProvider from "@/components/providers/DatabaseProvider";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { ApiGuardPanel } from "@/components/modules/sync/ApiGuardPanel";
+import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import { usePageFavorites } from "@/hooks/usePageFavorites";
 import { usePages } from "@/hooks/usePages";
 import {
@@ -916,6 +917,7 @@ const CORE_MANIFEST_DATE_DIFF_ROW_LIMIT = 40;
 const ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY =
   "zhinote.sync.accountBridgeProbeReceipt.v1";
 const ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS = 30 * 60 * 1000;
+const ACCOUNT_SYNC_BRIDGE_PROBE_RETRY_TTL_MS = 2 * 60 * 1000;
 const ACCOUNT_SYNC_BRIDGE_PROBE_AUTO_DELAY_MS = 1_200;
 const ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE =
   "只读取云端 manifest summary 的 count、deleted、watermark 和状态；不读取页面正文、数据库行值、评论、文件名、文件字节、token 或凭据，也不上传数据、不修改 pending 队列。";
@@ -1001,12 +1003,14 @@ function buildAccountSyncBridgeProbeReceipt(input: {
       : readableDomains === 0
         ? "blocked"
         : "partial";
+  const ttlMs =
+    status === "ready"
+      ? ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS
+      : ACCOUNT_SYNC_BRIDGE_PROBE_RETRY_TTL_MS;
 
   return {
     checked_at: checkedAt.toISOString(),
-    expires_at: new Date(
-      checkedAt.getTime() + ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS
-    ).toISOString(),
+    expires_at: new Date(checkedAt.getTime() + ttlMs).toISOString(),
     status,
     readable_domains: readableDomains,
     blocked_domains: blockedDomains,
@@ -1017,7 +1021,7 @@ function buildAccountSyncBridgeProbeReceipt(input: {
         : "先处理不可读的数据域：通常是未登录、会话过期、同步开关未开、云环境未配置或接口错误；本地输入和 pending 队列会保留。",
     privacy_note: ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE,
     storage_policy:
-      "只在本机 localStorage 保留 30 分钟的 metadata-only 检查回执；过期后不作为同步可用证据。",
+      "ready 回执只在本机 localStorage 保留 30 分钟；partial/blocked 回执只保留 2 分钟并允许自动重查。过期后不作为同步可用证据。",
   };
 }
 
@@ -1028,7 +1032,7 @@ function buildAccountSyncBridgeProbeErrorReceipt(
   return {
     checked_at: checkedAt.toISOString(),
     expires_at: new Date(
-      checkedAt.getTime() + ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS
+      checkedAt.getTime() + ACCOUNT_SYNC_BRIDGE_PROBE_RETRY_TTL_MS
     ).toISOString(),
     status: "blocked",
     readable_domains: 0,
@@ -1058,7 +1062,7 @@ function buildAccountSyncBridgeProbeErrorReceipt(
       "只读检查没有完成；先确认账号仍登录、同步接口可访问，再重新运行。这个失败不会上传数据，也不会清空本地队列。",
     privacy_note: ACCOUNT_SYNC_BRIDGE_PROBE_PRIVACY_NOTE,
     storage_policy:
-      "只在本机 localStorage 保留 30 分钟的 metadata-only 检查回执；过期后不作为同步可用证据。",
+      "ready 回执只在本机 localStorage 保留 30 分钟；partial/blocked 回执只保留 2 分钟并允许自动重查。过期后不作为同步可用证据。",
   };
 }
 
@@ -1070,7 +1074,8 @@ function readStoredAccountSyncBridgeProbeReceipt(): AccountSyncBridgeProbeReceip
     );
     if (!raw) return null;
     const receipt = normalizeAccountSyncBridgeProbeReceipt(JSON.parse(raw));
-    if (!receipt || Date.parse(receipt.expires_at) <= Date.now()) {
+    const expiresAt = accountSyncBridgeProbeEffectiveExpiresAt(receipt);
+    if (!receipt || expiresAt <= Date.now()) {
       window.localStorage.removeItem(ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY);
       return null;
     }
@@ -1089,8 +1094,28 @@ function isFreshAccountSyncBridgeProbeReceipt(
   receipt: AccountSyncBridgeProbeReceipt | null
 ): boolean {
   if (!receipt) return false;
-  const expiresAt = Date.parse(receipt.expires_at);
+  const expiresAt = accountSyncBridgeProbeEffectiveExpiresAt(receipt);
   return Number.isFinite(expiresAt) && expiresAt > Date.now();
+}
+
+function isFreshReadyAccountSyncBridgeProbeReceipt(
+  receipt: AccountSyncBridgeProbeReceipt | null
+): boolean {
+  return receipt?.status === "ready" && isFreshAccountSyncBridgeProbeReceipt(receipt);
+}
+
+function accountSyncBridgeProbeEffectiveExpiresAt(
+  receipt: AccountSyncBridgeProbeReceipt | null
+): number {
+  if (!receipt) return 0;
+  const explicitExpiresAt = Date.parse(receipt.expires_at);
+  if (receipt.status === "ready") return explicitExpiresAt;
+  const checkedAt = Date.parse(receipt.checked_at);
+  if (!Number.isFinite(checkedAt)) return explicitExpiresAt;
+  const retryExpiresAt = checkedAt + ACCOUNT_SYNC_BRIDGE_PROBE_RETRY_TTL_MS;
+  return Number.isFinite(explicitExpiresAt)
+    ? Math.min(explicitExpiresAt, retryExpiresAt)
+    : retryExpiresAt;
 }
 
 function persistAccountSyncBridgeProbeReceipt(
@@ -2460,18 +2485,46 @@ function SyncDashboard() {
         setTwoDeviceSmokeOwnerDraft(readStoredTwoDeviceSmokeOwnerDraft());
       }
     };
+    const handleAccountProfileUpdated = () => {
+      accountBridgeProbeAutoRunRef.current = false;
+      const stored = readStoredAccountSyncBridgeProbeReceipt();
+      if (stored && stored.status !== "ready") {
+        try {
+          window.localStorage.removeItem(ACCOUNT_SYNC_BRIDGE_PROBE_STORAGE_KEY);
+        } catch {
+          // Losing a local UI receipt is safe; the next probe will rebuild it.
+        }
+        setAccountBridgeProbeReceipt(null);
+        return;
+      }
+      setAccountBridgeProbeReceipt(stored);
+    };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener(
+      ACCOUNT_PROFILE_UPDATED_EVENT,
+      handleAccountProfileUpdated
+    );
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(
+        ACCOUNT_PROFILE_UPDATED_EVENT,
+        handleAccountProfileUpdated
+      );
+    };
   }, []);
 
   useEffect(() => {
     if (!accountBridgeProbeReceipt) return;
-    const expiresAt = Date.parse(accountBridgeProbeReceipt.expires_at);
+    const expiresAt = accountSyncBridgeProbeEffectiveExpiresAt(
+      accountBridgeProbeReceipt
+    );
     if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
+      accountBridgeProbeAutoRunRef.current = false;
       setAccountBridgeProbeReceipt(null);
       return;
     }
     const timer = window.setTimeout(() => {
+      accountBridgeProbeAutoRunRef.current = false;
       setAccountBridgeProbeReceipt(readStoredAccountSyncBridgeProbeReceipt());
     }, expiresAt - Date.now() + 250);
     return () => window.clearTimeout(timer);
@@ -6069,7 +6122,7 @@ function SyncDashboard() {
   useEffect(() => {
     if (accountBridgeProbeAutoRunRef.current) return;
     if (busyQueueAction !== null) return;
-    if (isFreshAccountSyncBridgeProbeReceipt(accountBridgeProbeReceipt)) {
+    if (isFreshReadyAccountSyncBridgeProbeReceipt(accountBridgeProbeReceipt)) {
       return;
     }
     accountBridgeProbeAutoRunRef.current = true;
@@ -23892,6 +23945,12 @@ function AccountSyncBridgeProbePanel({
       data-account-sync-bridge-auto-delay-ms={String(
         ACCOUNT_SYNC_BRIDGE_PROBE_AUTO_DELAY_MS
       )}
+      data-account-sync-bridge-ready-ttl-ms={String(
+        ACCOUNT_SYNC_BRIDGE_PROBE_TTL_MS
+      )}
+      data-account-sync-bridge-retry-ttl-ms={String(
+        ACCOUNT_SYNC_BRIDGE_PROBE_RETRY_TTL_MS
+      )}
       data-account-sync-bridge-probe-privacy="metadata-only"
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
     >
@@ -23916,7 +23975,8 @@ function AccountSyncBridgeProbePanel({
             不上传、不改队列，只读取云端 manifest summary 的 count / deleted /
             watermark，用来判断当前登录账号在另一台设备是否能读到同一份核心
             metadata。同步中心打开时，如果本机没有 30 分钟内的新鲜回执，会自动做一次
-            metadata-only 预检；你仍然可以手动重查。
+            metadata-only 预检；如果上次是 partial/blocked，只短暂保留 2 分钟，
+            账号状态变化或过期后会重新预检。你仍然可以手动重查。
           </p>
         </div>
         <button
