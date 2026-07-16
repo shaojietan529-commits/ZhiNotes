@@ -655,6 +655,8 @@ check(
     syncShell.includes("data-required-cloud-domains") &&
     syncShell.includes("data-handoff-blocker-count") &&
     syncShell.includes("readiness.deviceHandoffReady") &&
+    syncShell.includes("pageSyncEnabled: syncLocalUseQueueSnapshot.pageSyncEnabled") &&
+    syncShell.includes("databaseSyncEnabled: syncLocalUseQueueSnapshot.databaseSyncEnabled") &&
     syncShell.includes("核心同步域"),
   "同步中心必须明确展示跨设备接力是否就绪和阻断原因，不能只用“本地可写”暗示多端已同步"
 );

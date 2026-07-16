@@ -6742,6 +6742,14 @@ function run() {
       "Sync Center must expose the number of device handoff blockers.",
     ],
     [
+      "pageSyncEnabled: syncLocalUseQueueSnapshot.pageSyncEnabled",
+      "Sync Center local-use readiness must pass the page sync switch status instead of defaulting required domains to false.",
+    ],
+    [
+      "databaseSyncEnabled: syncLocalUseQueueSnapshot.databaseSyncEnabled",
+      "Sync Center local-use readiness must pass the database sync switch status instead of defaulting required domains to false.",
+    ],
+    [
       "本地写作和跨设备接力是两回事",
       "Sync Center must explain that local writing can continue before device handoff is safe.",
     ],

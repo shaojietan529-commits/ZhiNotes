@@ -3406,6 +3406,8 @@ function SyncDashboard() {
       otherManualReviewTotal,
       fileFailedTotal: fileEmbedPendingStatus.failed,
       fileManualReviewTotal: fileEmbedPendingStatus.manualReviewCount,
+      pageSyncEnabled: pagePendingStatus.enabled,
+      databaseSyncEnabled: databasePendingStatus.enabled,
       authRetryDomainLabel,
       authRetryUnconfiguredDomainLabel,
       authRetryUnconfirmedDomainLabel,
@@ -3454,6 +3456,8 @@ function SyncDashboard() {
         syncLocalUseQueueSnapshot.otherManualReviewTotal,
       fileFailedTotal: syncLocalUseQueueSnapshot.fileFailedTotal,
       fileManualReviewTotal: syncLocalUseQueueSnapshot.fileManualReviewTotal,
+      pageSyncEnabled: syncLocalUseQueueSnapshot.pageSyncEnabled,
+      databaseSyncEnabled: syncLocalUseQueueSnapshot.databaseSyncEnabled,
       authRetryDomainLabel: syncLocalUseQueueSnapshot.authRetryDomainLabel,
       authRetryUnconfiguredDomainLabel:
         syncLocalUseQueueSnapshot.authRetryUnconfiguredDomainLabel,
