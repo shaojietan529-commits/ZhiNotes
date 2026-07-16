@@ -5645,12 +5645,32 @@ function run() {
       "Account shell must sequence session refreshes so stale results cannot override newer account state.",
     ],
     [
+      "const cloudUploadReliabilityRequestRef = useRef(0)",
+      "Account shell must sequence cloud-upload reliability refreshes so stale queue snapshots cannot override newer status.",
+    ],
+    [
       "refreshSessionRequestRef.current += 1",
       "Account shell cleanup must invalidate in-flight session refreshes.",
     ],
     [
+      "cloudUploadReliabilityRequestRef.current += 1",
+      "Account shell cleanup must invalidate in-flight cloud-upload reliability refreshes.",
+    ],
+    [
       "refreshSessionRequestRef.current !== requestId",
       "Account shell session refresh must ignore stale account responses.",
+    ],
+    [
+      "cloudUploadReliabilityRequestRef.current !== requestId",
+      "Account shell cloud-upload reliability refresh must ignore stale queue responses.",
+    ],
+    [
+      "ACCOUNT_CLOUD_UPLOAD_RELIABILITY_EVENT_REFRESH_MS",
+      "Account shell must debounce high-frequency cloud-upload reliability event refreshes.",
+    ],
+    [
+      "scheduleCloudUploadReliabilityRefresh",
+      "Account shell must coalesce page/database/file/settings/sync-log status events before rescanning local queues.",
     ],
     [
       "cancelled || !accountShellMountedRef.current",

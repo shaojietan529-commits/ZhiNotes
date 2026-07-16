@@ -540,13 +540,24 @@ check(
 check(
   shell.includes("const accountShellMountedRef = useRef(true)") &&
     shell.includes("const refreshSessionRequestRef = useRef(0)") &&
+    shell.includes("const cloudUploadReliabilityRequestRef = useRef(0)") &&
     shell.includes("refreshSessionRequestRef.current += 1") &&
+    shell.includes("cloudUploadReliabilityRequestRef.current += 1") &&
     shell.includes("const requestId = refreshSessionRequestRef.current + 1") &&
+    shell.includes("cloudUploadReliabilityRequestRef.current !== requestId") &&
     shell.includes("refreshSessionRequestRef.current !== requestId") &&
     shell.includes("if (!accountShellMountedRef.current) return;") &&
     shell.includes("let cancelled = false") &&
     shell.includes("cancelled || !accountShellMountedRef.current"),
   "AccountShell 账号页异步 session、同步健康卡和共享/API key 初始化必须有卸载保护和请求序号，旧请求不能覆盖最新账号状态"
+);
+check(
+  shell.includes("ACCOUNT_CLOUD_UPLOAD_RELIABILITY_EVENT_REFRESH_MS") &&
+    shell.includes("scheduleCloudUploadReliabilityRefresh") &&
+    shell.includes("window.clearTimeout(refreshTimer)") &&
+    shell.includes("window.setTimeout(() => {") &&
+    shell.includes("scheduleCloudUploadReliabilityRefresh();"),
+  "AccountShell 同步健康卡应合并高频同步事件刷新，避免页面/数据库状态事件风暴造成账号页反复扫描本地队列"
 );
 check(
   shell.includes("isAccountSessionStorageKey") &&

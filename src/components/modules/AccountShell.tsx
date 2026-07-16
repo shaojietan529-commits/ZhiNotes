@@ -111,6 +111,7 @@ type Phase =
 type AccountCloudCoverageStatus = "cloud-ready" | "partial" | "local-only";
 
 const ACCOUNT_ACTION_REQUEST_TIMEOUT_MS = 12000;
+const ACCOUNT_CLOUD_UPLOAD_RELIABILITY_EVENT_REFRESH_MS = 120;
 
 const accountCloudCoverageRows: {
   id: string;
@@ -316,12 +317,14 @@ export default function AccountShell() {
   const [apiKeyNotice, setApiKeyNotice] = useState<string | null>(null);
   const accountShellMountedRef = useRef(true);
   const refreshSessionRequestRef = useRef(0);
+  const cloudUploadReliabilityRequestRef = useRef(0);
 
   useEffect(() => {
     accountShellMountedRef.current = true;
     return () => {
       accountShellMountedRef.current = false;
       refreshSessionRequestRef.current += 1;
+      cloudUploadReliabilityRequestRef.current += 1;
     };
   }, []);
 
@@ -333,12 +336,19 @@ export default function AccountShell() {
   }, []);
 
   const refreshCloudUploadReliability = useCallback(async () => {
+    const requestId = cloudUploadReliabilityRequestRef.current + 1;
+    cloudUploadReliabilityRequestRef.current = requestId;
     const [pageStatus, databaseStatus, localSyncSummary] = await Promise.all([
       getPendingCloudPageSyncStatusWithSyncLog(),
       getPendingCloudDatabaseSyncStatus(),
       getSyncLogSummary().catch(() => null),
     ]);
-    if (!accountShellMountedRef.current) return;
+    if (
+      !accountShellMountedRef.current ||
+      cloudUploadReliabilityRequestRef.current !== requestId
+    ) {
+      return;
+    }
     setPagePendingStatus(pageStatus);
     setDatabasePendingStatus(databaseStatus);
     setFileEmbedPendingStatus(getPendingFileEmbedSyncStatus());
@@ -348,16 +358,23 @@ export default function AccountShell() {
 
   useEffect(() => {
     if (phase !== "signed-in") return;
+    let refreshTimer: number | undefined;
+    const scheduleCloudUploadReliabilityRefresh = () => {
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        void refreshCloudUploadReliability();
+      }, ACCOUNT_CLOUD_UPLOAD_RELIABILITY_EVENT_REFRESH_MS);
+    };
     void refreshCloudUploadReliability();
     const interval = window.setInterval(() => {
       void refreshCloudUploadReliability();
     }, 5000);
     const handleSyncStatus = () => {
-      void refreshCloudUploadReliability();
+      scheduleCloudUploadReliabilityRefresh();
     };
     const handleStorage = (event: StorageEvent) => {
       if (isAccountCloudUploadStatusStorageEvent(event)) {
-        void refreshCloudUploadReliability();
+        scheduleCloudUploadReliabilityRefresh();
       }
     };
     window.addEventListener(PAGE_SYNC_STATUS_EVENT, handleSyncStatus);
@@ -368,6 +385,8 @@ export default function AccountShell() {
     window.addEventListener(SYNC_LOG_STATUS_EVENT, handleSyncStatus);
     window.addEventListener("storage", handleStorage);
     return () => {
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      cloudUploadReliabilityRequestRef.current += 1;
       window.clearInterval(interval);
       window.removeEventListener(PAGE_SYNC_STATUS_EVENT, handleSyncStatus);
       window.removeEventListener(DATABASE_SYNC_STATUS_EVENT, handleSyncStatus);
