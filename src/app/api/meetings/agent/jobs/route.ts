@@ -4,7 +4,10 @@ import {
   getSessionAccount,
   readSessionToken,
 } from "@/lib/account/server";
-import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
+import {
+  accountSessionUnconfirmedHeaders,
+  accountSessionUnconfirmedPayload,
+} from "@/lib/account/sessionResponses";
 import {
   buildMeetingAgentQueueFailureStatus,
   buildMeetingAgentQueuePendingStatus,
@@ -236,7 +239,7 @@ export async function POST(request: Request) {
         reason: sessionUnconfirmed.reason,
         keeps_session_cookie: sessionUnconfirmed.keeps_session_cookie,
       },
-      { status: 503 }
+      { status: 503, headers: accountSessionUnconfirmedHeaders() }
     );
   }
 

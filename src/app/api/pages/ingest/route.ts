@@ -7,7 +7,10 @@ import {
   readSessionToken,
   type AccountIdentityConfig,
 } from "@/lib/account/server";
-import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
+import {
+  accountSessionUnconfirmedHeaders,
+  accountSessionUnconfirmedPayload,
+} from "@/lib/account/sessionResponses";
 import { generateId } from "@/lib/utils/id";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +31,10 @@ function corsJson(data: unknown, init?: ResponseInit) {
 }
 
 function corsSessionUnconfirmedResponse(message: string) {
-  return corsJson(accountSessionUnconfirmedPayload(message), { status: 503 });
+  return corsJson(accountSessionUnconfirmedPayload(message), {
+    status: 503,
+    headers: accountSessionUnconfirmedHeaders(),
+  });
 }
 
 export function OPTIONS() {

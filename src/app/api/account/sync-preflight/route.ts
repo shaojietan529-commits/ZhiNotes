@@ -7,7 +7,10 @@ import {
   readSessionToken,
   type KvEnv,
 } from "@/lib/account/server";
-import { accountSessionUnconfirmedPayload } from "@/lib/account/sessionResponses";
+import {
+  accountSessionUnconfirmedHeaders,
+  accountSessionUnconfirmedPayload,
+} from "@/lib/account/sessionResponses";
 import { maskEmail } from "@/lib/cloud/api";
 
 export const dynamic = "force-dynamic";
@@ -220,7 +223,7 @@ export async function GET(request: Request) {
           ],
         }),
       },
-      { status: 503 }
+      { status: 503, headers: accountSessionUnconfirmedHeaders() }
     );
   }
 
@@ -268,7 +271,7 @@ export async function GET(request: Request) {
           ],
         }),
       },
-      { status: 503 }
+      { status: 503, headers: accountSessionUnconfirmedHeaders() }
     );
   }
 

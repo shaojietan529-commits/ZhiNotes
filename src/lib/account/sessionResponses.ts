@@ -25,16 +25,20 @@ export function accountSessionUnconfirmedPayload(
   };
 }
 
+export function accountSessionUnconfirmedHeaders(): Record<string, string> {
+  return {
+    "Cache-Control": "no-store, max-age=0",
+    "Retry-After": String(ACCOUNT_SESSION_UNCONFIRMED_RETRY_AFTER_SECONDS),
+    "X-Zhinote-Keeps-Session-Cookie": "true",
+    "X-Zhinote-Session-State": ACCOUNT_SESSION_UNCONFIRMED_REASON,
+  };
+}
+
 export function accountSessionUnconfirmedResponse(
   message: string = ACCOUNT_SESSION_UNCONFIRMED_MESSAGE
 ): NextResponse {
   return NextResponse.json(accountSessionUnconfirmedPayload(message), {
     status: 503,
-    headers: {
-      "Cache-Control": "no-store, max-age=0",
-      "Retry-After": String(ACCOUNT_SESSION_UNCONFIRMED_RETRY_AFTER_SECONDS),
-      "X-Zhinote-Keeps-Session-Cookie": "true",
-      "X-Zhinote-Session-State": ACCOUNT_SESSION_UNCONFIRMED_REASON,
-    },
+    headers: accountSessionUnconfirmedHeaders(),
   });
 }

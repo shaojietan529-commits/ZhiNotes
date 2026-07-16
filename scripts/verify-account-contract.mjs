@@ -80,6 +80,7 @@ check(
     sessionResponses.includes('"X-Zhinote-Keeps-Session-Cookie": "true"') &&
     sessionResponses.includes('"X-Zhinote-Session-State"') &&
     sessionResponses.includes("accountSessionUnconfirmedPayload") &&
+    sessionResponses.includes("accountSessionUnconfirmedHeaders") &&
     sessionResponses.includes("status: 503") &&
     sessionResponses.includes("accountSessionUnconfirmedResponse"),
   "账号 session-unconfirmed 响应必须有共享 helper：返回 503 可重试、no-store、带 retry-after、明确保留 cookie，避免同步接口把临时失败误判成登出"
@@ -103,6 +104,10 @@ check(
     accountSyncPreflight.includes("PAGE_INDEX_KEY_PREFIX") &&
     accountSyncPreflight.includes("DATABASE_INDEX_KEY_PREFIX") &&
     accountSyncPreflight.includes("accountSessionUnconfirmedPayload") &&
+    accountSyncPreflight.includes("accountSessionUnconfirmedHeaders") &&
+    accountSyncPreflight.includes(
+      "{ status: 503, headers: accountSessionUnconfirmedHeaders() }"
+    ) &&
     accountSyncPreflight.includes("maskEmail(account.email)") &&
     accountSyncPreflight.includes("reads_page_body_text: false") &&
     accountSyncPreflight.includes("reads_database_row_values: false") &&
@@ -1037,7 +1042,9 @@ check(
 );
 check(
   pageIngestRoute.includes("accountSessionUnconfirmedPayload") &&
+    pageIngestRoute.includes("accountSessionUnconfirmedHeaders") &&
     pageIngestRoute.includes("function corsSessionUnconfirmedResponse") &&
+    pageIngestRoute.includes("headers: accountSessionUnconfirmedHeaders()") &&
     pageIngestRoute.includes("页面导入暂时无法确认账号；不会登出，请稍后重试。") &&
     pageIngestRoute.includes("API key 管理暂时无法确认账号；不会登出，请稍后重试。") &&
     pageIngestRoute.includes("hadSessionToken") &&
@@ -1046,8 +1053,12 @@ check(
 );
 check(
   meetingAgentJobsRoute.includes("accountSessionUnconfirmedPayload") &&
+    meetingAgentJobsRoute.includes("accountSessionUnconfirmedHeaders") &&
     meetingAgentJobsRoute.includes("sessionUnconfirmed.reason") &&
     meetingAgentJobsRoute.includes("sessionUnconfirmed.keeps_session_cookie") &&
+    meetingAgentJobsRoute.includes(
+      "{ status: 503, headers: accountSessionUnconfirmedHeaders() }"
+    ) &&
     meetingAgentJobsRoute.includes("会议录制任务暂时无法确认账号；不会登出，请稍后重试。") &&
     !meetingAgentJobsRoute.includes("登录已过期，请重新登录。"),
   "meeting agent jobs route 有 cookie 但 session 暂时查不到时必须返回可重试 session-unconfirmed，不能返回登录过期"

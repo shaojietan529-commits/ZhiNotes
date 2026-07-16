@@ -131,6 +131,14 @@ function run() {
       "Account sync preflight must keep transient account failures retryable instead of signing the user out.",
     ],
     [
+      "accountSessionUnconfirmedHeaders",
+      "Account sync preflight must attach retry-after and keep-cookie headers on session-unconfirmed responses.",
+    ],
+    [
+      "{ status: 503, headers: accountSessionUnconfirmedHeaders() }",
+      "Account sync preflight session-unconfirmed responses must use the shared retryable response headers.",
+    ],
+    [
       "keeps_session_cookie",
       "Account sync preflight must explicitly state that session-unconfirmed keeps the cookie.",
     ],
