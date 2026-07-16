@@ -71,12 +71,18 @@ check(
 check(
   sessionResponses.includes("ACCOUNT_SESSION_UNCONFIRMED_REASON") &&
     sessionResponses.includes('"session-unconfirmed"') &&
+    sessionResponses.includes("ACCOUNT_SESSION_UNCONFIRMED_RETRY_AFTER_SECONDS") &&
+    sessionResponses.includes("retry_after_seconds") &&
     sessionResponses.includes("retryable: true") &&
     sessionResponses.includes("keeps_session_cookie: true") &&
+    sessionResponses.includes('"Cache-Control": "no-store, max-age=0"') &&
+    sessionResponses.includes('"Retry-After"') &&
+    sessionResponses.includes('"X-Zhinote-Keeps-Session-Cookie": "true"') &&
+    sessionResponses.includes('"X-Zhinote-Session-State"') &&
     sessionResponses.includes("accountSessionUnconfirmedPayload") &&
     sessionResponses.includes("status: 503") &&
     sessionResponses.includes("accountSessionUnconfirmedResponse"),
-  "账号 session-unconfirmed 响应必须有共享 helper：返回 503 可重试、明确保留 cookie，避免同步接口把临时失败误判成登出"
+  "账号 session-unconfirmed 响应必须有共享 helper：返回 503 可重试、no-store、带 retry-after、明确保留 cookie，避免同步接口把临时失败误判成登出"
 );
 check(
   server.includes('DEFAULT_SHARED_SESSION_COOKIE_DOMAIN = ".zhi-note.com"') &&
@@ -258,6 +264,20 @@ const knowledgeCloudSyncStatusHook = read(
   "src/hooks/useKnowledgeCloudSyncStatus.ts"
 );
 const knowledgeSyncStatus = read("src/lib/sync/knowledgeSyncStatus.ts");
+
+check(
+  accountClientSession.includes("retryAfterMs?: number") &&
+    accountClientSession.includes("readRetryAfterMs(res)") &&
+    accountClientSession.includes("normalizeRetryAfterSeconds") &&
+    accountClientSession.includes('res.headers.get("Retry-After")') &&
+    accountClientSession.includes(
+      "Math.min(seconds * 1000, ACCOUNT_SESSION_RETRY_BACKOFF_MS)"
+    ) &&
+    accountClientSession.includes(
+      "result.retryAfterMs ?? ACCOUNT_SESSION_RETRY_BACKOFF_MS"
+    ),
+  "前端账号 session fallback 必须读取服务端 retry-after，但仍限制在短退避窗口内，避免临时失败被当成长期登出或长期不可用"
+);
 const visibleRefreshLease = read("src/lib/sync/visibleRefreshLease.ts");
 check(shell.includes("unconfigured"), "AccountShell 缺少未配置状态");
 const effectBodies = shell.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[/g) ?? [];

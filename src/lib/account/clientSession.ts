@@ -28,6 +28,7 @@ export interface AccountSessionResult {
   authenticated: boolean;
   account: ClientAccountInfo | null;
   error?: string;
+  retryAfterMs?: number;
   stale?: boolean;
   staleReason?: string;
   confirmedSignedOut?: boolean;
@@ -122,7 +123,7 @@ export async function fetchAccountSession(
     result.status === "unconfigured" ||
     result.status === "unconfirmed" ||
     result.status === "error"
-      ? Date.now() + ACCOUNT_SESSION_RETRY_BACKOFF_MS
+      ? Date.now() + (result.retryAfterMs ?? ACCOUNT_SESSION_RETRY_BACKOFF_MS)
       : 0;
   if (result.authenticated && result.account && !result.stale) {
     storeAuthenticatedAccount(result.account, Date.now());
@@ -140,12 +141,14 @@ export async function fetchAccountSession(
 async function runFetchAccountSession(): Promise<AccountSessionResult> {
   try {
     const res = await fetchAccountSessionStatus();
+    const retryAfterMs = readRetryAfterMs(res);
     if (res.status === 501) {
       return {
         status: "unconfigured",
         authenticated: false,
         account: null,
         error: "account system not configured",
+        retryAfterMs,
       };
     }
     if (!res.ok) {
@@ -156,6 +159,7 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
           authenticated: false,
           account: null,
           error: retryable.reason,
+          retryAfterMs: retryable.retryAfterMs ?? retryAfterMs,
         };
       }
       return {
@@ -163,6 +167,7 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
         authenticated: false,
         account: null,
         error: "account session check failed",
+        retryAfterMs,
       };
     }
     const data = await res.json();
@@ -182,6 +187,7 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
           typeof data.reason === "string"
             ? data.reason
             : "account session temporarily unconfirmed",
+        retryAfterMs,
       };
     }
     return {
@@ -198,13 +204,14 @@ async function runFetchAccountSession(): Promise<AccountSessionResult> {
       error: isAbortError(error)
         ? "account session check timed out"
         : "network error",
+      retryAfterMs: ACCOUNT_SESSION_RETRY_BACKOFF_MS,
     };
   }
 }
 
 async function readAccountSessionRetryablePayload(
   res: Response
-): Promise<{ reason: string } | null> {
+): Promise<{ reason: string; retryAfterMs?: number } | null> {
   try {
     const data = await res.clone().json();
     if (data.retryable || data.reason === "session-unconfirmed") {
@@ -213,12 +220,28 @@ async function readAccountSessionRetryablePayload(
           typeof data.reason === "string"
             ? data.reason
             : "account session temporarily unconfirmed",
+        retryAfterMs: normalizeRetryAfterSeconds(data.retry_after_seconds),
       };
     }
   } catch {
     // Non-JSON error bodies are treated as ordinary retryable network errors.
   }
   return null;
+}
+
+function readRetryAfterMs(res: Response): number | undefined {
+  return normalizeRetryAfterSeconds(res.headers.get("Retry-After"));
+}
+
+function normalizeRetryAfterSeconds(value: unknown): number | undefined {
+  const seconds =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
+  return Math.min(seconds * 1000, ACCOUNT_SESSION_RETRY_BACKOFF_MS);
 }
 
 async function fetchAccountSessionStatus(): Promise<Response> {
