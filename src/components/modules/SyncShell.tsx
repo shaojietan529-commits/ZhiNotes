@@ -810,6 +810,18 @@ type TwoDeviceSmokeOwnerDraftSummary = {
   scoped_failed: number;
   scoped_blocked: number;
   scoped_not_recorded: number;
+  device_handoff_evidence_ready: boolean;
+  device_handoff_required_total: number;
+  device_handoff_required_passed: number;
+  device_handoff_required_failed: number;
+  device_handoff_required_blocked: number;
+  device_handoff_required_not_recorded: number;
+  core_surface_required_total: number;
+  core_surface_required_passed: number;
+  account_bridge_evidence_ready: boolean;
+  ack_evidence_ready: boolean;
+  bidirectional_visibility_evidence_ready: boolean;
+  pending_after_zero_evidence_ready: boolean;
   updated_at: string | null;
 };
 type TwoDeviceSmokeOwnerFilledReceipt = {
@@ -1040,6 +1052,25 @@ const TWO_DEVICE_SMOKE_SCOPED_OWNER_STEP_IDS = [
   "zhihui-meeting-sync",
   "database-row-sync",
   "file-report-metadata-sync",
+  "final-device-handoff",
+] as const;
+const TWO_DEVICE_SMOKE_CORE_SURFACE_OWNER_STEP_IDS = [
+  "page-note-sync",
+  "daily-note-sync",
+  "zhihui-meeting-sync",
+  "database-row-sync",
+  "file-report-metadata-sync",
+] as const;
+const TWO_DEVICE_SMOKE_DEVICE_HANDOFF_OWNER_STEP_IDS = [
+  "same-account-session",
+  "account-sync-bridge-probe",
+  "sync-domain-coverage-check",
+  "page-note-sync",
+  "daily-note-sync",
+  "zhihui-meeting-sync",
+  "database-row-sync",
+  "file-report-metadata-sync",
+  "ack-ledger-readiness",
   "final-device-handoff",
 ] as const;
 const TWO_DEVICE_SMOKE_OWNER_DRAFT_PRIVACY_NOTE =
@@ -1658,7 +1689,7 @@ function updateTwoDeviceSmokeOwnerDraftStep(input: {
 
 function countTwoDeviceSmokeOwnerDraftResults(
   draft: TwoDeviceSmokeOwnerDraft | null,
-  stepIds: string[]
+  stepIds: readonly string[]
 ) {
   let passed = 0;
   let failed = 0;
@@ -1694,6 +1725,13 @@ function countTwoDeviceSmokeOwnerDraftResults(
   };
 }
 
+function isTwoDeviceSmokeOwnerDraftStepPassed(
+  draft: TwoDeviceSmokeOwnerDraft | null,
+  stepId: string
+): boolean {
+  return draft?.steps[stepId]?.result === "pass";
+}
+
 function buildTwoDeviceSmokeOwnerDraftSummary(
   draft: TwoDeviceSmokeOwnerDraft | null,
   stepIds: string[],
@@ -1704,6 +1742,34 @@ function buildTwoDeviceSmokeOwnerDraftSummary(
     draft,
     scopedStepIds.filter((stepId) => stepIds.includes(stepId))
   );
+  const deviceHandoffStepIds =
+    TWO_DEVICE_SMOKE_DEVICE_HANDOFF_OWNER_STEP_IDS.filter((stepId) =>
+      stepIds.includes(stepId)
+    );
+  const deviceHandoff = countTwoDeviceSmokeOwnerDraftResults(
+    draft,
+    deviceHandoffStepIds
+  );
+  const coreSurfaceStepIds =
+    TWO_DEVICE_SMOKE_CORE_SURFACE_OWNER_STEP_IDS.filter((stepId) =>
+      stepIds.includes(stepId)
+    );
+  const coreSurface = countTwoDeviceSmokeOwnerDraftResults(
+    draft,
+    coreSurfaceStepIds
+  );
+  const accountBridgeEvidenceReady = isTwoDeviceSmokeOwnerDraftStepPassed(
+    draft,
+    "account-sync-bridge-probe"
+  );
+  const ackEvidenceReady = isTwoDeviceSmokeOwnerDraftStepPassed(
+    draft,
+    "ack-ledger-readiness"
+  );
+  const bidirectionalVisibilityEvidenceReady =
+    isTwoDeviceSmokeOwnerDraftStepPassed(draft, "final-device-handoff");
+  const pendingAfterZeroEvidenceReady =
+    ackEvidenceReady && bidirectionalVisibilityEvidenceReady;
   return {
     status: full.status,
     total: full.total,
@@ -1721,6 +1787,27 @@ function buildTwoDeviceSmokeOwnerDraftSummary(
     scoped_failed: scoped.failed,
     scoped_blocked: scoped.blocked,
     scoped_not_recorded: scoped.not_recorded,
+    device_handoff_evidence_ready:
+      deviceHandoff.total > 0 &&
+      deviceHandoff.status === "complete" &&
+      deviceHandoff.passed === deviceHandoff.total &&
+      coreSurface.passed === coreSurface.total &&
+      accountBridgeEvidenceReady &&
+      ackEvidenceReady &&
+      bidirectionalVisibilityEvidenceReady &&
+      pendingAfterZeroEvidenceReady,
+    device_handoff_required_total: deviceHandoff.total,
+    device_handoff_required_passed: deviceHandoff.passed,
+    device_handoff_required_failed: deviceHandoff.failed,
+    device_handoff_required_blocked: deviceHandoff.blocked,
+    device_handoff_required_not_recorded: deviceHandoff.not_recorded,
+    core_surface_required_total: coreSurface.total,
+    core_surface_required_passed: coreSurface.passed,
+    account_bridge_evidence_ready: accountBridgeEvidenceReady,
+    ack_evidence_ready: ackEvidenceReady,
+    bidirectional_visibility_evidence_ready:
+      bidirectionalVisibilityEvidenceReady,
+    pending_after_zero_evidence_ready: pendingAfterZeroEvidenceReady,
     updated_at: draft?.updated_at ?? null,
   };
 }
@@ -1772,8 +1859,10 @@ function buildTwoDeviceSmokeOwnerFilledReceipt(input: {
     input.ownerDraftSummary.failed > 0 || input.ownerDraftSummary.blocked > 0;
   const nextAction = hasFailures
     ? "先处理结果收据里的失败或阻塞项；未清零前不能声称两端同步通过。"
+    : input.ownerDraftSummary.device_handoff_evidence_ready
+      ? "换设备硬门槛已填齐，可以作为 owner evidence 保存；仍不能自动宣称完整平台同步通过，最终上线前还要保留真实双设备记录。"
     : input.ownerDraftSummary.status === "complete"
-      ? "结果已填齐，可以作为 owner evidence 保存；仍需按最终要求复核 pending=0、failed=0、manual review=0 和 ACK 证据。"
+      ? "结果已填齐，但换设备硬门槛仍未满足；请补齐账号同步桥、核心面、ACK、pendingAfter=0 和 A/B 双向可见证据。"
       : "继续填写未记录步骤；导出文件只是本地验收记录，不会触发云同步或自动通过。";
 
   return {
@@ -26729,6 +26818,33 @@ function TwoDeviceSyncSmokeRunbookPanel({
       data-two-device-smoke-owner-draft-scoped-not-recorded={String(
         ownerDraftSummary.scoped_not_recorded
       )}
+      data-two-device-smoke-owner-draft-handoff-ready={String(
+        ownerDraftSummary.device_handoff_evidence_ready
+      )}
+      data-two-device-smoke-owner-draft-handoff-passed={String(
+        ownerDraftSummary.device_handoff_required_passed
+      )}
+      data-two-device-smoke-owner-draft-handoff-total={String(
+        ownerDraftSummary.device_handoff_required_total
+      )}
+      data-two-device-smoke-owner-draft-core-surface-passed={String(
+        ownerDraftSummary.core_surface_required_passed
+      )}
+      data-two-device-smoke-owner-draft-core-surface-total={String(
+        ownerDraftSummary.core_surface_required_total
+      )}
+      data-two-device-smoke-owner-draft-account-bridge-ready={String(
+        ownerDraftSummary.account_bridge_evidence_ready
+      )}
+      data-two-device-smoke-owner-draft-ack-ready={String(
+        ownerDraftSummary.ack_evidence_ready
+      )}
+      data-two-device-smoke-owner-draft-bidirectional-ready={String(
+        ownerDraftSummary.bidirectional_visibility_evidence_ready
+      )}
+      data-two-device-smoke-owner-draft-pending-after-zero-ready={String(
+        ownerDraftSummary.pending_after_zero_evidence_ready
+      )}
       data-two-device-smoke-owner-draft-storage="localStorage"
       data-two-device-smoke-owner-draft-privacy="metadata-only"
       className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
@@ -26947,6 +27063,39 @@ function TwoDeviceSyncSmokeRunbookPanel({
               {ownerDraftSummary.scoped_blocked}；未记录{" "}
               {ownerDraftSummary.scoped_not_recorded}。这个状态只说明 scoped
               beta owner evidence 是否填齐，不等于完整平台同步通过。
+            </p>
+            <p
+              className="mt-2 rounded-md bg-white/70 px-2 py-1 text-[11px] text-blue-800 dark:bg-blue-950/60 dark:text-blue-100"
+              data-testid="two-device-smoke-owner-handoff-evidence"
+              data-two-device-smoke-owner-handoff-ready={String(
+                ownerDraftSummary.device_handoff_evidence_ready
+              )}
+              data-two-device-smoke-owner-handoff-required-passed={String(
+                ownerDraftSummary.device_handoff_required_passed
+              )}
+              data-two-device-smoke-owner-handoff-required-total={String(
+                ownerDraftSummary.device_handoff_required_total
+              )}
+            >
+              换设备硬门槛：
+              {ownerDraftSummary.device_handoff_evidence_ready
+                ? "已满足"
+                : "未满足"}
+              ；硬门槛步骤 {ownerDraftSummary.device_handoff_required_passed}/
+              {ownerDraftSummary.device_handoff_required_total} 通过；核心面{" "}
+              {ownerDraftSummary.core_surface_required_passed}/
+              {ownerDraftSummary.core_surface_required_total} 通过；同步桥{" "}
+              {ownerDraftSummary.account_bridge_evidence_ready ? "通过" : "待补"}
+              ；ACK {ownerDraftSummary.ack_evidence_ready ? "通过" : "待补"}
+              ；A/B 双向可见{" "}
+              {ownerDraftSummary.bidirectional_visibility_evidence_ready
+                ? "通过"
+                : "待补"}
+              ；pendingAfter=0{" "}
+              {ownerDraftSummary.pending_after_zero_evidence_ready
+                ? "通过"
+                : "待补"}
+              。
             </p>
           </div>
           <div className="shrink-0 rounded-md bg-white/70 px-2 py-1 text-[11px] text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">

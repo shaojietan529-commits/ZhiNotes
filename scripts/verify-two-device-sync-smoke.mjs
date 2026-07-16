@@ -376,8 +376,56 @@ function run() {
       "Sync UI owner draft summary must expose whether scoped owner evidence is ready.",
     ],
     [
+      "device_handoff_evidence_ready",
+      "Sync UI owner draft summary must expose whether real device handoff evidence is ready.",
+    ],
+    [
+      "TWO_DEVICE_SMOKE_DEVICE_HANDOFF_OWNER_STEP_IDS",
+      "Sync UI must define the hard-gated device handoff owner-evidence step set.",
+    ],
+    [
+      "TWO_DEVICE_SMOKE_CORE_SURFACE_OWNER_STEP_IDS",
+      "Sync UI must define the core surface owner-evidence step set.",
+    ],
+    [
+      "account_bridge_evidence_ready",
+      "Sync UI owner draft summary must expose account bridge evidence readiness.",
+    ],
+    [
+      "ack_evidence_ready",
+      "Sync UI owner draft summary must expose ACK evidence readiness.",
+    ],
+    [
+      "bidirectional_visibility_evidence_ready",
+      "Sync UI owner draft summary must expose A/B bidirectional visibility readiness.",
+    ],
+    [
+      "pending_after_zero_evidence_ready",
+      "Sync UI owner draft summary must expose pendingAfter=0 evidence readiness.",
+    ],
+    [
       "data-two-device-smoke-owner-draft-scoped-ready",
       "Sync UI must expose scoped owner evidence readiness as a stable data attribute.",
+    ],
+    [
+      "data-two-device-smoke-owner-draft-handoff-ready",
+      "Sync UI must expose device handoff owner evidence readiness as a stable data attribute.",
+    ],
+    [
+      'data-testid="two-device-smoke-owner-handoff-evidence"',
+      "Sync UI must render a visible device handoff evidence summary.",
+    ],
+    [
+      "换设备硬门槛",
+      "Sync UI must visibly distinguish device handoff evidence from general step completion.",
+    ],
+    [
+      "A/B 双向可见",
+      "Sync UI handoff summary must require bidirectional visibility evidence.",
+    ],
+    [
+      "pendingAfter=0",
+      "Sync UI handoff summary must require pendingAfter=0 evidence.",
     ],
     [
       'data-testid="two-device-smoke-owner-scoped-evidence"',
