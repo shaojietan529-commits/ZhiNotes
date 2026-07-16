@@ -215,6 +215,7 @@ const accountCloudSyncGate = read("src/lib/account/accountCloudSyncGate.ts");
 const hotCacheRouteWarmup = read("src/lib/sync/hotCacheRouteWarmup.ts");
 const hotCacheRouteWarmupHook = read("src/hooks/useHotCacheRouteWarmup.ts");
 const sidebarShell = read("src/components/sidebar/Sidebar.tsx");
+const syncShell = read("src/components/modules/SyncShell.tsx");
 const accountCloudSyncCoordinator = read(
   "src/hooks/useAccountCloudSyncCoordinator.ts"
 );
@@ -628,6 +629,34 @@ check(
     accountCloudSyncGate.includes("explicit_logout_required_to_clear_session: true") &&
     accountCloudSyncGate.includes("upload_block_does_not_block_writing: true"),
   "账号云同步 gate 必须复用账号会话检查，临时错误时保持身份可见但同步保持可重试错误，并声明不读取/上传/修改 workspace 数据；同步门禁失败只能阻止上传，不能阻止本地写作或清除登录"
+);
+check(
+  accountLocalUseReadiness.includes("deviceHandoffReady") &&
+    accountLocalUseReadiness.includes("requiredCloudDomains") &&
+    accountLocalUseReadiness.includes("handoffBlockers") &&
+    accountLocalUseReadiness.includes("pageSyncEnabled") &&
+    accountLocalUseReadiness.includes("databaseSyncEnabled") &&
+    accountLocalUseReadiness.includes("页面 / 每日纪要 / ZhiHui") &&
+    accountLocalUseReadiness.includes("核心云同步域未就绪") &&
+    accountLocalUseReadiness.includes("核心同步域未全部就绪") &&
+    accountCloudSyncCoordinator.includes(
+      "pageSyncEnabled: pageSync.pendingStatus.enabled"
+    ) &&
+    accountCloudSyncCoordinator.includes(
+      "databaseSyncEnabled: databaseSync.pendingStatus.enabled"
+    ),
+  "本地可用性判断必须把跨设备接力单独收紧：页面/每日纪要/ZhiHui 与数据库核心同步域都就绪、队列清零后，才允许显示可换设备"
+);
+check(
+  syncShell.includes("data-device-handoff-ready") &&
+    syncShell.includes('data-testid="sync-device-handoff-blockers"') &&
+    syncShell.includes("跨设备接力") &&
+    syncShell.includes("本地写作和跨设备接力是两回事") &&
+    syncShell.includes("data-required-cloud-domains") &&
+    syncShell.includes("data-handoff-blocker-count") &&
+    syncShell.includes("readiness.deviceHandoffReady") &&
+    syncShell.includes("核心同步域"),
+  "同步中心必须明确展示跨设备接力是否就绪和阻断原因，不能只用“本地可写”暗示多端已同步"
 );
 const staleUnconfiguredGateHandler = accountCloudSyncGate.slice(
   accountCloudSyncGate.indexOf(

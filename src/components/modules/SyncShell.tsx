@@ -12983,7 +12983,6 @@ function SyncDashboard() {
             <div className="mt-4 rounded-md border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
               <SyncLocalUseReadinessPanel
                 readiness={syncLocalUseReadiness}
-                pendingTotal={syncLocalUseQueueSnapshot.pendingTotal}
                 failedTotal={syncLocalUseQueueSnapshot.failedTotal}
                 manualReviewTotal={syncLocalUseQueueSnapshot.manualReviewTotal}
                 pendingDomainRows={pendingDomainRows}
@@ -22430,6 +22429,7 @@ function localUseReadinessClass(status: AccountLocalUseReadiness["status"]) {
 function getSidebarReadinessMirrorLabel(
   readiness: AccountLocalUseReadiness
 ) {
+  if (readiness.deviceHandoffReady) return "可跨设备接力";
   if (readiness.cloudHandoffReady) return "可云端交接";
   if (readiness.cacheRebuildBlocked) return "先别重建缓存";
   if (readiness.localInputCanContinue) return "本地可写";
@@ -22439,8 +22439,11 @@ function getSidebarReadinessMirrorLabel(
 function getSidebarReadinessMirrorDetail(
   readiness: AccountLocalUseReadiness
 ) {
+  if (readiness.deviceHandoffReady) {
+    return "左侧栏可显示为可跨设备接力；页面和数据库核心域已就绪且队列清零。";
+  }
   if (readiness.cloudHandoffReady) {
-    return "左侧栏可显示为云端就绪，换设备前仍建议确认账号页。";
+    return "左侧栏可显示为云端就绪；换设备前仍要确认核心域和队列。";
   }
   if (readiness.cacheRebuildBlocked) {
     return "左侧栏提示本地可写，但 pending 清零前不要重建缓存。";
@@ -22546,11 +22549,19 @@ function SyncOperationalStatusStrip({
 }) {
   const actionableTotal = pendingTotal + failedTotal + manualReviewTotal;
   const safeToSwitchDeviceNow =
+    readiness.deviceHandoffReady &&
     readiness.cloudHandoffReady &&
     pendingTotal === 0 &&
     failedTotal === 0 &&
     manualReviewTotal === 0 &&
     !authRetryDomainLabel;
+  const requiredDomainLabels = readiness.requiredCloudDomains
+    .map((domain) => `${domain.label}${domain.enabled ? "就绪" : "未就绪"}`)
+    .join(" / ");
+  const handoffBlockerSummary =
+    readiness.handoffBlockers.length > 0
+      ? readiness.handoffBlockers.slice(0, 3).join("；")
+      : "核心云同步域已就绪，队列已清零";
   const sidebarReadinessMirrorLabel =
     getSidebarReadinessMirrorLabel(readiness);
   const sidebarReadinessMirrorDetail =
@@ -22591,8 +22602,12 @@ function SyncOperationalStatusStrip({
       data-local-use-status={readiness.status}
       data-local-input-can-continue={String(readiness.localInputCanContinue)}
       data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
+      data-device-handoff-ready={String(readiness.deviceHandoffReady)}
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
       data-safe-to-switch-device-now={String(safeToSwitchDeviceNow)}
+      data-required-cloud-domains={requiredDomainLabels}
+      data-handoff-blocker-count={readiness.handoffBlockers.length}
+      data-handoff-blockers={readiness.handoffBlockers.join(" | ")}
       data-local-performance-status={performanceDiagnosis.status}
       data-local-performance-samples={performanceDiagnosis.sampleCount}
       data-local-performance-slowest={performanceDiagnosis.slowestLabel}
@@ -22626,6 +22641,7 @@ function SyncOperationalStatusStrip({
             <span
               data-testid="sync-safe-to-switch-device-badge"
               data-safe-to-switch-device-now={String(safeToSwitchDeviceNow)}
+              data-device-handoff-ready={String(readiness.deviceHandoffReady)}
               className={`rounded-md px-2 py-1 text-[10px] font-medium ${
                 safeToSwitchDeviceNow
                   ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
@@ -22634,7 +22650,7 @@ function SyncOperationalStatusStrip({
               title={
                 safeToSwitchDeviceNow
                   ? "没有 pending、failed、manual review 或账号重试，可以换到其他已登录设备继续。"
-                  : "本地可继续写；等 pending/failed/manual review 清零且账号重试恢复后，再把其他设备当作最新版本。"
+                  : "本地可继续写；等核心云同步域就绪、pending/failed/manual review 清零且账号重试恢复后，再把其他设备当作最新版本。"
               }
             >
               {safeToSwitchDeviceNow ? "可换设备" : "先等同步"}
@@ -22645,6 +22661,15 @@ function SyncOperationalStatusStrip({
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             {readiness.detail} {readiness.nextAction}
+          </p>
+          <p
+            data-testid="sync-device-handoff-blockers"
+            data-device-handoff-ready={String(readiness.deviceHandoffReady)}
+            data-handoff-blocker-count={readiness.handoffBlockers.length}
+            className="mt-2 max-w-3xl rounded-md bg-blue-50 px-3 py-2 text-[11px] leading-4 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+          >
+            跨设备接力：{handoffBlockerSummary}。本地写作和跨设备接力是两回事：
+            前者可以继续，后者必须等云端 ACK 和核心同步域都就绪。
           </p>
           {fileQueueTotal > 0 ? (
             <p
@@ -22694,9 +22719,12 @@ function SyncOperationalStatusStrip({
               readiness.localInputCanContinue
             )}
             data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
+            data-device-handoff-ready={String(readiness.deviceHandoffReady)}
             data-cache-rebuild-blocked={String(
               readiness.cacheRebuildBlocked
             )}
+            data-required-cloud-domains={requiredDomainLabels}
+            data-handoff-blocker-count={readiness.handoffBlockers.length}
             data-auth-retry-active={Boolean(authRetryDomainLabel)}
             data-auth-retry-domains={authRetryDomainLabel}
             data-auth-retry-unconfigured-domains={
@@ -23381,7 +23409,6 @@ function DevelopmentStabilitySurfaceList({
 
 function SyncLocalUseReadinessPanel({
   readiness,
-  pendingTotal,
   failedTotal,
   manualReviewTotal,
   pendingDomainRows,
@@ -23390,7 +23417,6 @@ function SyncLocalUseReadinessPanel({
   onOpenAccount,
 }: {
   readiness: AccountLocalUseReadiness;
-  pendingTotal: number;
   failedTotal: number;
   manualReviewTotal: number;
   pendingDomainRows: PendingDomainRow[];
@@ -23432,6 +23458,13 @@ function SyncLocalUseReadinessPanel({
   const monitoredDomainCoverageDetail = pendingDomainCoverage.coverageComplete
     ? monitoredDomainDetail
     : `缺少 ${pendingDomainCoverage.missingRegisteredDomainIds.join(" / ")}`;
+  const requiredDomainDetail = readiness.requiredCloudDomains
+    .map((domain) => `${domain.label}${domain.enabled ? "就绪" : "未就绪"}`)
+    .join(" / ");
+  const handoffBlockerDetail =
+    readiness.handoffBlockers.length > 0
+      ? readiness.handoffBlockers.slice(0, 2).join("；")
+      : "已满足核心接力条件";
   const facts = [
     {
       label: "本地可继续使用",
@@ -23440,8 +23473,15 @@ function SyncLocalUseReadinessPanel({
     },
     {
       label: "云端交接",
-      value: readiness.cloudHandoffReady ? "已就绪" : "等待",
-      detail: `${pendingTotal} 项待确认`,
+      value: readiness.deviceHandoffReady ? "可换设备" : "等待",
+      detail: handoffBlockerDetail,
+    },
+    {
+      label: "核心同步域",
+      value: readiness.requiredCloudDomains.every((domain) => domain.enabled)
+        ? "已就绪"
+        : "未齐",
+      detail: requiredDomainDetail,
     },
     {
       label: "缓存重建",
@@ -23480,7 +23520,11 @@ function SyncLocalUseReadinessPanel({
       data-local-use-status={readiness.status}
       data-local-input-can-continue={String(readiness.localInputCanContinue)}
       data-cloud-handoff-ready={String(readiness.cloudHandoffReady)}
+      data-device-handoff-ready={String(readiness.deviceHandoffReady)}
       data-cache-rebuild-blocked={String(readiness.cacheRebuildBlocked)}
+      data-required-cloud-domains={requiredDomainDetail}
+      data-handoff-blocker-count={readiness.handoffBlockers.length}
+      data-handoff-blockers={readiness.handoffBlockers.join(" | ")}
       data-monitored-sync-domain-count={monitoredDomainRows.length}
       data-monitored-sync-domain-labels={monitoredDomainLabels.join(",")}
       data-sync-domain-coverage-complete={String(
@@ -23543,7 +23587,7 @@ function SyncLocalUseReadinessPanel({
           </button>
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-7">
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-8">
         {facts.map((fact) => (
           <div
             key={fact.label}

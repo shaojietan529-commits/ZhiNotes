@@ -22,8 +22,11 @@ export interface AccountLocalUseReadiness {
   status: AccountLocalUseReadinessStatus;
   localInputCanContinue: true;
   cloudHandoffReady: boolean;
+  deviceHandoffReady: boolean;
   cacheRebuildBlocked: boolean;
   queueBreakdown: AccountLocalUseQueueBreakdown;
+  requiredCloudDomains: AccountLocalUseRequiredCloudDomain[];
+  handoffBlockers: string[];
   label: string;
   detail: string;
   nextAction: string;
@@ -51,6 +54,13 @@ export interface AccountLocalUseQueueBreakdown {
   fileQueueBlocksCloudHandoff: boolean;
 }
 
+export interface AccountLocalUseRequiredCloudDomain {
+  id: "pages" | "databases";
+  label: string;
+  enabled: boolean;
+  scope: string;
+}
+
 const LOCAL_USE_READINESS_BOUNDARY: AccountLocalUseReadiness["boundary"] = {
   reads_page_body_text: false,
   reads_database_row_values: false,
@@ -76,6 +86,8 @@ interface AccountLocalUseReadinessInput {
   otherManualReviewTotal?: number;
   fileFailedTotal?: number;
   fileManualReviewTotal?: number;
+  pageSyncEnabled?: boolean;
+  databaseSyncEnabled?: boolean;
   authRetryDomainLabel?: string;
   authRetryUnconfiguredDomainLabel?: string;
   authRetryUnconfirmedDomainLabel?: string;
@@ -197,10 +209,79 @@ function formatAuthRetryDetail(input: AccountLocalUseReadinessInput) {
   }`;
 }
 
+function buildRequiredCloudDomains(
+  input: AccountLocalUseReadinessInput
+): AccountLocalUseRequiredCloudDomain[] {
+  return [
+    {
+      id: "pages",
+      label: "页面 / 每日纪要 / ZhiHui",
+      enabled: Boolean(input.pageSyncEnabled),
+      scope: "标题、正文、层级、属性、每日纪要和会议页 metadata",
+    },
+    {
+      id: "databases",
+      label: "数据库",
+      enabled: Boolean(input.databaseSyncEnabled),
+      scope: "数据库结构、字段、视图和行值",
+    },
+  ];
+}
+
+function buildDeviceHandoffBlockers(input: {
+  source: AccountLocalUseReadinessInput;
+  requiredCloudDomains: AccountLocalUseRequiredCloudDomain[];
+}): string[] {
+  const blockers: string[] = [];
+  const missingRequiredDomains = input.requiredCloudDomains
+    .filter((domain) => !domain.enabled)
+    .map((domain) => domain.label);
+  if (missingRequiredDomains.length > 0) {
+    blockers.push(`核心云同步域未就绪：${missingRequiredDomains.join("、")}`);
+  }
+  if (input.source.pendingTotal > 0) {
+    blockers.push(`还有 ${input.source.pendingTotal} 项本地变更等待云端 ACK`);
+  }
+  if (input.source.failedTotal > 0) {
+    blockers.push(`还有 ${input.source.failedTotal} 项同步失败`);
+  }
+  if (input.source.manualReviewTotal > 0) {
+    blockers.push(`还有 ${input.source.manualReviewTotal} 项需要人工确认`);
+  }
+  const authRetryDomainLabel = input.source.authRetryDomainLabel?.trim();
+  if (authRetryDomainLabel) {
+    blockers.push(`账号或云端暂时不可确认：${authRetryDomainLabel}`);
+  }
+  if (input.source.state === "signed-out") {
+    blockers.push("当前账号未确认登录");
+  }
+  if (input.source.state === "error") {
+    blockers.push("云端状态暂不可确认");
+  }
+  if (input.source.state === "checking") {
+    blockers.push("同步状态仍在检查");
+  }
+  if (input.source.state === "syncing") {
+    blockers.push("后台同步仍在进行");
+  }
+  if (input.source.enabledDomainCount === 0 || input.source.state === "disabled") {
+    blockers.push("云同步未开启");
+  }
+  return Array.from(new Set(blockers));
+}
+
 export function buildAccountLocalUseReadiness(
   input: AccountLocalUseReadinessInput
 ): AccountLocalUseReadiness {
   const queueBreakdown = buildAccountLocalUseQueueBreakdown(input);
+  const requiredCloudDomains = buildRequiredCloudDomains(input);
+  const requiredCloudDomainsReady = requiredCloudDomains.every(
+    (domain) => domain.enabled
+  );
+  const handoffBlockers = buildDeviceHandoffBlockers({
+    source: input,
+    requiredCloudDomains,
+  });
   const queueDetail = formatQueueBreakdown(queueBreakdown);
   const authRetryDetail = formatAuthRetryDetail(input);
   const withQueueDetail = (detail: string) =>
@@ -208,6 +289,9 @@ export function buildAccountLocalUseReadiness(
   const base = {
     localInputCanContinue: true,
     queueBreakdown,
+    requiredCloudDomains,
+    handoffBlockers,
+    deviceHandoffReady: false,
     boundary: LOCAL_USE_READINESS_BOUNDARY,
   } as const;
 
@@ -225,6 +309,7 @@ export function buildAccountLocalUseReadiness(
       ...base,
       status: "needs-review",
       cloudHandoffReady: false,
+      deviceHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续写作，先处理同步队列",
       detail: withQueueDetail(detail || "同步队列需要处理；本地输入仍保留。"),
@@ -238,6 +323,7 @@ export function buildAccountLocalUseReadiness(
       ...base,
       status: "pending-upload",
       cloudHandoffReady: false,
+      deviceHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续写作，等待上传",
       detail: withQueueDetail(
@@ -253,6 +339,7 @@ export function buildAccountLocalUseReadiness(
       ...base,
       status: "signed-out",
       cloudHandoffReady: false,
+      deviceHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续本地写作，登录后同步",
       detail: "当前无法确认账号；本地输入不会因此被清空。",
@@ -265,6 +352,7 @@ export function buildAccountLocalUseReadiness(
       ...base,
       status: "cloud-uncertain",
       cloudHandoffReady: false,
+      deviceHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续写作，云端暂不可确认",
       detail: withQueueDetail(
@@ -279,6 +367,7 @@ export function buildAccountLocalUseReadiness(
       ...base,
       status: "checking",
       cloudHandoffReady: false,
+      deviceHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续写作，正在检查同步状态",
       detail: withQueueDetail(
@@ -293,6 +382,7 @@ export function buildAccountLocalUseReadiness(
       ...base,
       status: "syncing",
       cloudHandoffReady: false,
+      deviceHandoffReady: false,
       cacheRebuildBlocked: true,
       label: "可继续写作，正在同步",
       detail: "后台正在补传本地队列；输入仍然本地优先保存。",
@@ -305,6 +395,7 @@ export function buildAccountLocalUseReadiness(
       ...base,
       status: "local-only",
       cloudHandoffReady: false,
+      deviceHandoffReady: false,
       cacheRebuildBlocked: false,
       label: "可本地使用，云同步未开启",
       detail: "当前内容按本地优先方式使用；云端不会自动接管。",
@@ -312,10 +403,31 @@ export function buildAccountLocalUseReadiness(
     };
   }
 
+  if (!requiredCloudDomainsReady) {
+    const missingRequiredDomains = requiredCloudDomains
+      .filter((domain) => !domain.enabled)
+      .map((domain) => domain.label)
+      .join("、");
+    return {
+      ...base,
+      status: "local-only",
+      cloudHandoffReady: false,
+      deviceHandoffReady: false,
+      cacheRebuildBlocked: true,
+      label: "可继续写作，先补齐核心云同步",
+      detail: withQueueDetail(
+        `核心同步域未全部就绪：${missingRequiredDomains}。本机仍可写，但不能把另一台设备当作最新版本。`
+      ),
+      nextAction:
+        "先确认账号页页面和数据库云同步已开启，并处理账号/KV/邮件环境与 pending 队列；等队列清零后，再做跨设备接力或缓存重建。",
+    };
+  }
+
   return {
     ...base,
     status: "ready",
-    cloudHandoffReady: true,
+    cloudHandoffReady: handoffBlockers.length === 0,
+    deviceHandoffReady: handoffBlockers.length === 0,
     cacheRebuildBlocked: false,
     label: "可继续写作，云端交接已就绪",
     detail: "当前没有 pending、failed 或 manual review 队列。",

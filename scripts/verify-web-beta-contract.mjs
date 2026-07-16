@@ -214,6 +214,7 @@ const files = {
   pageCloudSync: "src/hooks/usePageCloudSync.ts",
   databaseCloudSync: "src/hooks/useDatabaseCloudSync.ts",
   accountCloudSyncCoordinator: "src/hooks/useAccountCloudSyncCoordinator.ts",
+  accountLocalUseReadiness: "src/lib/sync/accountLocalUseReadiness.ts",
   globalSyncLogStatusHook: "src/hooks/useGlobalSyncLogStatus.ts",
   settingsCloudSyncStatusHook: "src/hooks/useSettingsCloudSyncStatus.ts",
   settingsSyncStatus: "src/lib/sync/settingsSyncStatus.ts",
@@ -808,6 +809,9 @@ function run() {
   const databaseCloudSync = readProjectFile(files.databaseCloudSync);
   const accountCloudSyncCoordinator = readProjectFile(
     files.accountCloudSyncCoordinator
+  );
+  const accountLocalUseReadiness = readProjectFile(
+    files.accountLocalUseReadiness
   );
   const globalSyncLogStatusHook = readProjectFile(
     files.globalSyncLogStatusHook
@@ -6672,6 +6676,78 @@ function run() {
     "includeFileSync: false",
     "Account cloud sync coordinator automatic drains must not start file uploads."
   );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "pageSyncEnabled: pageSync.pendingStatus.enabled",
+    "Account cloud sync coordinator must pass page-sync enablement into local-use readiness before claiming device handoff."
+  );
+  assertSourceIncludes(
+    files.accountCloudSyncCoordinator,
+    accountCloudSyncCoordinator,
+    "databaseSyncEnabled: databaseSync.pendingStatus.enabled",
+    "Account cloud sync coordinator must pass database-sync enablement into local-use readiness before claiming device handoff."
+  );
+  for (const [snippet, message] of [
+    [
+      "deviceHandoffReady",
+      "Local-use readiness must separate device handoff readiness from local input availability.",
+    ],
+    [
+      "requiredCloudDomains",
+      "Local-use readiness must expose required cloud domains for device handoff.",
+    ],
+    [
+      "handoffBlockers",
+      "Local-use readiness must expose concrete device handoff blockers.",
+    ],
+    [
+      "页面 / 每日纪要 / ZhiHui",
+      "Page-backed notes, Daily, and ZhiHui must be a required device-handoff domain.",
+    ],
+    [
+      "数据库",
+      "Databases must be a required device-handoff domain.",
+    ],
+    [
+      "核心云同步域未就绪",
+      "Device handoff blockers must include missing required cloud domains.",
+    ],
+    [
+      "核心同步域未全部就绪",
+      "Readiness copy must explain that local writing is different from cross-device handoff.",
+    ],
+  ]) {
+    assertSourceIncludes(files.accountLocalUseReadiness, accountLocalUseReadiness, snippet, message);
+  }
+  for (const [snippet, message] of [
+    [
+      "readiness.deviceHandoffReady",
+      "Sync Center must use stricter device handoff readiness for the switch-device badge.",
+    ],
+    [
+      'data-testid="sync-device-handoff-blockers"',
+      "Sync Center must render visible device handoff blockers.",
+    ],
+    [
+      "data-device-handoff-ready",
+      "Sync Center must expose a stable device handoff readiness data hook.",
+    ],
+    [
+      "data-required-cloud-domains",
+      "Sync Center must expose required cloud domain status.",
+    ],
+    [
+      "data-handoff-blocker-count",
+      "Sync Center must expose the number of device handoff blockers.",
+    ],
+    [
+      "本地写作和跨设备接力是两回事",
+      "Sync Center must explain that local writing can continue before device handoff is safe.",
+    ],
+  ]) {
+    assertSourceIncludes(files.syncShell, syncShell, snippet, message);
+  }
   assertSourceIncludes(
     files.accountCloudSyncCoordinator,
     accountCloudSyncCoordinator,
