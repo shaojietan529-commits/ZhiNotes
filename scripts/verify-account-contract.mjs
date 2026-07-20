@@ -861,6 +861,25 @@ check(
   "pages account-sync push 必须拒绝旧数据覆盖新数据"
 );
 check(
+  pageSyncRoute.includes('format: "zhinote-page-cloud-ack-receipt"') &&
+    pageSyncRoute.includes("format_version: 1") &&
+    pageSyncRoute.includes('"acknowledged"') &&
+    pageSyncRoute.includes('"empty"') &&
+    pageSyncRoute.includes("requested_count: requestedCount") &&
+    pageSyncRoute.includes("accepted_count: acceptedCount") &&
+    pageSyncRoute.includes("skipped_count: skippedCount") &&
+    pageSyncRoute.includes("remote_watermark: nextSummary.watermark") &&
+    pageSyncRoute.includes("remote_cursor: nextSummary.cursor") &&
+    pageSyncRoute.includes("reads_page_body_text: false") &&
+    pageSyncRoute.includes("reads_database_row_values: false") &&
+    pageSyncRoute.includes("reads_file_bytes: false") &&
+    pageSyncRoute.includes("const nextSummary = summarizeIndex(index);") &&
+    pageSyncRoute.includes(
+      "return NextResponse.json({ ok: true, accepted, skipped, ack });"
+    ),
+  "pages account-sync push 必须返回 metadata-only 云端 ACK 回执，带 remote cursor/watermark，供多设备同步确认使用"
+);
+check(
   pageSyncRoute.includes('body.action === "changes-since"') &&
     pageSyncRoute.includes("getPageChangesSince"),
   "pages account-sync route 应提供按游标增量拉取 changes-since"
@@ -1317,10 +1336,24 @@ check(
     pushCloudPagesBody.includes("if (!isPageSyncEnabled())") &&
     pushCloudPagesBody.indexOf("markPendingCloudPushRecords(records);") <
       pushCloudPagesBody.indexOf("if (!isPageSyncEnabled())") &&
+    pushCloudPagesBody.includes("normalizePageCloudAckReceipt(res.json.ack)") &&
+    pushCloudPagesBody.includes("applyPageCloudAckReceipt(ack)") &&
     pushCloudPagesBody.includes("const acknowledgedIds = [...accepted, ...skipped]") &&
     pushCloudPagesBody.includes("clearPendingCloudPushIds(acknowledgedIds)") &&
     pushCloudPagesBody.includes("if (acknowledgedIds.length > 0) setLastPageSyncAtNow();"),
-  "直接 pushCloudPages 必须先登记 pending id，再尝试云端上传；成功或被远端跳过后才清理 pending"
+  "直接 pushCloudPages 必须先登记 pending id，再尝试云端上传；成功或被远端跳过后才清理 pending，并保存 metadata-only 云端 ACK 回执"
+);
+check(
+  pageSyncClient.includes("export interface PageCloudAckReceipt") &&
+    pageSyncClient.includes("remoteAckCursor") &&
+    pageSyncClient.includes("remoteAckWatermark") &&
+    pageSyncClient.includes("remoteAckAccepted") &&
+    pageSyncClient.includes("remoteAckSkipped") &&
+    pageSyncClient.includes("setRemoteWatermark(ack.remote_watermark)") &&
+    pageSyncClient.includes("setRemoteCursor(ack.remote_cursor)") &&
+    pageSyncClient.includes("lastAck: PageCloudAckReceipt | null") &&
+    pageSyncClient.includes("...toPageCloudAckOutcomeFields(result.lastAck)"),
+  "页面同步客户端应把云端 ACK cursor/watermark 写入最近同步回执，供同步页和多设备交接判断使用"
 );
 check(
   pageSyncClient.includes("getPagesForSyncByIds") &&

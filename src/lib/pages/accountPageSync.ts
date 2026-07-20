@@ -175,6 +175,10 @@ export interface PageSyncLastOutcome {
   accepted: number;
   skippedRemoteNewer: number;
   pendingAfter: number;
+  remoteAckCursor: string | null;
+  remoteAckWatermark: string | null;
+  remoteAckAccepted: number;
+  remoteAckSkipped: number;
   message: string | null;
 }
 
@@ -330,6 +334,7 @@ export interface PushCloudPagesResult {
   status: PageSyncStatus;
   accepted: string[];
   skipped: string[];
+  ack?: PageCloudAckReceipt | null;
   message?: string;
 }
 
@@ -401,6 +406,26 @@ interface IndexSummary {
   maxUpdatedAt: string;
   watermark: string;
   cursor: string;
+}
+
+export interface PageCloudAckReceipt {
+  format: "zhinote-page-cloud-ack-receipt";
+  format_version: 1;
+  ack_status: "acknowledged" | "empty";
+  generated_at: string;
+  requested_count: number;
+  accepted_count: number;
+  skipped_count: number;
+  index_count: number;
+  index_deleted: number;
+  remote_watermark: string;
+  remote_cursor: string;
+  boundary: {
+    metadata_only: true;
+    reads_page_body_text: false;
+    reads_database_row_values: false;
+    reads_file_bytes: false;
+  };
 }
 
 export interface CloudPageManifestSummaryResult {
@@ -1240,6 +1265,8 @@ export async function pushCloudPages(
   const skipped = Array.isArray(res.json.skipped)
     ? (res.json.skipped as string[])
     : [];
+  const ack = normalizePageCloudAckReceipt(res.json.ack);
+  applyPageCloudAckReceipt(ack);
   const acknowledgedIds = [...accepted, ...skipped];
   if (records.length > 0 && acknowledgedIds.length === 0) {
     markPendingCloudPushFailedRecords(
@@ -1290,6 +1317,7 @@ export async function pushCloudPages(
     accepted: accepted.length,
     skippedRemoteNewer: skipped.length,
     pendingAfter: getPendingCloudPushIds().length,
+    ...toPageCloudAckOutcomeFields(ack),
     message:
       unacknowledgedRecords.length > 0
         ? PARTIAL_CLOUD_PAGE_ACK_MESSAGE
@@ -1303,6 +1331,7 @@ export async function pushCloudPages(
     status: unacknowledgedRecords.length > 0 ? "error" : "ok",
     accepted,
     skipped,
+    ack,
     message:
       unacknowledgedRecords.length > 0
         ? PARTIAL_CLOUD_PAGE_ACK_MESSAGE
@@ -1318,12 +1347,14 @@ async function pushCloudRecordsInBatches(
   skipped: number;
   acceptedIds: string[];
   skippedIds: string[];
+  lastAck: PageCloudAckReceipt | null;
   message?: string;
 }> {
   let accepted = 0;
   let skipped = 0;
   const acceptedIds: string[] = [];
   const skippedIds: string[] = [];
+  let lastAck: PageCloudAckReceipt | null = null;
   let oversized = 0;
   let batch: RemotePageRecord[] = [];
   let batchBytes = 0;
@@ -1344,6 +1375,7 @@ async function pushCloudRecordsInBatches(
     ) {
       const result = await flush();
       if (result) {
+        if (result.ack) lastAck = result.ack;
         clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
         accepted += result.accepted.length;
         skipped += result.skipped.length;
@@ -1356,6 +1388,7 @@ async function pushCloudRecordsInBatches(
             skipped,
             acceptedIds,
             skippedIds,
+            lastAck,
             message: result.message,
           };
         }
@@ -1379,6 +1412,7 @@ async function pushCloudRecordsInBatches(
 
   const result = await flush();
   if (result) {
+    if (result.ack) lastAck = result.ack;
     clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
     accepted += result.accepted.length;
     skipped += result.skipped.length;
@@ -1391,6 +1425,7 @@ async function pushCloudRecordsInBatches(
         skipped,
         acceptedIds,
         skippedIds,
+        lastAck,
         message: result.message,
       };
     }
@@ -1402,10 +1437,11 @@ async function pushCloudRecordsInBatches(
       skipped,
       acceptedIds,
       skippedIds,
+      lastAck,
       message: `${oversized} 条页面记录超过云同步单批上限，已保留在 pending queue 并标记失败原因。`,
     };
   }
-  return { status: "ok", accepted, skipped, acceptedIds, skippedIds };
+  return { status: "ok", accepted, skipped, acceptedIds, skippedIds, lastAck };
 }
 
 export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> {
@@ -1724,6 +1760,7 @@ async function flushPendingCloudPushes(
     accepted: result.accepted,
     skippedRemoteNewer: result.skipped,
     pendingAfter: getPendingCloudPushIds().length,
+    ...toPageCloudAckOutcomeFields(result.lastAck),
     message:
       result.skipped > 0
         ? "部分 pending 页面因云端已有相同或更新版本被跳过，已从本地待上传队列确认出队。"
@@ -1852,6 +1889,7 @@ export async function pushPendingLocalPageChangesToCloud(): Promise<PushLocalPag
       accepted: result.accepted,
       skippedRemoteNewer: result.skipped,
       pendingAfter: getPendingCloudPushIds().length,
+      ...toPageCloudAckOutcomeFields(result.lastAck),
       message: result.message ?? missingMessage ?? result.status,
     });
     emitPageSyncStatusChanged();
@@ -1876,6 +1914,7 @@ export async function pushPendingLocalPageChangesToCloud(): Promise<PushLocalPag
       accepted: result.accepted,
       skippedRemoteNewer: result.skipped,
       pendingAfter: getPendingCloudPushIds().length,
+      ...toPageCloudAckOutcomeFields(result.lastAck),
       message: missingMessage,
     });
     emitPageSyncStatusChanged();
@@ -1898,6 +1937,7 @@ export async function pushPendingLocalPageChangesToCloud(): Promise<PushLocalPag
     accepted: result.accepted,
     skippedRemoteNewer: result.skipped,
     pendingAfter: getPendingCloudPushIds().length,
+    ...toPageCloudAckOutcomeFields(result.lastAck),
     message:
       result.skipped > 0
         ? "部分 sync_log 页面因云端已有相同或更新版本被跳过，已完成本地 ACK。"
@@ -1956,7 +1996,79 @@ function normalizeSummary(value: unknown): IndexSummary | null {
         : stringifyPageChangeCursor(
             typeof summary.maxUpdatedAt === "string" ? summary.maxUpdatedAt : "",
             "~"
-          ),
+      ),
+  };
+}
+
+function normalizePageCloudAckReceipt(
+  value: unknown
+): PageCloudAckReceipt | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const ack = value as Partial<PageCloudAckReceipt>;
+  const boundary = ack.boundary;
+  if (ack.format !== "zhinote-page-cloud-ack-receipt") return null;
+  if (ack.format_version !== 1) return null;
+  if (ack.ack_status !== "acknowledged" && ack.ack_status !== "empty") {
+    return null;
+  }
+  if (
+    typeof ack.generated_at !== "string" ||
+    Number.isNaN(Date.parse(ack.generated_at))
+  ) {
+    return null;
+  }
+  if (typeof ack.remote_watermark !== "string") return null;
+  if (typeof ack.remote_cursor !== "string") return null;
+  if (
+    !boundary ||
+    boundary.metadata_only !== true ||
+    boundary.reads_page_body_text !== false ||
+    boundary.reads_database_row_values !== false ||
+    boundary.reads_file_bytes !== false
+  ) {
+    return null;
+  }
+  return {
+    format: "zhinote-page-cloud-ack-receipt",
+    format_version: 1,
+    ack_status: ack.ack_status,
+    generated_at: ack.generated_at,
+    requested_count: normalizeNonNegativeCount(ack.requested_count),
+    accepted_count: normalizeNonNegativeCount(ack.accepted_count),
+    skipped_count: normalizeNonNegativeCount(ack.skipped_count),
+    index_count: normalizeNonNegativeCount(ack.index_count),
+    index_deleted: normalizeNonNegativeCount(ack.index_deleted),
+    remote_watermark: ack.remote_watermark,
+    remote_cursor: ack.remote_cursor,
+    boundary: {
+      metadata_only: true,
+      reads_page_body_text: false,
+      reads_database_row_values: false,
+      reads_file_bytes: false,
+    },
+  };
+}
+
+function applyPageCloudAckReceipt(ack: PageCloudAckReceipt | null): void {
+  if (!ack) return;
+  setRemoteWatermark(ack.remote_watermark);
+  setRemoteCursor(ack.remote_cursor);
+}
+
+function toPageCloudAckOutcomeFields(
+  ack: PageCloudAckReceipt | null | undefined
+): Pick<
+  PageSyncLastOutcome,
+  | "remoteAckCursor"
+  | "remoteAckWatermark"
+  | "remoteAckAccepted"
+  | "remoteAckSkipped"
+> {
+  return {
+    remoteAckCursor: ack?.remote_cursor || null,
+    remoteAckWatermark: ack?.remote_watermark || null,
+    remoteAckAccepted: ack?.accepted_count ?? 0,
+    remoteAckSkipped: ack?.skipped_count ?? 0,
   };
 }
 
@@ -2064,6 +2176,22 @@ function normalizePageSyncLastOutcome(
   const pendingAfter = normalizeNonNegativeCount(
     (parsed as { pendingAfter?: unknown }).pendingAfter
   );
+  const remoteAckCursor =
+    typeof (parsed as { remoteAckCursor?: unknown }).remoteAckCursor === "string" &&
+    (parsed as { remoteAckCursor?: string }).remoteAckCursor
+      ? (parsed as { remoteAckCursor: string }).remoteAckCursor
+      : null;
+  const remoteAckWatermark =
+    typeof (parsed as { remoteAckWatermark?: unknown }).remoteAckWatermark ===
+      "string" && (parsed as { remoteAckWatermark?: string }).remoteAckWatermark
+      ? (parsed as { remoteAckWatermark: string }).remoteAckWatermark
+      : null;
+  const remoteAckAccepted = normalizeNonNegativeCount(
+    (parsed as { remoteAckAccepted?: unknown }).remoteAckAccepted
+  );
+  const remoteAckSkipped = normalizeNonNegativeCount(
+    (parsed as { remoteAckSkipped?: unknown }).remoteAckSkipped
+  );
   const message = (parsed as { message?: unknown }).message;
   return {
     status,
@@ -2074,6 +2202,10 @@ function normalizePageSyncLastOutcome(
     accepted,
     skippedRemoteNewer,
     pendingAfter,
+    remoteAckCursor,
+    remoteAckWatermark,
+    remoteAckAccepted,
+    remoteAckSkipped,
     message:
       typeof message === "string" && message.trim()
         ? message.trim().slice(0, 220)
@@ -2088,7 +2220,24 @@ function normalizeNonNegativeCount(value: unknown): number {
 }
 
 function recordPageSyncOutcome(
-  outcome: Omit<PageSyncLastOutcome, "at" | "message"> & {
+  outcome: Omit<
+    PageSyncLastOutcome,
+    | "at"
+    | "message"
+    | "remoteAckCursor"
+    | "remoteAckWatermark"
+    | "remoteAckAccepted"
+    | "remoteAckSkipped"
+  > &
+    Partial<
+      Pick<
+        PageSyncLastOutcome,
+        | "remoteAckCursor"
+        | "remoteAckWatermark"
+        | "remoteAckAccepted"
+        | "remoteAckSkipped"
+      >
+    > & {
     at?: string;
     message?: string | null;
   }
@@ -2096,6 +2245,17 @@ function recordPageSyncOutcome(
   const next: PageSyncLastOutcome = {
     ...outcome,
     at: outcome.at ?? new Date().toISOString(),
+    remoteAckCursor:
+      typeof outcome.remoteAckCursor === "string" && outcome.remoteAckCursor
+        ? outcome.remoteAckCursor
+        : null,
+    remoteAckWatermark:
+      typeof outcome.remoteAckWatermark === "string" &&
+      outcome.remoteAckWatermark
+        ? outcome.remoteAckWatermark
+        : null,
+    remoteAckAccepted: normalizeNonNegativeCount(outcome.remoteAckAccepted),
+    remoteAckSkipped: normalizeNonNegativeCount(outcome.remoteAckSkipped),
     message:
       typeof outcome.message === "string" && outcome.message.trim()
         ? outcome.message.trim().slice(0, 220)
@@ -2741,6 +2901,7 @@ async function uploadLocalPageBaselineIfNeeded(): Promise<{
       accepted: result.accepted,
       skippedRemoteNewer: result.skipped,
       pendingAfter: getPendingCloudPushIds().length,
+      ...toPageCloudAckOutcomeFields(result.lastAck),
       message: result.message,
     });
     return {
@@ -2761,6 +2922,7 @@ async function uploadLocalPageBaselineIfNeeded(): Promise<{
     accepted: result.accepted,
     skippedRemoteNewer: result.skipped,
     pendingAfter: getPendingCloudPushIds().length,
+    ...toPageCloudAckOutcomeFields(result.lastAck),
     message:
       result.skipped > 0
         ? "首次基线补种中，部分页面因云端已有相同或更新版本被跳过。"

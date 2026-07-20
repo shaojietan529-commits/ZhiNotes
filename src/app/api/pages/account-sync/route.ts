@@ -61,6 +61,26 @@ interface IndexSummary {
   cursor: string;
 }
 
+interface PageCloudAckReceipt {
+  format: "zhinote-page-cloud-ack-receipt";
+  format_version: 1;
+  ack_status: "acknowledged" | "empty";
+  generated_at: string;
+  requested_count: number;
+  accepted_count: number;
+  skipped_count: number;
+  index_count: number;
+  index_deleted: number;
+  remote_watermark: string;
+  remote_cursor: string;
+  boundary: {
+    metadata_only: true;
+    reads_page_body_text: false;
+    reads_database_row_values: false;
+    reads_file_bytes: false;
+  };
+}
+
 interface PageRecord {
   id: string;
   parent_id: string | null;
@@ -334,6 +354,35 @@ function summarizeIndex(index: Record<string, IndexEntry>): IndexSummary {
     maxUpdatedAt,
     watermark: `${count}:${deleted}:${maxUpdatedAt}`,
     cursor: stringifyPageChangeCursor(maxUpdatedAt, maxUpdatedId),
+  };
+}
+
+function buildPageCloudAckReceipt(input: {
+  requestedCount: number;
+  acceptedCount: number;
+  skippedCount: number;
+  nextSummary: IndexSummary;
+}): PageCloudAckReceipt {
+  const { requestedCount, acceptedCount, skippedCount, nextSummary } = input;
+  return {
+    format: "zhinote-page-cloud-ack-receipt",
+    format_version: 1,
+    ack_status:
+      acceptedCount > 0 || skippedCount > 0 ? "acknowledged" : "empty",
+    generated_at: new Date().toISOString(),
+    requested_count: requestedCount,
+    accepted_count: acceptedCount,
+    skipped_count: skippedCount,
+    index_count: nextSummary.count,
+    index_deleted: nextSummary.deleted,
+    remote_watermark: nextSummary.watermark,
+    remote_cursor: nextSummary.cursor,
+    boundary: {
+      metadata_only: true,
+      reads_page_body_text: false,
+      reads_database_row_values: false,
+      reads_file_bytes: false,
+    },
   };
 }
 
@@ -1826,6 +1875,7 @@ export async function POST(request: Request) {
         accepted.push(record.id);
       }
 
+      const nextSummary = summarizeIndex(index);
       if (accepted.length > 0) {
         await kvSet(
           config.kv,
@@ -1838,10 +1888,16 @@ export async function POST(request: Request) {
           me,
           acceptedRecords,
           previousSummary,
-          summarizeIndex(index)
+          nextSummary
         );
       }
-      return NextResponse.json({ ok: true, accepted, skipped });
+      const ack = buildPageCloudAckReceipt({
+        requestedCount: body.pages.length,
+        acceptedCount: accepted.length,
+        skippedCount: skipped.length,
+        nextSummary,
+      });
+      return NextResponse.json({ ok: true, accepted, skipped, ack });
     }
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
