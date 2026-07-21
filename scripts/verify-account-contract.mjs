@@ -4670,8 +4670,11 @@ check(
     accountAutoRetryableSyncWorkBlock.includes(
       "databaseAutoRetryableFailedTotal"
     ) &&
-    !accountAutoRetryableSyncWorkBlock.includes(
+    accountAutoRetryableSyncWorkBlock.includes(
       "settingsAutoRetryablePendingTotal"
+    ) &&
+    accountAutoRetryableSyncWorkBlock.includes(
+      "settingsAutoRetryableFailedTotal"
     ) &&
     !accountAutoRetryableSyncWorkBlock.includes(
       "knowledgeAutoRetryablePendingTotal"
@@ -4679,7 +4682,7 @@ check(
     !accountAutoRetryableSyncWorkBlock.includes(
       "globalSyncLogExtraPendingTotal"
     ),
-  "账号级自动补传只能驱动页面/数据库当前可执行队列；设置、知识库附属和其他 sync_log 队列必须只显示并交给同步中心处理，避免后台无效循环"
+  "账号级自动补传应驱动页面/数据库/设置当前可执行队列；知识库附属和其他 sync_log 队列必须只显示并交给专用回放处理，避免后台伪同步"
 );
 check(
   accountCloudSyncCoordinator.indexOf("manualReviewTotal > 0 || failedTotal > 0") <
@@ -4696,6 +4699,8 @@ check(
     settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_EVENT") &&
     settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
     settingsCloudSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
+    settingsCloudSyncStatusHook.includes("drainPendingSettingsCloudSync") &&
+    settingsCloudSyncStatusHook.includes("return { status, refresh, syncNow }") &&
     settingsCloudSyncStatusHook.includes("handleAccountProfileUpdated") &&
     settingsCloudSyncStatusHook.includes("isAccountSessionStorageKey") &&
     settingsCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&

@@ -14,6 +14,10 @@ import {
   summarizeSettingsCloudSyncStatus,
   type SettingsCloudSyncStatus,
 } from "@/lib/sync/settingsSyncStatus";
+import {
+  drainPendingSettingsCloudSync,
+  type DrainPendingSettingsCloudSyncResult,
+} from "@/lib/sync/settingsCloudDrain";
 import { claimVisibleRefreshLease } from "@/lib/sync/visibleRefreshLease";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
@@ -32,6 +36,7 @@ export function useSettingsCloudSyncStatus() {
   );
   const mountedRef = useRef(false);
   const runningRef = useRef(false);
+  const syncRunningRef = useRef(false);
   const rerunAfterCurrentRefreshRef = useRef(false);
 
   const setStatusIfMounted = useCallback(
@@ -78,6 +83,48 @@ export function useSettingsCloudSyncStatus() {
       }
     }
   }, [dbReady, setStatusIfMounted]);
+
+  const syncNow = useCallback(
+    async (
+      options: { includeManualReview?: boolean } = {}
+    ): Promise<DrainPendingSettingsCloudSyncResult> => {
+      if (!dbReady) {
+        const disabledStatus = buildEmptySettingsCloudSyncStatus(false);
+        lastGoodStatusRef.current = disabledStatus;
+        setStatusIfMounted(disabledStatus);
+        return {
+          status: "disabled",
+          attempted: 0,
+          synced: 0,
+          failed: 0,
+          skipped: 0,
+          markedSynced: 0,
+          message: "本地数据库尚未就绪；设置变更仍保留在待上传队列。",
+        };
+      }
+      if (syncRunningRef.current) {
+        await refresh();
+        return {
+          status: "ok",
+          attempted: 0,
+          synced: 0,
+          failed: 0,
+          skipped: 0,
+          markedSynced: 0,
+          message: "设置补传已经在运行，本次仅刷新状态。",
+        };
+      }
+      syncRunningRef.current = true;
+      try {
+        const result = await drainPendingSettingsCloudSync(options);
+        await refresh();
+        return result;
+      } finally {
+        syncRunningRef.current = false;
+      }
+    },
+    [dbReady, refresh, setStatusIfMounted]
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -148,5 +195,5 @@ export function useSettingsCloudSyncStatus() {
     };
   }, [dbReady, refresh, setStatusIfMounted]);
 
-  return { status, refresh };
+  return { status, refresh, syncNow };
 }

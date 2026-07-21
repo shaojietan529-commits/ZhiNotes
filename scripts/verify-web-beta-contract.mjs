@@ -7004,8 +7004,11 @@ function run() {
       accountAutoRetryableSyncWorkBlock.includes(
         "databaseAutoRetryablePendingTotal"
       ) &&
-      !accountAutoRetryableSyncWorkBlock.includes(
+      accountAutoRetryableSyncWorkBlock.includes(
         "settingsAutoRetryablePendingTotal"
+      ) &&
+      accountAutoRetryableSyncWorkBlock.includes(
+        "settingsAutoRetryableFailedTotal"
       ) &&
       !accountAutoRetryableSyncWorkBlock.includes(
         "knowledgeAutoRetryablePendingTotal"
@@ -7016,7 +7019,7 @@ function run() {
     )
   ) {
     fail(
-      "Account cloud sync coordinator auto-drain must only drive currently executable page/database queues; settings, knowledge, and uncovered sync_log queues stay visible for Sync Center handling."
+      "Account cloud sync coordinator auto-drain must drive executable page/database/settings queues while keeping knowledge and uncovered sync_log queues visible for dedicated replay handling."
     );
   }
   if (
@@ -7104,6 +7107,18 @@ function run() {
     settingsCloudSyncStatusHook,
     "ACCOUNT_PROFILE_UPDATED_EVENT",
     "Settings cloud sync status hook must refresh on same-tab account profile updates."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "drainPendingSettingsCloudSync",
+    "Settings cloud sync status hook must expose the executable settings drain path instead of only polling metadata."
+  );
+  assertSourceIncludes(
+    files.settingsCloudSyncStatusHook,
+    settingsCloudSyncStatusHook,
+    "return { status, refresh, syncNow }",
+    "Settings cloud sync status hook must return syncNow so account-level quick sync can drain settings pending rows."
   );
   assertSourceIncludes(
     files.settingsCloudSyncStatusHook,

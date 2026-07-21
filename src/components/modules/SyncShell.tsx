@@ -601,6 +601,7 @@ import {
   SETTINGS_SYNC_STATUS_EVENT,
   SETTINGS_SYNC_STATUS_STORAGE_KEY,
 } from "@/lib/sync/settingsSyncStatus";
+import { drainPendingSettingsCloudSync } from "@/lib/sync/settingsCloudDrain";
 import {
   KNOWLEDGE_SYNC_STATUS_EVENT,
   KNOWLEDGE_SYNC_STATUS_STORAGE_KEY,
@@ -6885,6 +6886,17 @@ function SyncDashboard() {
           missingLocalFiles: 0,
           message: err instanceof Error ? err.message : "文件补传失败。",
         }));
+      const settingsResult = await drainPendingSettingsCloudSync({
+        includeManualReview: true,
+      }).catch((err) => ({
+        status: "error" as const,
+        attempted: 0,
+        synced: 0,
+        failed: 1,
+        skipped: 0,
+        markedSynced: 0,
+        message: err instanceof Error ? err.message : "设置补传失败。",
+      }));
 
       const [afterPageStatus, afterDatabaseStatus, nextSyncSummary, nextSyncEntries] =
         await Promise.all([
@@ -6916,7 +6928,12 @@ function SyncDashboard() {
           message: fileResult.message,
         },
       });
-      const allQueuesClear = receipt.summary.safe_to_switch_device_now;
+      const settingsQueuesClear =
+        settingsResult.status === "ok" &&
+        settingsResult.failed === 0 &&
+        settingsResult.skipped === 0;
+      const allQueuesClear =
+        receipt.summary.safe_to_switch_device_now && settingsQueuesClear;
 
       setPagePendingStatus(afterPageStatus);
       setDatabasePendingStatus(afterDatabaseStatus);
@@ -6949,8 +6966,8 @@ function SyncDashboard() {
       );
       setSyncDrainMessage(
         allQueuesClear
-          ? `补传全部完成：页面、数据库和文件待上传队列已清空，页面/数据库 metadata-only 回执已刷新，当前适合切换设备。`
-          : `补传全部已运行：页面/数据库 metadata-only 回执已刷新；仍有 ${receipt.summary.waiting_rows_after} 条待上传、${receipt.summary.failed_rows_after} 条失败、${receipt.summary.manual_review_rows_after} 条需人工处理；其中文件待上传 ${receipt.summary.file_waiting_rows_after} 个、失败 ${receipt.summary.file_failed_rows_after} 个、人工处理 ${receipt.summary.file_manual_review_rows_after} 个。文件补传成功 ${fileResult.synced} 个。${receipt.next_action}`
+          ? `补传全部完成：页面、数据库、文件和设置待上传队列已清空，页面/数据库 metadata-only 回执已刷新，当前适合切换设备。设置补传 ${settingsResult.synced}/${settingsResult.attempted} 项。`
+          : `补传全部已运行：页面/数据库 metadata-only 回执已刷新；仍有 ${receipt.summary.waiting_rows_after} 条待上传、${receipt.summary.failed_rows_after} 条失败、${receipt.summary.manual_review_rows_after} 条需人工处理；其中文件待上传 ${receipt.summary.file_waiting_rows_after} 个、失败 ${receipt.summary.file_failed_rows_after} 个、人工处理 ${receipt.summary.file_manual_review_rows_after} 个。文件补传成功 ${fileResult.synced} 个，设置补传 ${settingsResult.synced}/${settingsResult.attempted} 项，确认 pending ${settingsResult.markedSynced} 条。${settingsResult.failed > 0 ? `设置失败 ${settingsResult.failed} 项：${settingsResult.message}。` : ""}${receipt.next_action}`
       );
     } catch (err) {
       console.error("[Zhinote] Failed to drain pending sync queues:", err);
