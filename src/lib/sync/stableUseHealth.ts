@@ -118,6 +118,8 @@ export interface StableUseTwoDaySyncPolicy {
     | "database"
     | "file-metadata"
     | "settings"
+    | "knowledge"
+    | "portfolio"
   >;
   must_stay_usable_while_developing: true;
   local_input_must_continue_during_cloud_uncertainty: true;
@@ -303,6 +305,8 @@ const STABLE_USE_TWO_DAY_SYNC_POLICY: StableUseTwoDaySyncPolicy = {
     "database",
     "file-metadata",
     "settings",
+    "knowledge",
+    "portfolio",
   ],
   must_stay_usable_while_developing: true,
   local_input_must_continue_during_cloud_uncertainty: true,
@@ -315,7 +319,7 @@ const STABLE_USE_TWO_DAY_SYNC_POLICY: StableUseTwoDaySyncPolicy = {
   uncleared_required_receipt_blocks_device_handoff: true,
   stale_required_receipt_blocks_device_handoff: true,
   user_facing_copy:
-    "48 小时目标是私有 beta 可稳定使用：写作先本地保存，页面/每日纪要/ZhiHui/数据库/文件元数据/设置的同步状态必须可见；health check 只提供 scoped 验收入口，不能直接宣称 scoped 或完整同步 ready；页面/数据库必需回执必须 ok 且 pendingAfter=0，失败回执、pendingAfter 未清或过期回执都不能换设备；只有同步中心 runbook 显示 ready、真实两设备 smoke 跑通并且 pending、failed、manual review 清零后，才能声称全平台同步可用。",
+    "48 小时目标是私有 beta 可稳定使用：写作先本地保存，页面/每日纪要/ZhiHui/数据库/文件元数据/设置/知识库/组合管理的同步状态必须可见；health check 只提供 scoped 验收入口，不能直接宣称 scoped 或完整同步 ready；页面/数据库必需回执必须 ok 且 pendingAfter=0，失败回执、pendingAfter 未清或过期回执都不能换设备；只有同步中心 runbook 显示 ready、真实两设备 smoke 跑通并且 pending、failed、manual review 清零后，才能声称全平台同步可用。",
 };
 
 const STABLE_USE_ACCOUNT_SYNC_PREFLIGHT_POLICY: StableUseAccountSyncPreflightPolicy =

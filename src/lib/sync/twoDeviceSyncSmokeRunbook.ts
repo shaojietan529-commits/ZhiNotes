@@ -482,9 +482,9 @@ export function buildTwoDeviceSyncSmokeRunbook(input: {
       "设备 A / 设备 B 使用同一账号和 workspace。",
       "账号同步桥只读检查为 ready，页面、每日纪要、会议、数据库、组合管理五个 metadata 域均可读，且回执未过期。",
       "同步中心显示 sync-domain coverage complete，所有 pending / failed / manual review 域都可见。",
-      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据；这不等于完整全平台同步通过。",
+      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库、知识库附属、组合管理和文件元数据；这不等于完整全平台同步通过。",
       "统一 ACK / retry ledger 和服务端 readiness 已通过：/api/sync/push 和 /api/sync/pull 已 owner-gated 启用，且 remote ACK cursor 可复核。",
-      "Page、每日纪要、ZhiHui、数据库、组合管理、文件元数据至少各跑一条测试样本。",
+      "Page、每日纪要、ZhiHui、数据库、知识库附属、组合管理、文件元数据至少各跑一条测试样本。",
       "测试结束时 pending=0、failed=0、manual review=0、auth retry=无。",
       "两端刷新后都能看到对方最后一次编辑。",
     ],
@@ -565,7 +565,7 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
         id: "test-sample-ids",
         label: "测试样本 ID",
         placeholder:
-          "Page / Daily / ZhiHui / Database / Portfolio / File metadata 的非敏感 ID。",
+          "Page / Daily / ZhiHui / Database / Knowledge metadata / Portfolio / File metadata 的非敏感 ID。",
         required: true,
         privacy_note: "只写 ID 或脱敏标题，不粘贴正文、数据库行值或文件内容。",
       },
@@ -627,7 +627,7 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
       "账号退避为无；临时接口失败没有导致任一设备被登出。",
       "账号同步桥回执未过期，且页面、每日纪要、会议、数据库、组合管理五个 metadata 域均可读。",
       "sync-domain coverage complete，所有同步域都有可见队列状态。",
-      "如果只验收 48 小时 scoped beta，只能声称 Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据的核心交接通过，不能声称完整全平台同步通过。",
+      "如果只验收 48 小时 scoped beta，只能声称 Page、每日纪要、ZhiHui、数据库、知识库附属、组合管理和文件元数据的核心交接通过，不能声称完整全平台同步通过。",
       "统一 /api/sync/push 和 /api/sync/pull 已由 owner-gated 启用，并有 durable ACK ledger 与 remote ACK cursor 证据。",
       "本地 sync_log rows 只在 remote ACK cursor 前进后标记 synced，不能用本地队列清零替代云端确认。",
       "设备 A 创建/编辑后设备 B 可见；设备 B 再编辑后设备 A 可见。",
@@ -636,7 +636,7 @@ export function buildTwoDeviceSyncSmokeOwnerReceipt(input: {
     next_action: runbook.ready_to_run_real_smoke_now
       ? "用两台真实设备跑 checklist，然后由 owner 填写这张结果收据；未填前不能声称两设备同步已通过。"
       : runbook.ready_to_run_scoped_smoke_now
-        ? "可以先跑 48 小时 scoped beta smoke：Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据；完成前仍不能声称完整全平台同步通过。"
+        ? "可以先跑 48 小时 scoped beta smoke：Page、每日纪要、ZhiHui、数据库、知识库附属、组合管理和文件元数据；完成前仍不能声称完整全平台同步通过。"
       : runbook.next_action,
   };
 }
@@ -719,7 +719,7 @@ function getNextAction(input: {
   };
 }) {
   if (input.readyToRun && input.wait === 0) {
-    return "可以开始真实两端 smoke：先跑 Page / Daily / ZhiHui / Database / Portfolio，再做最终交接。";
+    return "可以开始真实两端 smoke：先跑 Page / Daily / ZhiHui / Database / Knowledge metadata / Portfolio，再做最终交接。";
   }
   if (input.readyToRun) {
     return "可以准备两端 smoke，但先让 pending 清零，避免把旧队列误认为新测试失败。";
@@ -739,7 +739,7 @@ function getNextAction(input: {
     input.input.reliability.summary.failed_rows === 0 &&
     input.input.reliability.summary.manual_review_rows === 0
   ) {
-    return "可以先跑 48 小时 scoped beta smoke：Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据；完整全平台同步仍等待 ACK ledger。";
+    return "可以先跑 48 小时 scoped beta smoke：Page、每日纪要、ZhiHui、数据库、知识库附属、组合管理和文件元数据；完整全平台同步仍等待 ACK ledger。";
   }
   if (input.blocked > 0) {
     return isAckLedgerReady({

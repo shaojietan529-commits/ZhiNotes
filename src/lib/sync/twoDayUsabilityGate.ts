@@ -313,7 +313,7 @@ export function buildTwoDayUsabilityGate(
       "同步中心显示 pending、failed、manual review 全部清零。",
       "账号认证退避为无，临时接口失败不会自动登出任一设备。",
       "账号同步桥只读检查显示页面、每日纪要、会议、数据库、组合管理五个核心 metadata 域均可读。",
-      "页面、每日纪要、ZhiHui、数据库、组合管理、文件元数据至少各完成一条真实两设备样本。",
+      "页面、每日纪要、ZhiHui、数据库、知识库附属、组合管理、文件元数据至少各完成一条真实两设备样本。",
       "设备 B 刷新后能看到设备 A 的新增和编辑结果。",
       "ACK ledger 服务端就绪报告显示 remaining_blockers=0 且可以查询 server ledger。",
       "remote ACK cursor 或等价 ACK ledger 证明本地 rows 已被云端确认。",
@@ -393,7 +393,7 @@ function buildUserDecision(input: {
       mode: "ready-for-owner-smoke",
       headline: "可以开始真实两设备验收",
       detail:
-        "核心同步状态达到最低可测条件；下一步用两台真实登录设备跑 Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据 smoke。",
+        "核心同步状态达到最低可测条件；下一步用两台真实登录设备跑 Page、每日纪要、ZhiHui、数据库、知识库附属、组合管理和文件元数据 smoke。",
       primary_risk: primaryRisk,
       next_action: input.nextBestAction,
       safe_actions: [

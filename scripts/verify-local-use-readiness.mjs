@@ -74,6 +74,10 @@ check(
 );
 check(
   readiness.includes("queueBreakdown: AccountLocalUseQueueBreakdown") &&
+    readiness.includes('"files"') &&
+    readiness.includes('"settings"') &&
+    readiness.includes('"knowledge"') &&
+    readiness.includes('"portfolio"') &&
     readiness.includes("filePendingTotal") &&
     readiness.includes("portfolioPendingTotal") &&
     readiness.includes("portfolioFailedTotal") &&
@@ -92,6 +96,19 @@ check(
     readiness.includes("其他失败") &&
     readiness.includes("其他需确认"),
   "本地可用性规则必须显式拆分文件、组合和其他全域队列，并把 pending/failed/manual review 纳入云端交接和缓存重建保护"
+);
+check(
+  readiness.includes("fileSyncEnabled?: boolean") &&
+    readiness.includes("settingsSyncEnabled?: boolean") &&
+    readiness.includes("knowledgeSyncEnabled?: boolean") &&
+    readiness.includes("portfolioSyncEnabled?: boolean") &&
+    readiness.includes('label: "文件 / 报告 metadata"') &&
+    readiness.includes('label: "设置 / 侧边栏 / 模块配置"') &&
+    readiness.includes('label: "知识库双链 / 评论 / 版本"') &&
+    readiness.includes('label: "组合管理"') &&
+    readiness.includes("核心同步域未全部就绪") &&
+    readiness.includes("页面、数据库、文件 metadata、设置、知识库和组合同步域都已就绪"),
+  "本地可用性门禁必须把阶段 1 的页面/数据库/文件/设置/知识库/组合六个核心云同步域都列为设备交接前置条件"
 );
 check(
   readiness.includes("input.failedTotal > 0 || input.manualReviewTotal > 0") &&
@@ -143,8 +160,12 @@ check(
     accountCoordinator.includes('fileSync.status.authRetryStatus ? "文件" : null') &&
     accountCoordinator.includes('portfolioSync.status.authRetryStatus ? "组合" : null') &&
     accountCoordinator.includes("fileSync.status.authRetryUntil") &&
-    accountCoordinator.includes("portfolioSync.status.authRetryUntil"),
-  "全局同步总控必须把文件和组合账号重试纳入云端不确定状态；auth retry 显示为检查/排队，不能误报已同步或硬错误"
+    accountCoordinator.includes("portfolioSync.status.authRetryUntil") &&
+    accountCoordinator.includes("fileSyncEnabled: fileSync.status.enabled") &&
+    accountCoordinator.includes("settingsSyncEnabled: settingsSync.status.enabled") &&
+    accountCoordinator.includes("knowledgeSyncEnabled: knowledgeSync.status.enabled") &&
+    accountCoordinator.includes("portfolioSyncEnabled: portfolioSync.status.enabled"),
+  "全局同步总控必须把文件、设置、知识库和组合状态纳入云端不确定状态和设备交接门禁；auth retry 显示为检查/排队，不能误报已同步或硬错误"
 );
 
 for (const snippet of [
@@ -202,6 +223,10 @@ for (const snippet of [
   "data-portfolio-pending-total",
   "data-portfolio-failed-total",
   "data-portfolio-manual-review-total",
+  "fileSyncEnabled: syncLocalUseQueueSnapshot.fileSyncEnabled",
+  "settingsSyncEnabled: syncLocalUseQueueSnapshot.settingsSyncEnabled",
+  "knowledgeSyncEnabled: syncLocalUseQueueSnapshot.knowledgeSyncEnabled",
+  "portfolioSyncEnabled: syncLocalUseQueueSnapshot.portfolioSyncEnabled",
   'data-testid="sync-portfolio-queue-readiness-note"',
   "当前使用安全",
   "可以继续写",

@@ -1,6 +1,7 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
 import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
+import type { PortfolioCloudSyncStatus } from "@/lib/portfolio/portfolioSyncStatus";
 import type { LocalWorkspaceIdentity } from "@/lib/sync/workspaceIdentity";
 
 const HANDOFF_STALE_PENDING_MS = 30 * 60 * 1000;
@@ -35,6 +36,9 @@ export interface SyncHandoffReadinessReceiptInput {
   pageStatus: PendingCloudPageSyncStatus;
   databaseStatus: PendingCloudDatabaseSyncStatus;
   fileStatus: PendingFileEmbedSyncStatus;
+  portfolioStatus: PortfolioCloudSyncStatus;
+  settingsSyncEnabled: boolean;
+  knowledgeSyncEnabled: boolean;
   totalSyncPending: number;
   totalSyncFailed?: number;
   totalSyncManualReview?: number;
@@ -151,6 +155,8 @@ export interface SyncHandoffReadinessReceipt {
     page_last_sync_outcome_skipped_remote_newer: number;
     page_last_sync_outcome_pending_after: number;
     database_sync_enabled: boolean;
+    settings_sync_enabled: boolean;
+    knowledge_sync_enabled: boolean;
     database_last_sync_outcome_status: DatabaseLastSyncOutcome["status"] | null;
     database_last_sync_outcome_source: DatabaseLastSyncOutcome["source"] | null;
     database_last_sync_outcome_at: string | null;
@@ -160,6 +166,7 @@ export interface SyncHandoffReadinessReceipt {
     database_last_sync_outcome_skipped: number;
     database_last_sync_outcome_pending_after: number;
     file_sync_enabled: boolean;
+    portfolio_sync_enabled: boolean;
     file_last_sync_outcome_status: FileLastSyncOutcome["status"] | null;
     file_last_sync_outcome_source: FileLastSyncOutcome["source"] | null;
     file_last_sync_outcome_at: string | null;
@@ -194,6 +201,7 @@ export interface SyncHandoffReadinessReceipt {
     database_in_memory_queued_rows: number;
     database_sync_log_pending_rows: number;
     file_pending_rows: number;
+    portfolio_pending_rows: number;
     deduplicated_pending_rows: number;
     total_sync_log_pending_rows: number;
     total_sync_log_covered_pending_rows: number;
@@ -252,25 +260,33 @@ export function buildSyncHandoffReadinessReceipt(
     input.databaseStatus.queued +
     databaseSyncLogPendingRows;
   const filePendingRows = input.fileStatus.pending;
+  const portfolioPendingRows =
+    input.portfolioStatus.pending + input.portfolioStatus.inFlight;
   const deduplicatedPendingRows =
     pagePendingRows +
     databasePendingRows +
     filePendingRows +
+    portfolioPendingRows +
     syncLogUnclassifiedPendingRows;
   const failedRows = Math.max(
-    input.pageStatus.failed + input.databaseStatus.failed + input.fileStatus.failed,
+    input.pageStatus.failed +
+      input.databaseStatus.failed +
+      input.fileStatus.failed +
+      input.portfolioStatus.failed,
     input.totalSyncFailed ?? 0
   );
   const manualReviewRows = Math.max(
     input.pageStatus.manualReviewCount +
       input.databaseStatus.manualReviewCount +
-      input.fileStatus.manualReviewCount,
+      input.fileStatus.manualReviewCount +
+      input.portfolioStatus.manualReviewCount,
     input.totalSyncManualReview ?? 0
   );
   const oldestPendingQueuedAt = getOldestTimestamp([
     input.pageStatus.oldestPendingQueuedAt,
     input.databaseStatus.oldestPendingQueuedAt,
     input.fileStatus.oldestPendingQueuedAt,
+    input.portfolioStatus.lastQueuedAt,
   ]);
   const oldestPendingAgeMs = getAgeMs(oldestPendingQueuedAt, generatedAt);
   const oldestPendingAgeLabel = formatAge(oldestPendingAgeMs);
@@ -288,8 +304,16 @@ export function buildSyncHandoffReadinessReceipt(
   const pageSyncEnabled = input.pageStatus.enabled;
   const databaseSyncEnabled = input.databaseStatus.enabled;
   const fileSyncEnabled = input.fileStatus.enabled;
+  const settingsSyncEnabled = input.settingsSyncEnabled;
+  const knowledgeSyncEnabled = input.knowledgeSyncEnabled;
+  const portfolioSyncEnabled = input.portfolioStatus.enabled;
   const accountBridgeSyncDomainsReady =
-    pageSyncEnabled && databaseSyncEnabled && fileSyncEnabled;
+    pageSyncEnabled &&
+    databaseSyncEnabled &&
+    fileSyncEnabled &&
+    settingsSyncEnabled &&
+    knowledgeSyncEnabled &&
+    portfolioSyncEnabled;
   const accountBridgeReady =
     accountBridgeSyncDomainsReady &&
     !hasPending &&
@@ -309,6 +333,9 @@ export function buildSyncHandoffReadinessReceipt(
     pageSyncEnabled,
     databaseSyncEnabled,
     fileSyncEnabled,
+    settingsSyncEnabled,
+    knowledgeSyncEnabled,
+    portfolioSyncEnabled,
     hasPending,
     hasStalePending,
     hasRequiredSyncOutcomeEvidenceIssue:
@@ -337,10 +364,14 @@ export function buildSyncHandoffReadinessReceipt(
     pageSyncEnabled,
     databaseSyncEnabled,
     fileSyncEnabled,
+    settingsSyncEnabled,
+    knowledgeSyncEnabled,
+    portfolioSyncEnabled,
     syncOutcomeEvidence,
     pagePendingRows,
     databasePendingRows,
     filePendingRows,
+    portfolioPendingRows,
     totalSyncPending: input.totalSyncPending,
     syncLogCoveredPendingRows,
     syncLogUnclassifiedPendingRows,
@@ -395,6 +426,9 @@ export function buildSyncHandoffReadinessReceipt(
       fileLastOutcome?.missingLocalFiles ?? 0,
     file_last_sync_outcome_auth_deferred: fileLastOutcome?.authDeferred ?? 0,
     file_last_sync_outcome_pending_after: fileLastOutcome?.pendingAfter ?? 0,
+    settings_sync_enabled: settingsSyncEnabled,
+    knowledge_sync_enabled: knowledgeSyncEnabled,
+    portfolio_sync_enabled: portfolioSyncEnabled,
     sync_outcome_evidence_status: syncOutcomeEvidence.status,
     required_sync_outcome_domains_ready: syncOutcomeEvidence.requiredReady,
     sync_outcome_missing_required_domains:
@@ -420,6 +454,7 @@ export function buildSyncHandoffReadinessReceipt(
     page_sync_log_pending_rows: pageSyncLogPendingRows,
     database_pending_rows: databasePendingRows,
     file_pending_rows: filePendingRows,
+    portfolio_pending_rows: portfolioPendingRows,
     deduplicated_pending_rows: deduplicatedPendingRows,
     total_sync_log_pending_rows: input.totalSyncPending,
     total_sync_log_covered_pending_rows: syncLogCoveredPendingRows,
@@ -513,6 +548,8 @@ export function buildSyncHandoffReadinessReceipt(
       database_last_sync_outcome_skipped: databaseLastOutcome?.skipped ?? 0,
       database_last_sync_outcome_pending_after:
         databaseLastOutcome?.pendingAfter ?? 0,
+      settings_sync_enabled: settingsSyncEnabled,
+      knowledge_sync_enabled: knowledgeSyncEnabled,
       file_sync_enabled: fileSyncEnabled,
       file_last_sync_outcome_status: fileLastOutcome?.status ?? null,
       file_last_sync_outcome_source: fileLastOutcome?.source ?? null,
@@ -528,6 +565,7 @@ export function buildSyncHandoffReadinessReceipt(
         fileLastOutcome?.authDeferred ?? 0,
       file_last_sync_outcome_pending_after:
         fileLastOutcome?.pendingAfter ?? 0,
+      portfolio_sync_enabled: portfolioSyncEnabled,
       sync_outcome_evidence_status: syncOutcomeEvidence.status,
       required_sync_outcome_domains_ready: syncOutcomeEvidence.requiredReady,
       sync_outcome_missing_required_domains:
@@ -560,6 +598,7 @@ export function buildSyncHandoffReadinessReceipt(
       database_in_memory_queued_rows: input.databaseStatus.queued,
       database_sync_log_pending_rows: databaseSyncLogPendingRows,
       file_pending_rows: filePendingRows,
+      portfolio_pending_rows: portfolioPendingRows,
       deduplicated_pending_rows: deduplicatedPendingRows,
       total_sync_log_pending_rows: input.totalSyncPending,
       total_sync_log_covered_pending_rows: syncLogCoveredPendingRows,
@@ -719,10 +758,14 @@ function buildGates(input: {
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
   fileSyncEnabled: boolean;
+  settingsSyncEnabled: boolean;
+  knowledgeSyncEnabled: boolean;
+  portfolioSyncEnabled: boolean;
   syncOutcomeEvidence: SyncOutcomeEvidenceSummary;
   pagePendingRows: number;
   databasePendingRows: number;
   filePendingRows: number;
+  portfolioPendingRows: number;
   totalSyncPending: number;
   syncLogCoveredPendingRows: number;
   syncLogUnclassifiedPendingRows: number;
@@ -756,7 +799,7 @@ function buildGates(input: {
       title: "账号级同步桥接可接力",
       status: input.accountBridgeReady ? "pass" : "warn",
       evidence: input.accountBridgeReady
-        ? "页面、数据库、文件和全域 sync_log 队列已清空，账号级同步桥可用于同账号跨设备接力。"
+        ? "页面、数据库、文件 metadata、设置、知识库、组合和全域 sync_log 队列已清空，账号级同步桥可用于同账号跨设备接力。"
         : input.accountBridgeSyncDomainsReady
           ? "账号级同步域已开启，但仍需等待 pending、failed、manual review 清零。"
           : "账号级同步域未全部开启，不能保证同账号设备看到同一份数据。",
@@ -790,6 +833,33 @@ function buildGates(input: {
       next_action: input.fileSyncEnabled
         ? "继续检查文件 pending 队列。"
         : "先恢复文件嵌入队列状态；否则文件和报告不会可靠出现在其他设备。",
+    },
+    {
+      id: "settings-sync-enabled",
+      title: "设置 / 侧边栏同步可见",
+      status: input.settingsSyncEnabled ? "pass" : "block",
+      evidence: `设置同步：${input.settingsSyncEnabled ? "可见" : "不可用"}。`,
+      next_action: input.settingsSyncEnabled
+        ? "继续检查设置 pending 队列。"
+        : "先恢复设置/侧边栏同步状态；否则模块顺序和偏好不能保证跨设备一致。",
+    },
+    {
+      id: "knowledge-sync-enabled",
+      title: "知识库附属同步可见",
+      status: input.knowledgeSyncEnabled ? "pass" : "block",
+      evidence: `知识库同步：${input.knowledgeSyncEnabled ? "可见" : "不可用"}。`,
+      next_action: input.knowledgeSyncEnabled
+        ? "继续检查知识库 pending 队列。"
+        : "先恢复双链、评论和版本同步状态；否则知识库关系不能保证跨设备一致。",
+    },
+    {
+      id: "portfolio-sync-enabled",
+      title: "组合管理同步可见",
+      status: input.portfolioSyncEnabled ? "pass" : "block",
+      evidence: `组合管理同步：${input.portfolioSyncEnabled ? "可见" : "不可用"}。`,
+      next_action: input.portfolioSyncEnabled
+        ? "继续检查组合 pending 队列。"
+        : "先恢复组合 ACK 同步状态；否则持仓和标签不能保证跨设备一致。",
     },
     {
       id: "recent-sync-outcome-evidence",
@@ -847,6 +917,16 @@ function buildGates(input: {
         input.filePendingRows > 0
           ? "先补传文件队列；未上传文件或报告不能在其他设备可靠出现。"
           : "文件待上传队列为空。",
+    },
+    {
+      id: "portfolio-pending-drained",
+      title: "组合 pending 队列无待上传",
+      status: input.portfolioPendingRows > 0 ? "block" : "pass",
+      evidence: `组合 pending + in-flight ${input.portfolioPendingRows} 条。`,
+      next_action:
+        input.portfolioPendingRows > 0
+          ? "先补传组合队列并等待云端 ACK；未确认的持仓导入或标签不能在其他设备可靠出现。"
+          : "组合待上传队列为空。",
     },
     {
       id: "full-domain-sync-log-drained",
@@ -908,13 +988,23 @@ function getHandoffStatus(input: {
   pageSyncEnabled: boolean;
   databaseSyncEnabled: boolean;
   fileSyncEnabled: boolean;
+  settingsSyncEnabled: boolean;
+  knowledgeSyncEnabled: boolean;
+  portfolioSyncEnabled: boolean;
   hasPending: boolean;
   hasStalePending: boolean;
   hasRequiredSyncOutcomeEvidenceIssue: boolean;
   failedRows: number;
   manualReviewRows: number;
 }): SyncHandoffReadinessStatus {
-  if (!input.pageSyncEnabled || !input.databaseSyncEnabled || !input.fileSyncEnabled) {
+  if (
+    !input.pageSyncEnabled ||
+    !input.databaseSyncEnabled ||
+    !input.fileSyncEnabled ||
+    !input.settingsSyncEnabled ||
+    !input.knowledgeSyncEnabled ||
+    !input.portfolioSyncEnabled
+  ) {
     return "blocked-sync-disabled";
   }
   if (input.manualReviewRows > 0) return "blocked-manual-review";
@@ -942,7 +1032,7 @@ function getNextAction(
     case "blocked-local-only":
       return "先登录并连接云工作区；local-only 状态下没有云端接力目标。";
     case "blocked-sync-disabled":
-      return "先到账号页开启页面、数据库和文件队列同步，再重新生成接力收据。";
+      return "先到账号页开启页面、数据库、文件 metadata、设置、知识库和组合管理同步，再重新生成接力收据。";
     case "blocked-manual-review":
       return "先导出处理包并解决反复失败项；不要在问题未确认前换设备接力。";
     case "blocked-failed":
@@ -977,7 +1067,7 @@ function buildOwnerActions(
   }
   if (status === "blocked-sync-disabled") {
     return [
-      "Enable page, database, and file queue sync from the Account page after owner confirmation.",
+      "Enable page, database, file metadata, settings, knowledge, and portfolio sync from the Account page after owner confirmation.",
     ];
   }
   if (status === "blocked-manual-review") {

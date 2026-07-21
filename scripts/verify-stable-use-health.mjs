@@ -746,6 +746,8 @@ function verifyRouteResult(result) {
     "database",
     "file-metadata",
     "settings",
+    "knowledge",
+    "portfolio",
   ]) {
     if (!twoDaySyncPolicy.minimum_stable_surfaces?.includes(surface)) {
       failures.push(`two_day_sync_policy.minimum_stable_surfaces missing ${surface}`);

@@ -4066,11 +4066,11 @@ function run() {
       "Two-device sync smoke runbook must include the final device handoff smoke step.",
     ],
     [
-      "Page、每日纪要、ZhiHui、数据库、组合管理、文件元数据至少各跑一条测试样本",
+      "Page、每日纪要、ZhiHui、数据库、知识库附属、组合管理、文件元数据至少各跑一条测试样本",
       "Two-device sync smoke runbook must state the required real workflow samples for the final owner receipt.",
     ],
     [
-      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据",
+      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库、知识库附属、组合管理和文件元数据",
       "Two-device sync smoke runbook must let scoped beta verification proceed without claiming full-platform sync.",
     ],
     [

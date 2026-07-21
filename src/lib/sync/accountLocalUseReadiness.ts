@@ -60,7 +60,13 @@ export interface AccountLocalUseQueueBreakdown {
 }
 
 export interface AccountLocalUseRequiredCloudDomain {
-  id: "pages" | "databases";
+  id:
+    | "pages"
+    | "databases"
+    | "files"
+    | "settings"
+    | "knowledge"
+    | "portfolio";
   label: string;
   enabled: boolean;
   scope: string;
@@ -96,6 +102,10 @@ interface AccountLocalUseReadinessInput {
   portfolioManualReviewTotal?: number;
   pageSyncEnabled?: boolean;
   databaseSyncEnabled?: boolean;
+  fileSyncEnabled?: boolean;
+  settingsSyncEnabled?: boolean;
+  knowledgeSyncEnabled?: boolean;
+  portfolioSyncEnabled?: boolean;
   authRetryDomainLabel?: string;
   authRetryUnconfiguredDomainLabel?: string;
   authRetryUnconfirmedDomainLabel?: string;
@@ -259,6 +269,30 @@ function buildRequiredCloudDomains(
       label: "数据库",
       enabled: Boolean(input.databaseSyncEnabled),
       scope: "数据库结构、字段、视图和行值",
+    },
+    {
+      id: "files",
+      label: "文件 / 报告 metadata",
+      enabled: Boolean(input.fileSyncEnabled),
+      scope: "文件索引、嵌入关系和上传 ACK metadata，不读取文件 bytes",
+    },
+    {
+      id: "settings",
+      label: "设置 / 侧边栏 / 模块配置",
+      enabled: Boolean(input.settingsSyncEnabled),
+      scope: "模块顺序、侧边栏配置、账号偏好和工作区设置 metadata",
+    },
+    {
+      id: "knowledge",
+      label: "知识库双链 / 评论 / 版本",
+      enabled: Boolean(input.knowledgeSyncEnabled),
+      scope: "双链、评论索引、block comment 和版本 metadata",
+    },
+    {
+      id: "portfolio",
+      label: "组合管理",
+      enabled: Boolean(input.portfolioSyncEnabled),
+      scope: "组合导入状态、标签、配置和云端 ACK metadata",
     },
   ];
 }
@@ -454,7 +488,7 @@ export function buildAccountLocalUseReadiness(
         `核心同步域未全部就绪：${missingRequiredDomains}。本机仍可写，但不能把另一台设备当作最新版本。`
       ),
       nextAction:
-        "先确认账号页页面和数据库云同步已开启，并处理账号/KV/邮件环境与 pending 队列；等队列清零后，再做跨设备接力或缓存重建。",
+        "先确认账号页页面、数据库、文件 metadata、设置、知识库和组合同步域都已就绪，并处理账号/KV/邮件环境与 pending 队列；等队列清零后，再做跨设备接力或缓存重建。",
     };
   }
 

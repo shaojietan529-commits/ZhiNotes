@@ -148,7 +148,7 @@ function run() {
       "Two-device runbook must keep full-platform claims blocked until ready.",
     ],
     [
-      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据",
+      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库、知识库附属、组合管理和文件元数据",
       "Two-device runbook must state the scoped 48-hour beta scope.",
     ],
     [
