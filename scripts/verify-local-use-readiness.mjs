@@ -195,6 +195,12 @@ for (const snippet of [
 }
 
 for (const snippet of [
+  'import { useKnowledgeCloudSyncStatus } from "@/hooks/useKnowledgeCloudSyncStatus"',
+  'import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus"',
+  "const settingsCloudSync = useSettingsCloudSyncStatus()",
+  "const knowledgeCloudSync = useKnowledgeCloudSyncStatus()",
+  "settingsSyncEnabled: settingsCloudSyncStatus.enabled",
+  "knowledgeSyncEnabled: knowledgeCloudSyncStatus.enabled",
   "buildAccountLocalUseReadiness",
   "SyncOperationalStatusStrip",
   "SyncLocalUseReadinessPanel",
@@ -240,6 +246,11 @@ for (const snippet of [
 ]) {
   check(syncShell.includes(snippet), `同步中心缺少本地可用性提示：${snippet}`);
 }
+check(
+  !syncShell.includes("settingsSyncEnabled: syncSummary !== null") &&
+    !syncShell.includes("knowledgeSyncEnabled: syncSummary !== null"),
+  "同步中心必须使用设置/知识库真实状态 hook；不能用 syncSummary 是否存在代替云同步域启用状态"
+);
 
 const scripts = packageJson.scripts ?? {};
 check(

@@ -90,7 +90,9 @@ import {
   type StoredPageFile,
 } from "@/lib/files/localStore";
 import { useFileEmbedCloudSyncStatus } from "@/hooks/useFileEmbedCloudSyncStatus";
+import { useKnowledgeCloudSyncStatus } from "@/hooks/useKnowledgeCloudSyncStatus";
 import { usePortfolioCloudSyncStatus } from "@/hooks/usePortfolioCloudSyncStatus";
+import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus";
 import type { PortfolioCloudSyncStatus } from "@/lib/portfolio/portfolioSyncStatus";
 import {
   getPendingFileEmbedSyncStatus,
@@ -2908,6 +2910,10 @@ function SyncDashboard() {
   );
   const fileEmbedSync = useFileEmbedCloudSyncStatus();
   const fileEmbedPendingStatus = fileEmbedSync.status;
+  const settingsCloudSync = useSettingsCloudSyncStatus();
+  const settingsCloudSyncStatus = settingsCloudSync.status;
+  const knowledgeCloudSync = useKnowledgeCloudSyncStatus();
+  const knowledgeCloudSyncStatus = knowledgeCloudSync.status;
   const portfolioCloudSync = usePortfolioCloudSyncStatus();
   const portfolioPendingStatus = portfolioCloudSync.status;
   const [pagePendingStatus, setPagePendingStatus] =
@@ -3691,8 +3697,8 @@ function SyncDashboard() {
         databaseStatus: databasePendingStatus,
         fileStatus: fileEmbedPendingStatus,
         portfolioStatus: portfolioPendingStatus,
-        settingsSyncEnabled: syncSummary !== null,
-        knowledgeSyncEnabled: syncSummary !== null,
+        settingsSyncEnabled: settingsCloudSyncStatus.enabled,
+        knowledgeSyncEnabled: knowledgeCloudSyncStatus.enabled,
         totalSyncPending: syncSummary?.pending ?? 0,
         totalSyncFailed: syncSummary?.failed ?? 0,
         totalSyncManualReview: syncSummary?.manualReview ?? 0,
@@ -3701,8 +3707,10 @@ function SyncDashboard() {
     [
       databasePendingStatus,
       fileEmbedPendingStatus,
+      knowledgeCloudSyncStatus.enabled,
       pagePendingStatus,
       portfolioPendingStatus,
+      settingsCloudSyncStatus.enabled,
       syncSummary,
       workspaceIdentity,
     ]
@@ -3899,8 +3907,8 @@ function SyncDashboard() {
       pageSyncEnabled: pagePendingStatus.enabled,
       databaseSyncEnabled: databasePendingStatus.enabled,
       fileSyncEnabled: fileEmbedPendingStatus.enabled,
-      settingsSyncEnabled: syncSummary !== null,
-      knowledgeSyncEnabled: syncSummary !== null,
+      settingsSyncEnabled: settingsCloudSyncStatus.enabled,
+      knowledgeSyncEnabled: knowledgeCloudSyncStatus.enabled,
       portfolioSyncEnabled: portfolioPendingStatus.enabled,
       authRetryDomainLabel,
       authRetryUnconfiguredDomainLabel,
@@ -3912,8 +3920,10 @@ function SyncDashboard() {
   }, [
     databasePendingStatus,
     fileEmbedPendingStatus,
+    knowledgeCloudSyncStatus.enabled,
     pagePendingStatus,
     portfolioPendingStatus,
+    settingsCloudSyncStatus.enabled,
     syncSummary,
   ]);
   const syncLocalUseReadiness = useMemo(() => {
