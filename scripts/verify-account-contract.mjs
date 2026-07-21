@@ -269,6 +269,10 @@ const knowledgeCloudSyncStatusHook = read(
   "src/hooks/useKnowledgeCloudSyncStatus.ts"
 );
 const knowledgeSyncStatus = read("src/lib/sync/knowledgeSyncStatus.ts");
+const accountKnowledgeSync = read("src/lib/sync/accountKnowledgeSync.ts");
+const knowledgeAccountSyncRoute = read(
+  "src/app/api/knowledge/account-sync/route.ts"
+);
 
 check(
   accountClientSession.includes("retryAfterMs?: number") &&
@@ -4414,6 +4418,15 @@ check(
     accountCloudSyncCoordinator.includes("settingsRetryableFailedTotal") &&
     accountCloudSyncCoordinator.includes("knowledgeRetryableFailedTotal") &&
     accountCloudSyncCoordinator.includes(
+      "knowledgeAutoRetryablePendingTotal"
+    ) &&
+    accountCloudSyncCoordinator.includes(
+      "knowledgeAutoRetryableFailedTotal"
+    ) &&
+    accountCloudSyncCoordinator.includes(
+      "knowledgeAutoRetryableSyncWorkTotal"
+    ) &&
+    accountCloudSyncCoordinator.includes(
       "globalSyncLogExtraRetryableFailedTotal"
     ) &&
     !accountCloudSyncCoordinator.includes(
@@ -4676,13 +4689,16 @@ check(
     accountAutoRetryableSyncWorkBlock.includes(
       "settingsAutoRetryableFailedTotal"
     ) &&
-    !accountAutoRetryableSyncWorkBlock.includes(
+    accountAutoRetryableSyncWorkBlock.includes(
       "knowledgeAutoRetryablePendingTotal"
+    ) &&
+    accountAutoRetryableSyncWorkBlock.includes(
+      "knowledgeAutoRetryableFailedTotal"
     ) &&
     !accountAutoRetryableSyncWorkBlock.includes(
       "globalSyncLogExtraPendingTotal"
     ),
-  "账号级自动补传应驱动页面/数据库/设置当前可执行队列；知识库附属和其他 sync_log 队列必须只显示并交给专用回放处理，避免后台伪同步"
+  "账号级自动补传应驱动页面/数据库/设置/知识库附属当前可执行队列；其他 sync_log 队列仍必须只显示并交给专用回放处理，避免后台伪同步"
 );
 check(
   accountCloudSyncCoordinator.indexOf("manualReviewTotal > 0 || failedTotal > 0") <
@@ -4740,9 +4756,11 @@ check(
 );
 check(
     knowledgeCloudSyncStatusHook.includes("getPendingKnowledgeSyncLogEntries") &&
+    knowledgeCloudSyncStatusHook.includes("syncAccountKnowledgeNow") &&
     knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
     knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
     knowledgeCloudSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
+    knowledgeCloudSyncStatusHook.includes("return { status, refresh, syncNow }") &&
     knowledgeCloudSyncStatusHook.includes("handleAccountProfileUpdated") &&
     knowledgeCloudSyncStatusHook.includes("isAccountSessionStorageKey") &&
     knowledgeCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
@@ -4763,6 +4781,61 @@ check(
       "KNOWLEDGE_STATUS_REFRESH_INTERVAL_MS"
     ),
   "知识库附属同步状态 hook 应只读评论/版本/双链 sync_log 元数据，并用事件/轮询刷新全局 pending 状态；状态 key 被清空时也要刷新，避免知识库附属队列清零后 UI 卡旧状态"
+);
+check(
+  accountKnowledgeSync.includes('"/api/knowledge/account-sync"') &&
+    accountKnowledgeSync.includes("checkAccountCloudSyncGate") &&
+    accountKnowledgeSync.includes("getPendingKnowledgeSyncRecords") &&
+    accountKnowledgeSync.includes("markKnowledgeSyncLogEntriesAttempted") &&
+    accountKnowledgeSync.includes("markKnowledgeSyncLogEntriesSynced") &&
+    accountKnowledgeSync.includes("markKnowledgeSyncLogEntriesFailed") &&
+    accountKnowledgeSync.includes("applyRemoteKnowledgeRecords") &&
+    accountKnowledgeSync.includes("acceptedKeys") &&
+    accountKnowledgeSync.includes("skippedKeys") &&
+    accountKnowledgeSync.includes("acknowledgedKeys") &&
+    accountKnowledgeSync.includes("applyResult.skippedLocalPending === 0") &&
+    accountKnowledgeSync.includes("writeKnowledgeRemoteCursor(response.cursor)"),
+  "知识库附属账号同步客户端必须通过账号云 API 推送/拉取，并且只能在 accepted/skipped 云端回执后清本地 pending；遇到本地未上传冲突时不得推进远端游标"
+);
+check(
+  knowledgeAccountSyncRoute.includes("getAccountIdentityConfig") &&
+    knowledgeAccountSyncRoute.includes("getSessionAccount") &&
+    knowledgeAccountSyncRoute.includes("readSessionToken") &&
+    knowledgeAccountSyncRoute.includes("kvGet") &&
+    knowledgeAccountSyncRoute.includes("kvSet") &&
+    knowledgeAccountSyncRoute.includes("MAX_PAYLOAD_BYTES") &&
+    knowledgeAccountSyncRoute.includes("MAX_PUSH_RECORDS") &&
+    knowledgeAccountSyncRoute.includes("CHANGE_LOG_LIMIT") &&
+    knowledgeAccountSyncRoute.includes("sanitizeRecord") &&
+    knowledgeAccountSyncRoute.includes("changes-since") &&
+    knowledgeAccountSyncRoute.includes('format: "zhinote-knowledge-cloud-ack-receipt"') &&
+    knowledgeAccountSyncRoute.includes("accepted") &&
+    knowledgeAccountSyncRoute.includes("skipped") &&
+    knowledgeAccountSyncRoute.includes("rejected") &&
+    knowledgeAccountSyncRoute.includes("accountSessionUnconfirmedResponse") &&
+    !knowledgeAccountSyncRoute.includes("console."),
+  "知识库附属账号同步 API 必须使用登录账号隔离的 KV 云端副本、限制批量大小、返回 durable ACK，并且不能向日志输出知识库内容"
+);
+check(
+  localQueries.includes("getPendingKnowledgeSyncRecords") &&
+    localQueries.includes("getKnowledgeRecordsForSyncByKeys") &&
+    localQueries.includes("applyRemoteKnowledgeRecords") &&
+    localQueries.includes("markKnowledgeSyncLogEntriesSynced") &&
+    localQueries.includes("markKnowledgeSyncLogEntriesAttempted") &&
+    localQueries.includes("markKnowledgeSyncLogEntriesFailed") &&
+    localQueries.includes("wiki_links") &&
+    localQueries.includes("page_comments") &&
+    localQueries.includes("block_comments") &&
+    localQueries.includes("page_versions") &&
+    localQueries.includes("emitKnowledgeSyncStatusEvent"),
+  "本地查询层必须能把 wiki link/comment/version pending 队列组装为云端记录，并在云端确认、失败或跳过后发出不含内容的状态刷新事件"
+);
+check(
+  syncShell.includes("syncAccountKnowledgeNow") &&
+    syncShell.includes("knowledgeResult") &&
+    syncShell.includes("知识库推送") &&
+    syncShell.includes("markedSynced"),
+  "同步中心手动补传必须把知识库附属队列一并送到账号云端，并展示成功确认和失败统计"
 );
 check(
   knowledgeSyncStatus.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&

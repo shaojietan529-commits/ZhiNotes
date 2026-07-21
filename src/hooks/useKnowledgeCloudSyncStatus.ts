@@ -11,6 +11,10 @@ import {
   summarizeKnowledgeCloudSyncStatus,
   type KnowledgeCloudSyncStatus,
 } from "@/lib/sync/knowledgeSyncStatus";
+import {
+  syncAccountKnowledgeNow,
+  type AccountKnowledgeSyncResult,
+} from "@/lib/sync/accountKnowledgeSync";
 import { claimVisibleRefreshLease } from "@/lib/sync/visibleRefreshLease";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
@@ -29,6 +33,7 @@ export function useKnowledgeCloudSyncStatus() {
   );
   const mountedRef = useRef(false);
   const runningRef = useRef(false);
+  const syncRunningRef = useRef(false);
   const rerunAfterCurrentRefreshRef = useRef(false);
 
   const setStatusIfMounted = useCallback(
@@ -69,6 +74,56 @@ export function useKnowledgeCloudSyncStatus() {
       }
     }
   }, [dbReady, setStatusIfMounted]);
+
+  const syncNow = useCallback(
+    async (
+      options: {
+        includeManualReview?: boolean;
+        forceAccountGate?: boolean;
+        limit?: number;
+      } = {}
+    ): Promise<AccountKnowledgeSyncResult> => {
+      if (!dbReady) {
+        const disabledStatus = buildEmptyKnowledgeCloudSyncStatus(false);
+        lastGoodStatusRef.current = disabledStatus;
+        setStatusIfMounted(disabledStatus);
+        return {
+          status: "disabled",
+          pushed: 0,
+          pulled: 0,
+          skipped: 0,
+          failed: 0,
+          markedSynced: 0,
+          totalPending: 0,
+          skippedLocalPendingPulls: 0,
+          message: "本地数据库尚未就绪；知识库变更仍保留在待上传队列。",
+        };
+      }
+      if (syncRunningRef.current) {
+        await refresh();
+        return {
+          status: "ok",
+          pushed: 0,
+          pulled: 0,
+          skipped: 0,
+          failed: 0,
+          markedSynced: 0,
+          totalPending: 0,
+          skippedLocalPendingPulls: 0,
+          message: "知识库补传已经在运行，本次仅刷新状态。",
+        };
+      }
+      syncRunningRef.current = true;
+      try {
+        const result = await syncAccountKnowledgeNow(options);
+        await refresh();
+        return result;
+      } finally {
+        syncRunningRef.current = false;
+      }
+    },
+    [dbReady, refresh, setStatusIfMounted]
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -139,5 +194,5 @@ export function useKnowledgeCloudSyncStatus() {
     };
   }, [dbReady, refresh, setStatusIfMounted]);
 
-  return { status, refresh };
+  return { status, refresh, syncNow };
 }

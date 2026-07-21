@@ -8,8 +8,15 @@ import {
 import {
   emitKnowledgeSyncStatusEvent,
   isKnowledgeSyncTableName,
+  KNOWLEDGE_SYNC_MANUAL_REVIEW_FAILURE_THRESHOLD,
 } from "@/lib/sync/knowledgeSyncStatus";
-import type { BlockComment, Page, PageComment, PageVersion } from "@/lib/utils/types";
+import type {
+  BlockComment,
+  Page,
+  PageComment,
+  PageVersion,
+  WikiLink,
+} from "@/lib/utils/types";
 
 export const SYNC_LOG_STATUS_EVENT = "zhinote:sync-log-status";
 export const SYNC_LOG_STATUS_STORAGE_KEY = "zhinote:sync-log-status-updated";
@@ -4003,6 +4010,33 @@ function queryDatabaseRowsByIds<T>(
   return rows;
 }
 
+function queryRowsByIds<T>(
+  db: SqliteDb,
+  tableName:
+    | DatabaseSyncTableName
+    | "wiki_links"
+    | "page_comments"
+    | "block_comments"
+    | "page_versions",
+  ids: string[]
+): T[] {
+  const uniqueIds = Array.from(new Set(ids)).filter(Boolean);
+  if (uniqueIds.length === 0) return [];
+  const rows: T[] = [];
+  const chunkSize = 200;
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    const chunk = uniqueIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    rows.push(
+      ...((db.query(
+        `SELECT * FROM ${tableName} WHERE id IN (${placeholders})`,
+        chunk
+      ) as unknown) as T[])
+    );
+  }
+  return rows;
+}
+
 export async function getAllDatabaseRecordsForSync(): Promise<
   RemoteDatabaseRecord[]
 > {
@@ -5364,6 +5398,517 @@ export async function getPendingKnowledgeSyncLogEntries(): Promise<
     payloadHash: row.payloadHash ?? null,
     source: row.source ?? "local",
   }));
+}
+
+export type RemoteKnowledgeRecordType =
+  | "wiki_link"
+  | "page_comment"
+  | "block_comment"
+  | "page_version";
+
+export interface RemoteKnowledgeRecord {
+  type: RemoteKnowledgeRecordType;
+  id: string;
+  source_page_id?: string | null;
+  target_page_id?: string | null;
+  page_id?: string | null;
+  block_ref?: string | null;
+  anchor_text?: string | null;
+  owner_id?: string | null;
+  body?: string | null;
+  resolved?: number | null;
+  version_num?: number | null;
+  title?: string | null;
+  content_text?: string | null;
+  summary?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  deleted_at: string | null;
+  sync_version?: number | null;
+}
+
+export interface PendingKnowledgeSyncLogEntry {
+  logId: number;
+  key: string;
+}
+
+export interface PendingKnowledgeSyncRecords {
+  entries: PendingKnowledgeSyncLogEntry[];
+  records: RemoteKnowledgeRecord[];
+}
+
+const KNOWLEDGE_SYNC_TABLE_TYPES: Record<string, RemoteKnowledgeRecordType> = {
+  wiki_links: "wiki_link",
+  page_comments: "page_comment",
+  block_comments: "block_comment",
+  page_versions: "page_version",
+};
+
+const KNOWLEDGE_SYNC_TYPE_TABLES: Record<RemoteKnowledgeRecordType, string> = {
+  wiki_link: "wiki_links",
+  page_comment: "page_comments",
+  block_comment: "block_comments",
+  page_version: "page_versions",
+};
+
+export function buildRemoteKnowledgeRecordKey(
+  type: RemoteKnowledgeRecordType,
+  id: string
+): string {
+  return `${type}:${id}`;
+}
+
+export function parseRemoteKnowledgeRecordKey(
+  key: string
+): { type: RemoteKnowledgeRecordType; id: string } | null {
+  const [type, ...rest] = key.split(":");
+  const id = rest.join(":");
+  if (!isRemoteKnowledgeRecordType(type) || !id) return null;
+  return { type, id };
+}
+
+export function isRemoteKnowledgeRecordType(
+  value: string
+): value is RemoteKnowledgeRecordType {
+  return (
+    value === "wiki_link" ||
+    value === "page_comment" ||
+    value === "block_comment" ||
+    value === "page_version"
+  );
+}
+
+export async function getPendingKnowledgeSyncRecords(
+  limit: number = 200,
+  options: { includeManualReview?: boolean } = {}
+): Promise<PendingKnowledgeSyncRecords> {
+  const db = await getDb();
+  const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 1000);
+  const now = nowISO();
+  const rows = db.query(
+    `SELECT id, table_name as tableName, row_id as rowId
+     FROM sync_log
+     WHERE synced = 0
+       AND status != 'synced'
+       AND (? = 1 OR attempt_count < ?)
+       AND (? = 1 OR next_retry_at IS NULL OR next_retry_at <= ?)
+       AND table_name IN ('wiki_links', 'page_comments', 'block_comments', 'page_versions')
+     ORDER BY timestamp ASC, id ASC
+     LIMIT ?`,
+    [
+      options.includeManualReview ? 1 : 0,
+      KNOWLEDGE_SYNC_MANUAL_REVIEW_FAILURE_THRESHOLD,
+      options.includeManualReview ? 1 : 0,
+      now,
+      safeLimit,
+    ]
+  ) as unknown as Array<{
+    id: number;
+    tableName: string;
+    rowId: string;
+  }>;
+  const entries = rows
+    .map((row) => {
+      const type = KNOWLEDGE_SYNC_TABLE_TYPES[row.tableName];
+      if (!type || !row.rowId) return null;
+      return {
+        logId: Number(row.id),
+        key: buildRemoteKnowledgeRecordKey(type, row.rowId),
+      };
+    })
+    .filter((entry): entry is PendingKnowledgeSyncLogEntry => Boolean(entry));
+  const records = await getKnowledgeRecordsForSyncByKeys(
+    entries.map((entry) => entry.key)
+  );
+  return { entries, records };
+}
+
+export async function getKnowledgeRecordsForSyncByKeys(
+  keys: string[]
+): Promise<RemoteKnowledgeRecord[]> {
+  const grouped: Record<RemoteKnowledgeRecordType, string[]> = {
+    wiki_link: [],
+    page_comment: [],
+    block_comment: [],
+    page_version: [],
+  };
+  for (const key of keys) {
+    const parsed = parseRemoteKnowledgeRecordKey(key);
+    if (parsed) grouped[parsed.type].push(parsed.id);
+  }
+
+  const db = await getDb();
+  const wikiLinks = queryRowsByIds<WikiLink>(
+    db,
+    "wiki_links",
+    grouped.wiki_link
+  );
+  const pageComments = queryRowsByIds<PageComment>(
+    db,
+    "page_comments",
+    grouped.page_comment
+  );
+  const blockComments = queryRowsByIds<BlockComment>(
+    db,
+    "block_comments",
+    grouped.block_comment
+  );
+  const pageVersions = queryRowsByIds<PageVersion>(
+    db,
+    "page_versions",
+    grouped.page_version
+  );
+
+  return [
+    ...wikiLinks.map(remoteKnowledgeRecordFromWikiLink),
+    ...pageComments.map(remoteKnowledgeRecordFromPageComment),
+    ...blockComments.map(remoteKnowledgeRecordFromBlockComment),
+    ...pageVersions.map(remoteKnowledgeRecordFromPageVersion),
+  ];
+}
+
+export async function applyRemoteKnowledgeRecords(
+  records: RemoteKnowledgeRecord[]
+): Promise<{ applied: number; skippedLocalPending: number }> {
+  const db = await getDb();
+  let applied = 0;
+  let skippedLocalPending = 0;
+
+  for (const record of records) {
+    if (!record.id || !isRemoteKnowledgeRecordType(record.type)) continue;
+    const tableName = KNOWLEDGE_SYNC_TYPE_TABLES[record.type];
+    if (hasPendingKnowledgeSyncLogEntry(db, tableName, record.id)) {
+      skippedLocalPending += 1;
+      continue;
+    }
+    if (record.type === "wiki_link") {
+      upsertRemoteWikiLink(db, record);
+      applied += 1;
+    } else if (record.type === "page_comment") {
+      upsertRemotePageComment(db, record);
+      applied += 1;
+    } else if (record.type === "block_comment") {
+      upsertRemoteBlockComment(db, record);
+      applied += 1;
+    } else if (record.type === "page_version") {
+      upsertRemotePageVersion(db, record);
+      applied += 1;
+    }
+  }
+
+  return { applied, skippedLocalPending };
+}
+
+export async function markKnowledgeSyncLogEntriesSynced(
+  ids: number[]
+): Promise<number> {
+  const db = await getDb();
+  const uniqueIds = normalizeSyncLogIds(ids);
+  if (uniqueIds.length === 0) return 0;
+  let marked = 0;
+  const chunkSize = 200;
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    const chunk = uniqueIds.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const beforeRows = db.query(
+      `SELECT COUNT(*) as count
+       FROM sync_log
+       WHERE id IN (${placeholders})
+         AND table_name IN ('wiki_links', 'page_comments', 'block_comments', 'page_versions')
+         AND synced = 0`,
+      chunk
+    ) as unknown as Array<{ count: number | null }>;
+    db.run(
+      `UPDATE sync_log
+       SET synced = 1,
+           status = 'synced',
+           last_attempt_at = COALESCE(last_attempt_at, ?),
+           next_retry_at = NULL,
+           last_error = NULL
+       WHERE id IN (${placeholders})
+         AND table_name IN ('wiki_links', 'page_comments', 'block_comments', 'page_versions')
+         AND synced = 0`,
+      [nowISO(), ...chunk]
+    );
+    marked += Number(beforeRows[0]?.count ?? 0);
+  }
+  if (marked > 0) {
+    emitSyncLogStatusEvent();
+    emitKnowledgeSyncStatusEvent();
+  }
+  return marked;
+}
+
+export async function markKnowledgeSyncLogEntriesAttempted(
+  ids: number[]
+): Promise<number> {
+  const marked = await markSyncLogEntriesAttempted(ids);
+  if (marked > 0) emitKnowledgeSyncStatusEvent();
+  return marked;
+}
+
+export async function markKnowledgeSyncLogEntriesFailed(
+  ids: number[],
+  error: string,
+  retryDelayMs = 60_000
+): Promise<number> {
+  const marked = await markSyncLogEntriesFailed(ids, error, retryDelayMs);
+  if (marked > 0) emitKnowledgeSyncStatusEvent();
+  return marked;
+}
+
+function remoteKnowledgeRecordFromWikiLink(
+  record: WikiLink
+): RemoteKnowledgeRecord {
+  return {
+    type: "wiki_link",
+    id: record.id,
+    source_page_id: record.source_page_id,
+    target_page_id: record.target_page_id,
+    owner_id: record.owner_id,
+    created_at: record.created_at,
+    deleted_at: record.deleted_at,
+    sync_version: record.sync_version,
+  };
+}
+
+function remoteKnowledgeRecordFromPageComment(
+  record: PageComment
+): RemoteKnowledgeRecord {
+  return {
+    type: "page_comment",
+    id: record.id,
+    page_id: record.page_id,
+    owner_id: record.owner_id,
+    body: record.body,
+    resolved: record.resolved,
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+    deleted_at: record.deleted_at,
+    sync_version: record.sync_version,
+  };
+}
+
+function remoteKnowledgeRecordFromBlockComment(
+  record: BlockComment
+): RemoteKnowledgeRecord {
+  return {
+    type: "block_comment",
+    id: record.id,
+    page_id: record.page_id,
+    block_ref: record.block_ref,
+    anchor_text: record.anchor_text,
+    owner_id: record.owner_id,
+    body: record.body,
+    resolved: record.resolved,
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+    deleted_at: record.deleted_at,
+    sync_version: record.sync_version,
+  };
+}
+
+function remoteKnowledgeRecordFromPageVersion(
+  record: PageVersion
+): RemoteKnowledgeRecord {
+  return {
+    type: "page_version",
+    id: record.id,
+    page_id: record.page_id,
+    owner_id: record.owner_id,
+    version_num: record.version_num,
+    title: record.title,
+    content_text: record.content_text,
+    summary: record.summary,
+    created_at: record.created_at,
+    deleted_at: record.deleted_at,
+    sync_version: record.sync_version,
+  };
+}
+
+function hasPendingKnowledgeSyncLogEntry(
+  db: SqliteDb,
+  tableName: string,
+  rowId: string
+): boolean {
+  const rows = db.query(
+    `SELECT 1 as present
+     FROM sync_log
+     WHERE table_name = ?
+       AND row_id = ?
+       AND synced = 0
+     LIMIT 1`,
+    [tableName, rowId]
+  );
+  return rows.length > 0;
+}
+
+function upsertRemoteWikiLink(db: SqliteDb, record: RemoteKnowledgeRecord) {
+  if (!record.source_page_id || !record.target_page_id) return;
+  const existing = db.query("SELECT id FROM wiki_links WHERE id = ?", [
+    record.id,
+  ]) as unknown as { id: string }[];
+  if (existing.length === 0) {
+    db.run(
+      `INSERT INTO wiki_links
+         (id, source_page_id, target_page_id, owner_id, created_at, deleted_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      [
+        record.id,
+        record.source_page_id,
+        record.target_page_id,
+        record.owner_id ?? DEFAULT_OWNER_ID,
+        record.created_at,
+        record.deleted_at,
+      ]
+    );
+    return;
+  }
+  db.run(
+    `UPDATE wiki_links
+     SET source_page_id = ?, target_page_id = ?, owner_id = ?,
+         created_at = ?, deleted_at = ?, sync_version = 1
+     WHERE id = ?`,
+    [
+      record.source_page_id,
+      record.target_page_id,
+      record.owner_id ?? DEFAULT_OWNER_ID,
+      record.created_at,
+      record.deleted_at,
+      record.id,
+    ]
+  );
+}
+
+function upsertRemotePageComment(db: SqliteDb, record: RemoteKnowledgeRecord) {
+  if (!record.page_id) return;
+  const existing = db.query("SELECT id FROM page_comments WHERE id = ?", [
+    record.id,
+  ]) as unknown as { id: string }[];
+  if (existing.length === 0) {
+    db.run(
+      `INSERT INTO page_comments
+         (id, page_id, owner_id, body, resolved, created_at, updated_at, deleted_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        record.id,
+        record.page_id,
+        record.owner_id ?? DEFAULT_OWNER_ID,
+        record.body ?? "",
+        record.resolved ? 1 : 0,
+        record.created_at,
+        record.updated_at ?? record.created_at,
+        record.deleted_at,
+      ]
+    );
+    return;
+  }
+  db.run(
+    `UPDATE page_comments
+     SET page_id = ?, owner_id = ?, body = ?, resolved = ?,
+         created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
+     WHERE id = ?`,
+    [
+      record.page_id,
+      record.owner_id ?? DEFAULT_OWNER_ID,
+      record.body ?? "",
+      record.resolved ? 1 : 0,
+      record.created_at,
+      record.updated_at ?? record.created_at,
+      record.deleted_at,
+      record.id,
+    ]
+  );
+}
+
+function upsertRemoteBlockComment(db: SqliteDb, record: RemoteKnowledgeRecord) {
+  if (!record.page_id || !record.block_ref) return;
+  const existing = db.query("SELECT id FROM block_comments WHERE id = ?", [
+    record.id,
+  ]) as unknown as { id: string }[];
+  if (existing.length === 0) {
+    db.run(
+      `INSERT INTO block_comments
+         (id, page_id, block_ref, anchor_text, owner_id, body, resolved, created_at, updated_at, deleted_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        record.id,
+        record.page_id,
+        record.block_ref,
+        record.anchor_text ?? "",
+        record.owner_id ?? DEFAULT_OWNER_ID,
+        record.body ?? "",
+        record.resolved ? 1 : 0,
+        record.created_at,
+        record.updated_at ?? record.created_at,
+        record.deleted_at,
+      ]
+    );
+    return;
+  }
+  db.run(
+    `UPDATE block_comments
+     SET page_id = ?, block_ref = ?, anchor_text = ?, owner_id = ?,
+         body = ?, resolved = ?, created_at = ?, updated_at = ?,
+         deleted_at = ?, sync_version = 1
+     WHERE id = ?`,
+    [
+      record.page_id,
+      record.block_ref,
+      record.anchor_text ?? "",
+      record.owner_id ?? DEFAULT_OWNER_ID,
+      record.body ?? "",
+      record.resolved ? 1 : 0,
+      record.created_at,
+      record.updated_at ?? record.created_at,
+      record.deleted_at,
+      record.id,
+    ]
+  );
+}
+
+function upsertRemotePageVersion(db: SqliteDb, record: RemoteKnowledgeRecord) {
+  if (!record.page_id || typeof record.version_num !== "number") return;
+  const existing = db.query("SELECT id FROM page_versions WHERE id = ?", [
+    record.id,
+  ]) as unknown as { id: string }[];
+  if (existing.length === 0) {
+    db.run(
+      `INSERT INTO page_versions
+         (id, page_id, owner_id, version_num, title, content_text, summary, created_at, deleted_at, sync_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        record.id,
+        record.page_id,
+        record.owner_id ?? DEFAULT_OWNER_ID,
+        record.version_num,
+        record.title ?? "未命名页面",
+        record.content_text ?? "",
+        record.summary ?? "",
+        record.created_at,
+        record.deleted_at,
+      ]
+    );
+    return;
+  }
+  db.run(
+    `UPDATE page_versions
+     SET page_id = ?, owner_id = ?, version_num = ?, title = ?,
+         content_text = ?, summary = ?, created_at = ?, deleted_at = ?,
+         sync_version = 1
+     WHERE id = ?`,
+    [
+      record.page_id,
+      record.owner_id ?? DEFAULT_OWNER_ID,
+      record.version_num,
+      record.title ?? "未命名页面",
+      record.content_text ?? "",
+      record.summary ?? "",
+      record.created_at,
+      record.deleted_at,
+      record.id,
+    ]
+  );
 }
 
 function parseChangedCols(value: string | null) {

@@ -56,7 +56,7 @@ export function useAccountCloudSyncCoordinator() {
   const pageSyncNow = pageSync.syncNow;
   const databaseSyncNow = databaseSync.syncNow;
   const settingsSyncNow = settingsSync.syncNow;
-  const refreshKnowledgeSyncStatus = knowledgeSync.refresh;
+  const knowledgeSyncNow = knowledgeSync.syncNow;
   const refreshGlobalSyncLogStatus = globalSyncLog.refresh;
   const retryFileEmbedSync = fileSync.syncNow;
 
@@ -79,7 +79,11 @@ export function useAccountCloudSyncCoordinator() {
         settingsSyncNow({
           includeManualReview: options.includeManualReview,
         }),
-        refreshKnowledgeSyncStatus(),
+        knowledgeSyncNow({
+          forceAccountGate: options.forceAccountGate,
+          includeManualReview: options.includeManualReview,
+          limit: 30,
+        }),
       ];
       if (options.includeFileSync ?? true) {
         syncJobs.push(
@@ -98,7 +102,7 @@ export function useAccountCloudSyncCoordinator() {
       pageSyncNow,
       refreshGlobalSyncLogStatus,
       retryFileEmbedSync,
-      refreshKnowledgeSyncStatus,
+      knowledgeSyncNow,
       settingsSyncNow,
     ]
   );
@@ -215,11 +219,11 @@ export function useAccountCloudSyncCoordinator() {
   // and available to explicit quick-sync, but do not run them in account-level
   // auto-retry loops.
   const fileAutoRetryablePendingTotal = 0;
-  const syncCenterVisibleOnlyPendingTotal =
-    knowledgeAutoRetryablePendingTotal + globalSyncLogExtraPendingTotal;
+  const syncCenterVisibleOnlyPendingTotal = globalSyncLogExtraPendingTotal;
   const pageAutoRetryableFailedTotal = pageRetryableFailedTotal;
   const databaseAutoRetryableFailedTotal = databaseRetryableFailedTotal;
   const settingsAutoRetryableFailedTotal = settingsRetryableFailedTotal;
+  const knowledgeAutoRetryableFailedTotal = knowledgeRetryableFailedTotal;
   const pageDatabaseAutoRetryableSyncWorkTotal =
     pageAutoRetryablePendingTotal +
     databaseAutoRetryablePendingTotal +
@@ -227,6 +231,8 @@ export function useAccountCloudSyncCoordinator() {
     databaseAutoRetryableFailedTotal;
   const settingsAutoRetryableSyncWorkTotal =
     settingsAutoRetryablePendingTotal + settingsAutoRetryableFailedTotal;
+  const knowledgeAutoRetryableSyncWorkTotal =
+    knowledgeAutoRetryablePendingTotal + knowledgeAutoRetryableFailedTotal;
   const autoRetryableSyncWorkTotal =
     pageAutoRetryablePendingTotal +
     databaseAutoRetryablePendingTotal +
@@ -234,6 +240,8 @@ export function useAccountCloudSyncCoordinator() {
     databaseAutoRetryableFailedTotal +
     settingsAutoRetryablePendingTotal +
     settingsAutoRetryableFailedTotal +
+    knowledgeAutoRetryablePendingTotal +
+    knowledgeAutoRetryableFailedTotal +
     fileAutoRetryablePendingTotal;
   const pageVisibleSyncWork =
     pagePendingTotal > 0 ||
@@ -374,7 +382,7 @@ export function useAccountCloudSyncCoordinator() {
       databasePendingTotal > 0 ? `数据库 ${databasePendingTotal}` : null,
       settingsPendingTotal > 0 ? `设置 ${settingsPendingTotal}（后台补传）` : null,
       knowledgePendingTotal > 0
-        ? `知识库附属 ${knowledgePendingTotal}（评论/版本/链接待云端回放）`
+        ? `知识库附属 ${knowledgePendingTotal}（后台补传）`
         : null,
       filePendingTotal > 0
         ? `文件 ${filePendingTotal}（只记录待上传元数据，文件仍在本地）`
@@ -400,7 +408,7 @@ export function useAccountCloudSyncCoordinator() {
           : "";
       const knowledgeNote =
         knowledgePendingTotal > 0
-          ? "；评论、版本和双链变更已进入本地队列，需云端回放链路处理"
+          ? "；评论、版本和双链变更已进入本地队列，会低频自动补传"
           : "";
       const accountRetryNote = syncBlockedBySignedOut
         ? "；账号未确认，本地输入已保留，会低频检查登录状态"
@@ -508,15 +516,16 @@ export function useAccountCloudSyncCoordinator() {
     }
     const shouldForceAccountGate =
       state === "error" || syncBlockedBySignedOut || accountUncertainByAuthRetry;
-    const settingsOnlyAutoRetry =
+    const metadataOnlyAutoRetry =
       pageDatabaseAutoRetryableSyncWorkTotal <= 0 &&
-      settingsAutoRetryableSyncWorkTotal > 0;
+      settingsAutoRetryableSyncWorkTotal + knowledgeAutoRetryableSyncWorkTotal >
+        0;
     const retryDelayMs =
       syncBlockedBySignedOut
         ? COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS
         : state === "error" || accountUncertainByAuthRetry
           ? COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS
-          : settingsOnlyAutoRetry
+          : metadataOnlyAutoRetry
             ? COORDINATOR_SIGNED_OUT_RETRY_DELAY_MS
           : COORDINATOR_PENDING_DRAIN_DELAY_MS;
     const timer = window.setTimeout(() => {
@@ -532,6 +541,7 @@ export function useAccountCloudSyncCoordinator() {
     accountUncertainByAuthRetry,
     enabledDomainCount,
     pageDatabaseAutoRetryableSyncWorkTotal,
+    knowledgeAutoRetryableSyncWorkTotal,
     settingsAutoRetryableSyncWorkTotal,
     state,
     syncBlockedBySignedOut,

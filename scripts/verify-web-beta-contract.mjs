@@ -220,6 +220,8 @@ const files = {
   settingsSyncStatus: "src/lib/sync/settingsSyncStatus.ts",
   knowledgeCloudSyncStatusHook: "src/hooks/useKnowledgeCloudSyncStatus.ts",
   knowledgeSyncStatus: "src/lib/sync/knowledgeSyncStatus.ts",
+  accountKnowledgeSync: "src/lib/sync/accountKnowledgeSync.ts",
+  knowledgeAccountSyncRoute: "src/app/api/knowledge/account-sync/route.ts",
   visibleRefreshLease: "src/lib/sync/visibleRefreshLease.ts",
   localFirstPageNavigation: "src/hooks/useLocalFirstPageNavigation.ts",
   localFirstPageNavigationUtil: "src/lib/pages/localFirstPageNavigation.ts",
@@ -825,6 +827,10 @@ function run() {
     files.knowledgeCloudSyncStatusHook
   );
   const knowledgeSyncStatus = readProjectFile(files.knowledgeSyncStatus);
+  const accountKnowledgeSync = readProjectFile(files.accountKnowledgeSync);
+  const knowledgeAccountSyncRoute = readProjectFile(
+    files.knowledgeAccountSyncRoute
+  );
   const visibleRefreshLease = readProjectFile(files.visibleRefreshLease);
   const localFirstPageNavigation = readProjectFile(
     files.localFirstPageNavigation
@@ -7008,10 +7014,13 @@ function run() {
         "settingsAutoRetryablePendingTotal"
       ) &&
       accountAutoRetryableSyncWorkBlock.includes(
-        "settingsAutoRetryableFailedTotal"
-      ) &&
-      !accountAutoRetryableSyncWorkBlock.includes(
+      "settingsAutoRetryableFailedTotal"
+    ) &&
+      accountAutoRetryableSyncWorkBlock.includes(
         "knowledgeAutoRetryablePendingTotal"
+      ) &&
+      accountAutoRetryableSyncWorkBlock.includes(
+        "knowledgeAutoRetryableFailedTotal"
       ) &&
       !accountAutoRetryableSyncWorkBlock.includes(
         "globalSyncLogExtraPendingTotal"
@@ -7019,7 +7028,7 @@ function run() {
     )
   ) {
     fail(
-      "Account cloud sync coordinator auto-drain must drive executable page/database/settings queues while keeping knowledge and uncovered sync_log queues visible for dedicated replay handling."
+      "Account cloud sync coordinator auto-drain must drive executable page/database/settings/knowledge queues while keeping uncovered sync_log queues visible for dedicated replay handling."
     );
   }
   if (
@@ -7185,6 +7194,82 @@ function run() {
     knowledgeCloudSyncStatusHook,
     "getPendingKnowledgeSyncLogEntries",
     "Knowledge sync status hook must read comments, versions, and wiki-link pending sync_log rows."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "syncAccountKnowledgeNow",
+    "Knowledge sync status hook must expose the executable account-cloud drain path instead of only polling metadata."
+  );
+  assertSourceIncludes(
+    files.knowledgeCloudSyncStatusHook,
+    knowledgeCloudSyncStatusHook,
+    "return { status, refresh, syncNow }",
+    "Knowledge sync status hook must return syncNow so account-level quick sync can drain knowledge pending rows."
+  );
+  for (const [file, source, snippet, message] of [
+    [
+      files.accountKnowledgeSync,
+      accountKnowledgeSync,
+      '"/api/knowledge/account-sync"',
+      "Knowledge account sync client must call the account-scoped cloud API.",
+    ],
+    [
+      files.accountKnowledgeSync,
+      accountKnowledgeSync,
+      "markKnowledgeSyncLogEntriesSynced",
+      "Knowledge account sync client must acknowledge local sync_log rows only after cloud success.",
+    ],
+    [
+      files.accountKnowledgeSync,
+      accountKnowledgeSync,
+      "applyResult.skippedLocalPending === 0",
+      "Knowledge account sync client must not advance the remote cursor when local pending rows blocked a remote apply.",
+    ],
+    [
+      files.knowledgeAccountSyncRoute,
+      knowledgeAccountSyncRoute,
+      'format: "zhinote-knowledge-cloud-ack-receipt"',
+      "Knowledge account sync route must return a durable ACK receipt for accepted/skipped/rejected records.",
+    ],
+    [
+      files.knowledgeAccountSyncRoute,
+      knowledgeAccountSyncRoute,
+      "getSessionAccount",
+      "Knowledge account sync route must scope cloud records to the signed-in account.",
+    ],
+    [
+      files.knowledgeAccountSyncRoute,
+      knowledgeAccountSyncRoute,
+      "MAX_PAYLOAD_BYTES",
+      "Knowledge account sync route must bound request payload size before storing records.",
+    ],
+    [
+      files.syncShell,
+      syncShell,
+      "syncAccountKnowledgeNow",
+      "Sync Center manual drain must include knowledge account-cloud sync.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "getPendingKnowledgeSyncRecords",
+      "Local queries must expose knowledge records for account-cloud sync.",
+    ],
+    [
+      files.localQueries,
+      localQueries,
+      "applyRemoteKnowledgeRecords",
+      "Local queries must apply pulled knowledge records while respecting local pending edits.",
+    ],
+  ]) {
+    assertSourceIncludes(file, source, snippet, message);
+  }
+  assertSourceExcludes(
+    files.knowledgeAccountSyncRoute,
+    knowledgeAccountSyncRoute,
+    "console.",
+    "Knowledge account sync route must not log knowledge content."
   );
   assertSourceIncludes(
     files.knowledgeCloudSyncStatusHook,
