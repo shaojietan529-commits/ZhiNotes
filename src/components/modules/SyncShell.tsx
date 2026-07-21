@@ -90,6 +90,7 @@ import {
   type StoredPageFile,
 } from "@/lib/files/localStore";
 import { useFileEmbedCloudSyncStatus } from "@/hooks/useFileEmbedCloudSyncStatus";
+import { usePortfolioCloudSyncStatus } from "@/hooks/usePortfolioCloudSyncStatus";
 import {
   getPendingFileEmbedSyncStatus,
   type PendingFileEmbedSyncStatus,
@@ -2814,6 +2815,8 @@ function SyncDashboard() {
   );
   const fileEmbedSync = useFileEmbedCloudSyncStatus();
   const fileEmbedPendingStatus = fileEmbedSync.status;
+  const portfolioCloudSync = usePortfolioCloudSyncStatus();
+  const portfolioPendingStatus = portfolioCloudSync.status;
   const [pagePendingStatus, setPagePendingStatus] =
     useState<PendingCloudPageSyncStatus>(() =>
       getPendingCloudPageSyncStatus()
@@ -3644,6 +3647,7 @@ function SyncDashboard() {
       databasePendingStatus.queued +
       (databasePendingStatus.syncLogPending ?? 0);
     const fileWaiting = fileEmbedPendingStatus.pending;
+    const portfolioWaiting = portfolioPendingStatus.pending;
     const settingsQueue = summarizeSyncSummaryTables(syncSummary, [
       "workspace_settings",
       "account_settings",
@@ -3663,24 +3667,32 @@ function SyncDashboard() {
       fileEmbedPendingStatus.pending > 0 ||
       fileEmbedPendingStatus.failed > 0 ||
       fileEmbedPendingStatus.manualReviewCount > 0;
+    const portfolioVisibleWork =
+      portfolioPendingStatus.pending > 0 ||
+      portfolioPendingStatus.failed > 0 ||
+      portfolioPendingStatus.manualReviewCount > 0 ||
+      portfolioPendingStatus.inFlight > 0;
     const classifiedPendingTotal =
       pageWaiting +
       databaseWaiting +
       fileWaiting +
       settingsWaiting +
-      knowledgeWaiting;
+      knowledgeWaiting +
+      portfolioWaiting;
     const classifiedFailedTotal =
       pagePendingStatus.failed +
       databasePendingStatus.failed +
       fileEmbedPendingStatus.failed +
       settingsQueue.failed +
-      knowledgeQueue.failed;
+      knowledgeQueue.failed +
+      portfolioPendingStatus.failed;
     const classifiedManualReviewTotal =
       pagePendingStatus.manualReviewCount +
       databasePendingStatus.manualReviewCount +
       fileEmbedPendingStatus.manualReviewCount +
       settingsQueue.manualReview +
-      knowledgeQueue.manualReview;
+      knowledgeQueue.manualReview +
+      portfolioPendingStatus.manualReviewCount;
     const otherPendingTotal = Math.max(
       (syncSummary?.pending ?? 0) - classifiedPendingTotal,
       0
@@ -3702,11 +3714,13 @@ function SyncDashboard() {
       (databasePendingStatus.enabled ? 1 : 0) +
       (settingsVisibleWork ? 1 : 0) +
       (knowledgeVisibleWork ? 1 : 0) +
-      (fileVisibleWork ? 1 : 0);
+      (fileVisibleWork ? 1 : 0) +
+      (portfolioPendingStatus.mode || portfolioVisibleWork ? 1 : 0);
     const authRetryDomainLabel = [
       pagePendingStatus.authRetryStatus ? "页面" : null,
       databasePendingStatus.authRetryStatus ? "数据库" : null,
       fileEmbedPendingStatus.authRetryStatus ? "文件" : null,
+      portfolioPendingStatus.authRetryStatus ? "组合" : null,
     ]
       .filter((value): value is string => Boolean(value))
       .join("/");
@@ -3716,6 +3730,7 @@ function SyncDashboard() {
         ? "数据库"
         : null,
       fileEmbedPendingStatus.authRetryStatus === "unconfigured" ? "文件" : null,
+      portfolioPendingStatus.authRetryStatus === "unconfigured" ? "组合" : null,
     ]
       .filter((value): value is string => Boolean(value))
       .join("/");
@@ -3725,6 +3740,7 @@ function SyncDashboard() {
         ? "数据库"
         : null,
       fileEmbedPendingStatus.authRetryStatus === "unconfirmed" ? "文件" : null,
+      portfolioPendingStatus.authRetryStatus === "unconfirmed" ? "组合" : null,
     ]
       .filter((value): value is string => Boolean(value))
       .join("/");
@@ -3733,6 +3749,7 @@ function SyncDashboard() {
         pagePendingStatus.authRetryUntil,
         databasePendingStatus.authRetryUntil,
         fileEmbedPendingStatus.authRetryUntil,
+        portfolioPendingStatus.authRetryUntil,
       ]
         .filter((value): value is string => Boolean(value))
         .sort()
@@ -3749,6 +3766,11 @@ function SyncDashboard() {
       fileEmbedPendingStatus.authRetryStatus
         ? `文件:${formatSyncAuthRetryStatus(
             fileEmbedPendingStatus.authRetryStatus
+          )}`
+        : null,
+      portfolioPendingStatus.authRetryStatus
+        ? `组合:${formatSyncAuthRetryStatus(
+            portfolioPendingStatus.authRetryStatus
           )}`
         : null,
     ]
@@ -3771,11 +3793,14 @@ function SyncDashboard() {
       filePendingTotal: fileWaiting,
       settingsPendingTotal: settingsWaiting,
       knowledgePendingTotal: knowledgeWaiting,
+      portfolioPendingTotal: portfolioWaiting,
       otherPendingTotal,
       otherFailedTotal,
       otherManualReviewTotal,
       fileFailedTotal: fileEmbedPendingStatus.failed,
       fileManualReviewTotal: fileEmbedPendingStatus.manualReviewCount,
+      portfolioFailedTotal: portfolioPendingStatus.failed,
+      portfolioManualReviewTotal: portfolioPendingStatus.manualReviewCount,
       pageSyncEnabled: pagePendingStatus.enabled,
       databaseSyncEnabled: databasePendingStatus.enabled,
       authRetryDomainLabel,
@@ -3789,6 +3814,7 @@ function SyncDashboard() {
     databasePendingStatus,
     fileEmbedPendingStatus,
     pagePendingStatus,
+    portfolioPendingStatus,
     syncSummary,
   ]);
   const syncLocalUseReadiness = useMemo(() => {
@@ -3820,12 +3846,16 @@ function SyncDashboard() {
       filePendingTotal: syncLocalUseQueueSnapshot.filePendingTotal,
       settingsPendingTotal: syncLocalUseQueueSnapshot.settingsPendingTotal,
       knowledgePendingTotal: syncLocalUseQueueSnapshot.knowledgePendingTotal,
+      portfolioPendingTotal: syncLocalUseQueueSnapshot.portfolioPendingTotal,
       otherPendingTotal: syncLocalUseQueueSnapshot.otherPendingTotal,
       otherFailedTotal: syncLocalUseQueueSnapshot.otherFailedTotal,
       otherManualReviewTotal:
         syncLocalUseQueueSnapshot.otherManualReviewTotal,
       fileFailedTotal: syncLocalUseQueueSnapshot.fileFailedTotal,
       fileManualReviewTotal: syncLocalUseQueueSnapshot.fileManualReviewTotal,
+      portfolioFailedTotal: syncLocalUseQueueSnapshot.portfolioFailedTotal,
+      portfolioManualReviewTotal:
+        syncLocalUseQueueSnapshot.portfolioManualReviewTotal,
       pageSyncEnabled: syncLocalUseQueueSnapshot.pageSyncEnabled,
       databaseSyncEnabled: syncLocalUseQueueSnapshot.databaseSyncEnabled,
       authRetryDomainLabel: syncLocalUseQueueSnapshot.authRetryDomainLabel,
@@ -3873,9 +3903,16 @@ function SyncDashboard() {
         syncSummary,
         pagePendingStatus,
         databasePendingStatus,
-        fileEmbedPendingStatus
+        fileEmbedPendingStatus,
+        portfolioPendingStatus
       ),
-    [databasePendingStatus, fileEmbedPendingStatus, pagePendingStatus, syncSummary]
+    [
+      databasePendingStatus,
+      fileEmbedPendingStatus,
+      pagePendingStatus,
+      portfolioPendingStatus,
+      syncSummary,
+    ]
   );
   const pendingDomainCoverage = useMemo(
     () => buildPendingDomainCoverageReport(pendingDomainRows),
@@ -23110,6 +23147,16 @@ function SyncOperationalStatusStrip({
       data-file-manual-review-total={
         readiness.queueBreakdown.fileManualReviewTotal
       }
+      data-portfolio-queue-total={readiness.queueBreakdown.portfolioQueueTotal}
+      data-portfolio-pending-total={
+        readiness.queueBreakdown.portfolioPendingTotal
+      }
+      data-portfolio-failed-total={
+        readiness.queueBreakdown.portfolioFailedTotal
+      }
+      data-portfolio-manual-review-total={
+        readiness.queueBreakdown.portfolioManualReviewTotal
+      }
       data-auth-retry-active={Boolean(authRetryDomainLabel)}
       data-auth-retry-domains={authRetryDomainLabel}
       data-auth-retry-unconfigured-domains={authRetryUnconfiguredDomainLabel}
@@ -23176,6 +23223,30 @@ function SyncOperationalStatusStrip({
               {readiness.queueBreakdown.fileFailedTotal} 失败 /{" "}
               {readiness.queueBreakdown.fileManualReviewTotal}
               需确认。大文件不会被账号级后台循环自动带跑；请点“补传待上传”或在上传安全总览手动补传。成功前，其他设备可能还不是最新附件状态。
+            </p>
+          ) : null}
+          {readiness.queueBreakdown.portfolioQueueTotal > 0 ? (
+            <p
+              data-testid="sync-portfolio-queue-readiness-note"
+              data-portfolio-queue-total={
+                readiness.queueBreakdown.portfolioQueueTotal
+              }
+              data-portfolio-pending-total={
+                readiness.queueBreakdown.portfolioPendingTotal
+              }
+              data-portfolio-failed-total={
+                readiness.queueBreakdown.portfolioFailedTotal
+              }
+              data-portfolio-manual-review-total={
+                readiness.queueBreakdown.portfolioManualReviewTotal
+              }
+              className="mt-2 max-w-3xl rounded-md bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+            >
+              组合队列已计入本地可用性和跨设备接力保护：组合{" "}
+              {readiness.queueBreakdown.portfolioPendingTotal} 待上传 /{" "}
+              {readiness.queueBreakdown.portfolioFailedTotal} 失败 /{" "}
+              {readiness.queueBreakdown.portfolioManualReviewTotal}
+              需确认。收到组合云 ACK 前，另一台设备可能还不是最新持仓状态。
             </p>
           ) : null}
           {authRetryDomainLabel ? (
@@ -23935,6 +24006,11 @@ function SyncLocalUseReadinessPanel({
     fileQueueTotal > 0
       ? `${readiness.queueBreakdown.filePendingTotal} 待上传 / ${readiness.queueBreakdown.fileFailedTotal} 失败 / ${readiness.queueBreakdown.fileManualReviewTotal} 人工`
       : "暂无文件待处理";
+  const portfolioQueueTotal = readiness.queueBreakdown.portfolioQueueTotal;
+  const portfolioQueueDetail =
+    portfolioQueueTotal > 0
+      ? `${readiness.queueBreakdown.portfolioPendingTotal} 待上传 / ${readiness.queueBreakdown.portfolioFailedTotal} 失败 / ${readiness.queueBreakdown.portfolioManualReviewTotal} 人工`
+      : "暂无组合待处理";
   const activeDomainDetail =
     activeDomainLabels.length > 0
       ? activeDomainLabels.slice(0, 4).join(" / ")
@@ -24004,6 +24080,11 @@ function SyncLocalUseReadinessPanel({
       value: `${fileQueueTotal} 项`,
       detail: fileQueueDetail,
     },
+    {
+      label: "组合队列",
+      value: `${portfolioQueueTotal} 项`,
+      detail: portfolioQueueDetail,
+    },
   ];
 
   return (
@@ -24043,6 +24124,16 @@ function SyncLocalUseReadinessPanel({
       data-file-manual-review-total={
         readiness.queueBreakdown.fileManualReviewTotal
       }
+      data-portfolio-queue-total={portfolioQueueTotal}
+      data-portfolio-pending-total={
+        readiness.queueBreakdown.portfolioPendingTotal
+      }
+      data-portfolio-failed-total={
+        readiness.queueBreakdown.portfolioFailedTotal
+      }
+      data-portfolio-manual-review-total={
+        readiness.queueBreakdown.portfolioManualReviewTotal
+      }
       className="space-y-3"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -24080,7 +24171,7 @@ function SyncLocalUseReadinessPanel({
           </button>
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-8">
+      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-9">
         {facts.map((fact) => (
           <div
             key={fact.label}

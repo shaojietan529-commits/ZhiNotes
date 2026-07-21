@@ -45,6 +45,11 @@ export interface AccountLocalUseQueueBreakdown {
   filePendingTotal: number;
   settingsPendingTotal: number;
   knowledgePendingTotal: number;
+  portfolioPendingTotal: number;
+  portfolioFailedTotal: number;
+  portfolioManualReviewTotal: number;
+  portfolioQueueTotal: number;
+  portfolioQueueBlocksCloudHandoff: boolean;
   otherPendingTotal: number;
   otherFailedTotal: number;
   otherManualReviewTotal: number;
@@ -86,6 +91,9 @@ interface AccountLocalUseReadinessInput {
   otherManualReviewTotal?: number;
   fileFailedTotal?: number;
   fileManualReviewTotal?: number;
+  portfolioPendingTotal?: number;
+  portfolioFailedTotal?: number;
+  portfolioManualReviewTotal?: number;
   pageSyncEnabled?: boolean;
   databaseSyncEnabled?: boolean;
   authRetryDomainLabel?: string;
@@ -107,6 +115,7 @@ function buildAccountLocalUseQueueBreakdown(
   const filePendingTotal = safeCount(input.filePendingTotal);
   const settingsPendingTotal = safeCount(input.settingsPendingTotal);
   const knowledgePendingTotal = safeCount(input.knowledgePendingTotal);
+  const portfolioPendingTotal = safeCount(input.portfolioPendingTotal);
   const providedOtherPendingTotal = safeCount(input.otherPendingTotal);
   const classifiedPendingTotal =
     pagePendingTotal +
@@ -114,16 +123,23 @@ function buildAccountLocalUseQueueBreakdown(
     filePendingTotal +
     settingsPendingTotal +
     knowledgePendingTotal +
+    portfolioPendingTotal +
     providedOtherPendingTotal;
   const otherPendingTotal =
     providedOtherPendingTotal +
     Math.max(safeCount(input.pendingTotal) - classifiedPendingTotal, 0);
   const fileFailedTotal = safeCount(input.fileFailedTotal);
   const fileManualReviewTotal = safeCount(input.fileManualReviewTotal);
+  const portfolioFailedTotal = safeCount(input.portfolioFailedTotal);
+  const portfolioManualReviewTotal = safeCount(
+    input.portfolioManualReviewTotal
+  );
   const otherFailedTotal = safeCount(input.otherFailedTotal);
   const otherManualReviewTotal = safeCount(input.otherManualReviewTotal);
   const fileQueueTotal =
     filePendingTotal + fileFailedTotal + fileManualReviewTotal;
+  const portfolioQueueTotal =
+    portfolioPendingTotal + portfolioFailedTotal + portfolioManualReviewTotal;
 
   return {
     pagePendingTotal,
@@ -131,6 +147,11 @@ function buildAccountLocalUseQueueBreakdown(
     filePendingTotal,
     settingsPendingTotal,
     knowledgePendingTotal,
+    portfolioPendingTotal,
+    portfolioFailedTotal,
+    portfolioManualReviewTotal,
+    portfolioQueueTotal,
+    portfolioQueueBlocksCloudHandoff: portfolioQueueTotal > 0,
     otherPendingTotal,
     otherFailedTotal,
     otherManualReviewTotal,
@@ -158,6 +179,9 @@ function formatQueueBreakdown(breakdown: AccountLocalUseQueueBreakdown) {
     breakdown.knowledgePendingTotal > 0
       ? `知识库 ${breakdown.knowledgePendingTotal}`
       : null,
+    breakdown.portfolioPendingTotal > 0
+      ? `组合 ${breakdown.portfolioPendingTotal}`
+      : null,
     breakdown.otherPendingTotal > 0 ? `其他 ${breakdown.otherPendingTotal}` : null,
   ].filter(Boolean);
   const fileAttentionParts = [
@@ -166,6 +190,14 @@ function formatQueueBreakdown(breakdown: AccountLocalUseQueueBreakdown) {
       : null,
     breakdown.fileManualReviewTotal > 0
       ? `文件需确认 ${breakdown.fileManualReviewTotal}`
+      : null,
+  ].filter(Boolean);
+  const portfolioAttentionParts = [
+    breakdown.portfolioFailedTotal > 0
+      ? `组合失败 ${breakdown.portfolioFailedTotal}`
+      : null,
+    breakdown.portfolioManualReviewTotal > 0
+      ? `组合需确认 ${breakdown.portfolioManualReviewTotal}`
       : null,
   ].filter(Boolean);
   const otherAttentionParts = [
@@ -180,6 +212,9 @@ function formatQueueBreakdown(breakdown: AccountLocalUseQueueBreakdown) {
     pendingParts.length > 0 ? `队列分布：${pendingParts.join(" / ")}` : null,
     fileAttentionParts.length > 0
       ? `文件队列：${fileAttentionParts.join(" / ")}`
+      : null,
+    portfolioAttentionParts.length > 0
+      ? `组合队列：${portfolioAttentionParts.join(" / ")}`
       : null,
     otherAttentionParts.length > 0
       ? `其他队列：${otherAttentionParts.join(" / ")}`

@@ -11,6 +11,7 @@ import { useFileEmbedCloudSyncStatus } from "@/hooks/useFileEmbedCloudSyncStatus
 import { useGlobalSyncLogStatus } from "@/hooks/useGlobalSyncLogStatus";
 import { useKnowledgeCloudSyncStatus } from "@/hooks/useKnowledgeCloudSyncStatus";
 import { usePageCloudSync } from "@/hooks/usePageCloudSync";
+import { usePortfolioCloudSyncStatus } from "@/hooks/usePortfolioCloudSyncStatus";
 import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus";
 import { buildAccountLocalUseReadiness } from "@/lib/sync/accountLocalUseReadiness";
 
@@ -52,11 +53,13 @@ export function useAccountCloudSyncCoordinator() {
   const settingsSync = useSettingsCloudSyncStatus();
   const knowledgeSync = useKnowledgeCloudSyncStatus();
   const fileSync = useFileEmbedCloudSyncStatus();
+  const portfolioSync = usePortfolioCloudSyncStatus();
 
   const pageSyncNow = pageSync.syncNow;
   const databaseSyncNow = databaseSync.syncNow;
   const settingsSyncNow = settingsSync.syncNow;
   const knowledgeSyncNow = knowledgeSync.syncNow;
+  const portfolioSyncNow = portfolioSync.syncNow;
   const refreshGlobalSyncLogStatus = globalSyncLog.refresh;
   const retryFileEmbedSync = fileSync.syncNow;
 
@@ -84,6 +87,7 @@ export function useAccountCloudSyncCoordinator() {
           includeManualReview: options.includeManualReview,
           limit: 30,
         }),
+        portfolioSyncNow(),
       ];
       if (options.includeFileSync ?? true) {
         syncJobs.push(
@@ -103,6 +107,7 @@ export function useAccountCloudSyncCoordinator() {
       refreshGlobalSyncLogStatus,
       retryFileEmbedSync,
       knowledgeSyncNow,
+      portfolioSyncNow,
       settingsSyncNow,
     ]
   );
@@ -117,6 +122,7 @@ export function useAccountCloudSyncCoordinator() {
     (databaseSync.pendingStatus.syncLogPending ?? 0);
   const settingsPendingTotal = settingsSync.status.totalPending;
   const knowledgePendingTotal = knowledgeSync.status.totalPending;
+  const portfolioPendingTotal = portfolioSync.status.pending;
   const filePendingTotal = fileSync.status.pending;
   const globalSyncLogCoveredPendingTotal =
     (pageSync.pendingStatus.syncLogPending ?? 0) +
@@ -147,6 +153,7 @@ export function useAccountCloudSyncCoordinator() {
     filePendingTotal +
     settingsPendingTotal +
     knowledgePendingTotal +
+    portfolioPendingTotal +
     globalSyncLogExtraPendingTotal;
   const failedTotal =
     pageSync.pendingStatus.failed +
@@ -154,6 +161,7 @@ export function useAccountCloudSyncCoordinator() {
     fileSync.status.failed +
     settingsSync.status.failed +
     knowledgeSync.status.failed +
+    portfolioSync.status.failed +
     globalSyncLogExtraFailedTotal;
   const manualReviewTotal =
     pageSync.pendingStatus.manualReviewCount +
@@ -161,6 +169,7 @@ export function useAccountCloudSyncCoordinator() {
     fileSync.status.manualReviewCount +
     settingsSync.status.manualReviewCount +
     knowledgeSync.status.manualReviewCount +
+    portfolioSync.status.manualReviewCount +
     globalSyncLogExtraManualReviewTotal;
   const pageRetryableFailedTotal = Math.max(
     pageSync.pendingStatus.failed - pageSync.pendingStatus.manualReviewCount,
@@ -180,6 +189,10 @@ export function useAccountCloudSyncCoordinator() {
     knowledgeSync.status.failed - knowledgeSync.status.manualReviewCount,
     0
   );
+  const portfolioRetryableFailedTotal = Math.max(
+    portfolioSync.status.failed - portfolioSync.status.manualReviewCount,
+    0
+  );
   const globalSyncLogExtraRetryableFailedTotal = Math.max(
     globalSyncLogExtraFailedTotal - globalSyncLogExtraManualReviewTotal,
     0
@@ -190,6 +203,7 @@ export function useAccountCloudSyncCoordinator() {
     fileRetryableFailedTotal +
     settingsRetryableFailedTotal +
     knowledgeRetryableFailedTotal +
+    portfolioRetryableFailedTotal +
     globalSyncLogExtraRetryableFailedTotal;
   const pageAutoRetryablePendingTotal =
     Math.max(
@@ -215,6 +229,10 @@ export function useAccountCloudSyncCoordinator() {
     knowledgePendingTotal - knowledgeSync.status.manualReviewCount,
     0
   );
+  const portfolioAutoRetryablePendingTotal = Math.max(
+    portfolioPendingTotal - portfolioSync.status.manualReviewCount,
+    0
+  );
   // File bytes can be much larger than page/database deltas. Keep them visible
   // and available to explicit quick-sync, but do not run them in account-level
   // auto-retry loops.
@@ -224,6 +242,7 @@ export function useAccountCloudSyncCoordinator() {
   const databaseAutoRetryableFailedTotal = databaseRetryableFailedTotal;
   const settingsAutoRetryableFailedTotal = settingsRetryableFailedTotal;
   const knowledgeAutoRetryableFailedTotal = knowledgeRetryableFailedTotal;
+  const portfolioAutoRetryableFailedTotal = portfolioRetryableFailedTotal;
   const pageDatabaseAutoRetryableSyncWorkTotal =
     pageAutoRetryablePendingTotal +
     databaseAutoRetryablePendingTotal +
@@ -233,6 +252,8 @@ export function useAccountCloudSyncCoordinator() {
     settingsAutoRetryablePendingTotal + settingsAutoRetryableFailedTotal;
   const knowledgeAutoRetryableSyncWorkTotal =
     knowledgeAutoRetryablePendingTotal + knowledgeAutoRetryableFailedTotal;
+  const portfolioAutoRetryableSyncWorkTotal =
+    portfolioAutoRetryablePendingTotal + portfolioAutoRetryableFailedTotal;
   const autoRetryableSyncWorkTotal =
     pageAutoRetryablePendingTotal +
     databaseAutoRetryablePendingTotal +
@@ -242,6 +263,8 @@ export function useAccountCloudSyncCoordinator() {
     settingsAutoRetryableFailedTotal +
     knowledgeAutoRetryablePendingTotal +
     knowledgeAutoRetryableFailedTotal +
+    portfolioAutoRetryablePendingTotal +
+    portfolioAutoRetryableFailedTotal +
     fileAutoRetryablePendingTotal;
   const pageVisibleSyncWork =
     pagePendingTotal > 0 ||
@@ -259,6 +282,11 @@ export function useAccountCloudSyncCoordinator() {
     knowledgePendingTotal > 0 ||
     knowledgeSync.status.failed > 0 ||
     knowledgeSync.status.manualReviewCount > 0;
+  const portfolioVisibleSyncWork =
+    portfolioPendingTotal > 0 ||
+    portfolioSync.status.failed > 0 ||
+    portfolioSync.status.manualReviewCount > 0 ||
+    portfolioSync.status.inFlight > 0;
   const fileVisibleSyncWork =
     filePendingTotal > 0 ||
     fileSync.status.failed > 0 ||
@@ -285,10 +313,11 @@ export function useAccountCloudSyncCoordinator() {
       : 0) +
     (settingsVisibleSyncWork ? 1 : 0) +
     (knowledgeVisibleSyncWork ? 1 : 0) +
+    (portfolioSync.status.mode || portfolioVisibleSyncWork ? 1 : 0) +
     (fileVisibleSyncWork ? 1 : 0) +
     (globalSyncLogVisibleSyncWork ? 1 : 0);
   const lastSyncAt =
-    [pageSync.lastSyncAt, databaseSync.lastSyncAt]
+    [pageSync.lastSyncAt, databaseSync.lastSyncAt, portfolioSync.status.lastAckAt]
       .filter((value): value is string => Boolean(value))
       .sort()
       .at(-1) ?? null;
@@ -296,6 +325,7 @@ export function useAccountCloudSyncCoordinator() {
     pageSync.pendingStatus.authRetryStatus ? "页面" : null,
     databaseSync.pendingStatus.authRetryStatus ? "数据库" : null,
     fileSync.status.authRetryStatus ? "文件" : null,
+    portfolioSync.status.authRetryStatus ? "组合" : null,
   ]
     .filter((value): value is string => Boolean(value))
     .join("/");
@@ -305,6 +335,7 @@ export function useAccountCloudSyncCoordinator() {
       ? "数据库"
       : null,
     fileSync.status.authRetryStatus === "unconfigured" ? "文件" : null,
+    portfolioSync.status.authRetryStatus === "unconfigured" ? "组合" : null,
   ]
     .filter((value): value is string => Boolean(value))
     .join("/");
@@ -314,6 +345,7 @@ export function useAccountCloudSyncCoordinator() {
       ? "数据库"
       : null,
     fileSync.status.authRetryStatus === "unconfirmed" ? "文件" : null,
+    portfolioSync.status.authRetryStatus === "unconfirmed" ? "组合" : null,
   ]
     .filter((value): value is string => Boolean(value))
     .join("/");
@@ -322,6 +354,7 @@ export function useAccountCloudSyncCoordinator() {
       pageSync.pendingStatus.authRetryUntil,
       databaseSync.pendingStatus.authRetryUntil,
       fileSync.status.authRetryUntil,
+      portfolioSync.status.authRetryUntil,
     ]
       .filter((value): value is string => Boolean(value))
       .sort()
@@ -360,7 +393,9 @@ export function useAccountCloudSyncCoordinator() {
         ? "attention"
         : syncErrorWithoutAuthRetry
           ? "error"
-          : pageSync.state === "syncing" || databaseSync.state === "syncing"
+          : pageSync.state === "syncing" ||
+              databaseSync.state === "syncing" ||
+              portfolioSync.status.queueState === "syncing"
             ? "syncing"
             : pendingTotal > 0
               ? "queued"
@@ -383,6 +418,9 @@ export function useAccountCloudSyncCoordinator() {
       settingsPendingTotal > 0 ? `设置 ${settingsPendingTotal}（后台补传）` : null,
       knowledgePendingTotal > 0
         ? `知识库附属 ${knowledgePendingTotal}（后台补传）`
+        : null,
+      portfolioPendingTotal > 0
+        ? `组合 ${portfolioPendingTotal}（等待组合云 ACK）`
         : null,
       filePendingTotal > 0
         ? `文件 ${filePendingTotal}（只记录待上传元数据，文件仍在本地）`
@@ -446,6 +484,7 @@ export function useAccountCloudSyncCoordinator() {
     manualReviewTotal,
     pagePendingTotal,
     pendingTotal,
+    portfolioPendingTotal,
     retryableFailedTotal,
     settingsPendingTotal,
     syncBlockedBySignedOut,
@@ -467,11 +506,14 @@ export function useAccountCloudSyncCoordinator() {
         filePendingTotal,
         settingsPendingTotal,
         knowledgePendingTotal,
+        portfolioPendingTotal,
         otherPendingTotal: globalSyncLogExtraPendingTotal,
         otherFailedTotal: globalSyncLogExtraFailedTotal,
         otherManualReviewTotal: globalSyncLogExtraManualReviewTotal,
         fileFailedTotal: fileSync.status.failed,
         fileManualReviewTotal: fileSync.status.manualReviewCount,
+        portfolioFailedTotal: portfolioSync.status.failed,
+        portfolioManualReviewTotal: portfolioSync.status.manualReviewCount,
         pageSyncEnabled: pageSync.pendingStatus.enabled,
         databaseSyncEnabled: databaseSync.pendingStatus.enabled,
         authRetryDomainLabel,
@@ -498,6 +540,9 @@ export function useAccountCloudSyncCoordinator() {
       pageSync.pendingStatus.enabled,
       pagePendingTotal,
       pendingTotal,
+      portfolioPendingTotal,
+      portfolioSync.status.failed,
+      portfolioSync.status.manualReviewCount,
       retryableFailedTotal,
       databaseSync.pendingStatus.enabled,
       settingsPendingTotal,
@@ -518,7 +563,9 @@ export function useAccountCloudSyncCoordinator() {
       state === "error" || syncBlockedBySignedOut || accountUncertainByAuthRetry;
     const metadataOnlyAutoRetry =
       pageDatabaseAutoRetryableSyncWorkTotal <= 0 &&
-      settingsAutoRetryableSyncWorkTotal + knowledgeAutoRetryableSyncWorkTotal >
+      settingsAutoRetryableSyncWorkTotal +
+        knowledgeAutoRetryableSyncWorkTotal +
+        portfolioAutoRetryableSyncWorkTotal >
         0;
     const retryDelayMs =
       syncBlockedBySignedOut
@@ -542,6 +589,7 @@ export function useAccountCloudSyncCoordinator() {
     enabledDomainCount,
     pageDatabaseAutoRetryableSyncWorkTotal,
     knowledgeAutoRetryableSyncWorkTotal,
+    portfolioAutoRetryableSyncWorkTotal,
     settingsAutoRetryableSyncWorkTotal,
     state,
     syncBlockedBySignedOut,
@@ -570,6 +618,7 @@ export function useAccountCloudSyncCoordinator() {
     filePendingTotal,
     settingsPendingTotal,
     knowledgePendingTotal,
+    portfolioPendingTotal,
     globalSyncLogExtraPendingTotal,
     globalSyncLogExtraFailedTotal,
     globalSyncLogExtraManualReviewTotal,
@@ -583,6 +632,7 @@ export function useAccountCloudSyncCoordinator() {
     localUseReadiness,
     knowledgeSync,
     fileSync,
+    portfolioSync,
     settingsSync,
     globalSyncLog,
     syncNow,

@@ -750,6 +750,8 @@ check(doc.includes("ZHINOTES_ACCOUNT_ALLOWED_EMAILS"), "文档缺少环境变量
 const accountSync = read("src/app/api/portfolio/account-sync/route.ts");
 const portfolioAccountSyncClient = read("src/lib/portfolio/accountSync.ts");
 const portfolioPasscodeSyncClient = read("src/lib/portfolio/cloudSync.ts");
+const portfolioSyncStatus = read("src/lib/portfolio/portfolioSyncStatus.ts");
+const portfolioStatusHook = read("src/hooks/usePortfolioCloudSyncStatus.ts");
 for (const token of [
   "getAccountIdentityConfig",
   "readSessionToken",
@@ -763,6 +765,13 @@ for (const token of [
 }
 check(!accountSync.includes("console."), "account-sync route 不应该写日志");
 check(
+  accountSync.includes('format: "zhinote-portfolio-cloud-ack-receipt"') &&
+    accountSync.includes('ack_status: "acknowledged"') &&
+    accountSync.includes("accepted: true") &&
+    accountSync.includes("updated_at:"),
+  "portfolio account-sync push 必须返回明确 ACK 回执，客户端只能在 ACK 后清 pending"
+);
+check(
   accountSync.includes("accountSessionUnconfirmedResponse") &&
     accountSync.includes("组合同步暂时无法确认账号；本地组合数据已保留，请稍后重试。") &&
     accountSync.includes("组合同步云端读写暂时失败；本地组合数据已保留，会稍后重试。") &&
@@ -775,8 +784,10 @@ check(
   portfolioAccountSyncClient.includes("checkAccountCloudSyncGate") &&
     portfolioAccountSyncClient.includes('accountGate.status === "signed-out"') &&
     portfolioAccountSyncClient.includes("组合同步接口暂时无法确认账号权限；本地组合数据未删除，请稍后重试。") &&
+    portfolioAccountSyncClient.includes('ack_status !== "acknowledged"') &&
+    portfolioAccountSyncClient.includes("组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。") &&
     !portfolioAccountSyncClient.includes('if (res.status === 401) return { status: "unauthenticated" }'),
-  "portfolio account-sync client 应先复用共享账号 gate；具体同步接口 401 只能作为可重试错误，不能把组合同步误判为未登录"
+  "portfolio account-sync client 应先复用共享账号 gate；具体同步接口 401 只能作为可重试错误，且 push 必须看到 ACK 后才成功"
 );
 check(
   portfolioAccountSyncClient.includes("ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000") &&
@@ -797,12 +808,42 @@ check(
     portfolioPasscodeSyncClient.includes("clearTimeout(timeout)"),
   "portfolio passcode fallback sync 底层 fetch 必须可超时取消，避免旧版组合云同步卡住本地使用"
 );
+check(
+  portfolioSyncStatus.includes("PORTFOLIO_SYNC_STATUS_STORAGE_KEY") &&
+    portfolioSyncStatus.includes("storesPortfolioContent: false") &&
+    portfolioSyncStatus.includes("markPortfolioCloudSyncPending") &&
+    portfolioSyncStatus.includes("markPortfolioCloudSyncAttempt") &&
+    portfolioSyncStatus.includes("markPortfolioCloudSyncAck") &&
+    portfolioSyncStatus.includes("markPortfolioCloudSyncFailure") &&
+    portfolioSyncStatus.includes("drainPendingPortfolioCloudSync") &&
+    portfolioSyncStatus.includes("pending: 1") &&
+    portfolioSyncStatus.includes("queueState: \"syncing\"") &&
+    portfolioSyncStatus.includes("queueState: mode ? \"synced\" : \"off\"") &&
+    portfolioSyncStatus.includes("PORTFOLIO_SYNC_MANUAL_REVIEW_FAILURE_THRESHOLD = 3"),
+  "portfolio sync status 必须用不含持仓内容的本地队列状态记录 pending/attempt/ACK/failure，并在 ACK 后清 pending"
+);
+check(
+  portfolioStatusHook.includes("usePortfolioCloudSyncStatus") &&
+    portfolioStatusHook.includes("drainPendingPortfolioCloudSync") &&
+    portfolioStatusHook.includes("isAccountSessionStorageKey") &&
+    portfolioStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
+    portfolioStatusHook.includes("claimVisibleRefreshLease"),
+  "portfolio sync status hook 必须能刷新、低频重试并响应账号状态变化"
+);
 
 // 6. Shell: viewing a shared portfolio is read-only and never pushes
 const board = read("src/components/modules/PortfolioBoardShell.tsx");
 check(
   board.includes("fetchAccountSession"),
   "PortfolioBoardShell 应复用共享账号状态 helper，避免重复检查会话"
+);
+check(
+  board.includes("markPortfolioCloudSyncPending") &&
+    board.includes("markPortfolioCloudSyncAttempt") &&
+    board.includes("markPortfolioCloudSyncAck") &&
+    board.includes("markPortfolioFailureFromSyncResult") &&
+    !board.includes("Session expired mid-flight; stop account sync quietly."),
+  "PortfolioBoardShell 必须把本地修改先标为 pending，云端 ACK 后才清 pending；账号临时失败不能静默关闭同步"
 );
 check(
   board.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
@@ -4054,6 +4095,9 @@ check(
     ) ||
       syncDashboardShell.includes(
         "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus,\n        fileEmbedPendingStatus\n      )"
+      ) ||
+      syncDashboardShell.includes(
+        "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus,\n        fileEmbedPendingStatus,\n        portfolioPendingStatus\n      )"
       )) &&
     syncPendingDomainRegistry.includes("PENDING_DOMAIN_DEFINITIONS") &&
     syncPendingDomainRegistry.includes("buildPendingDomainCoverageReport") &&

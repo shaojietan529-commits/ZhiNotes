@@ -142,7 +142,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "数据过大" }, { status: 413 });
       }
       await kvSet(config.kv, `${DATA_KEY_PREFIX}${me}`, serialized);
-      return NextResponse.json({ ok: true, tagMap: mergedTags });
+      return NextResponse.json({
+        ok: true,
+        tagMap: mergedTags,
+        ack: {
+          format: "zhinote-portfolio-cloud-ack-receipt",
+          format_version: 1,
+          ack_status: "acknowledged",
+          accepted: true,
+          owner: me,
+          updated_at:
+            typeof incoming.updatedAt === "string" ? incoming.updatedAt : null,
+        },
+      });
     }
 
     if (body.action === "shares") {

@@ -13414,6 +13414,9 @@ function run() {
     ) &&
     !syncShell.includes(
       "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus,\n        fileEmbedPendingStatus\n      )"
+    ) &&
+    !syncShell.includes(
+      "buildPendingDomainRows(\n        syncSummary,\n        pagePendingStatus,\n        databasePendingStatus,\n        fileEmbedPendingStatus,\n        portfolioPendingStatus\n      )"
     )
   ) {
     failures.push(

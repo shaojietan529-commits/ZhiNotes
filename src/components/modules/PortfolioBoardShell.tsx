@@ -48,6 +48,13 @@ import {
   fetchShares,
 } from "@/lib/portfolio/accountSync";
 import {
+  markPortfolioCloudSyncAck,
+  markPortfolioCloudSyncAttempt,
+  markPortfolioCloudSyncFailure,
+  markPortfolioCloudSyncOff,
+  markPortfolioCloudSyncPending,
+} from "@/lib/portfolio/portfolioSyncStatus";
+import {
   ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
   fetchAccountSession,
 } from "@/lib/account/clientSession";
@@ -65,6 +72,31 @@ function readSyncErrorMessage(result: unknown): string | null {
   return typeof message === "string" && message.trim()
     ? message
     : null;
+}
+
+function markPortfolioFailureFromSyncResult(
+  mode: Exclude<SyncMode, null>,
+  result: { status: string },
+  fallbackMessage: string
+) {
+  const message = readSyncErrorMessage(result) ?? fallbackMessage;
+  if (result.status === "unconfigured") {
+    markPortfolioCloudSyncFailure(mode, message, {
+      authRetryStatus: "unconfigured",
+    });
+    return;
+  }
+  if (result.status === "unauthenticated") {
+    markPortfolioCloudSyncFailure(mode, message, {
+      authRetryStatus: "unauthenticated",
+    });
+    return;
+  }
+  if (result.status === "forbidden" || result.status === "unauthorized") {
+    markPortfolioCloudSyncFailure(mode, message, { retryable: false });
+    return;
+  }
+  markPortfolioCloudSyncFailure(mode, message);
 }
 
 const PORTFOLIO_AUTO_PULL_MS = 15 * 1000;
@@ -223,7 +255,9 @@ export default function PortfolioBoardShell() {
         setSyncMode("passcode");
         setSyncPasscode(code);
         void runInitialSync(code, false);
+        return;
       }
+      markPortfolioCloudSyncOff();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -298,11 +332,19 @@ export default function PortfolioBoardShell() {
     async (code: string | null, manual: boolean) => {
       setSyncStatus("syncing");
       const accountMode = syncModeRef.current === "account";
+      const activeMode: Exclude<SyncMode, null> = accountMode
+        ? "account"
+        : "passcode";
       const result = accountMode
         ? await accountPullCloud()
         : await pullCloudData(code ?? "");
       if (result.status === "unconfigured") {
         setSyncStatus("off");
+        markPortfolioFailureFromSyncResult(
+          activeMode,
+          result,
+          "组合同步云端未配置；本地组合数据已保留，配置完成后再补传。"
+        );
         if (manual) {
           window.alert(
             "云端存储还没有开通。请在 Vercel 项目里：Storage → Create Database → 选 Redis（Upstash）→ 连接到 zhi-notes 项目，然后 Redeploy 一次。"
@@ -311,14 +353,22 @@ export default function PortfolioBoardShell() {
         return;
       }
       if (result.status === "unauthenticated" || result.status === "forbidden") {
-        // Session expired mid-flight; stop account sync quietly.
-        syncModeRef.current = null;
-        setSyncMode(null);
-        setSyncStatus("off");
+        setSyncStatus("error");
+        markPortfolioFailureFromSyncResult(
+          activeMode,
+          result,
+          "组合同步暂时无法确认账号；本地组合数据已保留，会稍后重试。"
+        );
+        schedulePortfolioPushRetry();
         return;
       }
       if (result.status === "unauthorized") {
         setSyncStatus("error");
+        markPortfolioFailureFromSyncResult(
+          activeMode,
+          result,
+          "同步密码不正确：云端已有数据，请输入当初设置的同一个密码。"
+        );
         clearSyncPasscode();
         setSyncPasscode(null);
         window.alert("同步密码不正确：云端已有数据，请输入当初设置的同一个密码。");
@@ -327,6 +377,12 @@ export default function PortfolioBoardShell() {
       if (result.status === "error") {
         setSyncStatus("error");
         const message = readSyncErrorMessage(result);
+        markPortfolioFailureFromSyncResult(
+          activeMode,
+          result,
+          message ??
+            "组合云同步暂时失败；本机组合数据已保留，可继续使用，稍后会自动重试。"
+        );
         showNotice(
           message ??
             "组合云同步暂时失败；本机组合数据已保留，可继续使用，稍后会自动重试。",
@@ -379,6 +435,7 @@ export default function PortfolioBoardShell() {
       // Push the merged result back so the cloud copy includes everything.
       const now = new Date().toISOString();
       saveDataUpdatedAt(now);
+      markPortfolioCloudSyncPending(activeMode, "initial-merge");
       lastPayloadRef.current = corePayload(
         snapshotToUse,
         mergedTags,
@@ -393,6 +450,7 @@ export default function PortfolioBoardShell() {
         lastEmailMessageId: loadLastEmailMessageId(),
         updatedAt: now,
       };
+      markPortfolioCloudSyncAttempt(activeMode);
       const pushed = accountMode
         ? await accountPushCloud(mergedData)
         : await pushCloudData(code ?? "", mergedData);
@@ -411,9 +469,15 @@ export default function PortfolioBoardShell() {
       }
       if (pushed.status === "ok") {
         setSyncStatus("synced");
+        markPortfolioCloudSyncAck(activeMode);
       } else {
         setSyncStatus("error");
         lastPayloadRef.current = null;
+        markPortfolioFailureFromSyncResult(
+          activeMode,
+          pushed,
+          "组合云同步上传暂时失败；本机组合数据已保留，稍后会继续补传。"
+        );
         schedulePortfolioPushRetry();
         const message = readSyncErrorMessage(pushed);
         showNotice(
@@ -523,12 +587,22 @@ export default function PortfolioBoardShell() {
       if (result.status === "ok") {
         applyRemotePortfolio(result.data);
       } else if (result.status === "unauthenticated" || result.status === "forbidden") {
-        syncModeRef.current = null;
-        setSyncMode(null);
-        setSyncStatus("off");
+        setSyncStatus("error");
+        markPortfolioFailureFromSyncResult(
+          "account",
+          result,
+          "组合同步暂时无法确认账号；本地组合数据已保留，会稍后重试。"
+        );
+        schedulePortfolioPushRetry();
       } else if (result.status === "error") {
         setSyncStatus("error");
         const message = readSyncErrorMessage(result);
+        markPortfolioFailureFromSyncResult(
+          "account",
+          result,
+          message ??
+            "组合云同步暂时无法拉取最新数据；当前显示的是本机缓存，稍后会自动重试。"
+        );
         showNotice(
           message ??
             "组合云同步暂时无法拉取最新数据；当前显示的是本机缓存，稍后会自动重试。",
@@ -549,14 +623,24 @@ export default function PortfolioBoardShell() {
       setSyncMode(null);
       syncModeRef.current = null;
       setSyncStatus("off");
+      markPortfolioFailureFromSyncResult(
+        "passcode",
+        result,
+        "同步密码校验失败；本地组合数据已保留，需要人工确认。"
+      );
     } else if (result.status === "error") {
       setSyncStatus("error");
+      markPortfolioFailureFromSyncResult(
+        "passcode",
+        result,
+        "组合云同步暂时无法拉取最新数据；当前显示的是本机缓存，稍后会自动重试。"
+      );
       showNotice(
         "组合云同步暂时无法拉取最新数据；当前显示的是本机缓存，稍后会自动重试。",
         "warning"
       );
     }
-  }, [applyRemotePortfolio, showNotice, syncPasscode]);
+  }, [applyRemotePortfolio, schedulePortfolioPushRetry, showNotice, syncPasscode]);
 
   useEffect(() => {
     const pullIfVisible = () => {
@@ -612,10 +696,14 @@ export default function PortfolioBoardShell() {
     const payload = corePayload(snapshot, tagMap, allocation, maxNetPct);
     if (payload === lastPayloadRef.current) return;
     lastPayloadRef.current = payload;
+    const queuedMode = syncModeRef.current;
+    if (queuedMode) markPortfolioCloudSyncPending(queuedMode, "local-change");
     if (pushTimerRef.current) window.clearTimeout(pushTimerRef.current);
     setSyncStatus("syncing");
     pushTimerRef.current = window.setTimeout(() => {
       pushTimerRef.current = null;
+      const modeAtPush = syncModeRef.current;
+      if (!modeAtPush) return;
       const now = new Date().toISOString();
       saveDataUpdatedAt(now);
       const data = {
@@ -626,8 +714,9 @@ export default function PortfolioBoardShell() {
         lastEmailMessageId: loadLastEmailMessageId(),
         updatedAt: now,
       };
+      markPortfolioCloudSyncAttempt(modeAtPush);
       void (
-        syncModeRef.current === "account"
+        modeAtPush === "account"
           ? accountPushCloud(data)
           : pushCloudData(syncPasscode ?? "", data)
       ).then((result) => {
@@ -646,9 +735,15 @@ export default function PortfolioBoardShell() {
         }
         if (result.status === "ok") {
           setSyncStatus("synced");
+          markPortfolioCloudSyncAck(modeAtPush);
         } else {
           setSyncStatus("error");
           lastPayloadRef.current = null;
+          markPortfolioFailureFromSyncResult(
+            modeAtPush,
+            result,
+            "组合云同步上传暂时失败；本机修改已保存，稍后会自动重试。"
+          );
           schedulePortfolioPushRetry();
           const message = readSyncErrorMessage(result);
           showNotice(
@@ -684,6 +779,7 @@ export default function PortfolioBoardShell() {
     syncModeRef.current = "passcode";
     setSyncMode("passcode");
     setSyncPasscode(trimmed);
+    markPortfolioCloudSyncPending("passcode", "enable-passcode-sync");
     await runInitialSync(trimmed, true);
   }, [runInitialSync]);
 
@@ -713,6 +809,7 @@ export default function PortfolioBoardShell() {
       syncModeRef.current = null;
       setSyncStatus("off");
       syncReadyRef.current = false;
+      markPortfolioCloudSyncOff();
     }
   }, [syncPasscode, syncStatus, runInitialSync]);
 
@@ -1944,16 +2041,19 @@ function RebalanceSimulator({
       };
     });
     try {
-      const res = await fetch("/api/portfolio/rebalance-export", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          trades: payload,
-          clientDate: localDateKey(),
-          send: true,
-        }),
-      });
+      const res = await fetchPortfolioActionWithTimeout(
+        "/api/portfolio/rebalance-export",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            trades: payload,
+            clientDate: localDateKey(),
+            send: true,
+          }),
+        }
+      );
       const json = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         emailed?: boolean;

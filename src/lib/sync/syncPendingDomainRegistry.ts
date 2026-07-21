@@ -2,6 +2,7 @@ import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatab
 import type { SyncLogSummary } from "@/lib/db/local/queries";
 import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
+import type { PortfolioCloudSyncStatus } from "@/lib/portfolio/portfolioSyncStatus";
 
 export type PendingDomainId =
   | "pages"
@@ -9,6 +10,7 @@ export type PendingDomainId =
   | "comments"
   | "versions"
   | "files"
+  | "portfolio"
   | "settings"
   | "permissions"
   | "audit"
@@ -94,6 +96,13 @@ export const PENDING_DOMAIN_DEFINITIONS: PendingDomainDefinition[] = [
     detail: "文件索引、报告附件和私有对象存储元数据的待上传变更。",
     tableNames: ["files", "uploaded_files", "page_files", "stored_files"],
     tablePrefixes: ["file_", "files_", "report_file"],
+  },
+  {
+    id: "portfolio",
+    label: "组合管理",
+    detail: "持仓导入、标签、配置和组合云端 ACK 状态。",
+    tableNames: ["portfolio", "portfolio_positions", "portfolio_tags"],
+    tablePrefixes: ["portfolio_"],
   },
   {
     id: "settings",
@@ -189,7 +198,8 @@ export function buildPendingDomainRows(
   syncSummary: SyncLogSummary | null,
   pageStatus: PendingCloudPageSyncStatus,
   databaseStatus: PendingCloudDatabaseSyncStatus,
-  fileStatus: PendingFileEmbedSyncStatus
+  fileStatus: PendingFileEmbedSyncStatus,
+  portfolioStatus?: PortfolioCloudSyncStatus
 ): PendingDomainRow[] {
   const tableRows = syncSummary?.tables ?? [];
   const matchedTables = new Set<string>();
@@ -236,7 +246,13 @@ export function buildPendingDomainRows(
     });
   }
 
-  return mergeCorePendingDomainRows(rows, pageStatus, databaseStatus, fileStatus)
+  return mergeCorePendingDomainRows(
+    rows,
+    pageStatus,
+    databaseStatus,
+    fileStatus,
+    portfolioStatus
+  )
     .map(withPendingDomainNextAction)
     .sort((a, b) => {
       if (b.pending !== a.pending) return b.pending - a.pending;
@@ -268,7 +284,8 @@ function mergeCorePendingDomainRows(
   rows: PendingDomainRow[],
   pageStatus: PendingCloudPageSyncStatus,
   databaseStatus: PendingCloudDatabaseSyncStatus,
-  fileStatus: PendingFileEmbedSyncStatus
+  fileStatus: PendingFileEmbedSyncStatus,
+  portfolioStatus?: PortfolioCloudSyncStatus
 ): PendingDomainRow[] {
   return rows.map((row) => {
     if (row.id === "pages") {
@@ -314,6 +331,20 @@ function mergeCorePendingDomainRows(
         tableNames: ["file_embed_sync_queue"],
       });
     }
+    if (row.id === "portfolio" && portfolioStatus) {
+      return mergePendingDomainRowWithCoreStatus(row, {
+        pending: portfolioStatus.pending,
+        failed: portfolioStatus.failed,
+        inFlight: portfolioStatus.inFlight,
+        manualReview: portfolioStatus.manualReviewCount,
+        lastChangeAt:
+          portfolioStatus.lastFailureAt ??
+          portfolioStatus.lastQueuedAt ??
+          portfolioStatus.lastAttemptAt ??
+          portfolioStatus.lastAckAt,
+        tableNames: ["portfolio_sync_status"],
+      });
+    }
     return row;
   });
 }
@@ -323,6 +354,7 @@ function mergePendingDomainRowWithCoreStatus(
   status: {
     pending: number;
     failed: number;
+    inFlight?: number;
     manualReview: number;
     lastChangeAt: string | null;
     tableNames: string[];
@@ -330,13 +362,15 @@ function mergePendingDomainRowWithCoreStatus(
 ): PendingDomainRow {
   const pending = Math.max(row.pending, status.pending);
   const failed = Math.max(row.failed, status.failed);
+  const inFlight = Math.max(row.inFlight, status.inFlight ?? 0);
   const manualReview = Math.max(row.manualReview, status.manualReview);
   return {
     ...row,
     pending,
     failed,
+    inFlight,
     manualReview,
-    total: Math.max(row.total, pending + failed + manualReview + row.inFlight),
+    total: Math.max(row.total, pending + failed + manualReview + inFlight),
     lastChangeAt: latestNullableDate(row.lastChangeAt, status.lastChangeAt),
     tableNames: [...new Set([...row.tableNames, ...status.tableNames])],
   };

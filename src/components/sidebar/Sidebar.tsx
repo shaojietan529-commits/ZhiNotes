@@ -1856,6 +1856,19 @@ export default function Sidebar() {
           data-file-manual-review-total={
             accountSync.localUseReadiness.queueBreakdown.fileManualReviewTotal
           }
+          data-portfolio-queue-total={
+            accountSync.localUseReadiness.queueBreakdown.portfolioQueueTotal
+          }
+          data-portfolio-pending-total={
+            accountSync.localUseReadiness.queueBreakdown.portfolioPendingTotal
+          }
+          data-portfolio-failed-total={
+            accountSync.localUseReadiness.queueBreakdown.portfolioFailedTotal
+          }
+          data-portfolio-manual-review-total={
+            accountSync.localUseReadiness.queueBreakdown
+              .portfolioManualReviewTotal
+          }
           data-local-use-next-action={accountSync.localUseReadiness.nextAction}
           className="mt-1 flex flex-wrap gap-1 px-3"
           title={`${accountSync.localUseReadiness.detail} ${accountSync.localUseReadiness.nextAction} ${accountSwitchDeviceTitle}`}

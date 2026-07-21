@@ -75,6 +75,10 @@ check(
 check(
   readiness.includes("queueBreakdown: AccountLocalUseQueueBreakdown") &&
     readiness.includes("filePendingTotal") &&
+    readiness.includes("portfolioPendingTotal") &&
+    readiness.includes("portfolioFailedTotal") &&
+    readiness.includes("portfolioManualReviewTotal") &&
+    readiness.includes("portfolioQueueBlocksCloudHandoff") &&
     readiness.includes("otherPendingTotal") &&
     readiness.includes("otherFailedTotal") &&
     readiness.includes("otherManualReviewTotal") &&
@@ -83,10 +87,11 @@ check(
     readiness.includes("fileQueueBlocksCloudHandoff") &&
     readiness.includes("队列分布：") &&
     readiness.includes("文件队列：") &&
+    readiness.includes("组合队列：") &&
     readiness.includes("其他队列：") &&
     readiness.includes("其他失败") &&
     readiness.includes("其他需确认"),
-  "本地可用性规则必须显式拆分文件队列和其他全域队列，并把 pending/failed/manual review 纳入云端交接和缓存重建保护"
+  "本地可用性规则必须显式拆分文件、组合和其他全域队列，并把 pending/failed/manual review 纳入云端交接和缓存重建保护"
 );
 check(
   readiness.includes("input.failedTotal > 0 || input.manualReviewTotal > 0") &&
@@ -136,8 +141,10 @@ check(
     accountCoordinator.includes("const syncErrorWithoutAuthRetry =") &&
     accountCoordinator.includes('accountUncertainByAuthRetry\n                ? "checking"') &&
     accountCoordinator.includes('fileSync.status.authRetryStatus ? "文件" : null') &&
-    accountCoordinator.includes("fileSync.status.authRetryUntil"),
-  "全局同步总控必须把文件账号重试纳入云端不确定状态；auth retry 显示为检查/排队，不能误报已同步或硬错误"
+    accountCoordinator.includes('portfolioSync.status.authRetryStatus ? "组合" : null') &&
+    accountCoordinator.includes("fileSync.status.authRetryUntil") &&
+    accountCoordinator.includes("portfolioSync.status.authRetryUntil"),
+  "全局同步总控必须把文件和组合账号重试纳入云端不确定状态；auth retry 显示为检查/排队，不能误报已同步或硬错误"
 );
 
 for (const snippet of [
@@ -154,6 +161,10 @@ for (const snippet of [
   "data-file-pending-total",
   "data-file-failed-total",
   "data-file-manual-review-total",
+  "data-portfolio-queue-total",
+  "data-portfolio-pending-total",
+  "data-portfolio-failed-total",
+  "data-portfolio-manual-review-total",
   "先别重建缓存",
   "本地可写",
   "可换设备",
@@ -187,6 +198,11 @@ for (const snippet of [
   "data-file-pending-total",
   "data-file-failed-total",
   "data-file-manual-review-total",
+  "data-portfolio-queue-total",
+  "data-portfolio-pending-total",
+  "data-portfolio-failed-total",
+  "data-portfolio-manual-review-total",
+  'data-testid="sync-portfolio-queue-readiness-note"',
   "当前使用安全",
   "可以继续写",
   "可换设备",

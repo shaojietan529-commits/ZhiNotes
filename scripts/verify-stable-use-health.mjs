@@ -268,7 +268,7 @@ function verifyRouteResult(result) {
     failures.push("owner_gated_actions must include sync push and cache rebuild gates");
   }
   const monitoredSyncDomains = body?.monitored_sync_domains ?? [];
-  if (!Array.isArray(monitoredSyncDomains) || monitoredSyncDomains.length < 8) {
+  if (!Array.isArray(monitoredSyncDomains) || monitoredSyncDomains.length < 9) {
     failures.push("monitored_sync_domains must list the stable pending-domain catalog");
   }
   for (const id of [
@@ -280,6 +280,7 @@ function verifyRouteResult(result) {
     "settings",
     "permissions",
     "audit",
+    "portfolio",
   ]) {
     if (!monitoredSyncDomains.some((domain) => domain?.id === id)) {
       failures.push(`monitored_sync_domains missing ${id}`);
@@ -313,12 +314,12 @@ function verifyRouteResult(result) {
   );
   assertEqual(
     coverage.registered_domain_count,
-    8,
+    9,
     "sync_domain_coverage.registered_domain_count"
   );
   assertEqual(
     coverage.visible_registered_domain_count,
-    8,
+    9,
     "sync_domain_coverage.visible_registered_domain_count"
   );
   assertEqual(

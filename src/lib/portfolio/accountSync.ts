@@ -60,7 +60,9 @@ async function call<T>(
       status: "error",
       message: isAbortError(error)
         ? "组合同步请求超时；本地组合数据已保留，会稍后重试。"
-        : undefined,
+        : error instanceof Error
+          ? error.message
+          : undefined,
     };
   }
 }
@@ -107,11 +109,21 @@ export function accountPullCloud(
 export function accountPushCloud(
   data: CloudPortfolioData
 ): Promise<AccountSyncResult<TagMap | null>> {
-  return call({ action: "push", data }, (json) =>
-    json.tagMap && typeof json.tagMap === "object"
+  return call({ action: "push", data }, (json) => {
+    const ack = json.ack;
+    if (
+      !ack ||
+      typeof ack !== "object" ||
+      (ack as { ack_status?: unknown }).ack_status !== "acknowledged"
+    ) {
+      throw new Error(
+        "组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。"
+      );
+    }
+    return json.tagMap && typeof json.tagMap === "object"
       ? (json.tagMap as TagMap)
-      : null
-  );
+      : null;
+  });
 }
 
 export interface ShareInfo {

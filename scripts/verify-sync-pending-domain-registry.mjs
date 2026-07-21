@@ -43,8 +43,8 @@ const {
 
 check(
   Array.isArray(PENDING_DOMAIN_DEFINITIONS) &&
-    PENDING_DOMAIN_DEFINITIONS.length === 8,
-  "registry should expose the eight stable cloud-master pending domains"
+    PENDING_DOMAIN_DEFINITIONS.length === 9,
+  "registry should expose the nine stable cloud-master pending domains"
 );
 
 for (const id of [
@@ -53,6 +53,7 @@ for (const id of [
   "comments",
   "versions",
   "files",
+  "portfolio",
   "settings",
   "permissions",
   "audit",
@@ -153,6 +154,16 @@ const rows = buildPendingDomainRows(
     lastFailureAt: null,
     oldestPendingQueuedAt: "2026-07-08T00:00:00.000Z",
     lastAttemptAt: "2026-07-09T00:00:00.000Z",
+  },
+  {
+    pending: 2,
+    failed: 0,
+    inFlight: 1,
+    manualReviewCount: 0,
+    lastFailureAt: null,
+    lastQueuedAt: "2026-07-10T00:00:00.000Z",
+    lastAttemptAt: "2026-07-10T00:01:00.000Z",
+    lastAckAt: null,
   }
 );
 
@@ -161,6 +172,7 @@ const pageRow = rowById.get("pages");
 const databaseRow = rowById.get("databases");
 const commentRow = rowById.get("comments");
 const fileRow = rowById.get("files");
+const portfolioRow = rowById.get("portfolio");
 const settingsRow = rowById.get("settings");
 const versionsRow = rowById.get("versions");
 const otherRow = rowById.get("other");
@@ -216,6 +228,12 @@ check(
   "failed file rows should ask the user to retry pending uploads"
 );
 check(
+  portfolioRow?.pending === 2 &&
+    portfolioRow?.inFlight === 1 &&
+    portfolioRow?.tableNames.includes("portfolio_sync_status"),
+  "portfolio row should merge content-free portfolio ACK status into the domain matrix"
+);
+check(
   otherRow?.pending === 4 &&
     otherRow?.tableNames.includes("custom_signal") &&
     otherRow?.nextAction.includes("等待后台补传"),
@@ -226,9 +244,9 @@ check(
   "inactive domains should remain visible with a no-op next action"
 );
 check(
-  coverageReport.registeredDomainCount === 8 &&
-    coverageReport.visibleRegisteredDomainCount === 8 &&
-    coverageReport.activeRegisteredDomainCount === 5 &&
+  coverageReport.registeredDomainCount === 9 &&
+    coverageReport.visibleRegisteredDomainCount === 9 &&
+    coverageReport.activeRegisteredDomainCount === 6 &&
     coverageReport.unmatchedTableDomainCount === 1 &&
     coverageReport.coverageComplete === true,
   "coverage report should confirm all registered sync domains are visible and count unmatched tables separately"
