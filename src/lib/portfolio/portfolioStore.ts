@@ -1,5 +1,6 @@
-// Local-only persistence for the portfolio module. Snapshots and tag maps
-// live in the browser's localStorage — never uploaded, never synced.
+// Local-first cache for the portfolio module. The browser keeps a fast local
+// copy, and account/passcode sync helpers upload normalized snapshots when
+// cloud sync is enabled.
 
 import type { PortfolioSnapshot, TagMap } from "./positionReport";
 

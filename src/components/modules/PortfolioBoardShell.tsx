@@ -71,6 +71,47 @@ const PORTFOLIO_AUTO_PULL_MS = 15 * 1000;
 const PORTFOLIO_ACTION_REQUEST_TIMEOUT_MS = 12000;
 const PORTFOLIO_STORAGE_PREFIX = "zhinote.portfolio.";
 
+function isPortfolioSyncActive(mode: SyncMode, code: string | null) {
+  return mode === "account" || (mode === "passcode" && Boolean(code));
+}
+
+function getPortfolioSyncDescription(
+  mode: SyncMode,
+  code: string | null,
+  status: SyncStatus
+) {
+  if (mode === "account") {
+    if (status === "syncing") {
+      return "数据先保存在本机浏览器，正在同步到你的登录账号。";
+    }
+    if (status === "error") {
+      return "数据已保存在本机浏览器，账号云同步暂时失败，会自动重试。";
+    }
+    return "数据先保存在本机浏览器，并自动同步到你的登录账号。";
+  }
+  if (mode === "passcode" && code) {
+    if (status === "syncing") {
+      return "数据先保存在本机浏览器，正在通过同步密码同步到云端。";
+    }
+    if (status === "error") {
+      return "数据已保存在本机浏览器，同步密码云同步暂时失败，会自动重试。";
+    }
+    return "数据先保存在本机浏览器，并通过同步密码同步到云端。";
+  }
+  return "未开启同步时，数据只保存在本机浏览器。";
+}
+
+function getPortfolioImportNotice(
+  count: number,
+  mode: SyncMode,
+  code: string | null
+) {
+  const suffix = isPortfolioSyncActive(mode, code)
+    ? "已先保存在本机，后台会自动同步到云端。"
+    : "当前未开启同步，仅保存在本机浏览器。";
+  return `已导入 ${count} 条持仓（${suffix}）`;
+}
+
 class PortfolioActionRequestTimeoutError extends Error {
   timeoutMs: number;
 
@@ -141,6 +182,7 @@ export default function PortfolioBoardShell() {
   const syncReadyRef = useRef(false);
   const lastPayloadRef = useRef<string | null>(null);
   const pushTimerRef = useRef<number | null>(null);
+  const pushRetryTimerRef = useRef<number | null>(null);
   const syncModeRef = useRef<SyncMode>(null);
   const viewingOwnerRef = useRef<string | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
@@ -224,9 +266,33 @@ export default function PortfolioBoardShell() {
       if (noticeTimerRef.current !== null) {
         window.clearTimeout(noticeTimerRef.current);
       }
+      if (pushTimerRef.current !== null) {
+        window.clearTimeout(pushTimerRef.current);
+      }
+      if (pushRetryTimerRef.current !== null) {
+        window.clearTimeout(pushRetryTimerRef.current);
+      }
     },
     []
   );
+
+  const schedulePortfolioPushRetry = useCallback(() => {
+    if (pushRetryTimerRef.current !== null) {
+      window.clearTimeout(pushRetryTimerRef.current);
+    }
+    pushRetryTimerRef.current = window.setTimeout(() => {
+      pushRetryTimerRef.current = null;
+      if (viewingOwnerRef.current) return;
+      const mode = syncModeRef.current;
+      const code = syncPasscode ?? loadSyncPasscode();
+      if (!isPortfolioSyncActive(mode, code) || !syncReadyRef.current) return;
+      lastPayloadRef.current = null;
+      setSnapshot(loadSnapshot());
+      setTagMap(loadTagMap());
+      setAllocation(loadAllocation());
+      setMaxNetPct(loadMaxNetPct());
+    }, 5000);
+  }, [syncPasscode]);
 
   const runInitialSync = useCallback(
     async (code: string | null, manual: boolean) => {
@@ -347,6 +413,8 @@ export default function PortfolioBoardShell() {
         setSyncStatus("synced");
       } else {
         setSyncStatus("error");
+        lastPayloadRef.current = null;
+        schedulePortfolioPushRetry();
         const message = readSyncErrorMessage(pushed);
         showNotice(
           message ?? "组合云同步上传暂时失败；本机组合数据已保留，稍后会继续补传。",
@@ -355,7 +423,7 @@ export default function PortfolioBoardShell() {
       }
       syncReadyRef.current = true;
     },
-    [showNotice]
+    [schedulePortfolioPushRetry, showNotice]
   );
 
   useEffect(() => {
@@ -492,9 +560,20 @@ export default function PortfolioBoardShell() {
 
   useEffect(() => {
     const pullIfVisible = () => {
-      if (document.visibilityState === "visible") {
-        void pullLatestPortfolio();
+      if (document.visibilityState !== "visible") return;
+      if (!syncReadyRef.current && !viewingOwnerRef.current) {
+        const mode = syncModeRef.current;
+        if (mode === "account") {
+          void runInitialSync(null, false);
+          return;
+        }
+        const code = syncPasscode ?? loadSyncPasscode();
+        if (mode === "passcode" && code) {
+          void runInitialSync(code, false);
+          return;
+        }
       }
+      void pullLatestPortfolio();
     };
     const interval = window.setInterval(pullIfVisible, PORTFOLIO_AUTO_PULL_MS);
     window.addEventListener("focus", pullIfVisible);
@@ -504,7 +583,7 @@ export default function PortfolioBoardShell() {
       window.removeEventListener("focus", pullIfVisible);
       document.removeEventListener("visibilitychange", pullIfVisible);
     };
-  }, [pullLatestPortfolio]);
+  }, [pullLatestPortfolio, runInitialSync, syncPasscode]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -536,6 +615,7 @@ export default function PortfolioBoardShell() {
     if (pushTimerRef.current) window.clearTimeout(pushTimerRef.current);
     setSyncStatus("syncing");
     pushTimerRef.current = window.setTimeout(() => {
+      pushTimerRef.current = null;
       const now = new Date().toISOString();
       saveDataUpdatedAt(now);
       const data = {
@@ -568,6 +648,8 @@ export default function PortfolioBoardShell() {
           setSyncStatus("synced");
         } else {
           setSyncStatus("error");
+          lastPayloadRef.current = null;
+          schedulePortfolioPushRetry();
           const message = readSyncErrorMessage(result);
           showNotice(
             message ?? "组合云同步上传暂时失败；本机修改已保存，稍后会自动重试。",
@@ -584,6 +666,7 @@ export default function PortfolioBoardShell() {
     syncPasscode,
     syncMode,
     viewingOwner,
+    schedulePortfolioPushRetry,
     showNotice,
   ]);
 
@@ -691,7 +774,9 @@ export default function PortfolioBoardShell() {
     [snapshot, tagMap, allocation, maxNetPct, showNotice]
   );
 
-  // ----- file imports (browser-local parsing; nothing leaves the device) ----
+  // ----- file imports --------------------------------------------------------
+  // Files are parsed locally first; synced accounts/passcodes then upload only
+  // the normalized portfolio snapshot in the background.
 
   const handleImportPositions = useCallback(
     async (file: File) => {
@@ -711,7 +796,11 @@ export default function PortfolioBoardShell() {
         saveSnapshot(result.snapshot);
         setSnapshot(result.snapshot);
         showNotice(
-          `已导入 ${result.snapshot.positions.length} 条持仓（仅保存在本机浏览器）`
+          getPortfolioImportNotice(
+            result.snapshot.positions.length,
+            syncModeRef.current,
+            loadSyncPasscode()
+          )
         );
       } catch (err) {
         console.error("[Zhinote] Failed to import position report:", err);
@@ -818,8 +907,16 @@ export default function PortfolioBoardShell() {
         saveSnapshot(result.snapshot);
         setSnapshot(result.snapshot);
         saveLastEmailMessageId(data.messageId);
+        const synced = isPortfolioSyncActive(
+          syncModeRef.current,
+          loadSyncPasscode()
+        );
         showNotice(
-          `已从邮箱自动导入 ${data.fileName}（${result.snapshot.positions.length} 条持仓，收件 ${formatImportTime(data.receivedAt ?? "")}），数据仅保存在本机。`
+          `已从邮箱自动导入 ${data.fileName}（${result.snapshot.positions.length} 条持仓，收件 ${formatImportTime(data.receivedAt ?? "")}）。${
+            synced
+              ? "已先保存在本机，后台会自动同步到云端。"
+              : "当前未开启同步，仅保存在本机浏览器。"
+          }`
         );
       } catch (err) {
         console.error("[Zhinote] Email position check failed:", err);
@@ -973,6 +1070,11 @@ export default function PortfolioBoardShell() {
       snapshot ? buildExposures(snapshot.positions, (p) => p.country) : null,
     [snapshot]
   );
+  const syncDescription = getPortfolioSyncDescription(
+    syncMode,
+    syncPasscode,
+    syncStatus
+  );
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -986,7 +1088,7 @@ export default function PortfolioBoardShell() {
                 <span className="text-3xl">💼</span> 组合管理
               </h1>
               <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-                每日导入持仓报告，实时监控组合。数据只保存在本机浏览器，不上传。
+                每日导入持仓报告，实时监控组合。{syncDescription}
               </p>
               {snapshot && (
                 <p className="mt-1 text-xs text-zinc-400">
@@ -1147,7 +1249,7 @@ export default function PortfolioBoardShell() {
                 文件。
               </p>
               <p className="mt-1.5 text-xs text-zinc-400">
-                文件在浏览器本地解析，持仓数据不会上传到任何服务器。
+                文件在浏览器本地解析；导入后先保存到本机，开启账号或同步密码后再后台同步。
               </p>
             </div>
           ) : (

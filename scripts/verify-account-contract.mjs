@@ -761,8 +761,11 @@ check(!accountSync.includes("console."), "account-sync route 不应该写日志"
 check(
   accountSync.includes("accountSessionUnconfirmedResponse") &&
     accountSync.includes("组合同步暂时无法确认账号；本地组合数据已保留，请稍后重试。") &&
+    accountSync.includes("组合同步云端读写暂时失败；本地组合数据已保留，会稍后重试。") &&
+    !accountSync.includes("{ status: 502 }") &&
+    !accountSync.includes("云端存储读写失败，请稍后重试。") &&
     !accountSync.includes("登录已过期，请重新登录。"),
-  "portfolio account-sync route 有 cookie 但 session 暂时查不到时必须返回可重试 session-unconfirmed，不能返回登录过期"
+  "portfolio account-sync route 有 cookie 但 session 暂时查不到或云端读写短暂失败时必须返回可重试 session-unconfirmed，不能返回登录过期或普通 502"
 );
 check(
   portfolioAccountSyncClient.includes("checkAccountCloudSyncGate") &&
@@ -814,6 +817,14 @@ check(
   "PortfolioBoardShell 应监听跨标签账号状态变化：登录后自动接管账号同步，临时账号探测失败不能禁用本地组合编辑"
 );
 check(
+  board.includes("if (!syncReadyRef.current && !viewingOwnerRef.current)") &&
+    board.includes('if (mode === "account")') &&
+    board.includes("void runInitialSync(null, false)") &&
+    board.includes('if (mode === "passcode" && code)') &&
+    board.includes("void runInitialSync(code, false);"),
+  "PortfolioBoardShell 初次云同步失败后必须由定时/聚焦拉取自动重试，不能永久停在本机缓存"
+);
+check(
   board.includes("if (viewingOwner) return;"),
   "查看共享持仓时不应触发云端 push"
 );
@@ -825,8 +836,18 @@ check(
   board.includes('type NoticeTone = "info" | "warning"') &&
     board.includes("组合云同步暂时失败；本机组合数据已保留，可继续使用，稍后会自动重试。") &&
     board.includes("组合云同步上传暂时失败；本机修改已保存，稍后会自动重试。") &&
+    board.includes("schedulePortfolioPushRetry") &&
+    board.includes("lastPayloadRef.current = null;") &&
     board.includes('noticeTone === "warning"'),
   "组合页后台同步失败必须用 warning notice 明确说明本机数据已保留且稍后会重试"
+);
+check(
+  board.includes("getPortfolioSyncDescription") &&
+    board.includes("数据先保存在本机浏览器，并自动同步到你的登录账号。") &&
+    board.includes("未开启同步时，数据只保存在本机浏览器。") &&
+    !board.includes("数据只保存在本机浏览器，不上传。") &&
+    !board.includes("数据仅保存在本机。"),
+  "组合页文案必须区分账号云同步/同步密码/未同步，不能继续误导为永远只在本机"
 );
 
 // 7. Page cloud sync: session-gated route, opt-in client toggle, no logging
