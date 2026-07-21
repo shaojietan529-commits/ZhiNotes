@@ -8,6 +8,14 @@ import type { TagMap } from "./positionReport";
 
 const ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000;
 
+interface PortfolioCloudAckReceipt {
+  format?: unknown;
+  format_version?: unknown;
+  ack_status?: unknown;
+  accepted?: unknown;
+  updated_at?: unknown;
+}
+
 export type AccountSyncResult<T> =
   | { status: "ok"; data: T }
   | { status: "unauthenticated" }
@@ -111,11 +119,7 @@ export function accountPushCloud(
 ): Promise<AccountSyncResult<TagMap | null>> {
   return call({ action: "push", data }, (json) => {
     const ack = json.ack;
-    if (
-      !ack ||
-      typeof ack !== "object" ||
-      (ack as { ack_status?: unknown }).ack_status !== "acknowledged"
-    ) {
+    if (!portfolioCloudAckConfirmsPush(ack, data)) {
       throw new Error(
         "组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。"
       );
@@ -124,6 +128,23 @@ export function accountPushCloud(
       ? (json.tagMap as TagMap)
       : null;
   });
+}
+
+function portfolioCloudAckConfirmsPush(
+  value: unknown,
+  data: CloudPortfolioData
+): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const ack = value as PortfolioCloudAckReceipt;
+  const expectedUpdatedAt =
+    typeof data.updatedAt === "string" ? data.updatedAt : null;
+  return (
+    ack.format === "zhinote-portfolio-cloud-ack-receipt" &&
+    ack.format_version === 1 &&
+    ack.ack_status === "acknowledged" &&
+    ack.accepted === true &&
+    ack.updated_at === expectedUpdatedAt
+  );
 }
 
 export interface ShareInfo {

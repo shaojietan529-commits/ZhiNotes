@@ -93,6 +93,8 @@ check(
   catalog.some(
     (item) =>
       item.id === "settings" &&
+      item.tableNames.includes("account_settings") &&
+      item.tableNames.includes("module_settings") &&
       item.tableNames.includes("sidebar_items") &&
       item.tablePrefixes.includes("sidebar_")
   ),
@@ -114,9 +116,11 @@ const syncSummary = {
     table("database_rows", 1, 1, 0, 0, "2026-07-02T00:00:00.000Z"),
     table("page_comments", 0, 0, 0, 1, "2026-07-03T00:00:00.000Z"),
     table("workspace_settings", 1, 0, 0, 0, "2026-07-04T00:00:00.000Z"),
+    table("account_settings", 1, 0, 0, 0, "2026-07-04T01:00:00.000Z"),
+    table("module_settings", 1, 0, 0, 0, "2026-07-04T02:00:00.000Z"),
     table("custom_signal", 4, 0, 0, 0, "2026-07-05T00:00:00.000Z"),
   ],
-  pending: 8,
+  pending: 10,
   failed: 1,
   inFlight: 1,
   manualReview: 1,
@@ -213,9 +217,11 @@ check(
   "comment row should aggregate page_comments manual-review rows"
 );
 check(
-  settingsRow?.pending === 1 &&
-    settingsRow?.tableNames.includes("workspace_settings"),
-  "settings row should include workspace_settings pending rows"
+  settingsRow?.pending === 3 &&
+    settingsRow?.tableNames.includes("workspace_settings") &&
+    settingsRow?.tableNames.includes("account_settings") &&
+    settingsRow?.tableNames.includes("module_settings"),
+  "settings row should include workspace, account, and module settings pending rows"
 );
 check(
   fileRow?.pending === 5 &&
@@ -259,11 +265,13 @@ check(
 
 const settingsSummary = summarizeSyncSummaryTables(syncSummary, [
   "workspace_settings",
+  "account_settings",
+  "module_settings",
 ]);
 check(
-  settingsSummary.pending === 1 &&
-    settingsSummary.total === 1 &&
-    settingsSummary.lastChangeAt === "2026-07-04T00:00:00.000Z",
+  settingsSummary.pending === 3 &&
+    settingsSummary.total === 3 &&
+    settingsSummary.lastChangeAt === "2026-07-04T02:00:00.000Z",
   "summarizeSyncSummaryTables should preserve pending totals and latest change"
 );
 

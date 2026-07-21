@@ -10,6 +10,7 @@ const files = {
   accountCoordinator: "src/hooks/useAccountCloudSyncCoordinator.ts",
   sidebar: "src/components/sidebar/Sidebar.tsx",
   syncShell: "src/components/modules/SyncShell.tsx",
+  settingsCloudDrain: "src/lib/sync/settingsCloudDrain.ts",
   privateAlpha: "scripts/verify-private-alpha-p0.mjs",
   packageJson: "package.json",
 };
@@ -29,6 +30,7 @@ const readiness = readProjectFile(files.readiness);
 const accountCoordinator = readProjectFile(files.accountCoordinator);
 const sidebar = readProjectFile(files.sidebar);
 const syncShell = readProjectFile(files.syncShell);
+const settingsCloudDrain = readProjectFile(files.settingsCloudDrain);
 const privateAlpha = readProjectFile(files.privateAlpha);
 const packageJsonSource = readProjectFile(files.packageJson);
 const packageJson = packageJsonSource ? JSON.parse(packageJsonSource) : {};
@@ -251,6 +253,27 @@ check(
     !syncShell.includes("knowledgeSyncEnabled: syncSummary !== null"),
   "同步中心必须使用设置/知识库真实状态 hook；不能用 syncSummary 是否存在代替云同步域启用状态"
 );
+
+for (const snippet of [
+  "validateSettingsCloudAckReceipt",
+  "INVALID_SETTINGS_CLOUD_ACK_MESSAGE",
+  "!receipt.format.startsWith(\"zhinote-\")",
+  "!receipt.format.endsWith(\"settings-cloud-receipt\")",
+  "receipt.workspace_id !== input.workspaceId",
+  "receipt.setting_key !== input.payload.setting_key",
+  "summary.acknowledges_pending_row !==",
+  "input.payload.client_pending_row_id",
+  "syncRule.local_pending_table !== \"sync_log\"",
+  "syncRule.local_pending_row_id !== input.payload.client_pending_row_id",
+  "syncRule.cloud_wins_except_unsynced_local_setting !== true",
+  "receipt.table_name !== input.payload.table_name",
+  "receipt.module_id !== input.payload.module_id",
+]) {
+  check(
+    settingsCloudDrain.includes(snippet),
+    `设置同步清 pending 前必须校验云端 ACK：${snippet}`
+  );
+}
 
 const scripts = packageJson.scripts ?? {};
 check(

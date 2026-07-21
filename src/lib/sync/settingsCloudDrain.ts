@@ -25,18 +25,22 @@ import {
 import {
   buildAccountModuleSettingCloudPayload,
   buildAccountModuleSettingsPendingSyncPlan,
+  type AccountModuleSettingCloudPayload,
   type SupportedAccountSettingSyncKey,
 } from "@/lib/sync/accountModuleSettingsPendingSync";
 import { SETTINGS_SYNC_MANUAL_REVIEW_FAILURE_THRESHOLD } from "@/lib/sync/settingsSyncStatus";
 import {
   buildWorkspaceSettingCloudPayload,
   buildWorkspaceSettingsPendingSyncPlan,
+  type WorkspaceSettingCloudPayload,
   type SupportedWorkspaceSettingSyncKey,
 } from "@/lib/sync/workspaceSettingsPendingSync";
 import { readLocalWorkspaceIdentity } from "@/lib/sync/workspaceIdentity";
 
 const SETTINGS_CLOUD_DRAIN_REQUEST_TIMEOUT_MS = 12_000;
 const SETTINGS_CLOUD_DRAIN_RETRY_DELAY_MS = 60_000;
+const INVALID_SETTINGS_CLOUD_ACK_MESSAGE =
+  "设置云端没有返回有效 ACK；本地设置仍保留在 pending 队列。";
 
 export type SettingsCloudDrainStatus =
   | "ok"
@@ -63,6 +67,22 @@ class SettingsCloudDrainRequestTimeoutError extends Error {
     super("设置同步请求超时；本地设置和待上传队列已保留，可稍后重试。");
     this.name = "SettingsCloudDrainRequestTimeoutError";
   }
+}
+
+type SettingsCloudPayload =
+  | WorkspaceSettingCloudPayload
+  | AccountModuleSettingCloudPayload;
+
+interface SettingsCloudAckReceiptShape {
+  format?: unknown;
+  format_version?: unknown;
+  setting_key?: unknown;
+  workspace_id?: unknown;
+  saved_at?: unknown;
+  table_name?: unknown;
+  module_id?: unknown;
+  summary?: unknown;
+  sync_rule?: unknown;
 }
 
 export async function drainPendingSettingsCloudSync(
@@ -402,7 +422,7 @@ async function patchWorkspaceSettings(
     session: ZhiNotesCloudSession;
     workspaceId: string;
   },
-  payload: unknown
+  payload: SettingsCloudPayload
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   let response: Response;
   try {
@@ -424,6 +444,61 @@ async function patchWorkspaceSettings(
   if (!response.ok) {
     return { ok: false, message: getSettingsCloudApiDetail(body, response) };
   }
+  const receipt = validateSettingsCloudAckReceipt({
+    body,
+    workspaceId: input.workspaceId,
+    payload,
+  });
+  if (!receipt.ok) return { ok: false, message: receipt.message };
+  return { ok: true };
+}
+
+function validateSettingsCloudAckReceipt(input: {
+  body: Record<string, unknown> | null;
+  workspaceId: string;
+  payload: SettingsCloudPayload;
+}): { ok: true } | { ok: false; message: string } {
+  if (!input.body) {
+    return { ok: false, message: INVALID_SETTINGS_CLOUD_ACK_MESSAGE };
+  }
+  const receipt = input.body as SettingsCloudAckReceiptShape;
+  const summary = isPlainRecord(receipt.summary) ? receipt.summary : null;
+  const syncRule = isPlainRecord(receipt.sync_rule) ? receipt.sync_rule : null;
+  if (
+    typeof receipt.format !== "string" ||
+    !receipt.format.startsWith("zhinote-") ||
+    !receipt.format.endsWith("settings-cloud-receipt") ||
+    receipt.format_version !== 1 ||
+    receipt.workspace_id !== input.workspaceId ||
+    receipt.setting_key !== input.payload.setting_key ||
+    typeof receipt.saved_at !== "string" ||
+    Number.isNaN(Date.parse(receipt.saved_at)) ||
+    !summary ||
+    summary.writes_workspace_settings !== true ||
+    summary.uploads_workspace_content !== false ||
+    summary.acknowledges_pending_row !==
+      input.payload.client_pending_row_id ||
+    !syncRule ||
+    syncRule.ordinary_sync_pending_only !== true ||
+    syncRule.local_pending_table !== "sync_log" ||
+    syncRule.local_pending_row_id !== input.payload.client_pending_row_id ||
+    syncRule.cloud_wins_except_unsynced_local_setting !== true
+  ) {
+    return { ok: false, message: INVALID_SETTINGS_CLOUD_ACK_MESSAGE };
+  }
+
+  if ("table_name" in input.payload) {
+    if (
+      receipt.table_name !== input.payload.table_name ||
+      (input.payload.table_name === "module_settings" &&
+        receipt.module_id !== input.payload.module_id) ||
+      (input.payload.table_name === "account_settings" &&
+        receipt.module_id !== null)
+    ) {
+      return { ok: false, message: INVALID_SETTINGS_CLOUD_ACK_MESSAGE };
+    }
+  }
+
   return { ok: true };
 }
 
@@ -484,6 +559,10 @@ function formatSettingsCloudDrainError(error: unknown): string {
 function getRecordString(record: Record<string, unknown> | null, key: string) {
   const value = record?.[key];
   return typeof value === "string" ? value : "";
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function buildSettingsDrainResult(

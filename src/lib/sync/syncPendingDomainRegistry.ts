@@ -110,6 +110,7 @@ export const PENDING_DOMAIN_DEFINITIONS: PendingDomainDefinition[] = [
     detail: "模块顺序、侧边栏配置、热缓存选择和用户偏好的待上传变更。",
     tableNames: [
       "workspace_settings",
+      "account_settings",
       "module_settings",
       "sidebar_settings",
       "sidebar_items",

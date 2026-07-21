@@ -784,10 +784,15 @@ check(
   portfolioAccountSyncClient.includes("checkAccountCloudSyncGate") &&
     portfolioAccountSyncClient.includes('accountGate.status === "signed-out"') &&
     portfolioAccountSyncClient.includes("组合同步接口暂时无法确认账号权限；本地组合数据未删除，请稍后重试。") &&
-    portfolioAccountSyncClient.includes('ack_status !== "acknowledged"') &&
+    portfolioAccountSyncClient.includes("portfolioCloudAckConfirmsPush") &&
+    portfolioAccountSyncClient.includes('ack.format === "zhinote-portfolio-cloud-ack-receipt"') &&
+    portfolioAccountSyncClient.includes("ack.format_version === 1") &&
+    portfolioAccountSyncClient.includes('ack.ack_status === "acknowledged"') &&
+    portfolioAccountSyncClient.includes("ack.accepted === true") &&
+    portfolioAccountSyncClient.includes("ack.updated_at === expectedUpdatedAt") &&
     portfolioAccountSyncClient.includes("组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。") &&
     !portfolioAccountSyncClient.includes('if (res.status === 401) return { status: "unauthenticated" }'),
-  "portfolio account-sync client 应先复用共享账号 gate；具体同步接口 401 只能作为可重试错误，且 push 必须看到 ACK 后才成功"
+  "portfolio account-sync client 应先复用共享账号 gate；具体同步接口 401 只能作为可重试错误，且 push 必须看到格式、版本、状态和 updated_at 都匹配的 ACK 后才成功"
 );
 check(
   portfolioAccountSyncClient.includes("ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000") &&
