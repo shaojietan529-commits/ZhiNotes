@@ -71,6 +71,10 @@ function run() {
       "Account sync preflight must inspect the current database account-sync cloud index.",
     ],
     [
+      "PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX",
+      "Account sync preflight must inspect the portfolio account ACK metadata key.",
+    ],
+    [
       "DAILY_CALENDAR_CACHE_KEY_PREFIX",
       "Account sync preflight must inspect Daily's metadata cache instead of treating the page index as a Daily manifest.",
     ],
@@ -95,8 +99,8 @@ function run() {
       "Account sync preflight must block stale calendar metadata caches instead of reporting false readiness.",
     ],
     [
-      "CORE_METADATA_DOMAIN_REQUIRED_COUNT = 4",
-      "Account sync preflight must treat Page, Daily, ZhiHui, and Database as the four P0 metadata domains.",
+      "CORE_METADATA_DOMAIN_REQUIRED_COUNT = 5",
+      "Account sync preflight must treat Page, Daily, ZhiHui, Database, and Portfolio as the five P0 metadata domains.",
     ],
     [
       "daily-cloud-metadata",
@@ -113,6 +117,18 @@ function run() {
     [
       "meeting_cloud_metadata_readable",
       "Account sync preflight summary must report ZhiHui metadata readability.",
+    ],
+    [
+      "portfolio-cloud-metadata",
+      "Account sync preflight must expose Portfolio as a distinct core metadata domain.",
+    ],
+    [
+      "portfolio_cloud_metadata_readable",
+      "Account sync preflight summary must report Portfolio ACK metadata readability.",
+    ],
+    [
+      "record.stores_portfolio_content !== false",
+      "Account sync preflight portfolio metadata must prove it stores no portfolio content.",
     ],
     [
       "getAccountIdentityConfig",
@@ -183,8 +199,8 @@ function run() {
       "Account sync preflight must explain readiness for the real two-device smoke.",
     ],
     [
-      "页面、每日纪要、ZhiHui 和数据库云端 metadata 均可读",
-      "Account sync preflight ready copy must match the four-domain two-device smoke scope.",
+      "页面、每日纪要、ZhiHui、数据库和组合管理云端 metadata 均可读",
+      "Account sync preflight ready copy must match the five-domain two-device smoke scope.",
     ],
     [
       "本地输入继续保留并进入 pending",
@@ -281,16 +297,20 @@ function run() {
       "Sync Center must expose ZhiHui metadata preflight readability for smoke checks.",
     ],
     [
+      "data-account-sync-preflight-portfolio-readable",
+      "Sync Center must expose Portfolio metadata preflight readability for smoke checks.",
+    ],
+    [
       "data-account-sync-preflight-boundary=\"metadata-only\"",
       "Sync Center must disclose that the preflight is metadata-only.",
     ],
     [
-      "页面、每日纪要、ZhiHui、数据库云端链路",
-      "Sync Center preflight copy must use the same four-domain scope as the two-device smoke runbook.",
+      "页面、每日纪要、ZhiHui、数据库、组合云端链路",
+      "Sync Center preflight copy must use the same five-domain scope as the two-device smoke runbook.",
     ],
     [
-      "页面、每日纪要、ZhiHui 和数据库四个核心云端 metadata 域",
-      "Sync Center preflight summary must explain the four core metadata domains.",
+      "页面、每日纪要、ZhiHui、数据库和组合五个核心云端 metadata 域",
+      "Sync Center preflight summary must explain the five core metadata domains.",
     ],
     [
       "不读正文、不上传、不清缓存",

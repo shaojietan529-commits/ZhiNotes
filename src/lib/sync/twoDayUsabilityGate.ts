@@ -4,6 +4,8 @@ import type { CloudUploadReliabilityReport } from "@/lib/sync/cloudUploadReliabi
 import type { SyncAckLedgerServerReadiness } from "@/lib/sync/syncAckLedgerServerReadiness";
 import type { PendingDomainCoverageReport } from "@/lib/sync/syncPendingDomainRegistry";
 
+const ACCOUNT_SYNC_BRIDGE_REQUIRED_DOMAIN_COUNT = 5;
+
 export type TwoDayUsabilityVerdict =
   | "ready-for-cross-device-beta"
   | "usable-while-sync-drains"
@@ -166,7 +168,8 @@ export function buildTwoDayUsabilityGate(
   const accountBridgeProbeReady =
     Boolean(accountBridgeProbe) &&
     accountBridgeProbeStatus === "ready" &&
-    accountBridgeProbeReadableDomains === 4 &&
+    accountBridgeProbeReadableDomains ===
+      ACCOUNT_SYNC_BRIDGE_REQUIRED_DOMAIN_COUNT &&
     accountBridgeProbeFresh;
   const ackLedgerReady =
     input.ackLedgerServerReadiness.can_query_server_ledger_now &&
@@ -309,8 +312,8 @@ export function buildTwoDayUsabilityGate(
     evidence_required_before_claim: [
       "同步中心显示 pending、failed、manual review 全部清零。",
       "账号认证退避为无，临时接口失败不会自动登出任一设备。",
-      "账号同步桥只读检查显示页面、每日纪要、会议、数据库四个核心 metadata 域均可读。",
-      "页面、每日纪要、ZhiHui、数据库、文件元数据至少各完成一条真实两设备样本。",
+      "账号同步桥只读检查显示页面、每日纪要、会议、数据库、组合管理五个核心 metadata 域均可读。",
+      "页面、每日纪要、ZhiHui、数据库、组合管理、文件元数据至少各完成一条真实两设备样本。",
       "设备 B 刷新后能看到设备 A 的新增和编辑结果。",
       "ACK ledger 服务端就绪报告显示 remaining_blockers=0 且可以查询 server ledger。",
       "remote ACK cursor 或等价 ACK ledger 证明本地 rows 已被云端确认。",
@@ -390,7 +393,7 @@ function buildUserDecision(input: {
       mode: "ready-for-owner-smoke",
       headline: "可以开始真实两设备验收",
       detail:
-        "核心同步状态达到最低可测条件；下一步用两台真实登录设备跑 Page、每日纪要、ZhiHui、数据库和文件元数据 smoke。",
+        "核心同步状态达到最低可测条件；下一步用两台真实登录设备跑 Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据 smoke。",
       primary_risk: primaryRisk,
       next_action: input.nextBestAction,
       safe_actions: [
@@ -624,7 +627,7 @@ function accountBridgeProbeEvidence(input: {
   }。`;
 
   if (input.accountBridgeProbeReady) {
-    return `页面、每日纪要、会议和数据库四个核心 metadata 域均已通过只读检查，且回执仍在有效期内。${receiptWindow}`;
+    return `页面、每日纪要、会议、数据库和组合管理五个核心 metadata 域均已通过只读检查，且回执仍在有效期内。${receiptWindow}`;
   }
   if (input.accountBridgeProbeStatus === "not-run") {
     return "账号同步桥还没有运行只读检查；不能声称真实两设备同步已准备好。";
@@ -637,9 +640,10 @@ function accountBridgeProbeEvidence(input: {
   }
   if (
     input.accountBridgeProbeStatus === "ready" &&
-    input.accountBridgeProbeReadableDomains !== 4
+    input.accountBridgeProbeReadableDomains !==
+      ACCOUNT_SYNC_BRIDGE_REQUIRED_DOMAIN_COUNT
   ) {
-    return `账号同步桥只读检查只有 ${input.accountBridgeProbeReadableDomains}/4 域可读，仍有 ${input.accountBridgeProbeBlockedDomains} 个域不可读。${receiptWindow}`;
+    return `账号同步桥只读检查只有 ${input.accountBridgeProbeReadableDomains}/${ACCOUNT_SYNC_BRIDGE_REQUIRED_DOMAIN_COUNT} 域可读，仍有 ${input.accountBridgeProbeBlockedDomains} 个域不可读。${receiptWindow}`;
   }
   return `账号同步桥只读检查为 ${input.accountBridgeProbeStatus}：${input.accountBridgeProbeReadableDomains} 个域可读，${input.accountBridgeProbeBlockedDomains} 个域不可读。${receiptWindow}`;
 }

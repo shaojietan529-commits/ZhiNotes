@@ -456,7 +456,7 @@ function buildOwnerSetupSteps(input: {
       owner_action:
         syncDomainGate.status === "pass"
           ? "页面、数据库和文件队列都可见；继续清队列。"
-          : "先确认页面、数据库和文件元数据同步域都可见；缺口未补齐前不要做跨设备验收。",
+          : "先确认页面、数据库、组合管理和文件元数据同步域都可见；缺口未补齐前不要做跨设备验收。",
     },
     {
       id: "drain-local-queues",

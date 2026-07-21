@@ -136,17 +136,19 @@ export interface StableUseAccountSyncPreflightPolicy {
   policy_status: "metadata-only-scoped-core-preflight";
   preflight_route: "/api/account/sync-preflight";
   sync_center_route: "/modules/sync#account-sync-preflight";
-  required_metadata_domain_count: 4;
+  required_metadata_domain_count: 5;
   required_metadata_domains: Array<
     | "page-cloud-index"
     | "daily-cloud-metadata"
     | "meeting-cloud-metadata"
     | "database-cloud-index"
+    | "portfolio-cloud-metadata"
   >;
   page_metadata_required: true;
   daily_metadata_required: true;
   zhihui_metadata_required: true;
   database_metadata_required: true;
+  portfolio_metadata_required: true;
   ready_requires_all_required_domains_readable: true;
   stale_or_partial_receipt_blocks_device_handoff: true;
   metadata_only: true;
@@ -321,17 +323,19 @@ const STABLE_USE_ACCOUNT_SYNC_PREFLIGHT_POLICY: StableUseAccountSyncPreflightPol
     policy_status: "metadata-only-scoped-core-preflight",
     preflight_route: "/api/account/sync-preflight",
     sync_center_route: "/modules/sync#account-sync-preflight",
-    required_metadata_domain_count: 4,
+    required_metadata_domain_count: 5,
     required_metadata_domains: [
       "page-cloud-index",
       "daily-cloud-metadata",
       "meeting-cloud-metadata",
       "database-cloud-index",
+      "portfolio-cloud-metadata",
     ],
     page_metadata_required: true,
     daily_metadata_required: true,
     zhihui_metadata_required: true,
     database_metadata_required: true,
+    portfolio_metadata_required: true,
     ready_requires_all_required_domains_readable: true,
     stale_or_partial_receipt_blocks_device_handoff: true,
     metadata_only: true,
@@ -341,7 +345,7 @@ const STABLE_USE_ACCOUNT_SYNC_PREFLIGHT_POLICY: StableUseAccountSyncPreflightPol
     can_clear_local_cache: false,
     can_enable_sync: false,
     user_facing_copy:
-      "两设备同步验收前，必须先在同步中心跑 metadata-only 账号同步预检；Page、每日纪要、ZhiHui、数据库四个核心域全部可读，且回执未过期，才允许继续做真实双设备 smoke。",
+      "两设备同步验收前，必须先在同步中心跑 metadata-only 账号同步预检；Page、每日纪要、ZhiHui、数据库、组合管理五个核心域全部可读，且回执未过期，才允许继续做真实双设备 smoke。",
   };
 
 function buildStableUseDevelopmentLanePolicy(input: {

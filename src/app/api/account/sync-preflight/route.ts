@@ -12,6 +12,7 @@ import {
   accountSessionUnconfirmedPayload,
 } from "@/lib/account/sessionResponses";
 import { maskEmail } from "@/lib/cloud/api";
+import { PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX } from "@/lib/portfolio/accountSyncKeys";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ const DAILY_CALENDAR_CACHE_KEY_PREFIX =
 const MEETING_CALENDAR_CACHE_KEY_PREFIX =
   "zhinotes:pagesync:meeting-calendar-cache:";
 const DATABASE_INDEX_KEY_PREFIX = "zhinotes:dbsync:index:";
-const CORE_METADATA_DOMAIN_REQUIRED_COUNT = 4;
+const CORE_METADATA_DOMAIN_REQUIRED_COUNT = 5;
 
 type AccountSyncPreflightStatus =
   | "ready"
@@ -64,10 +65,13 @@ interface AccountSyncPreflightPayload {
     daily_cloud_metadata_readable: boolean;
     meeting_cloud_metadata_readable: boolean;
     database_cloud_index_readable: boolean;
+    portfolio_cloud_metadata_readable: boolean;
     page_cloud_records: number | null;
     daily_cloud_records: number | null;
     meeting_cloud_records: number | null;
     database_cloud_records: number | null;
+    portfolio_cloud_records: number | null;
+    portfolio_cloud_metadata_present: boolean;
     cloud_metadata_domains_ready: number;
     cloud_metadata_domains_required: typeof CORE_METADATA_DOMAIN_REQUIRED_COUNT;
     keeps_session_cookie: boolean;
@@ -88,6 +92,12 @@ interface CalendarMetadataCacheSummary {
   cachePresent: boolean;
   watermark: string;
   stale: boolean;
+}
+
+interface PortfolioMetadataSummary {
+  recordCount: number;
+  metadataPresent: boolean;
+  lastAckAt: string | null;
 }
 
 export async function GET(request: Request) {
@@ -130,6 +140,12 @@ export async function GET(request: Request) {
             "数据库云端索引",
             "账号云同步配置未完成，无法读取数据库云端索引。"
           ),
+          check(
+            "portfolio-cloud-metadata",
+            "blocked",
+            "组合管理 metadata",
+            "账号云同步配置未完成，无法读取组合云端 ACK metadata。"
+          ),
         ],
         missingEnv: accountIdentityMissingEnv(),
       }),
@@ -169,6 +185,12 @@ export async function GET(request: Request) {
             "blocked",
             "数据库云端索引",
             "需要登录后才能读取该账号的数据库索引。"
+          ),
+          check(
+            "portfolio-cloud-metadata",
+            "blocked",
+            "组合管理 metadata",
+            "需要登录后才能读取该账号的组合云端 ACK metadata。"
           ),
         ],
       }),
@@ -220,6 +242,12 @@ export async function GET(request: Request) {
               "数据库云端索引",
               "会话暂时无法确认，未读取数据库索引。"
             ),
+            check(
+              "portfolio-cloud-metadata",
+              "blocked",
+              "组合管理 metadata",
+              "会话暂时无法确认，未读取组合云端 ACK metadata。"
+            ),
           ],
         }),
       },
@@ -268,6 +296,12 @@ export async function GET(request: Request) {
               "数据库云端索引",
               "会话暂时无法确认，未读取数据库索引。"
             ),
+            check(
+              "portfolio-cloud-metadata",
+              "blocked",
+              "组合管理 metadata",
+              "会话暂时无法确认，未读取组合云端 ACK metadata。"
+            ),
           ],
         }),
       },
@@ -275,22 +309,27 @@ export async function GET(request: Request) {
     );
   }
 
-  const [pageIndex, dailyCache, meetingCache, databaseIndex] = await Promise.allSettled([
-    readCloudIndexSummary(config.kv, `${PAGE_INDEX_KEY_PREFIX}${account.email}`),
-    readCalendarMetadataCacheSummary({
-      kv: config.kv,
-      key: `${DAILY_CALENDAR_CACHE_KEY_PREFIX}${account.email}`,
-      recordsKey: "notes",
-      indexWatermark: null,
-    }),
-    readCalendarMetadataCacheSummary({
-      kv: config.kv,
-      key: `${MEETING_CALENDAR_CACHE_KEY_PREFIX}${account.email}`,
-      recordsKey: "meetings",
-      indexWatermark: null,
-    }),
-    readJsonIndex(config.kv, `${DATABASE_INDEX_KEY_PREFIX}${account.email}`),
-  ]);
+  const [pageIndex, dailyCache, meetingCache, databaseIndex, portfolioMetadata] =
+    await Promise.allSettled([
+      readCloudIndexSummary(config.kv, `${PAGE_INDEX_KEY_PREFIX}${account.email}`),
+      readCalendarMetadataCacheSummary({
+        kv: config.kv,
+        key: `${DAILY_CALENDAR_CACHE_KEY_PREFIX}${account.email}`,
+        recordsKey: "notes",
+        indexWatermark: null,
+      }),
+      readCalendarMetadataCacheSummary({
+        kv: config.kv,
+        key: `${MEETING_CALENDAR_CACHE_KEY_PREFIX}${account.email}`,
+        recordsKey: "meetings",
+        indexWatermark: null,
+      }),
+      readJsonIndex(config.kv, `${DATABASE_INDEX_KEY_PREFIX}${account.email}`),
+      readPortfolioMetadataSummary(
+        config.kv,
+        `${PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX}${account.email}`
+      ),
+    ]);
   const pageReadable = pageIndex.status === "fulfilled";
   const pageWatermark = pageReadable ? pageIndex.value.watermark : null;
   const dailySummary =
@@ -315,6 +354,9 @@ export async function GET(request: Request) {
     (emptyPageIndex ||
       Boolean(meetingSummary?.cachePresent && !meetingSummary.stale));
   const databaseReadable = databaseIndex.status === "fulfilled";
+  const portfolioReadable = portfolioMetadata.status === "fulfilled";
+  const portfolioSummary =
+    portfolioMetadata.status === "fulfilled" ? portfolioMetadata.value : null;
   const checks = [
     check(
       "account-session",
@@ -354,12 +396,26 @@ export async function GET(request: Request) {
         ? "数据库云端索引 metadata 可读。"
         : "数据库云端索引暂时不可读；本地输入应继续进入 pending 队列。"
     ),
+    check(
+      "portfolio-cloud-metadata",
+      portfolioReadable ? "pass" : "blocked",
+      "组合管理 metadata",
+      portfolioReadable
+        ? portfolioSummary?.metadataPresent
+          ? "组合云端 ACK metadata 可读；预检没有读取持仓明细。"
+          : "组合云端 ACK metadata key 可读；当前账号还没有组合 ACK 小票。"
+        : "组合云端 ACK metadata 暂时不可读；本地组合输入应继续进入 pending 队列。"
+    ),
   ];
 
   return NextResponse.json(
     buildPayload({
       status:
-        pageReadable && dailyReadable && meetingReadable && databaseReadable
+        pageReadable &&
+        dailyReadable &&
+        meetingReadable &&
+        databaseReadable &&
+        portfolioReadable
           ? "ready"
           : "partial",
       generatedAt,
@@ -373,6 +429,10 @@ export async function GET(request: Request) {
         databaseIndex.status === "fulfilled"
           ? databaseIndex.value.recordCount
           : null,
+      portfolioRecords: portfolioReadable
+        ? (portfolioSummary?.recordCount ?? 0)
+        : null,
+      portfolioMetadataPresent: Boolean(portfolioSummary?.metadataPresent),
     })
   );
 }
@@ -388,6 +448,34 @@ async function readJsonIndex(
     throw new Error("invalid cloud index");
   }
   return { recordCount: Object.keys(parsed).length };
+}
+
+async function readPortfolioMetadataSummary(
+  kv: KvEnv,
+  key: string
+): Promise<PortfolioMetadataSummary> {
+  const raw = await kvGet(kv, key);
+  if (!raw) {
+    return { recordCount: 0, metadataPresent: false, lastAckAt: null };
+  }
+  const parsed = JSON.parse(raw) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("invalid portfolio metadata");
+  }
+  const record = parsed as Record<string, unknown>;
+  if (
+    record.format !== "zhinote-portfolio-account-cloud-metadata" ||
+    record.format_version !== 1 ||
+    record.stores_portfolio_content !== false
+  ) {
+    throw new Error("invalid portfolio metadata");
+  }
+  return {
+    recordCount: 1,
+    metadataPresent: true,
+    lastAckAt:
+      typeof record.last_ack_at === "string" ? record.last_ack_at : null,
+  };
 }
 
 async function readCloudIndexSummary(
@@ -475,6 +563,8 @@ function buildPayload({
   dailyRecords = null,
   meetingRecords = null,
   databaseRecords = null,
+  portfolioRecords = null,
+  portfolioMetadataPresent = false,
 }: {
   status: AccountSyncPreflightStatus;
   generatedAt: string;
@@ -485,6 +575,8 @@ function buildPayload({
   dailyRecords?: number | null;
   meetingRecords?: number | null;
   databaseRecords?: number | null;
+  portfolioRecords?: number | null;
+  portfolioMetadataPresent?: boolean;
 }): AccountSyncPreflightPayload {
   const pageReady = checks.some(
     (item) => item.id === "page-cloud-index" && item.status === "pass"
@@ -498,6 +590,9 @@ function buildPayload({
   const databaseReady = checks.some(
     (item) => item.id === "database-cloud-index" && item.status === "pass"
   );
+  const portfolioReady = checks.some(
+    (item) => item.id === "portfolio-cloud-metadata" && item.status === "pass"
+  );
   const accountSessionReady = checks.some(
     (item) => item.id === "account-session" && item.status === "pass"
   );
@@ -506,6 +601,7 @@ function buildPayload({
     dailyReady,
     meetingReady,
     databaseReady,
+    portfolioReady,
   ].filter(Boolean).length;
   return {
     format: "zhinote-account-sync-preflight",
@@ -532,10 +628,13 @@ function buildPayload({
       daily_cloud_metadata_readable: dailyReady,
       meeting_cloud_metadata_readable: meetingReady,
       database_cloud_index_readable: databaseReady,
+      portfolio_cloud_metadata_readable: portfolioReady,
       page_cloud_records: pageRecords,
       daily_cloud_records: dailyRecords,
       meeting_cloud_records: meetingRecords,
       database_cloud_records: databaseRecords,
+      portfolio_cloud_records: portfolioRecords,
+      portfolio_cloud_metadata_present: portfolioMetadataPresent,
       cloud_metadata_domains_ready: readyDomains,
       cloud_metadata_domains_required: CORE_METADATA_DOMAIN_REQUIRED_COUNT,
       keeps_session_cookie: status === "unconfirmed",
@@ -580,7 +679,7 @@ function meetingBlockedDetail(
 
 function nextAction(status: AccountSyncPreflightStatus, readyDomains: number) {
   if (status === "ready") {
-    return "账号级页面、每日纪要、ZhiHui 和数据库云端 metadata 均可读；可以继续做同步中心账号同步桥和两设备真实同步 smoke。";
+    return "账号级页面、每日纪要、ZhiHui、数据库和组合管理云端 metadata 均可读；可以继续做同步中心账号同步桥和两设备真实同步 smoke。";
   }
   if (status === "partial") {
     return `只有 ${readyDomains}/${CORE_METADATA_DOMAIN_REQUIRED_COUNT} 个核心云端 metadata 域可读；先修不可读域，期间本地输入继续保留并进入 pending。`;

@@ -184,11 +184,12 @@ function verifySourceContracts() {
   assertIncludes(healthSource, 'policy_status: "metadata-only-scoped-core-preflight"', "account preflight policy must stay metadata-only");
   assertIncludes(healthSource, 'preflight_route: "/api/account/sync-preflight"', "account preflight policy must point to the preflight route");
   assertIncludes(healthSource, 'sync_center_route: "/modules/sync#account-sync-preflight"', "account preflight policy must point to the sync-center preflight entry");
-  assertIncludes(healthSource, "required_metadata_domain_count: 4", "account preflight policy must require four core metadata domains");
+  assertIncludes(healthSource, "required_metadata_domain_count: 5", "account preflight policy must require five core metadata domains");
   assertIncludes(healthSource, '"page-cloud-index"', "account preflight policy must require page metadata");
   assertIncludes(healthSource, '"daily-cloud-metadata"', "account preflight policy must require Daily metadata");
   assertIncludes(healthSource, '"meeting-cloud-metadata"', "account preflight policy must require ZhiHui metadata");
   assertIncludes(healthSource, '"database-cloud-index"', "account preflight policy must require database metadata");
+  assertIncludes(healthSource, '"portfolio-cloud-metadata"', "account preflight policy must require portfolio metadata");
   assertIncludes(healthSource, "ready_requires_all_required_domains_readable: true", "account preflight policy must require every core domain to be readable");
   assertIncludes(healthSource, "stale_or_partial_receipt_blocks_device_handoff: true", "account preflight policy must block handoff on stale or partial receipts");
   assertIncludes(healthSource, "metadata_only: true", "account preflight policy must be metadata-only");
@@ -798,7 +799,7 @@ function verifyRouteResult(result) {
   );
   assertEqual(
     accountSyncPreflightPolicy.required_metadata_domain_count,
-    4,
+    5,
     "account_sync_preflight_policy.required_metadata_domain_count"
   );
   for (const domain of [
@@ -806,6 +807,7 @@ function verifyRouteResult(result) {
     "daily-cloud-metadata",
     "meeting-cloud-metadata",
     "database-cloud-index",
+    "portfolio-cloud-metadata",
   ]) {
     if (!accountSyncPreflightPolicy.required_metadata_domains?.includes(domain)) {
       failures.push(
@@ -818,6 +820,7 @@ function verifyRouteResult(result) {
     ["daily_metadata_required", true],
     ["zhihui_metadata_required", true],
     ["database_metadata_required", true],
+    ["portfolio_metadata_required", true],
     ["ready_requires_all_required_domains_readable", true],
     ["stale_or_partial_receipt_blocks_device_handoff", true],
     ["metadata_only", true],
@@ -835,11 +838,11 @@ function verifyRouteResult(result) {
   }
   if (
     !String(accountSyncPreflightPolicy.user_facing_copy ?? "").includes(
-      "四个核心域全部可读"
+      "五个核心域全部可读"
     )
   ) {
     failures.push(
-      "account_sync_preflight_policy.user_facing_copy must require all four core domains"
+      "account_sync_preflight_policy.user_facing_copy must require all five core domains"
     );
   }
   if (

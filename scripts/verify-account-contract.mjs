@@ -1593,8 +1593,12 @@ check(
     syncDashboardShell.includes("getCloudDailyManifestSummary") &&
     syncDashboardShell.includes("getCloudMeetingManifestSummary") &&
     syncDashboardShell.includes("getCloudDatabaseManifestSummary") &&
-    syncDashboardShell.includes("页面、每日纪要、会议和数据库这四个") &&
-    syncDashboardShell.includes("不读取页面正文、数据库值、评论正文或文件字节") &&
+    syncDashboardShell.includes("buildPortfolioCoreManifestDomainCompare") &&
+    syncDashboardShell.includes("portfolioPendingStatus") &&
+    syncDashboardShell.includes("accountBridgeProbeReceipt") &&
+    syncDashboardShell.includes("页面、每日纪要、会议、数据库和组合管理这五个") &&
+    syncDashboardShell.includes("组合管理只读取 ACK metadata 状态，不读取持仓明细") &&
+    syncDashboardShell.includes("不读取页面正文、数据库值、评论正文、会议链接、会议号、密码或文件字节") &&
     syncDashboardShell.includes("不会上传或清理本机缓存") &&
     syncDashboardShell.includes("buildCoreManifestCompareReceipt") &&
     syncDashboardShell.includes("withCoreManifestCompareReceipt") &&
@@ -1618,7 +1622,7 @@ check(
     ) &&
     coreManifestCompareReceipt.includes("buildCoreManifestCompareReceipt") &&
     coreManifestCompareReceipt.includes("receipt_hash"),
-  "同步页应提供页面、每日纪要、会议和数据库的核心域云端 manifest metadata-only 对账和本地收据，只读 count/watermark/pending，不读取正文或上传/清缓存"
+  "同步页应提供页面、每日纪要、会议、数据库和组合管理的核心域云端 manifest metadata-only 对账和本地收据，只读 count/watermark/pending，不读取正文或持仓明细，不上传/清缓存"
 );
 check(
   pageSyncClient.includes("fetchCloudPageMetadata") &&

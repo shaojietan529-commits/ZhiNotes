@@ -3782,7 +3782,7 @@ function run() {
       "Two-day usability gate must explain stale account bridge receipts before handoff.",
     ],
     [
-      "账号同步桥只读检查显示页面、每日纪要、会议、数据库四个核心 metadata 域均可读。",
+      "账号同步桥只读检查显示页面、每日纪要、会议、数据库、组合管理五个核心 metadata 域均可读。",
       "Two-day usability gate must require account bridge probe evidence before claiming sync is usable.",
     ],
     [
@@ -4066,11 +4066,11 @@ function run() {
       "Two-device sync smoke runbook must include the final device handoff smoke step.",
     ],
     [
-      "Page、每日纪要、ZhiHui、数据库、文件元数据至少各跑一条测试样本",
+      "Page、每日纪要、ZhiHui、数据库、组合管理、文件元数据至少各跑一条测试样本",
       "Two-device sync smoke runbook must state the required real workflow samples for the final owner receipt.",
     ],
     [
-      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库和文件元数据",
+      "48 小时 scoped beta 可以先验收 Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据",
       "Two-device sync smoke runbook must let scoped beta verification proceed without claiming full-platform sync.",
     ],
     [
@@ -5767,7 +5767,7 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "页面、每日纪要、会议和数据库这四个",
+    "页面、每日纪要、会议、数据库和组合管理这五个",
     "Sync UI core manifest compare must cover daily notes and meetings."
   );
   assertIncludes(

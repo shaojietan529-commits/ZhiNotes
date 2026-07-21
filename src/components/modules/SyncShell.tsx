@@ -91,6 +91,7 @@ import {
 } from "@/lib/files/localStore";
 import { useFileEmbedCloudSyncStatus } from "@/hooks/useFileEmbedCloudSyncStatus";
 import { usePortfolioCloudSyncStatus } from "@/hooks/usePortfolioCloudSyncStatus";
+import type { PortfolioCloudSyncStatus } from "@/lib/portfolio/portfolioSyncStatus";
 import {
   getPendingFileEmbedSyncStatus,
   type PendingFileEmbedSyncStatus,
@@ -736,10 +737,13 @@ type AccountSyncPreflightSummary = {
   daily_cloud_metadata_readable: boolean;
   meeting_cloud_metadata_readable: boolean;
   database_cloud_index_readable: boolean;
+  portfolio_cloud_metadata_readable: boolean;
   page_cloud_records: number | null;
   daily_cloud_records: number | null;
   meeting_cloud_records: number | null;
   database_cloud_records: number | null;
+  portfolio_cloud_records: number | null;
+  portfolio_cloud_metadata_present: boolean;
   cloud_metadata_domains_ready: number;
   cloud_metadata_domains_required: number;
   keeps_session_cookie: boolean;
@@ -757,7 +761,12 @@ type AccountSyncPreflightReceipt = {
   missing_env?: string[];
 };
 type AccountSyncBridgeProbeStatus = "not-run" | "ready" | "blocked" | "partial";
-type AccountSyncBridgeProbeDomainId = "pages" | "daily" | "meetings" | "databases";
+type AccountSyncBridgeProbeDomainId =
+  | "pages"
+  | "daily"
+  | "meetings"
+  | "databases"
+  | "portfolio";
 type AccountSyncBridgeProbeDomain = {
   id: AccountSyncBridgeProbeDomainId;
   label: string;
@@ -899,7 +908,7 @@ type CoreManifestRebuildGate =
   | "blocked"
   | "manual-review";
 type CoreManifestDomainCompare = {
-  id: "pages" | "daily" | "meetings" | "databases";
+  id: "pages" | "daily" | "meetings" | "databases" | "portfolio";
   title: string;
   localCount: number;
   cloudCount: number | null;
@@ -1248,6 +1257,7 @@ function normalizeAccountSyncPreflightSummary(
     typeof record.daily_cloud_metadata_readable !== "boolean" ||
     typeof record.meeting_cloud_metadata_readable !== "boolean" ||
     typeof record.database_cloud_index_readable !== "boolean" ||
+    typeof record.portfolio_cloud_metadata_readable !== "boolean" ||
     (record.page_cloud_records !== null &&
       typeof record.page_cloud_records !== "number") ||
     (record.daily_cloud_records !== null &&
@@ -1256,6 +1266,9 @@ function normalizeAccountSyncPreflightSummary(
       typeof record.meeting_cloud_records !== "number") ||
     (record.database_cloud_records !== null &&
       typeof record.database_cloud_records !== "number") ||
+    (record.portfolio_cloud_records !== null &&
+      typeof record.portfolio_cloud_records !== "number") ||
+    typeof record.portfolio_cloud_metadata_present !== "boolean" ||
     typeof record.cloud_metadata_domains_ready !== "number" ||
     typeof record.cloud_metadata_domains_required !== "number" ||
     typeof record.keeps_session_cookie !== "boolean" ||
@@ -1270,10 +1283,15 @@ function normalizeAccountSyncPreflightSummary(
     daily_cloud_metadata_readable: record.daily_cloud_metadata_readable,
     meeting_cloud_metadata_readable: record.meeting_cloud_metadata_readable,
     database_cloud_index_readable: record.database_cloud_index_readable,
+    portfolio_cloud_metadata_readable:
+      record.portfolio_cloud_metadata_readable,
     page_cloud_records: record.page_cloud_records,
     daily_cloud_records: record.daily_cloud_records,
     meeting_cloud_records: record.meeting_cloud_records,
     database_cloud_records: record.database_cloud_records,
+    portfolio_cloud_records: record.portfolio_cloud_records,
+    portfolio_cloud_metadata_present:
+      record.portfolio_cloud_metadata_present,
     cloud_metadata_domains_ready: record.cloud_metadata_domains_ready,
     cloud_metadata_domains_required: record.cloud_metadata_domains_required,
     keeps_session_cookie: record.keeps_session_cookie,
@@ -1348,12 +1366,15 @@ function buildAccountSyncPreflightClientErrorReceipt(
       daily_cloud_metadata_readable: false,
       meeting_cloud_metadata_readable: false,
       database_cloud_index_readable: false,
+      portfolio_cloud_metadata_readable: false,
       page_cloud_records: null,
       daily_cloud_records: null,
       meeting_cloud_records: null,
       database_cloud_records: null,
+      portfolio_cloud_records: null,
+      portfolio_cloud_metadata_present: false,
       cloud_metadata_domains_ready: 0,
-      cloud_metadata_domains_required: 4,
+      cloud_metadata_domains_required: 5,
       keeps_session_cookie: true,
       next_action:
         "同步体检请求暂时没有完成；这不是登出。本地输入和 pending 队列保留，稍后可重试。",
@@ -1430,6 +1451,16 @@ function buildAccountSyncBridgeProbeReceiptFromPreflight(
       count: receipt.summary.database_cloud_records,
       detail: getAccountSyncPreflightCheckDetail(receipt, "database-cloud-index"),
     }),
+    buildAccountSyncBridgeProbeDomainFromPreflight({
+      id: "portfolio",
+      label: "组合管理",
+      readable: receipt.summary.portfolio_cloud_metadata_readable,
+      count: receipt.summary.portfolio_cloud_records,
+      detail: getAccountSyncPreflightCheckDetail(
+        receipt,
+        "portfolio-cloud-metadata"
+      ),
+    }),
   ];
   const readableDomains = domains.filter((domain) => domain.status === "ok").length;
   const blockedDomains = domains.length - readableDomains;
@@ -1466,12 +1497,13 @@ function buildAccountSyncBridgeProbeErrorReceipt(
     ).toISOString(),
     status: "blocked",
     readable_domains: 0,
-    blocked_domains: 4,
+    blocked_domains: 5,
     domains: [
       "pages",
       "daily",
       "meetings",
       "databases",
+      "portfolio",
     ].map((id) => ({
       id: id as AccountSyncBridgeProbeDomainId,
       label:
@@ -1481,7 +1513,9 @@ function buildAccountSyncBridgeProbeErrorReceipt(
             ? "每日纪要"
             : id === "meetings"
               ? "会议日历"
-              : "数据库",
+              : id === "databases"
+                ? "数据库"
+                : "组合管理",
       status: "error",
       count: null,
       deleted: null,
@@ -1587,7 +1621,7 @@ function normalizeAccountSyncBridgeProbeReceipt(
     .filter((domain): domain is AccountSyncBridgeProbeDomain =>
       Boolean(domain)
     );
-  if (domains.length !== 4) return null;
+  if (domains.length !== 5) return null;
   return {
     checked_at: candidate.checked_at,
     expires_at: candidate.expires_at,
@@ -2012,7 +2046,7 @@ function buildTwoDeviceHandoffVerdict(input: {
         "账号同步桥、ACK、pendingAfter=0 和 A/B 双向可见证据都已满足；仍然只把它作为 owner evidence，不自动宣称完整平台同步通过。",
       primary_blocker: "无",
       next_action:
-        "用另一台设备复核 Page、每日纪要、ZhiHui、数据库和文件元数据，然后保存脱敏验收收据。",
+        "用另一台设备复核 Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据，然后保存脱敏验收收据。",
       safe_actions: [
         "继续在当前设备写作",
         "用第二台设备做只读复核",
@@ -2056,9 +2090,9 @@ function buildTwoDeviceHandoffVerdict(input: {
       tone: "warning",
       headline: "当前设备可继续用，先别换设备",
       detail:
-        "账号同步桥还没有 4/4 metadata 可读的有效回执；另一台设备可能看不到完整索引。",
+        "账号同步桥还没有 5/5 metadata 可读的有效回执；另一台设备可能看不到完整索引。",
       primary_blocker: "账号同步桥未 ready",
-      next_action: "点击“刷新同步桥”，拿到未过期的 4/4 metadata 回执。",
+      next_action: "点击“刷新同步桥”，拿到未过期的 5/5 metadata 回执。",
       safe_actions: ["当前设备继续写作", "刷新同步桥", "修复 Daily/ZhiHui metadata"],
       blocked_actions: ["把当前状态当成多端同步通过", "清缓存后重建"],
     };
@@ -2114,7 +2148,7 @@ function buildTwoDeviceHandoffVerdict(input: {
       tone: "info",
       headline: "可以先跑 48h scoped smoke",
       detail:
-        "Page、每日纪要、ZhiHui、数据库和文件元数据可进入 scoped 验收；完整换设备仍要等 ACK 账本和 owner evidence。",
+        "Page、每日纪要、ZhiHui、数据库、组合管理和文件元数据可进入 scoped 验收；完整换设备仍要等 ACK 账本和 owner evidence。",
       primary_blocker: summary.ack_ledger_ready
         ? "owner evidence 尚未填齐"
         : "ACK 账本尚未 ready",
@@ -2464,6 +2498,65 @@ function buildCoreManifestDomainCompare(input: {
     ...diffEvidence,
     ...action,
   };
+}
+
+function buildPortfolioCoreManifestDomainCompare(input: {
+  portfolioStatus: PortfolioCloudSyncStatus;
+  bridgeReceipt: AccountSyncBridgeProbeReceipt | null;
+}): CoreManifestDomainCompare {
+  const pending =
+    input.portfolioStatus.pending +
+    input.portfolioStatus.inFlight +
+    input.portfolioStatus.failed +
+    input.portfolioStatus.manualReviewCount;
+  const localWatermark =
+    input.portfolioStatus.lastAckAt ??
+    input.portfolioStatus.lastQueuedAt ??
+    input.portfolioStatus.lastAttemptAt ??
+    input.portfolioStatus.lastFailureAt ??
+    "";
+  const localSummary = {
+    count:
+      input.portfolioStatus.mode ||
+      input.portfolioStatus.lastAckAt ||
+      pending > 0
+        ? 1
+        : 0,
+    deleted: 0,
+    watermark: localWatermark,
+  };
+  const portfolioDomain = input.bridgeReceipt?.domains.find(
+    (domain) => domain.id === "portfolio"
+  );
+  const bridgeFresh = isFreshReadyAccountSyncBridgeProbeReceipt(
+    input.bridgeReceipt
+  );
+  const cloudReadable =
+    bridgeFresh &&
+    input.bridgeReceipt?.status === "ready" &&
+    portfolioDomain?.status === "pass";
+  return buildCoreManifestDomainCompare({
+    id: "portfolio",
+    title: "组合管理",
+    localSummary,
+    cloudResult: cloudReadable
+      ? {
+          status: "ok",
+          summary: {
+            count: portfolioDomain?.count ?? 0,
+            deleted: 0,
+            watermark: input.portfolioStatus.lastAckAt ?? "",
+          },
+        }
+      : {
+          status: input.bridgeReceipt?.status ?? "missing-account-sync-bridge",
+          summary: null,
+          message:
+            portfolioDomain?.message ??
+            "组合管理需要先跑账号同步桥，确认云端 ACK metadata 可读；该检查不会读取持仓明细。",
+        },
+    pending,
+  });
 }
 
 function buildCoreManifestDiffEvidence(input: {
@@ -7390,6 +7483,10 @@ function SyncDashboard() {
             nextDatabasePending.queued +
             (nextDatabasePending.syncLogPending ?? 0),
         }),
+        buildPortfolioCoreManifestDomainCompare({
+          portfolioStatus: portfolioPendingStatus,
+          bridgeReceipt: accountBridgeProbeReceipt,
+        }),
       ];
       const dateDiffReport = buildCoreDateManifestDiffReport({
         daily: {
@@ -7416,7 +7513,7 @@ function SyncDashboard() {
         domains,
         dateDiffReport,
         privacyNote:
-          "核心域云端 manifest 对账只读取页面、每日纪要、会议和数据库的本地/云端 metadata summary 的 count、deleted、watermark、日期桶数量和 pending 数，不读取页面正文、数据库值、评论正文、会议链接、会议号、密码或文件字节；不会上传或清理本机缓存。",
+          "核心域云端 manifest 对账只读取页面、每日纪要、会议、数据库和组合管理的本地/云端 metadata summary 的 count、deleted、watermark、日期桶数量和 pending 数；组合管理只读取 ACK metadata 状态，不读取持仓明细；不读取页面正文、数据库值、评论正文、会议链接、会议号、密码或文件字节；不会上传或清理本机缓存。",
       }));
     } catch (err) {
       console.error("[Zhinote] Failed to compare core manifests:", err);
@@ -25358,6 +25455,9 @@ function AccountSyncPreflightPanel({
       data-account-sync-preflight-database-readable={String(
         receipt?.summary.database_cloud_index_readable ?? false
       )}
+      data-account-sync-preflight-portfolio-readable={String(
+        receipt?.summary.portfolio_cloud_metadata_readable ?? false
+      )}
       data-account-sync-preflight-boundary="metadata-only"
       data-account-sync-preflight-storage-key={ACCOUNT_SYNC_PREFLIGHT_STORAGE_KEY}
       data-account-sync-preflight-auto-delay-ms={String(
@@ -25380,11 +25480,12 @@ function AccountSyncPreflightPanel({
             </span>
           </div>
           <h2 className="mt-2 text-base font-semibold text-zinc-950 dark:text-zinc-50">
-            账号、页面、每日纪要、ZhiHui、数据库云端链路
+            账号、页面、每日纪要、ZhiHui、数据库、组合云端链路
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
             打开同步中心时会自动做一次只读体检：确认账号 session、页面云端索引、
-            每日纪要 metadata、ZhiHui metadata、数据库云端索引是否可读。
+            每日纪要 metadata、ZhiHui metadata、数据库云端索引、组合 ACK metadata
+            是否可读。
             不读正文、不上传、不清缓存；
             如果状态是“临时无法确认”，它不是登出，本地输入和 pending 队列会保留。
           </p>
@@ -25443,7 +25544,7 @@ function AccountSyncPreflightPanel({
             ))}
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-7">
             <SyncHandoffQuickFact
               label="账号"
               value={
@@ -25494,9 +25595,20 @@ function AccountSyncPreflightPanel({
               detail="只读数据库云端索引 metadata，不读取行值。"
             />
             <SyncHandoffQuickFact
+              label="组合 ACK"
+              value={
+                receipt.summary.portfolio_cloud_metadata_readable
+                  ? receipt.summary.portfolio_cloud_metadata_present
+                    ? "可读"
+                    : "暂无小票"
+                  : "不可读"
+              }
+              detail="只读组合 ACK metadata，不读取持仓明细。"
+            />
+            <SyncHandoffQuickFact
               label="可读域"
               value={`${receipt.summary.cloud_metadata_domains_ready}/${receipt.summary.cloud_metadata_domains_required}`}
-              detail="页面、每日纪要、ZhiHui 和数据库四个核心云端 metadata 域。"
+              detail="页面、每日纪要、ZhiHui、数据库和组合五个核心云端 metadata 域。"
             />
           </div>
 
@@ -27123,7 +27235,7 @@ function TwoDayUsabilityGatePanel({ gate }: { gate: TwoDayUsabilityGate }) {
           value={formatAccountSyncBridgeProbeStatus(
             gate.summary.account_sync_bridge_probe_status
           )}
-          detail={`${gate.summary.account_sync_bridge_readable_domains}/4 域 · ${
+          detail={`${gate.summary.account_sync_bridge_readable_domains}/5 域 · ${
             gate.summary.account_sync_bridge_probe_fresh ? "有效" : "需重查"
           }`}
         />
@@ -27583,7 +27695,7 @@ function TwoDeviceSyncSmokeRunbookPanel({
           value={
             runbook.summary.account_sync_bridge_probe_ready ? "有效" : "重查"
           }
-          detail={`${runbook.summary.account_sync_bridge_readable_domains}/4 域`}
+          detail={`${runbook.summary.account_sync_bridge_readable_domains}/5 域`}
         />
         <CacheRebuildFact
           label="覆盖"
@@ -27672,7 +27784,7 @@ function TwoDeviceSyncSmokeRunbookPanel({
               验收前快捷动作
             </div>
             <p className="mt-1">
-              如果同步桥不是 4/4 或 Daily/ZhiHui metadata 不可读，先在这里刷新；
+              如果同步桥不是 5/5 或 Daily/ZhiHui metadata 不可读，先在这里刷新；
               这些动作不上传、不清缓存，也不会把结果自动标成两端同步通过。
             </p>
           </div>
@@ -30686,7 +30798,7 @@ function CoreManifestComparePanel({
             {report ? <CoreManifestStatusPill status={report.status} /> : null}
           </div>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            只读检查页面、每日纪要、会议和数据库这四个已接入账号同步的核心域：读取本地
+            只读检查页面、每日纪要、会议、数据库和组合管理这五个已接入账号同步的核心域：读取本地
             metadata summary 与云端 manifest summary 的 count、deleted、watermark，再结合
             pending 队列判断是否已对齐。
           </p>

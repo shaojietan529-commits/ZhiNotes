@@ -10,6 +10,12 @@ import {
   type AccountIdentityConfig,
 } from "@/lib/account/server";
 import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
+import {
+  PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX,
+  PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX,
+  PORTFOLIO_ACCOUNT_SHARED_WITH_KEY_PREFIX,
+  PORTFOLIO_ACCOUNT_SHARE_KEY_PREFIX,
+} from "@/lib/portfolio/accountSyncKeys";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +24,6 @@ export const dynamic = "force-dynamic";
 // other allowlisted emails. The passcode-based /api/portfolio/sync route
 // stays untouched for devices that are not signed in.
 
-const DATA_KEY_PREFIX = "zhinotes:portfolio:data:acct:";
-const SHARE_KEY_PREFIX = "zhinotes:portfolio:share:"; // emails I shared to
-const SHARED_WITH_KEY_PREFIX = "zhinotes:portfolio:sharedwith:"; // owners who shared to me
 const MAX_PAYLOAD_BYTES = 1024 * 1024;
 const MAX_SHARE_MEMBERS = 20;
 
@@ -93,7 +96,7 @@ export async function POST(request: Request) {
         // Reading someone else's portfolio requires being on their list.
         const members = await readEmailList(
           config,
-          `${SHARE_KEY_PREFIX}${from}`
+          `${PORTFOLIO_ACCOUNT_SHARE_KEY_PREFIX}${from}`
         );
         if (!members.includes(me)) {
           return NextResponse.json(
@@ -101,13 +104,19 @@ export async function POST(request: Request) {
             { status: 403 }
           );
         }
-        const raw = await kvGet(config.kv, `${DATA_KEY_PREFIX}${from}`);
+        const raw = await kvGet(
+          config.kv,
+          `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${from}`
+        );
         return NextResponse.json({
           data: raw ? JSON.parse(raw) : null,
           readOnly: true,
         });
       }
-      const raw = await kvGet(config.kv, `${DATA_KEY_PREFIX}${me}`);
+      const raw = await kvGet(
+        config.kv,
+        `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`
+      );
       return NextResponse.json({ data: raw ? JSON.parse(raw) : null });
     }
 
@@ -124,7 +133,10 @@ export async function POST(request: Request) {
           ? (incoming.tagMap as Record<string, string>)
           : {};
       let mergedTags = incomingTags;
-      const existingRaw = await kvGet(config.kv, `${DATA_KEY_PREFIX}${me}`);
+      const existingRaw = await kvGet(
+        config.kv,
+        `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`
+      );
       if (existingRaw) {
         try {
           const existing = JSON.parse(existingRaw);
@@ -141,7 +153,26 @@ export async function POST(request: Request) {
       if (serialized.length > MAX_PAYLOAD_BYTES) {
         return NextResponse.json({ error: "数据过大" }, { status: 413 });
       }
-      await kvSet(config.kv, `${DATA_KEY_PREFIX}${me}`, serialized);
+      const ackUpdatedAt =
+        typeof incoming.updatedAt === "string" ? incoming.updatedAt : null;
+      const ackedAt = new Date().toISOString();
+      await Promise.all([
+        kvSet(config.kv, `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`, serialized),
+        kvSet(
+          config.kv,
+          `${PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX}${me}`,
+          JSON.stringify({
+            format: "zhinote-portfolio-account-cloud-metadata",
+            format_version: 1,
+            metadata_status: "acknowledged",
+            owner: me,
+            updated_at: ackUpdatedAt,
+            last_ack_at: ackedAt,
+            has_data: true,
+            stores_portfolio_content: false,
+          })
+        ),
+      ]);
       return NextResponse.json({
         ok: true,
         tagMap: mergedTags,
@@ -151,16 +182,15 @@ export async function POST(request: Request) {
           ack_status: "acknowledged",
           accepted: true,
           owner: me,
-          updated_at:
-            typeof incoming.updatedAt === "string" ? incoming.updatedAt : null,
+          updated_at: ackUpdatedAt,
         },
       });
     }
 
     if (body.action === "shares") {
       const [members, sharedWithMe] = await Promise.all([
-        readEmailList(config, `${SHARE_KEY_PREFIX}${me}`),
-        readEmailList(config, `${SHARED_WITH_KEY_PREFIX}${me}`),
+        readEmailList(config, `${PORTFOLIO_ACCOUNT_SHARE_KEY_PREFIX}${me}`),
+        readEmailList(config, `${PORTFOLIO_ACCOUNT_SHARED_WITH_KEY_PREFIX}${me}`),
       ]);
       return NextResponse.json({ members, sharedWithMe });
     }
@@ -185,7 +215,10 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const members = await readEmailList(config, `${SHARE_KEY_PREFIX}${me}`);
+      const members = await readEmailList(
+        config,
+        `${PORTFOLIO_ACCOUNT_SHARE_KEY_PREFIX}${me}`
+      );
       if (members.includes(email)) {
         return NextResponse.json({ members });
       }
@@ -198,16 +231,21 @@ export async function POST(request: Request) {
       const nextMembers = [...members, email];
       const reverse = await readEmailList(
         config,
-        `${SHARED_WITH_KEY_PREFIX}${email}`
+        `${PORTFOLIO_ACCOUNT_SHARED_WITH_KEY_PREFIX}${email}`
       );
       await Promise.all([
-        writeEmailList(config, `${SHARE_KEY_PREFIX}${me}`, nextMembers),
+        writeEmailList(
+          config,
+          `${PORTFOLIO_ACCOUNT_SHARE_KEY_PREFIX}${me}`,
+          nextMembers
+        ),
         reverse.includes(me)
           ? Promise.resolve()
-          : writeEmailList(config, `${SHARED_WITH_KEY_PREFIX}${email}`, [
-              ...reverse,
-              me,
-            ]),
+          : writeEmailList(
+              config,
+              `${PORTFOLIO_ACCOUNT_SHARED_WITH_KEY_PREFIX}${email}`,
+              [...reverse, me]
+            ),
       ]);
       return NextResponse.json({ members: nextMembers });
     }
@@ -217,17 +255,24 @@ export async function POST(request: Request) {
       if (!email) {
         return NextResponse.json({ error: "请输入有效邮箱。" }, { status: 400 });
       }
-      const members = await readEmailList(config, `${SHARE_KEY_PREFIX}${me}`);
+      const members = await readEmailList(
+        config,
+        `${PORTFOLIO_ACCOUNT_SHARE_KEY_PREFIX}${me}`
+      );
       const nextMembers = members.filter((item) => item !== email);
       const reverse = await readEmailList(
         config,
-        `${SHARED_WITH_KEY_PREFIX}${email}`
+        `${PORTFOLIO_ACCOUNT_SHARED_WITH_KEY_PREFIX}${email}`
       );
       await Promise.all([
-        writeEmailList(config, `${SHARE_KEY_PREFIX}${me}`, nextMembers),
         writeEmailList(
           config,
-          `${SHARED_WITH_KEY_PREFIX}${email}`,
+          `${PORTFOLIO_ACCOUNT_SHARE_KEY_PREFIX}${me}`,
+          nextMembers
+        ),
+        writeEmailList(
+          config,
+          `${PORTFOLIO_ACCOUNT_SHARED_WITH_KEY_PREFIX}${email}`,
           reverse.filter((item) => item !== me)
         ),
       ]);
