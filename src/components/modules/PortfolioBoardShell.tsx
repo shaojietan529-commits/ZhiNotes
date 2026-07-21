@@ -1891,6 +1891,110 @@ function RebalanceSimulator({
     return map;
   }, [projected]);
 
+  // ---- Export & email the confirmed rebalance instructions ----
+  const [exportConfirm, setExportConfirm] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportNotice, setExportNotice] = useState<{
+    kind: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  const localDateKey = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const downloadBase64Xlsx = (base64: string, filename: string) => {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+
+  const handleExportAndSend = async () => {
+    if (activeTrades.length === 0) return;
+    setExportBusy(true);
+    setExportNotice(null);
+    // Build the export payload. For existing positions, a post-trade NMV that
+    // has vanished from the projection means the position was fully unwound.
+    const payload = activeTrades.map((t) => {
+      let unwind = false;
+      if (t.positionKey) {
+        const post = projectedByKey.get(t.positionKey);
+        unwind = post === undefined || Math.abs(post) < 0.5;
+      }
+      return {
+        ticker: t.positionKey || t.ticker,
+        action: t.action,
+        amountK: t.amountK,
+        unwind,
+      };
+    });
+    try {
+      const res = await fetch("/api/portfolio/rebalance-export", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          trades: payload,
+          clientDate: localDateKey(),
+          send: true,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        emailed?: boolean;
+        emailError?: string | null;
+        recipient?: string;
+        filename?: string;
+        tradeCount?: number;
+        fileBase64?: string;
+        message?: string;
+        error?: string;
+      };
+      if (res.ok && json.ok && json.fileBase64 && json.filename) {
+        downloadBase64Xlsx(json.fileBase64, json.filename);
+        if (json.emailed) {
+          setExportNotice({
+            kind: "success",
+            text: `已发送 ${json.tradeCount} 笔调仓指令到 ${json.recipient}，并下载副本`,
+          });
+        } else {
+          setExportNotice({
+            kind: "error",
+            text: `文件已下载，但邮件发送失败：${json.emailError || "请检查邮箱配置后重试"}`,
+          });
+        }
+      } else {
+        const msg =
+          res.status === 401
+            ? "请先登录账号再导出"
+            : res.status === 501
+              ? "邮箱服务未配置，无法发送"
+              : json.message || json.error || "导出失败";
+        setExportNotice({ kind: "error", text: msg });
+      }
+    } catch {
+      setExportNotice({ kind: "error", text: "网络错误，导出失败" });
+    } finally {
+      setExportBusy(false);
+      setExportConfirm(false);
+    }
+  };
+
   // Totals for the footer (gross + net, current vs post-trade).
   const curGross = projected.curLong + projected.curShort;
   const projGross = projected.projLong + projected.projShort;
@@ -1911,16 +2015,66 @@ function RebalanceSimulator({
               </span>
             )}
           </div>
-          {trades.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setTrades([])}
-              className="text-xs text-zinc-400 hover:text-rose-500"
-            >
-              清空全部
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {activeTrades.length > 0 && !exportConfirm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setExportNotice(null);
+                  setExportConfirm(true);
+                }}
+                className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500"
+              >
+                📤 导出并发送调仓指令
+              </button>
+            )}
+            {exportConfirm && (
+              <div className="flex items-center gap-2 rounded-md bg-emerald-50 px-2.5 py-1.5 dark:bg-emerald-950/30">
+                <span className="text-xs text-emerald-800 dark:text-emerald-300">
+                  发送 {activeTrades.length} 笔到 Rtan@keystone-investors.com？
+                </span>
+                <button
+                  type="button"
+                  onClick={handleExportAndSend}
+                  disabled={exportBusy}
+                  className="rounded bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  {exportBusy ? "发送中…" : "确认发送"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExportConfirm(false)}
+                  disabled={exportBusy}
+                  className="rounded px-2 py-1 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                >
+                  取消
+                </button>
+              </div>
+            )}
+            {trades.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setTrades([])}
+                className="text-xs text-zinc-400 hover:text-rose-500"
+              >
+                清空全部
+              </button>
+            )}
+          </div>
         </div>
+
+        {exportNotice && (
+          <div
+            className={`border-b px-4 py-2 text-xs ${
+              exportNotice.kind === "success"
+                ? "border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300"
+                : "border-rose-100 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300"
+            }`}
+          >
+            {exportNotice.kind === "success" ? "✓ " : "✗ "}
+            {exportNotice.text}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
