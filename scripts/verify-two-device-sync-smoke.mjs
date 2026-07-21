@@ -13,6 +13,10 @@ const files = {
   runbook: "src/lib/sync/twoDeviceSyncSmokeRunbook.ts",
   twoDayGate: "src/lib/sync/twoDayUsabilityGate.ts",
   syncShell: "src/components/modules/SyncShell.tsx",
+  databaseRoute: "src/app/api/databases/account-sync/route.ts",
+  pageClient: "src/lib/pages/accountPageSync.ts",
+  databaseClient: "src/lib/database/accountDatabaseSync.ts",
+  knowledgeClient: "src/lib/sync/accountKnowledgeSync.ts",
 };
 
 const failures = [];
@@ -47,6 +51,10 @@ function run() {
   const runbook = readProjectFile(files.runbook);
   const twoDayGate = readProjectFile(files.twoDayGate);
   const syncShell = readProjectFile(files.syncShell);
+  const databaseRoute = readProjectFile(files.databaseRoute);
+  const pageClient = readProjectFile(files.pageClient);
+  const databaseClient = readProjectFile(files.databaseClient);
+  const knowledgeClient = readProjectFile(files.knowledgeClient);
   const packageJson = packageJsonSource
     ? JSON.parse(packageJsonSource)
     : { scripts: {} };
@@ -173,6 +181,109 @@ function run() {
     ],
   ]) {
     assertIncludes(files.runbook, runbook, snippet, message);
+  }
+
+  for (const [relativePath, source, expectedFormat, confirmFunction] of [
+    [
+      files.pageClient,
+      pageClient,
+      "zhinote-page-cloud-ack-receipt",
+      "pageCloudAckConfirmsPush",
+    ],
+    [
+      files.databaseClient,
+      databaseClient,
+      "zhinote-database-cloud-ack-receipt",
+      "databaseCloudAckConfirmsPush",
+    ],
+    [
+      files.knowledgeClient,
+      knowledgeClient,
+      "zhinote-knowledge-cloud-ack-receipt",
+      "knowledgeCloudAckConfirmsPush",
+    ],
+  ]) {
+    assertIncludes(
+      relativePath,
+      source,
+      expectedFormat,
+      "Client sync must require a stable cloud ACK receipt format before clearing pending rows."
+    );
+    assertIncludes(
+      relativePath,
+      source,
+      confirmFunction,
+      "Client sync must centralize ACK count validation before marking local rows synced."
+    );
+    assertIncludes(
+      relativePath,
+      source,
+      'ack?.ack_status === "acknowledged"',
+      "Client sync must reject missing or empty ACK before clearing pending rows."
+    );
+    assertIncludes(
+      relativePath,
+      source,
+      "requested_count === counts.requested",
+      "Client sync must require ACK requested_count to match the attempted local batch."
+    );
+    assertIncludes(
+      relativePath,
+      source,
+      "accepted_count === counts.accepted",
+      "Client sync must require ACK accepted_count to match accepted response rows."
+    );
+    assertIncludes(
+      relativePath,
+      source,
+      "skipped_count === counts.skipped",
+      "Client sync must require ACK skipped_count to match skipped response rows."
+    );
+  }
+
+  for (const [relativePath, source] of [
+    [files.databaseClient, databaseClient],
+    [files.knowledgeClient, knowledgeClient],
+  ]) {
+    assertIncludes(
+      relativePath,
+      source,
+      "rejected_count === counts.rejected",
+      "Client sync must require ACK rejected_count to match rejected response rows."
+    );
+  }
+
+  for (const [snippet, message] of [
+    [
+      "zhinote-database-cloud-ack-receipt",
+      "Database account sync route must return a stable cloud ACK receipt.",
+    ],
+    [
+      "requested_count: body.records.length",
+      "Database account sync route ACK must state how many records were attempted.",
+    ],
+    [
+      "accepted_count: accepted.length",
+      "Database account sync route ACK must state how many records were accepted.",
+    ],
+    [
+      "skipped_count: skipped.length",
+      "Database account sync route ACK must state how many records were skipped.",
+    ],
+    [
+      "rejected_count: rejected.length",
+      "Database account sync route ACK must state how many records were rejected.",
+    ],
+    [
+      "remote_cursor: summary.cursor",
+      "Database account sync route ACK must include the remote cursor.",
+    ],
+    [
+      "remote_watermark: summary.watermark",
+      "Database account sync route ACK must include the remote watermark.",
+    ],
+  ]) {
+    assertIncludes(files.databaseRoute, databaseRoute, snippet, message);
   }
 
   for (const stepId of [

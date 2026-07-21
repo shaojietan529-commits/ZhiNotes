@@ -114,6 +114,26 @@ interface DatabaseRecordsResult {
   summary: DatabaseSyncSummary;
 }
 
+interface DatabaseCloudAckReceipt {
+  format: "zhinote-database-cloud-ack-receipt";
+  format_version: 1;
+  ack_status: "acknowledged" | "empty";
+  generated_at: string;
+  requested_count: number;
+  accepted_count: number;
+  skipped_count: number;
+  rejected_count: number;
+  index_count: number;
+  index_deleted: number;
+  remote_watermark: string;
+  remote_cursor: string;
+  boundary: {
+    account_scoped: true;
+    stores_only_authenticated_account_copy: true;
+    uses_raw_browser_storage_dump: false;
+  };
+}
+
 function isValidId(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -645,11 +665,15 @@ export async function POST(request: Request) {
       const index = await readIndex(config, me);
       const accepted: string[] = [];
       const skipped: string[] = [];
+      const rejected: string[] = [];
       const changeLogEntries: DatabaseSyncChangeLogEntry[] = [];
 
       for (const item of body.records) {
         const record = sanitizeRecord(item);
-        if (!record) continue;
+        if (!record) {
+          rejected.push("invalid-record");
+          continue;
+        }
         const key = recordKey(record);
         const existing = index[key];
         if (existing && existing.u >= record.updated_at) {
@@ -684,7 +708,28 @@ export async function POST(request: Request) {
         );
         await appendChangeLog(config, me, changeLogEntries);
       }
-      return NextResponse.json({ ok: true, accepted, skipped });
+      const summary = summarizeIndex(index);
+      const ack: DatabaseCloudAckReceipt = {
+        format: "zhinote-database-cloud-ack-receipt",
+        format_version: 1,
+        ack_status:
+          accepted.length > 0 || skipped.length > 0 ? "acknowledged" : "empty",
+        generated_at: new Date().toISOString(),
+        requested_count: body.records.length,
+        accepted_count: accepted.length,
+        skipped_count: skipped.length,
+        rejected_count: rejected.length,
+        index_count: summary.count,
+        index_deleted: summary.deleted,
+        remote_watermark: summary.watermark,
+        remote_cursor: summary.cursor,
+        boundary: {
+          account_scoped: true,
+          stores_only_authenticated_account_copy: true,
+          uses_raw_browser_storage_dump: false,
+        },
+      };
+      return NextResponse.json({ ok: true, accepted, skipped, rejected, ack });
     }
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });

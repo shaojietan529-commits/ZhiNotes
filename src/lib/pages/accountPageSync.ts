@@ -1266,6 +1266,37 @@ export async function pushCloudPages(
     ? (res.json.skipped as string[])
     : [];
   const ack = normalizePageCloudAckReceipt(res.json.ack);
+  if (
+    !pageCloudAckConfirmsPush(ack, {
+      requested: records.length,
+      accepted: accepted.length,
+      skipped: skipped.length,
+    })
+  ) {
+    markPendingCloudPushFailedRecords(
+      records,
+      "error",
+      EMPTY_CLOUD_PAGE_ACK_MESSAGE
+    );
+    recordPageSyncOutcome({
+      status: "error",
+      source: "direct-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skippedRemoteNewer: 0,
+      pendingAfter: getPendingCloudPushIds().length,
+      message: EMPTY_CLOUD_PAGE_ACK_MESSAGE,
+    });
+    emitPageSyncStatusChanged();
+    return {
+      status: "error",
+      accepted: [],
+      skipped: [],
+      ack,
+      message: EMPTY_CLOUD_PAGE_ACK_MESSAGE,
+    };
+  }
   applyPageCloudAckReceipt(ack);
   const acknowledgedIds = [...accepted, ...skipped];
   if (records.length > 0 && acknowledgedIds.length === 0) {
@@ -2053,6 +2084,23 @@ function applyPageCloudAckReceipt(ack: PageCloudAckReceipt | null): void {
   if (!ack) return;
   setRemoteWatermark(ack.remote_watermark);
   setRemoteCursor(ack.remote_cursor);
+}
+
+function pageCloudAckConfirmsPush(
+  ack: PageCloudAckReceipt | null,
+  counts: {
+    requested: number;
+    accepted: number;
+    skipped: number;
+  }
+): ack is PageCloudAckReceipt {
+  return (
+    Boolean(ack) &&
+    ack?.ack_status === "acknowledged" &&
+    ack.requested_count === counts.requested &&
+    ack.accepted_count === counts.accepted &&
+    ack.skipped_count === counts.skipped
+  );
 }
 
 function toPageCloudAckOutcomeFields(

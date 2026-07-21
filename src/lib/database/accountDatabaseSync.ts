@@ -184,7 +184,28 @@ export interface PushCloudDatabasesResult {
   status: DatabaseSyncStatus;
   accepted: string[];
   skipped: string[];
+  ack?: DatabaseCloudAckReceipt | null;
   message?: string;
+}
+
+export interface DatabaseCloudAckReceipt {
+  format: "zhinote-database-cloud-ack-receipt";
+  format_version: 1;
+  ack_status: "acknowledged" | "empty";
+  generated_at: string;
+  requested_count: number;
+  accepted_count: number;
+  skipped_count: number;
+  rejected_count: number;
+  index_count: number;
+  index_deleted: number;
+  remote_watermark: string;
+  remote_cursor: string;
+  boundary: {
+    account_scoped: true;
+    stores_only_authenticated_account_copy: true;
+    uses_raw_browser_storage_dump: false;
+  };
 }
 
 export interface PushLocalDatabasesResult {
@@ -1535,6 +1556,42 @@ export async function pushCloudDatabaseRecords(
   const skipped = Array.isArray(res.json.skipped)
     ? (res.json.skipped as string[])
     : [];
+  const rejected = Array.isArray(res.json.rejected)
+    ? (res.json.rejected as string[])
+    : [];
+  const ack = normalizeDatabaseCloudAckReceipt(res.json.ack);
+  if (
+    !databaseCloudAckConfirmsPush(ack, {
+      requested: records.length,
+      accepted: accepted.length,
+      skipped: skipped.length,
+      rejected: rejected.length,
+    })
+  ) {
+    markPendingCloudDatabasePushFailedRecords(
+      records,
+      "error",
+      EMPTY_CLOUD_DATABASE_ACK_MESSAGE
+    );
+    emitDatabaseSyncStatusChanged();
+    recordDatabaseSyncOutcome({
+      status: "error",
+      source: "direct-push",
+      pulled: 0,
+      pushed: 0,
+      accepted: 0,
+      skipped: 0,
+      pendingAfter: getPendingCloudDatabasePushKeys().length,
+      message: EMPTY_CLOUD_DATABASE_ACK_MESSAGE,
+    });
+    return {
+      status: "error",
+      accepted: [],
+      skipped: [],
+      ack,
+      message: EMPTY_CLOUD_DATABASE_ACK_MESSAGE,
+    };
+  }
   const acknowledgedKeys = [...accepted, ...skipped];
   if (records.length > 0 && acknowledgedKeys.length === 0) {
     markPendingCloudDatabasePushFailedRecords(
@@ -1592,6 +1649,7 @@ export async function pushCloudDatabaseRecords(
     status: unacknowledgedRecords.length > 0 ? "error" : "ok",
     accepted,
     skipped,
+    ack,
     message:
       unacknowledgedRecords.length > 0
         ? PARTIAL_CLOUD_DATABASE_ACK_MESSAGE
@@ -2631,6 +2689,73 @@ function normalizeNonNegativeCount(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? Math.floor(value)
     : 0;
+}
+
+function normalizeDatabaseCloudAckReceipt(
+  value: unknown
+): DatabaseCloudAckReceipt | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const ack = value as Partial<DatabaseCloudAckReceipt>;
+  const boundary = ack.boundary;
+  if (ack.format !== "zhinote-database-cloud-ack-receipt") return null;
+  if (ack.format_version !== 1) return null;
+  if (ack.ack_status !== "acknowledged" && ack.ack_status !== "empty") {
+    return null;
+  }
+  if (
+    typeof ack.generated_at !== "string" ||
+    Number.isNaN(Date.parse(ack.generated_at))
+  ) {
+    return null;
+  }
+  if (typeof ack.remote_watermark !== "string") return null;
+  if (typeof ack.remote_cursor !== "string") return null;
+  if (
+    !boundary ||
+    boundary.account_scoped !== true ||
+    boundary.stores_only_authenticated_account_copy !== true ||
+    boundary.uses_raw_browser_storage_dump !== false
+  ) {
+    return null;
+  }
+  return {
+    format: "zhinote-database-cloud-ack-receipt",
+    format_version: 1,
+    ack_status: ack.ack_status,
+    generated_at: ack.generated_at,
+    requested_count: normalizeNonNegativeCount(ack.requested_count),
+    accepted_count: normalizeNonNegativeCount(ack.accepted_count),
+    skipped_count: normalizeNonNegativeCount(ack.skipped_count),
+    rejected_count: normalizeNonNegativeCount(ack.rejected_count),
+    index_count: normalizeNonNegativeCount(ack.index_count),
+    index_deleted: normalizeNonNegativeCount(ack.index_deleted),
+    remote_watermark: ack.remote_watermark,
+    remote_cursor: ack.remote_cursor,
+    boundary: {
+      account_scoped: true,
+      stores_only_authenticated_account_copy: true,
+      uses_raw_browser_storage_dump: false,
+    },
+  };
+}
+
+function databaseCloudAckConfirmsPush(
+  ack: DatabaseCloudAckReceipt | null,
+  counts: {
+    requested: number;
+    accepted: number;
+    skipped: number;
+    rejected: number;
+  }
+): ack is DatabaseCloudAckReceipt {
+  return (
+    Boolean(ack) &&
+    ack?.ack_status === "acknowledged" &&
+    ack.requested_count === counts.requested &&
+    ack.accepted_count === counts.accepted &&
+    ack.skipped_count === counts.skipped &&
+    ack.rejected_count === counts.rejected
+  );
 }
 
 function recordDatabaseSyncOutcome(

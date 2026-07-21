@@ -45,11 +45,23 @@ interface KnowledgePushResponse {
   accepted?: unknown;
   skipped?: unknown;
   rejected?: unknown;
-  ack?: {
-    ack_status?: string;
-    accepted_count?: number;
-    skipped_count?: number;
-    rejected_count?: number;
+  ack?: unknown;
+}
+
+interface KnowledgeCloudAckReceipt {
+  format: "zhinote-knowledge-cloud-ack-receipt";
+  format_version: 1;
+  ack_status: "acknowledged" | "empty";
+  requested_count: number;
+  accepted_count: number;
+  skipped_count: number;
+  rejected_count: number;
+  remote_cursor: string;
+  remote_watermark: string;
+  boundary: {
+    account_scoped: true;
+    stores_only_authenticated_account_copy: true;
+    uses_raw_browser_storage_dump: false;
   };
 }
 
@@ -65,6 +77,10 @@ const KNOWLEDGE_SYNC_REMOTE_CURSOR_KEY =
 const KNOWLEDGE_SYNC_REQUEST_TIMEOUT_MS = 12_000;
 const KNOWLEDGE_SYNC_RETRY_DELAY_MS = 60_000;
 const DEFAULT_KNOWLEDGE_SYNC_LIMIT = 80;
+const INVALID_KNOWLEDGE_ACK_MESSAGE =
+  "云端没有返回有效知识库 ACK，已保留为 pending。";
+const EMPTY_KNOWLEDGE_ACK_MESSAGE =
+  "云端没有确认任何知识库记录，已保留为 pending。";
 
 export async function syncAccountKnowledgeNow(
   options: AccountKnowledgeSyncOptions = {}
@@ -166,9 +182,47 @@ async function pushPendingKnowledgeRows(
     };
   }
 
-  const acceptedKeys = new Set(readStringArray(response.accepted));
-  const skippedKeys = new Set(readStringArray(response.skipped));
+  const accepted = readStringArray(response.accepted);
+  const skipped = readStringArray(response.skipped);
+  const rejected = readStringArray(response.rejected);
+  const ack = normalizeKnowledgeCloudAckReceipt(response.ack);
+  if (
+    !knowledgeCloudAckConfirmsPush(ack, {
+      requested: records.length,
+      accepted: accepted.length,
+      skipped: skipped.length,
+      rejected: rejected.length,
+    })
+  ) {
+    await markKnowledgeSyncLogEntriesFailed(
+      recordLogIds,
+      INVALID_KNOWLEDGE_ACK_MESSAGE,
+      KNOWLEDGE_SYNC_RETRY_DELAY_MS
+    );
+    return {
+      ...buildEmptyResult("error"),
+      failed: recordLogIds.length + missingLogIds.length,
+      totalPending: pending.entries.length,
+      message: INVALID_KNOWLEDGE_ACK_MESSAGE,
+    };
+  }
+
+  const acceptedKeys = new Set(accepted);
+  const skippedKeys = new Set(skipped);
   const acknowledgedKeys = new Set([...acceptedKeys, ...skippedKeys]);
+  if (records.length > 0 && acknowledgedKeys.size === 0) {
+    await markKnowledgeSyncLogEntriesFailed(
+      recordLogIds,
+      EMPTY_KNOWLEDGE_ACK_MESSAGE,
+      KNOWLEDGE_SYNC_RETRY_DELAY_MS
+    );
+    return {
+      ...buildEmptyResult("error"),
+      failed: recordLogIds.length + missingLogIds.length,
+      totalPending: pending.entries.length,
+      message: EMPTY_KNOWLEDGE_ACK_MESSAGE,
+    };
+  }
   const acknowledgedLogIds = pending.entries
     .filter((entry) => acknowledgedKeys.has(entry.key))
     .map((entry) => entry.logId);
@@ -318,6 +372,70 @@ function readStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function normalizeKnowledgeCloudAckReceipt(
+  value: unknown
+): KnowledgeCloudAckReceipt | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const ack = value as Partial<KnowledgeCloudAckReceipt>;
+  const boundary = ack.boundary;
+  if (ack.format !== "zhinote-knowledge-cloud-ack-receipt") return null;
+  if (ack.format_version !== 1) return null;
+  if (ack.ack_status !== "acknowledged" && ack.ack_status !== "empty") {
+    return null;
+  }
+  if (typeof ack.remote_cursor !== "string") return null;
+  if (typeof ack.remote_watermark !== "string") return null;
+  if (
+    !boundary ||
+    boundary.account_scoped !== true ||
+    boundary.stores_only_authenticated_account_copy !== true ||
+    boundary.uses_raw_browser_storage_dump !== false
+  ) {
+    return null;
+  }
+  return {
+    format: "zhinote-knowledge-cloud-ack-receipt",
+    format_version: 1,
+    ack_status: ack.ack_status,
+    requested_count: normalizeNonNegativeCount(ack.requested_count),
+    accepted_count: normalizeNonNegativeCount(ack.accepted_count),
+    skipped_count: normalizeNonNegativeCount(ack.skipped_count),
+    rejected_count: normalizeNonNegativeCount(ack.rejected_count),
+    remote_cursor: ack.remote_cursor,
+    remote_watermark: ack.remote_watermark,
+    boundary: {
+      account_scoped: true,
+      stores_only_authenticated_account_copy: true,
+      uses_raw_browser_storage_dump: false,
+    },
+  };
+}
+
+function knowledgeCloudAckConfirmsPush(
+  ack: KnowledgeCloudAckReceipt | null,
+  counts: {
+    requested: number;
+    accepted: number;
+    skipped: number;
+    rejected: number;
+  }
+): ack is KnowledgeCloudAckReceipt {
+  return (
+    Boolean(ack) &&
+    ack?.ack_status === "acknowledged" &&
+    ack.requested_count === counts.requested &&
+    ack.accepted_count === counts.accepted &&
+    ack.skipped_count === counts.skipped &&
+    ack.rejected_count === counts.rejected
+  );
+}
+
+function normalizeNonNegativeCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : 0;
 }
 
 function readKnowledgeRemoteCursor(): string {
