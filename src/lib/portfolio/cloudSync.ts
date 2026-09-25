@@ -14,6 +14,15 @@ export interface CloudPortfolioData {
   updatedAt: string;
 }
 
+export function portfolioCloudAckConfirmsPush(value: unknown, data: CloudPortfolioData): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const ack = value as Record<string, unknown>;
+  return ack.format === "zhinote-portfolio-cloud-ack-receipt" &&
+    ack.format_version === 1 && ack.ack_status === "acknowledged" &&
+    ack.accepted === true && typeof data.updatedAt === "string" &&
+    ack.updated_at === data.updatedAt;
+}
+
 const PASSCODE_KEY = "zhinote.portfolio.syncPasscode.v1";
 const PORTFOLIO_PASSCODE_SYNC_REQUEST_TIMEOUT_MS = 12000;
 
@@ -70,6 +79,7 @@ export async function pushCloudData(
     if (res.status === 403) return { status: "unauthorized" };
     if (!res.ok) return { status: "error" };
     const result = await res.json();
+    if (!portfolioCloudAckConfirmsPush(result.ack, data)) return { status: "error" };
     return {
       status: "ok",
       data:

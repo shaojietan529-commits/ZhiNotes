@@ -18,6 +18,7 @@ import {
   loadMaxNetPct,
   loadSnapshot,
   loadTagMap,
+  readPortfolioLocalFingerprint,
   saveDataUpdatedAt,
   saveTagMap,
 } from "@/lib/portfolio/portfolioStore";
@@ -48,6 +49,8 @@ export interface PortfolioCloudSyncStatus {
   enabled: true;
   mode: PortfolioSyncMode;
   queueState: PortfolioSyncQueueState;
+  pendingRevision: string | null;
+  attemptId: string | null;
   pending: number;
   inFlight: number;
   failed: number;
@@ -64,6 +67,13 @@ export interface PortfolioCloudSyncStatus {
   authRetryUntil: string | null;
   lastOutcome: PortfolioCloudSyncLastOutcome | null;
   storesPortfolioContent: false;
+}
+
+export interface PortfolioCloudSyncAttempt {
+  mode: PortfolioSyncMode;
+  pendingRevision: string | null;
+  attemptId: string;
+  localFingerprint: string;
 }
 
 export interface PortfolioCloudSyncLastOutcome {
@@ -93,6 +103,8 @@ function buildEmptyPortfolioCloudSyncStatus(
     enabled: true,
     mode,
     queueState: mode ? "synced" : "off",
+    pendingRevision: null,
+    attemptId: null,
     pending: 0,
     inFlight: 0,
     failed: 0,
@@ -134,6 +146,8 @@ export function markPortfolioCloudSyncPending(
     ...previous,
     mode,
     queueState: "pending",
+    pendingRevision: crypto.randomUUID(),
+    attemptId: null,
     pending: 1,
     inFlight: 0,
     failed: 0,
@@ -154,12 +168,19 @@ export function markPortfolioCloudSyncPending(
   });
 }
 
-export function markPortfolioCloudSyncAttempt(mode: PortfolioSyncMode): void {
+export function markPortfolioCloudSyncAttempt(mode: PortfolioSyncMode): PortfolioCloudSyncAttempt {
   const previous = getPendingPortfolioCloudSyncStatus();
+  const attempt: PortfolioCloudSyncAttempt = {
+    mode,
+    pendingRevision: previous.pendingRevision,
+    attemptId: crypto.randomUUID(),
+    localFingerprint: readPortfolioLocalFingerprint(),
+  };
   writePortfolioCloudSyncStatus({
     ...previous,
     mode,
     queueState: "syncing",
+    attemptId: attempt.attemptId,
     pending: 1,
     inFlight: 1,
     failed: 0,
@@ -169,14 +190,40 @@ export function markPortfolioCloudSyncAttempt(mode: PortfolioSyncMode): void {
     authRetryUntil: null,
     storesPortfolioContent: false,
   });
+  return attempt;
 }
 
-export function markPortfolioCloudSyncAck(mode: PortfolioSyncMode): void {
+export function isPortfolioCloudSyncAttemptCurrent(attempt: PortfolioCloudSyncAttempt): boolean {
+  const current = getPendingPortfolioCloudSyncStatus();
+  return current.mode === attempt.mode &&
+    current.pendingRevision === attempt.pendingRevision &&
+    current.attemptId === attempt.attemptId;
+}
+
+export function hasUnsyncedPortfolioChanges(): boolean {
+  const state = getPendingPortfolioCloudSyncStatus();
+  return state.pending > 0 || state.inFlight > 0 || state.failed > 0 ||
+    state.manualReviewCount > 0;
+}
+
+export function markPortfolioCloudSyncAck(
+  mode: PortfolioSyncMode,
+  attempt: PortfolioCloudSyncAttempt,
+  serverTags: ReturnType<typeof loadTagMap> | null = null
+): boolean {
+  if (mode !== attempt.mode || !isPortfolioCloudSyncAttemptCurrent(attempt)) return false;
+  if (readPortfolioLocalFingerprint() !== attempt.localFingerprint) {
+    markPortfolioCloudSyncPending(mode, "local-change-during-upload");
+    return false;
+  }
+  // No await between comparing the local revision and applying this receipt.
+  if (serverTags) saveTagMap(serverTags);
   const now = new Date().toISOString();
   const next: PortfolioCloudSyncStatus = {
     ...getPendingPortfolioCloudSyncStatus(),
     mode,
     queueState: mode ? "synced" : "off",
+    attemptId: null,
     pending: 0,
     inFlight: 0,
     failed: 0,
@@ -199,6 +246,7 @@ export function markPortfolioCloudSyncAck(mode: PortfolioSyncMode): void {
     storesPortfolioContent: false,
   };
   writePortfolioCloudSyncStatus(next);
+  return true;
 }
 
 export function markPortfolioCloudSyncFailure(
@@ -207,8 +255,10 @@ export function markPortfolioCloudSyncFailure(
   options: {
     retryable?: boolean;
     authRetryStatus?: Exclude<PortfolioAuthRetryStatus, null>;
+    attempt?: PortfolioCloudSyncAttempt;
   } = {}
 ): void {
+  if (options.attempt && !isPortfolioCloudSyncAttemptCurrent(options.attempt)) return;
   const previous = getPendingPortfolioCloudSyncStatus();
   const now = new Date().toISOString();
   const authRetryStatus = options.authRetryStatus ?? null;
@@ -223,6 +273,7 @@ export function markPortfolioCloudSyncFailure(
   const next: PortfolioCloudSyncStatus = {
     ...previous,
     mode,
+    attemptId: null,
     queueState: authRetryStatus
       ? "pending"
       : manualReview
@@ -268,7 +319,22 @@ export function markPortfolioCloudSyncOff(): void {
   });
 }
 
-export async function drainPendingPortfolioCloudSync(
+const portfolioDrains = new Map<PortfolioSyncMode, Promise<DrainPortfolioCloudSyncResult>>();
+
+export function drainPendingPortfolioCloudSync(
+  options: { mode?: PortfolioSyncMode } = {}
+): Promise<DrainPortfolioCloudSyncResult> {
+  const mode = options.mode ?? getPendingPortfolioCloudSyncStatus().mode;
+  const existing = portfolioDrains.get(mode);
+  if (existing) return existing;
+  const drain = drainPortfolioCloudSync({ mode }).finally(() => {
+    if (portfolioDrains.get(mode) === drain) portfolioDrains.delete(mode);
+  });
+  portfolioDrains.set(mode, drain);
+  return drain;
+}
+
+async function drainPortfolioCloudSync(
   options: { mode?: PortfolioSyncMode } = {}
 ): Promise<DrainPortfolioCloudSyncResult> {
   const snapshotStatus = getPendingPortfolioCloudSyncStatus();
@@ -301,33 +367,44 @@ export async function drainPendingPortfolioCloudSync(
       message: "组合队列已进入人工处理，先确认失败原因。",
     };
   }
-  markPortfolioCloudSyncAttempt(mode);
-  const now = new Date().toISOString();
-  saveDataUpdatedAt(now);
-  const data = buildPortfolioCloudData(now);
-  const result =
-    mode === "account"
+  let attempt: PortfolioCloudSyncAttempt | undefined;
+  let result: Awaited<ReturnType<typeof accountPushCloud>> | Awaited<ReturnType<typeof pushCloudData>>;
+  try {
+    // A retry is not a new edit. Keep its original timestamp.
+    if (!loadDataUpdatedAt()) saveDataUpdatedAt(new Date().toISOString());
+    attempt = markPortfolioCloudSyncAttempt(mode);
+    const data = buildPortfolioCloudData();
+    result = mode === "account"
       ? await accountPushCloud(data)
       : await pushCloudData(loadSyncPasscode() ?? "", data);
-  if (result.status === "ok") {
-    const serverTags = result.data;
-    if (serverTags) saveTagMap(serverTags);
-    markPortfolioCloudSyncAck(mode);
-    return {
-      status: "ok",
-      attempted: 1,
-      synced: 1,
-      failed: 0,
-      manualReview: 0,
-      authDeferred: 0,
-      pendingAfter: 0,
-    };
+    if (result.status === "ok") {
+      const cleared = markPortfolioCloudSyncAck(mode, attempt, result.data);
+      const current = getPendingPortfolioCloudSyncStatus();
+      return {
+        status: cleared ? "ok" : "deferred",
+        attempted: 1,
+        synced: 1,
+        failed: 0,
+        manualReview: current.manualReviewCount,
+        authDeferred: 0,
+        pendingAfter: current.pending,
+      };
+    }
+  } catch {
+    result = { status: "error", message: "无法确认本机组合版本；本地数据仍保留，未清除待上传状态。" };
+  }
+  // An older request's failure must not undo a later ACK or a newer edit.
+  if (attempt && !isPortfolioCloudSyncAttemptCurrent(attempt)) {
+    const current = getPendingPortfolioCloudSyncStatus();
+    return { status: "deferred", attempted: 1, synced: 0, failed: 0,
+      manualReview: current.manualReviewCount, authDeferred: 0, pendingAfter: current.pending };
   }
   const failure = classifyPortfolioCloudSyncFailure(result);
   if (result.status === "unauthorized") clearSyncPasscode();
   markPortfolioCloudSyncFailure(mode, failure.message, {
     retryable: failure.retryable,
     authRetryStatus: failure.authRetryStatus ?? undefined,
+    attempt,
   });
   const nextStatus = getPendingPortfolioCloudSyncStatus();
   return {
@@ -363,14 +440,14 @@ export function emitPortfolioCloudSyncStatusEvent(
   }
 }
 
-function buildPortfolioCloudData(updatedAt: string): CloudPortfolioData {
+function buildPortfolioCloudData(): CloudPortfolioData {
   return {
     snapshot: loadSnapshot(),
     tagMap: loadTagMap(),
     allocation: loadAllocation(),
     maxNetPct: loadMaxNetPct() || DEFAULT_MAX_NET_PCT,
     lastEmailMessageId: loadLastEmailMessageId(),
-    updatedAt: loadDataUpdatedAt() || updatedAt,
+    updatedAt: loadDataUpdatedAt()!,
   };
 }
 
@@ -404,6 +481,7 @@ function classifyPortfolioCloudSyncFailure(
   }
   return {
     message:
+      ("message" in result && typeof result.message === "string" ? result.message : null) ??
       "组合云同步暂时失败；本地组合数据已保留，会稍后继续补传。",
     retryable: true,
     authRetryStatus: null,
@@ -473,6 +551,8 @@ function normalizePortfolioCloudSyncStatus(
     enabled: true,
     mode,
     queueState,
+    pendingRevision: normalizeNullableString(candidate.pendingRevision),
+    attemptId: normalizeNullableString(candidate.attemptId),
     pending,
     inFlight,
     failed,

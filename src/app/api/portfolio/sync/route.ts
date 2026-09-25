@@ -171,7 +171,17 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "数据过大" }, { status: 413 });
       }
       await kvSet(env, DATA_KEY, serialized);
-      return NextResponse.json({ ok: true, tagMap: mergedTags });
+      return NextResponse.json({
+        ok: true,
+        tagMap: mergedTags,
+        ack: {
+          format: "zhinote-portfolio-cloud-ack-receipt",
+          format_version: 1,
+          ack_status: "acknowledged",
+          accepted: true,
+          updated_at: typeof incoming.updatedAt === "string" ? incoming.updatedAt : null,
+        },
+      });
     }
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });

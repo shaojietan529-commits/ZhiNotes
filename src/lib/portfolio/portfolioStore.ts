@@ -10,6 +10,17 @@ const ALLOCATION_KEY = "zhinote.portfolio.allocation.v1";
 const MAX_NET_KEY = "zhinote.portfolio.maxNetPct.v1";
 const EMAIL_MESSAGE_KEY = "zhinote.portfolio.lastEmailMessage.v1";
 const UPDATED_AT_KEY = "zhinote.portfolio.updatedAt.v1";
+const DATA_KEYS = [SNAPSHOT_KEY, TAGS_KEY, ALLOCATION_KEY, MAX_NET_KEY, EMAIL_MESSAGE_KEY, UPDATED_AT_KEY];
+
+export function isPortfolioDataStorageKey(key: string | null): boolean {
+  return key !== null && DATA_KEYS.includes(key);
+}
+
+// Memory-only comparison token. Unlike display loaders, a failed read must
+// throw so an ACK cannot mistake unreadable local data for an empty portfolio.
+export function readPortfolioLocalFingerprint(): string {
+  return JSON.stringify(DATA_KEYS.map((key) => window.localStorage.getItem(key)));
+}
 
 export const DEFAULT_GMV_ALLOCATION = 108_700_000;
 export const DEFAULT_MAX_NET_PCT = 12;
