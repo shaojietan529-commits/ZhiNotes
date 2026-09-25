@@ -926,7 +926,7 @@ export default function PortfolioBoardShell() {
           return;
         }
         // Imported book tags fill gaps but never overwrite manual edits.
-        const merged = { ...imported, ...tagMap };
+        const merged = { ...imported, ...loadTagMap() };
         saveTagMap(merged);
         queueLocalPortfolioChange();
         setTagMap(merged);
@@ -936,7 +936,7 @@ export default function PortfolioBoardShell() {
         setImportError("Book 文件解析失败，请确认格式。");
       }
     },
-    [tagMap, showNotice, queueLocalPortfolioChange]
+    [showNotice, queueLocalPortfolioChange]
   );
 
   // ----- email auto-import ----------------------------------------------------
@@ -1051,14 +1051,12 @@ export default function PortfolioBoardShell() {
 
   const handleTagChange = useCallback((key: string, tag: string) => {
     if (viewingOwnerRef.current) return;
-    setTagMap((current) => {
-      const next = { ...current };
-      if (tag.trim()) next[key] = tag.trim();
-      else delete next[key];
-      saveTagMap(next);
-      queueLocalPortfolioChange();
-      return next;
-    });
+    const next = { ...loadTagMap() };
+    if (tag.trim()) next[key] = tag.trim();
+    else delete next[key];
+    saveTagMap(next);
+    queueLocalPortfolioChange();
+    setTagMap(next);
   }, [queueLocalPortfolioChange]);
 
   const untagged = useMemo(
@@ -1106,12 +1104,12 @@ export default function PortfolioBoardShell() {
         window.alert("AI 没有返回任何标签建议。");
         return;
       }
-      setTagMap((current) => {
-        const next = { ...current, ...suggested };
-        saveTagMap(next);
-        queueLocalPortfolioChange();
-        return next;
-      });
+      if (viewingOwnerRef.current) return;
+      // Suggestions only fill gaps; manual labels entered while AI was running win.
+      const next = { ...suggested, ...loadTagMap() };
+      saveTagMap(next);
+      queueLocalPortfolioChange();
+      setTagMap(next);
       showNotice(`AI 已为 ${count} 只股票分配标签，可随时手动修改`);
     } catch (error) {
       if (error instanceof PortfolioActionRequestTimeoutError) {

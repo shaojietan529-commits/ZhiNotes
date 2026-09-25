@@ -16,6 +16,9 @@
 - Reuse one explicit ACK validator for both account and legacy passcode sync.
   The passcode route now returns an ACK only after its storage write succeeds.
 - Guard async sync UI callbacks while viewing a friend's read-only portfolio.
+- Persist and notify tag edits outside React state updater functions. A
+  delayed Book/AI result reads the latest local labels, preserving manual edits
+  made while the request was running.
 
 No new provider, dependency, migration, private-data export or production data
 repair is included. The new status fields contain identifiers, not holdings;
@@ -29,7 +32,8 @@ the comparison fingerprint stays in memory and is never logged or persisted.
 - Isolated Edge/Playwright test passes against the local app: two successive
   edits while an ACK is held, a remote pull during pending work, exact eventual
   upload, no status-ping write loop, clean reload, and immediate reload after a
-  third local edit. Three revisions produce three uploads; no page errors.
+  third local edit. Three revisions produce three uploads; no page errors or
+  React cross-component render/update warnings.
 - TypeScript, lint, production build, `verify:account`, and
   `verify:sync-pending-domains` pass. Source checks are not device acceptance.
 

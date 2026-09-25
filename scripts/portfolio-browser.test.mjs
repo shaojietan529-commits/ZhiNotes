@@ -64,6 +64,11 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     }, initial);
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+      if (/Cannot update a component|hydration|Maximum update depth/i.test(message.text())) {
+        errors.push(message.text());
+      }
+    });
     await page.goto(`${base}/portfolio`);
     const tag = page.getByTitle("点击修改标签", { exact: true });
     await tag.waitFor();
