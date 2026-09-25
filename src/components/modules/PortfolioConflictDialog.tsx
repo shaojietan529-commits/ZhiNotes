@@ -2,15 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  preparePortfolioConflictReview, type PortfolioConflictChoice, type PortfolioConflictMode,
+  preparePortfolioConflictReview, prepareLegacyPortfolioReview, type PortfolioConflictChoice, type PortfolioConflictMode,
   type PortfolioConflictReview,
 } from "@/lib/portfolio/portfolioConflictResolution";
 import { submitPortfolioConflictResolution, type DrainPortfolioCloudSyncResult } from "@/lib/portfolio/portfolioSyncStatus";
+import type { PortfolioStorageScope } from "@/lib/portfolio/portfolioStorageScope";
 
 const buttonClass = "rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800";
 
-export default function PortfolioConflictDialog({ mode, onClose, onUpdated }: {
+export default function PortfolioConflictDialog({ mode, scope, legacy = false, onClose, onUpdated }: {
   mode: PortfolioConflictMode;
+  scope: PortfolioStorageScope;
+  legacy?: boolean;
   onClose: () => void;
   onUpdated: (result: DrainPortfolioCloudSyncResult) => void;
 }) {
@@ -31,13 +34,13 @@ export default function PortfolioConflictDialog({ mode, onClose, onUpdated }: {
 
   useEffect(() => {
     let cancelled = false;
-    void preparePortfolioConflictReview(mode).then((next) => {
+    void (legacy ? prepareLegacyPortfolioReview(scope) : preparePortfolioConflictReview(mode, scope)).then((next) => {
       if (!cancelled) { setReview(next); setChoices({}); }
     }).catch((reason) => {
       if (!cancelled) setError(reason instanceof Error ? reason.message : "读取失败，未修改数据。");
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [mode, reload]);
+  }, [mode, scope, legacy, reload]);
 
   const readAgain = () => { setLoading(true); setReview(null); setError(null); setReload((value) => value + 1); };
   const selectAll = (side: PortfolioConflictChoice) => {
@@ -66,7 +69,7 @@ export default function PortfolioConflictDialog({ mode, onClose, onUpdated }: {
       <div className="flex max-h-[90dvh] flex-col">
         <header className="flex items-center justify-between gap-3 border-b border-zinc-200 p-4 dark:border-zinc-700">
           <div>
-            <h2 id="portfolio-conflict-title" className="text-lg font-semibold">处理组合同步冲突</h2>
+            <h2 id="portfolio-conflict-title" className="text-lg font-semibold">{legacy ? "核对旧版本机组合" : "处理组合同步冲突"}</h2>
             <p className="text-xs text-zinc-500">{loading ? "正在读取云端版本…" : review ? `本机与云端均已保留 · ${review.fields.length} 项差异` : "版本读取未完成"}</p>
           </div>
           <button type="button" className={buttonClass} onClick={onClose} disabled={submitting}>关闭</button>
@@ -90,7 +93,7 @@ export default function PortfolioConflictDialog({ mode, onClose, onUpdated }: {
                     <label className="flex cursor-pointer items-center gap-2 text-sm">
                       <input type="radio" name={`choice-${field.id}`} value={side} checked={choices[field.id] === side}
                         onChange={() => setChoices((current) => ({ ...current, [field.id]: side }))} />
-                      {side === "local" ? "保留本机" : "保留云端"}
+                      {side === "local" ? (legacy ? "保留旧版本机" : "保留本机") : (legacy ? "保留当前账号云端" : "保留云端")}
                     </label>
                     {field.id === "report" ? (
                       <details className="mt-2 text-xs">

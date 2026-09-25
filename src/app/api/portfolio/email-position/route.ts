@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requirePortfolioEmailOwner } from "@/lib/portfolio/portfolioEmailAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -121,7 +122,9 @@ function isPositionFileName(name: string): boolean {
   );
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const access = await requirePortfolioEmailOwner(request);
+  if (access.response) return access.response;
   const auth = await getAccessToken();
   if ("error" in auth) {
     if (auth.error === "unconfigured") {
@@ -218,13 +221,14 @@ export async function GET() {
     if (typeof fileData.contentBytes !== "string") continue;
 
     return NextResponse.json({
+      accountId: access.account.id,
       found: true,
       messageId: message.id,
       fileName: target.name,
       receivedAt: message.receivedDateTime,
       contentBase64: fileData.contentBytes,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   }
 
-  return NextResponse.json({ found: false });
+  return NextResponse.json({ found: false, accountId: access.account.id }, { headers: { "Cache-Control": "private, no-store" } });
 }

@@ -24,9 +24,11 @@ import {
 } from "@/lib/portfolio/portfolioStore";
 import { clearActivePortfolioConflict, readActivePortfolioConflict } from "./portfolioSyncRevision";
 import { capturePortfolioAccountContext, isPortfolioAccountContextCurrent, type PortfolioAccountContext } from "./portfolioAccountContext";
+import { assertPortfolioScopeCurrent, getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorage, type PortfolioStorageScope } from "./portfolioStorageScope";
 import {
   finishPortfolioConflictResolution, readPortfolioConflictResolution, saveLocalPortfolioData,
   stagePortfolioConflictResolution, writePortfolioConflictResolution,
+  PORTFOLIO_LEGACY_REVIEWED_KEY,
   type PortfolioConflictChoice, type PortfolioConflictResolution, type PortfolioConflictReview,
 } from "./portfolioConflictResolution";
 
@@ -82,6 +84,7 @@ export interface PortfolioCloudSyncAttempt {
   attemptId: string;
   localFingerprint: string;
   accountContext: PortfolioAccountContext | null;
+  storageScope: PortfolioStorageScope;
 }
 
 export interface PortfolioCloudSyncLastOutcome {
@@ -133,11 +136,11 @@ function buildEmptyPortfolioCloudSyncStatus(
   };
 }
 
-export function getPendingPortfolioCloudSyncStatus(): PortfolioCloudSyncStatus {
+export function getPendingPortfolioCloudSyncStatus(scope?: PortfolioStorageScope): PortfolioCloudSyncStatus {
   if (typeof window === "undefined") return buildEmptyPortfolioCloudSyncStatus();
   try {
     return normalizePortfolioCloudSyncStatus(
-      window.localStorage.getItem(PORTFOLIO_SYNC_STATUS_STORAGE_KEY)
+      portfolioStorage(scope).getItem(PORTFOLIO_SYNC_STATUS_STORAGE_KEY)
     );
   } catch {
     return buildEmptyPortfolioCloudSyncStatus();
@@ -146,11 +149,12 @@ export function getPendingPortfolioCloudSyncStatus(): PortfolioCloudSyncStatus {
 
 export function markPortfolioCloudSyncPending(
   mode: PortfolioSyncMode,
-  reason = "local-change"
+  reason = "local-change",
+  scope = getPortfolioStorageScope()
 ): void {
   const now = new Date().toISOString();
-  const previous = getPendingPortfolioCloudSyncStatus();
-  const needsReview = mode && readActivePortfolioConflict(mode) && reason !== "conflict-resolution";
+  const previous = getPendingPortfolioCloudSyncStatus(scope);
+  const needsReview = mode && readActivePortfolioConflict(mode, scope) && reason !== "conflict-resolution";
   writePortfolioCloudSyncStatus({
     ...previous,
     mode,
@@ -176,17 +180,18 @@ export function markPortfolioCloudSyncPending(
       message: `组合本地变更已进入待上传队列：${reason}。`,
     },
     storesPortfolioContent: false,
-  });
+  }, scope);
 }
 
-export function markPortfolioCloudSyncAttempt(mode: PortfolioSyncMode): PortfolioCloudSyncAttempt {
-  const previous = getPendingPortfolioCloudSyncStatus();
+export function markPortfolioCloudSyncAttempt(mode: PortfolioSyncMode, scope = getPortfolioStorageScope()): PortfolioCloudSyncAttempt {
+  const previous = getPendingPortfolioCloudSyncStatus(scope);
   const attempt: PortfolioCloudSyncAttempt = {
     mode,
     pendingRevision: previous.pendingRevision,
     attemptId: crypto.randomUUID(),
-    localFingerprint: readPortfolioLocalFingerprint(),
+    localFingerprint: readPortfolioLocalFingerprint(scope),
     accountContext: mode === "account" ? capturePortfolioAccountContext() : null,
+    storageScope: scope,
   };
   writePortfolioCloudSyncStatus({
     ...previous,
@@ -201,20 +206,21 @@ export function markPortfolioCloudSyncAttempt(mode: PortfolioSyncMode): Portfoli
     authRetryStatus: null,
     authRetryUntil: null,
     storesPortfolioContent: false,
-  });
+  }, scope);
   return attempt;
 }
 
 export function isPortfolioCloudSyncAttemptCurrent(attempt: PortfolioCloudSyncAttempt): boolean {
+  if (!isPortfolioScopeCurrent(attempt.storageScope)) return false;
   if (attempt.accountContext && !isPortfolioAccountContextCurrent(attempt.accountContext)) return false;
-  const current = getPendingPortfolioCloudSyncStatus();
+  const current = getPendingPortfolioCloudSyncStatus(attempt.storageScope);
   return current.mode === attempt.mode &&
     current.pendingRevision === attempt.pendingRevision &&
     current.attemptId === attempt.attemptId;
 }
 
-export function hasUnsyncedPortfolioChanges(): boolean {
-  const state = getPendingPortfolioCloudSyncStatus();
+export function hasUnsyncedPortfolioChanges(scope = getPortfolioStorageScope()): boolean {
+  const state = getPendingPortfolioCloudSyncStatus(scope);
   return state.pending > 0 || state.inFlight > 0 || state.failed > 0 ||
     state.manualReviewCount > 0;
 }
@@ -226,31 +232,32 @@ export function markPortfolioCloudSyncAck(
   resolution?: PortfolioConflictResolution
 ): boolean {
   if (mode !== attempt.mode || !isPortfolioCloudSyncAttemptCurrent(attempt)) return false;
-  if (readPortfolioLocalFingerprint() !== attempt.localFingerprint) {
-    markPortfolioCloudSyncPending(mode, "local-change-during-upload");
+  const scope = attempt.storageScope;
+  if (readPortfolioLocalFingerprint(scope) !== attempt.localFingerprint) {
+    markPortfolioCloudSyncPending(mode, "local-change-during-upload", scope);
     return false;
   }
   // No await between comparing the local revision and applying this receipt.
   if (resolution && mode) {
-    const stored = readPortfolioConflictResolution(mode);
+    const stored = readPortfolioConflictResolution(mode, scope);
     if (stored?.review.id !== resolution.review.id) return false;
     writePortfolioConflictResolution({ ...resolution, state: "applying" });
     try {
-      saveLocalPortfolioData(resolution.data);
+      saveLocalPortfolioData(resolution.data, scope);
       writePortfolioConflictResolution({ ...resolution, state: "applied" });
     } catch (error) {
       // The immutable review retains both originals even if local persistence fails.
       try {
-        saveLocalPortfolioData(resolution.review.local);
+        saveLocalPortfolioData(resolution.review.previousLocal ?? resolution.review.local, scope);
         writePortfolioConflictResolution({ ...resolution, state: "queued" });
       } catch { /* Keep the applying journal for explicit recovery. */ }
       throw error;
     }
   }
-  if (serverTags) saveTagMap(serverTags);
+  if (serverTags) saveTagMap(serverTags, scope);
   const now = new Date().toISOString();
   const next: PortfolioCloudSyncStatus = {
-    ...getPendingPortfolioCloudSyncStatus(),
+    ...getPendingPortfolioCloudSyncStatus(scope),
     mode,
     queueState: mode ? "synced" : "off",
     attemptId: null,
@@ -276,10 +283,11 @@ export function markPortfolioCloudSyncAck(
     storesPortfolioContent: false,
   };
   if (resolution && mode) {
-    finishPortfolioConflictResolution(mode, resolution.review.id);
-    clearActivePortfolioConflict(mode, resolution.review.version);
+    if (resolution.review.legacyFingerprint) portfolioStorage(scope).setItem(PORTFOLIO_LEGACY_REVIEWED_KEY, resolution.review.legacyFingerprint);
+    finishPortfolioConflictResolution(mode, resolution.review.id, scope);
+    clearActivePortfolioConflict(mode, resolution.review.version, scope);
   }
-  writePortfolioCloudSyncStatus(next);
+  writePortfolioCloudSyncStatus(next, scope);
   return true;
 }
 
@@ -287,10 +295,11 @@ export async function submitPortfolioConflictResolution(
   review: PortfolioConflictReview,
   choices: Record<string, PortfolioConflictChoice>
 ): Promise<DrainPortfolioCloudSyncResult> {
-  if (getPendingPortfolioCloudSyncStatus().inFlight > 0) throw new Error("上一笔上传仍在确认，请稍后重试。");
+  assertPortfolioScopeCurrent(review.storageScope);
+  if (getPendingPortfolioCloudSyncStatus(review.storageScope).inFlight > 0) throw new Error("上一笔上传仍在确认，请稍后重试。");
   stagePortfolioConflictResolution(review, choices);
-  markPortfolioCloudSyncPending(review.mode, "conflict-resolution");
-  return drainPendingPortfolioCloudSync({ mode: review.mode });
+  markPortfolioCloudSyncPending(review.mode, "conflict-resolution", review.storageScope);
+  return drainPendingPortfolioCloudSync({ mode: review.mode, scope: review.storageScope });
 }
 
 export function markPortfolioCloudSyncFailure(
@@ -300,10 +309,12 @@ export function markPortfolioCloudSyncFailure(
     retryable?: boolean;
     authRetryStatus?: Exclude<PortfolioAuthRetryStatus, null>;
     attempt?: PortfolioCloudSyncAttempt;
+    scope?: PortfolioStorageScope;
   } = {}
 ): void {
   if (options.attempt && !isPortfolioCloudSyncAttemptCurrent(options.attempt)) return;
-  const previous = getPendingPortfolioCloudSyncStatus();
+  const scope = options.attempt?.storageScope ?? options.scope ?? getPortfolioStorageScope();
+  const previous = getPendingPortfolioCloudSyncStatus(scope);
   const now = new Date().toISOString();
   const authRetryStatus = options.authRetryStatus ?? null;
   const failureCount = authRetryStatus
@@ -345,10 +356,10 @@ export function markPortfolioCloudSyncFailure(
     },
     storesPortfolioContent: false,
   };
-  writePortfolioCloudSyncStatus(next);
+  writePortfolioCloudSyncStatus(next, scope);
 }
 
-export function markPortfolioCloudSyncOff(): void {
+export function markPortfolioCloudSyncOff(scope = getPortfolioStorageScope()): void {
   const now = new Date().toISOString();
   writePortfolioCloudSyncStatus({
     ...buildEmptyPortfolioCloudSyncStatus(null),
@@ -360,31 +371,40 @@ export function markPortfolioCloudSyncOff(): void {
       pendingAfter: 0,
       message: "这台设备已关闭组合同步。",
     },
-  });
+  }, scope);
 }
 
-const portfolioDrains = new Map<PortfolioSyncMode, Promise<DrainPortfolioCloudSyncResult>>();
+const portfolioDrains = new Map<string, Promise<DrainPortfolioCloudSyncResult>>();
 
 export function drainPendingPortfolioCloudSync(
-  options: { mode?: PortfolioSyncMode } = {}
+  options: { mode?: PortfolioSyncMode; scope?: PortfolioStorageScope } = {}
 ): Promise<DrainPortfolioCloudSyncResult> {
-  const mode = options.mode ?? getPendingPortfolioCloudSyncStatus().mode;
-  const existing = portfolioDrains.get(mode);
+  const scope = options.scope ?? getPortfolioStorageScope();
+  const mode = options.mode ?? getPendingPortfolioCloudSyncStatus(scope).mode;
+  if (!isPortfolioScopeCurrent(scope)) return drainPortfolioCloudSync({ mode, scope });
+  const key = JSON.stringify([scope, mode]);
+  const existing = portfolioDrains.get(key);
   if (existing) return existing;
-  const drain = drainPortfolioCloudSync({ mode }).finally(() => {
-    if (portfolioDrains.get(mode) === drain) portfolioDrains.delete(mode);
+  const drain = drainPortfolioCloudSync({ mode, scope }).finally(() => {
+    if (portfolioDrains.get(key) === drain) portfolioDrains.delete(key);
   });
-  portfolioDrains.set(mode, drain);
+  portfolioDrains.set(key, drain);
   return drain;
 }
 
 async function drainPortfolioCloudSync(
-  options: { mode?: PortfolioSyncMode } = {}
+  options: { mode: PortfolioSyncMode; scope: PortfolioStorageScope }
 ): Promise<DrainPortfolioCloudSyncResult> {
-  const snapshotStatus = getPendingPortfolioCloudSyncStatus();
+  const scope = options.scope;
+  if (!isPortfolioScopeCurrent(scope) || (options.mode === "account" && !scope.startsWith("account:")) ||
+      (options.mode === "passcode" && scope !== "local")) {
+    return { status: "deferred", attempted: 0, synced: 0, failed: 0, manualReview: 0, authDeferred: 1,
+      pendingAfter: getPendingPortfolioCloudSyncStatus(scope).pending, message: "组合所属账号暂不可确认，未上传其他账号的本机数据。" };
+  }
+  const snapshotStatus = getPendingPortfolioCloudSyncStatus(scope);
   const mode = options.mode ?? snapshotStatus.mode;
   if (mode !== "account" && mode !== "passcode") {
-    setPortfolioCloudSyncOutcome("disabled", mode, 0, "组合同步未开启。");
+    setPortfolioCloudSyncOutcome("disabled", mode, 0, "组合同步未开启。", scope);
     return {
       status: "disabled",
       attempted: 0,
@@ -414,21 +434,21 @@ async function drainPortfolioCloudSync(
   let attempt: PortfolioCloudSyncAttempt | undefined;
   let result: Awaited<ReturnType<typeof accountPushCloud>> | Awaited<ReturnType<typeof pushCloudData>>;
   try {
-    const resolution = readPortfolioConflictResolution(mode);
-    if (resolution && (resolution.state !== "queued" || readPortfolioLocalFingerprint() !== resolution.review.fingerprint)) {
-      markPortfolioCloudSyncFailure(mode, "处理期间本机有新修改或保存被中断；原始版本仍保留，请重新读取差异。", { retryable: false });
+    const resolution = readPortfolioConflictResolution(mode, scope);
+    if (resolution && (resolution.state !== "queued" || readPortfolioLocalFingerprint(scope) !== resolution.review.fingerprint)) {
+      markPortfolioCloudSyncFailure(mode, "处理期间本机有新修改或保存被中断；原始版本仍保留，请重新读取差异。", { retryable: false, scope });
       return { status: "manual_review", attempted: 0, synced: 0, failed: 0, manualReview: 1, authDeferred: 0, pendingAfter: 1 };
     }
     // A retry is not a new edit. Keep its original timestamp.
-    if (!resolution && !loadDataUpdatedAt()) saveDataUpdatedAt(new Date().toISOString());
-    attempt = markPortfolioCloudSyncAttempt(mode);
-    const data = resolution?.data ?? buildPortfolioCloudData();
+    if (!resolution && !loadDataUpdatedAt(scope)) saveDataUpdatedAt(new Date().toISOString(), scope);
+    attempt = markPortfolioCloudSyncAttempt(mode, scope);
+    const data = resolution?.data ?? buildPortfolioCloudData(scope);
     result = mode === "account"
-      ? await accountPushCloud(data, resolution?.review.version)
-      : await pushCloudData(loadSyncPasscode() ?? "", data, resolution?.review.version);
+      ? await accountPushCloud(data, resolution?.review.version, scope)
+      : await pushCloudData(loadSyncPasscode(scope) ?? "", data, resolution?.review.version, scope);
     if (result.status === "ok") {
       const cleared = markPortfolioCloudSyncAck(mode, attempt, result.data, resolution ?? undefined);
-      const current = getPendingPortfolioCloudSyncStatus();
+      const current = getPendingPortfolioCloudSyncStatus(scope);
       return {
         status: cleared ? "ok" : "deferred",
         attempted: 1,
@@ -444,18 +464,19 @@ async function drainPortfolioCloudSync(
   }
   // An older request's failure must not undo a later ACK or a newer edit.
   if (attempt && !isPortfolioCloudSyncAttemptCurrent(attempt)) {
-    const current = getPendingPortfolioCloudSyncStatus();
+    const current = getPendingPortfolioCloudSyncStatus(scope);
     return { status: "deferred", attempted: 1, synced: 0, failed: 0,
       manualReview: current.manualReviewCount, authDeferred: 0, pendingAfter: current.pending };
   }
   const failure = classifyPortfolioCloudSyncFailure(result);
-  if (result.status === "unauthorized") clearSyncPasscode();
+  if (result.status === "unauthorized") clearSyncPasscode(scope);
   markPortfolioCloudSyncFailure(mode, failure.message, {
     retryable: failure.retryable,
     authRetryStatus: failure.authRetryStatus ?? undefined,
     attempt,
+    scope,
   });
-  const nextStatus = getPendingPortfolioCloudSyncStatus();
+  const nextStatus = getPendingPortfolioCloudSyncStatus(scope);
   return {
     status: failure.authRetryStatus ? "deferred" : nextStatus.manualReviewCount > 0 ? "manual_review" : "failed",
     attempted: 1,
@@ -489,14 +510,14 @@ export function emitPortfolioCloudSyncStatusEvent(
   }
 }
 
-function buildPortfolioCloudData(): CloudPortfolioData {
+function buildPortfolioCloudData(scope: PortfolioStorageScope): CloudPortfolioData {
   return {
-    snapshot: loadSnapshot(),
-    tagMap: loadTagMap(),
-    allocation: loadAllocation(),
-    maxNetPct: loadMaxNetPct() || DEFAULT_MAX_NET_PCT,
-    lastEmailMessageId: loadLastEmailMessageId(),
-    updatedAt: loadDataUpdatedAt()!,
+    snapshot: loadSnapshot(scope),
+    tagMap: loadTagMap(scope),
+    allocation: loadAllocation(scope),
+    maxNetPct: loadMaxNetPct(scope) || DEFAULT_MAX_NET_PCT,
+    lastEmailMessageId: loadLastEmailMessageId(scope),
+    updatedAt: loadDataUpdatedAt(scope)!,
   };
 }
 
@@ -541,10 +562,11 @@ function setPortfolioCloudSyncOutcome(
   status: PortfolioCloudSyncLastOutcome["status"],
   mode: PortfolioSyncMode,
   pendingAfter: number,
-  message: string | null
+  message: string | null,
+  scope: PortfolioStorageScope
 ) {
   const now = new Date().toISOString();
-  const previous = getPendingPortfolioCloudSyncStatus();
+  const previous = getPendingPortfolioCloudSyncStatus(scope);
   writePortfolioCloudSyncStatus({
     ...previous,
     lastOutcome: {
@@ -555,15 +577,16 @@ function setPortfolioCloudSyncOutcome(
       pendingAfter,
       message,
     },
-  });
+  }, scope);
 }
 
 function writePortfolioCloudSyncStatus(
-  status: PortfolioCloudSyncStatus
+  status: PortfolioCloudSyncStatus,
+  scope: PortfolioStorageScope
 ): void {
   if (typeof window === "undefined") return;
   const normalized = normalizePortfolioCloudSyncStatus(status);
-  window.localStorage.setItem(
+  portfolioStorage(scope).setItem(
     PORTFOLIO_SYNC_STATUS_STORAGE_KEY,
     JSON.stringify(normalized)
   );

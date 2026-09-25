@@ -54,23 +54,44 @@
   another tab, logout, or disagreement between the two identity caches prevents
   applying an old receipt, cloud data, conflict backup or failure status. Same
   account profile refreshes do not invalidate uploads. No auth reset is added.
+- Portfolio content, pending/ACK state, cloud baselines, recovery records and
+  passcodes now use explicit local/account namespaces. A mounted board binds
+  its reads/writes to one namespace; switching accounts remounts its UI.
+  Inactive queues are retained and resume when the original account returns.
+- Legacy global content is not automatically assigned to whoever signs in.
+  The owner confirms the destination account, then uses the existing per-field
+  review and ACK-gated drain. The unowned source remains untouched. Ownership
+  confirmation tracks the reviewed source version, so later old-tab changes
+  require another review instead of being silently uploaded or hidden.
+- Shared session probes now return one guarded result to every caller. A
+  delayed probe cannot revive a logged-out account or replace a newer login.
+  Cross-tab identity disagreement triggers confirmation, with focus/reconnect
+  and manual retry; temporary errors do not delete identity or portfolio data.
+- The fixed Graph mailbox relay and setup endpoints now require the explicitly
+  configured mailbox owner, an authenticated session and matching intended
+  account ID before contacting Microsoft. Sensitive responses are no-store.
+  The import checks the response account; the setup wizard drops stale replies
+  and displayed credentials after an account switch. Same-account identity
+  refreshes do not interrupt the setup flow.
 
-No new provider, dependency, migration, private-data export or production data
+No new provider, dependency, automatic data reassignment, private-data export or production data
 repair is included. Status/base fields contain identifiers, not holdings.
 Request/attempt fingerprints stay in memory; conflict review journals contain
 private originals and a local comparison fingerprint, only in browser storage.
+The account-local legacy-review marker also retains the reviewed source
+fingerprint; it is private data and must not enter diagnostic exports.
 Neither form is included in metadata exports or logs.
 
 ## Evidence
 
 - Existing 49 page/database/settings behavior tests pass.
-- 53 portfolio behavior tests pass against the actual client modules, queue,
+- 61 portfolio/mailbox behavior tests pass against the actual client modules, queue,
   both routes and shared versioned store. Redis atomicity is simulated in memory;
-  this is not a test against a running Redis server. Total behavior tests: 102.
+  this is not a test against a running Redis server. Total behavior tests: 110.
   Account tests cover switched cookies on every action, missing intent, missing
   response identity, late ACK/conflict/failure, same-tab and cross-tab switches,
   explicit logout, profile refresh and the final queue apply boundary.
-- Isolated Edge/Playwright test passes against the local app: two successive
+- Three isolated Edge/Playwright tests pass against the local app. The first covers two successive
   edits while an ACK is held, a remote pull during pending work, exact eventual
   upload, no status-ping write loop, clean reload, remote label deletion with
   an older timestamp, and reload after a third edit that conflicts with another
@@ -80,6 +101,15 @@ Neither form is included in metadata exports or logs.
   and confirms convergence and a quiet reload. Five requests include the two
   conflicts; no page errors or
   React cross-component render/update warnings.
+- The second browser test covers A-to-B-to-A with A's ACK held in flight, B's
+  separate edit, A retry, explicit legacy ownership confirmation/cancellation,
+  no local replacement before ACK, retained originals and clean reload with
+  a stale per-tab account cache. The ownership dialog fits the 390px viewport.
+  The third covers the actual email setup UI: same-account storage refresh
+  continues polling; a switched-account late token is not displayed or stored.
+- Mailbox route tests use synthetic identity and Graph responses only. They
+  reject missing owner configuration, non-owner accounts, stale account intent,
+  signed-out and temporarily unconfirmed sessions before any Graph access.
 - TypeScript, lint, production build, `verify:account`, and
   `verify:sync-pending-domains` pass. Source checks are not device acceptance.
 
@@ -93,19 +123,24 @@ write any production account. Synthetic screenshot stays under `.local/`.
 
 ## Not Yet Complete
 
-- Do not deploy this checkpoint yet. Explicit review handles divergent legacy
-  copies, but automatic three-way merging of independent edits is not included.
+- Do not deploy this checkpoint until the remaining gates below are resolved.
+  Manual per-field review handles conflicts; automatic three-way merging is
+  not required for this stage's non-overwrite guarantee.
 - Recovery records currently use localStorage and retain private originals.
   Large/repeated conflicts may reach its quota. These failures must retain
   pending; capacity management and an explicit recovery path for an interrupted
   local apply remain rollout work. A failed apply is journaled and blocked from
   further automatic uploads; it must not be declared converged.
-- Portfolio account-switch cache isolation remains next. Request identity
-  guards do not bind ownership of the currently global local portfolio cache or
-  pending/conflict records. They do not prevent a *new* request from treating an
-  old unowned cache as the newly signed-in account's data. Keep this checkpoint
-  undeployed until account namespaces, legacy ownership confirmation, async UI
-  imports, A-to-B-to-A transitions and stale auth-probe races are addressed.
+- Audit unreadable/corrupt ordinary content and queue state, not only conflict
+  journals: display-loader empty/default fallbacks must never authorize a
+  destructive clean pull or upload. Ordinary multi-key local writes also need
+  interruption/recovery coverage before rollout.
+- Before enabling the fixed mailbox integration, set server-only
+  `ZHINOTES_PORTFOLIO_EMAIL_OWNER_EMAIL` to the owner's allowed ZhiNotes login
+  email. Do not infer it from the Graph sender or the first allowlisted account.
+  Missing ownership configuration disables mail import/setup, not manual
+  file imports or account sync. No production configuration was inspected or
+  changed in this batch; confirm ownership before release.
 - Exercise the actual Lua script against isolated Redis before rollout, and
   test protocol upgrade/rollback. Existing clients will need refresh; reverting
   to the old unguarded server would reintroduce the overwrite hazard.

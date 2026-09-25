@@ -2,14 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ACCOUNT_SESSION_CHANGED_EVENT, fetchAccountSession, isAccountSessionStorageKey } from "@/lib/account/clientSession";
+import { capturePortfolioAccountContext, isPortfolioAccountContextCurrent, type PortfolioAccountContext } from "@/lib/portfolio/portfolioAccountContext";
 
 type Phase = "idle" | "waiting" | "done" | "error";
 
 const PORTFOLIO_EMAIL_SETUP_ACTION_TIMEOUT_MS = 12000;
 
 async function fetchPortfolioEmailSetupActionWithTimeout(
-  body: Record<string, unknown>
+  body: Record<string, unknown>, context: PortfolioAccountContext
 ): Promise<Response> {
+  if (!context.accountId || !isPortfolioAccountContextCurrent(context)) throw new Error("account-changed");
   const controller = new AbortController();
   const timeout = window.setTimeout(
     () => controller.abort(),
@@ -19,7 +22,7 @@ async function fetchPortfolioEmailSetupActionWithTimeout(
     return await fetch("/api/portfolio/email-setup", {
       method: "POST",
       cache: "no-store",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-zhinote-account-id": context.accountId },
       signal: controller.signal,
       body: JSON.stringify(body),
     });
@@ -50,9 +53,39 @@ export default function EmailSetupPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
   const pollInFlightRef = useRef(false);
+  const generationRef = useRef(0);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
+    mountedRef.current = true;
+    const readIdentity = () => {
+      try { return capturePortfolioAccountContext().identity; } catch { return null; }
+    };
+    let identity = readIdentity();
+    const invalidate = () => {
+      const next = readIdentity();
+      if (next !== null && next === identity) return;
+      identity = next;
+      generationRef.current += 1;
+      if (pollRef.current) window.clearInterval(pollRef.current);
+      pollRef.current = null;
+      pollInFlightRef.current = false;
+      setRefreshToken("");
+      setUserCode("");
+      setVerificationUri("");
+      setPhase("idle");
+      setError(null);
+    };
+    const storage = (event: StorageEvent) => {
+      if (event.key === null || isAccountSessionStorageKey(event.key)) invalidate();
+    };
+    window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, invalidate);
+    window.addEventListener("storage", storage);
     return () => {
+      mountedRef.current = false;
+      generationRef.current += 1;
+      window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, invalidate);
+      window.removeEventListener("storage", storage);
       if (pollRef.current) window.clearInterval(pollRef.current);
       pollInFlightRef.current = false;
     };
@@ -69,13 +102,27 @@ export default function EmailSetupPage() {
     pollRef.current = null;
     pollInFlightRef.current = false;
     try {
+      const session = await fetchAccountSession();
+      if (!mountedRef.current) return;
+      const context = capturePortfolioAccountContext();
+      if (!session.authenticated || session.status !== "ok" || session.stale || !context.accountId || session.account?.id !== context.accountId) {
+        setError("请先登录邮箱所属账号并确认登录状态。");
+        return;
+      }
+      const generation = ++generationRef.current;
+      const current = () => generation === generationRef.current && isPortfolioAccountContextCurrent(context);
       const res = await fetchPortfolioEmailSetupActionWithTimeout({
         action: "start",
         clientId: id,
-      });
+      }, context);
       const data = await res.json();
+      if (!current()) return;
       if (!res.ok) {
         setError(data.error ?? "启动授权失败。");
+        return;
+      }
+      if (data.accountId !== context.accountId) {
+        setError("邮箱授权返回的账号不一致，请刷新后重试。");
         return;
       }
       setUserCode(data.userCode);
@@ -87,6 +134,10 @@ export default function EmailSetupPage() {
       const deadline = Date.now() + (data.expiresIn ?? 900) * 1000;
 
       pollRef.current = window.setInterval(async () => {
+        if (!current()) {
+          if (pollRef.current) window.clearInterval(pollRef.current);
+          return;
+        }
         if (pollInFlightRef.current) return;
         if (Date.now() > deadline) {
           if (pollRef.current) window.clearInterval(pollRef.current);
@@ -101,9 +152,15 @@ export default function EmailSetupPage() {
             action: "poll",
             clientId: id,
             deviceCode,
-          });
+          }, context);
           const poll = await pollRes.json();
-          if (poll.status === "ok") {
+          if (!current()) return;
+          if (!pollRes.ok || (poll.status === "ok" && poll.accountId !== context.accountId)) {
+            if (pollRef.current) window.clearInterval(pollRef.current);
+            pollRef.current = null;
+            setPhase("error");
+            setError(poll.error ?? "无法确认邮箱所属账号，请刷新后重试。");
+          } else if (poll.status === "ok") {
             if (pollRef.current) window.clearInterval(pollRef.current);
             pollRef.current = null;
             setRefreshToken(poll.refreshToken);
@@ -115,6 +172,7 @@ export default function EmailSetupPage() {
             setError(poll.error ?? "授权失败，请重试。");
           }
         } catch (error) {
+          if (!current()) return;
           setError(
             isAbortError(error)
               ? "授权检查请求超时；本地组合数据不受影响，会继续轮询。"

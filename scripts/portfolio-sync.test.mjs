@@ -61,7 +61,7 @@ function fixture(storage = new Map()) {
       CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
       window: { localStorage, sessionStorage, dispatchEvent: () => {} },
       fetch: async (url, init) => new Promise((resolve, reject) => {
-        const body = JSON.parse(init.body);
+        const body = init.body ? JSON.parse(init.body) : {};
         requests.push({ url, body, reject, reply: (options = {}) => resolve(Response.json({
           ...(options.noAccountId ? {} : { accountId: options.accountId ?? body.expectedAccountId }),
           ...(options.json ?? {
@@ -88,6 +88,7 @@ function fixture(storage = new Map()) {
   if (!storage.has(session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) &&
       !storage.has(session.ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY)) setAccount("synthetic-a");
   const seed = (mode = "account") => {
+    if (mode === "passcode") session.clearAccountSessionCache({ clearLastAuthenticated: true });
     store.saveSnapshot({ importedAt: now, fileName: "synthetic.xlsx", positions: [] });
     store.saveTagMap({ SAMPLE: "original" });
     store.saveAllocation(100);
@@ -101,7 +102,9 @@ function fixture(storage = new Map()) {
     assert.ok(requests.length);
     return requests.at(-1);
   };
-  return { store, queue, seed, waitForRequest, requests, controls, storage, load, session, setAccount };
+  const scope = load("@/lib/portfolio/portfolioStorageScope");
+  return { store, queue, seed, waitForRequest, requests, controls, storage, load, session, setAccount,
+    key: scope.portfolioStorageKey, scope: scope.getPortfolioStorageScope };
 }
 
 test("portfolio: exact ACK clears only the uploaded revision without applying unsolicited labels", async () => {
@@ -112,7 +115,7 @@ test("portfolio: exact ACK clears only the uploaded revision without applying un
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
   assert.equal(f.store.loadTagMap().EXTRA, undefined);
   assert.equal(f.queue.getPendingPortfolioCloudSyncStatus().queueState, "synced");
-  const savedStatus = f.storage.get("zhinote.portfolio.sync.status.v1");
+  const savedStatus = f.storage.get(f.key("zhinote.portfolio.sync.status.v1"));
   assert.ok(!savedStatus.includes("SAMPLE") && !savedStatus.includes("synthetic.xlsx"));
 });
 
@@ -164,12 +167,12 @@ for (const lateFailure of [false, true]) {
     const second = b.queue.drainPendingPortfolioCloudSync();
     (await b.waitForRequest()).reply();
     assert.equal((await second).status, "ok");
-    const statusAfterNewAck = storage.get("zhinote.portfolio.sync.status.v1");
+    const statusAfterNewAck = storage.get(a.key("zhinote.portfolio.sync.status.v1"));
     if (lateFailure) oldRequest.reject(new Error("Synthetic network failure"));
     else oldRequest.reply({ tags: { SAMPLE: "stale result" } });
     assert.equal((await first).status, "deferred");
     assert.equal(a.store.loadTagMap().SAMPLE, "second tab");
-    assert.equal(storage.get("zhinote.portfolio.sync.status.v1"), statusAfterNewAck);
+    assert.equal(storage.get(a.key("zhinote.portfolio.sync.status.v1")), statusAfterNewAck);
   });
 }
 
@@ -234,7 +237,7 @@ test("account boundary: request carries the intended identity and rejects an unb
     assert.equal(request.body.expectedAccountId, "synthetic-a");
     request.reply(invalidReply);
     assert.equal((await uploading).status, "failed");
-    assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+    assert.equal(f.queue.hasUnsyncedPortfolioChanges("account:synthetic-a"), true);
     assert.equal(f.load("@/lib/portfolio/portfolioSyncRevision").readPortfolioCloudBase("account"), null);
   }
 });
@@ -255,7 +258,8 @@ for (const response of ["ack", "conflict", "network-error"]) {
     else request.reply();
     assert.equal((await uploading).status, "deferred");
     assert.deepEqual(f.storage, protectedState, "no new baseline, conflict, status or content for another identity");
-    assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+    assert.equal(f.queue.hasUnsyncedPortfolioChanges("account:synthetic-a"), true);
+    assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false, "A's queue is not B's queue");
   });
 }
 
@@ -265,8 +269,8 @@ test("account boundary: session confirmation that changes identity cannot send a
   const result = await f.queue.drainPendingPortfolioCloudSync();
   assert.equal(result.status, "deferred");
   assert.equal(f.requests.length, 0);
-  assert.equal(f.store.loadTagMap().SAMPLE, "original");
-  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+  assert.equal(f.store.loadTagMap("account:synthetic-a").SAMPLE, "original");
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges("account:synthetic-a"), true);
 });
 
 test("account boundary: another tab's switch blocks stale sessionStorage and late reads", async () => {
@@ -326,9 +330,10 @@ test("portfolio: status pings are not data changes; legacy pending state still b
   for (const key of ["zhinote.portfolio.sync.status.v1", "zhinote.portfolio.sync.status.ping.v1", null]) {
     assert.equal(f.store.isPortfolioDataStorageKey(key), false);
   }
-  assert.equal(f.store.isPortfolioDataStorageKey("zhinote.portfolio.tags.v1"), true);
+  assert.equal(f.store.isPortfolioDataStorageKey(f.key("zhinote.portfolio.tags.v1")), true);
+  assert.equal(f.store.isPortfolioDataStorageKey("zhinote.portfolio.tags.v1"), false);
   for (const [field, queueState] of [["pending", "pending"], ["inFlight", "syncing"], ["failed", "failed"], ["manualReviewCount", "manual_review"]]) {
-    f.storage.set("zhinote.portfolio.sync.status.v1", JSON.stringify({ mode: "account", queueState, [field]: 1 }));
+    f.storage.set(f.key("zhinote.portfolio.sync.status.v1"), JSON.stringify({ mode: "account", queueState, [field]: 1 }));
     assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
   }
 });
@@ -363,7 +368,7 @@ test("portfolio: retaining a conflict does not apply remote data or change the u
   assert.equal(f.store.readPortfolioLocalFingerprint(), fingerprint);
   assert.equal(versions.readPortfolioCloudBase("account"), null);
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
-  const backup = JSON.parse([...f.storage].find(([key]) => key.startsWith("zhinote.portfolio.conflict.v2"))[1]);
+  const backup = JSON.parse([...f.storage].find(([key]) => key.startsWith(f.key("zhinote.portfolio.conflict.v2")))[1]);
   assert.equal(backup.local.tagMap.SAMPLE, "local");
   assert.equal(backup.cloud.tagMap.SAMPLE, "remote");
 });
@@ -378,7 +383,7 @@ function conflictFixture(mode = "account") {
   versions.rememberPortfolioCloudBase(mode, { scope: version.scope, revision: "b".repeat(64) });
   versions.retainPortfolioConflict(mode, local, { data: cloud, version });
   f.queue.markPortfolioCloudSyncFailure(mode, "synthetic conflict", { retryable: false });
-  const review = { id: "synthetic-review", mode, local, cloud, version,
+  const review = { id: "synthetic-review", mode, storageScope: f.scope(), local, cloud, version,
     fingerprint: f.store.readPortfolioLocalFingerprint(), fields: resolution.portfolioConflictFields(local, cloud) };
   const choices = Object.fromEntries(review.fields.map((field) => [field.id, "cloud"]));
   return { ...f, resolution, versions, review, choices };
@@ -403,7 +408,7 @@ for (const mode of ["account", "passcode"]) {
     assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
     assert.equal(f.versions.readActivePortfolioConflict(mode), null);
     assert.equal(f.resolution.readPortfolioConflictResolution(mode), null);
-    assert.ok(f.storage.has("zhinote.portfolio.conflict.review.v1.synthetic-review"), "recovery copies remain after success");
+    assert.ok(f.storage.has(f.key("zhinote.portfolio.conflict.review.v1.synthetic-review")), "recovery copies remain after success");
   });
 
   test(`${mode}: deletion choice survives network failure and retry without changing local prematurely`, async () => {
@@ -429,7 +434,7 @@ for (const mode of ["account", "passcode"]) {
 test("conflicts: unselected field, later edit and full storage cannot replace originals", async () => {
   const f = conflictFixture();
   await assert.rejects(() => f.queue.submitPortfolioConflictResolution(f.review, {}), /每一项/);
-  f.controls.failWritePrefix = "zhinote.portfolio.conflict.review";
+  f.controls.failWritePrefix = f.key("zhinote.portfolio.conflict.review");
   await assert.rejects(() => f.queue.submitPortfolioConflictResolution(f.review, f.choices), /full storage/);
   f.controls.failWritePrefix = null;
   f.store.saveAllocation(999);
@@ -479,9 +484,9 @@ test("conflicts: actual fresh pull rejects another account and detects local edi
 
 test("conflicts: malformed local cache cannot become an empty merge decision", () => {
   const f = conflictFixture();
-  f.storage.set("zhinote.portfolio.tags.v1", "not-json");
+  f.storage.set(f.key("zhinote.portfolio.tags.v1"), "not-json");
   assert.throws(() => f.resolution.readLocalPortfolioData());
-  f.storage.set("zhinote.portfolio.tags.v1", JSON.stringify(["bad-shape"]));
+  f.storage.set(f.key("zhinote.portfolio.tags.v1"), JSON.stringify(["bad-shape"]));
   assert.throws(() => f.resolution.readLocalPortfolioData(), /格式异常/);
 });
 
@@ -506,12 +511,12 @@ test("conflicts: local application failure after ACK retains pending and the imm
   const f = conflictFixture();
   const resolving = f.queue.submitPortfolioConflictResolution(f.review, f.choices);
   const request = await f.waitForRequest();
-  f.controls.failWritePrefix = "zhinote.portfolio.allocation";
+  f.controls.failWritePrefix = f.key("zhinote.portfolio.allocation");
   request.reply({ revision: "d".repeat(64) });
   await resolving;
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
   assert.equal(f.queue.getPendingPortfolioCloudSyncStatus().lastAckAt, null);
-  const backup = JSON.parse(f.storage.get("zhinote.portfolio.conflict.review.v1.synthetic-review"));
+  const backup = JSON.parse(f.storage.get(f.key("zhinote.portfolio.conflict.review.v1.synthetic-review")));
   assert.equal(backup.review.local.tagMap.SAMPLE, "original");
   assert.equal(backup.review.cloud.allocation, 250);
   assert.equal((await f.queue.drainPendingPortfolioCloudSync()).status, "manual_review");
@@ -521,9 +526,128 @@ test("portfolio: failure to persist a cleared status cannot report successful sy
   const f = fixture(); f.seed();
   const uploading = f.queue.drainPendingPortfolioCloudSync();
   const request = await f.waitForRequest();
-  f.controls.failWritePrefix = "zhinote.portfolio.sync.status.v1";
+  f.controls.failWritePrefix = f.key("zhinote.portfolio.sync.status.v1");
   request.reply();
   await assert.rejects(uploading, /full storage/);
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
   assert.equal(f.queue.getPendingPortfolioCloudSyncStatus().lastAckAt, null);
+});
+
+test("scoped cache: A and B have separate queues and concurrent drains, A resumes after returning", async () => {
+  const f = fixture(); f.seed();
+  const aScope = f.scope();
+  const aState = f.store.readPortfolioLocalFingerprint();
+  const aUpload = f.queue.drainPendingPortfolioCloudSync();
+  const aRequest = await f.waitForRequest();
+  f.setAccount("synthetic-b");
+  assert.equal(f.store.loadSnapshot(), null);
+  assert.equal(Object.keys(f.store.loadTagMap()).length, 0);
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
+  assert.equal((await f.queue.drainPendingPortfolioCloudSync({ scope: aScope })).status, "deferred");
+  assert.equal(f.requests.length, 1);
+  f.seed();
+  f.store.saveTagMap({ ONLY_B: "private to B" });
+  const bUpload = f.queue.drainPendingPortfolioCloudSync();
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  assert.equal(f.requests.length, 2, "B's drain is not deduplicated into A's in-flight promise");
+  assert.equal(f.requests[1].body.expectedAccountId, "synthetic-b");
+  assert.equal(f.requests[1].body.data.tagMap.SAMPLE, undefined);
+  f.requests[1].reply();
+  assert.equal((await bUpload).status, "ok");
+  const bState = f.store.readPortfolioLocalFingerprint();
+  aRequest.reply();
+  assert.equal((await aUpload).status, "deferred");
+  assert.equal(f.store.readPortfolioLocalFingerprint(), bState);
+  f.setAccount("synthetic-a");
+  assert.equal(f.store.readPortfolioLocalFingerprint(), aState);
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+  const resumed = f.queue.drainPendingPortfolioCloudSync();
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  assert.equal(f.requests[2].body.data.tagMap.SAMPLE, "original");
+  assert.equal(f.requests[2].body.data.tagMap.ONLY_B, undefined);
+  f.requests[2].reply();
+  assert.equal((await resumed).status, "ok");
+});
+
+test("scoped cache: base, conflict, decision and passcode never cross accounts or anonymous mode", async () => {
+  const f = conflictFixture();
+  f.resolution.stagePortfolioConflictResolution(f.review, f.choices);
+  f.setAccount("synthetic-b");
+  const bState = new Map(f.storage);
+  assert.equal(f.versions.readPortfolioCloudBase("account"), null);
+  assert.equal(f.versions.readActivePortfolioConflict("account"), null);
+  assert.equal(f.resolution.readPortfolioConflictResolution("account"), null);
+  await assert.rejects(() => f.queue.submitPortfolioConflictResolution(f.review, f.choices), /账号/);
+  assert.deepEqual(f.storage, bState);
+  f.session.clearAccountSessionCache({ clearLastAuthenticated: true });
+  assert.equal(f.store.loadSnapshot(), null);
+  f.load("@/lib/portfolio/cloudSync").saveSyncPasscode("anonymous-only");
+  f.setAccount("synthetic-a");
+  assert.equal(f.load("@/lib/portfolio/cloudSync").loadSyncPasscode(), null);
+  assert.equal(f.resolution.readPortfolioConflictResolution("account").review.id, f.review.id);
+});
+
+test("legacy cache: no automatic adoption; explicit review waits for exact ACK and preserves originals", async () => {
+  const f = fixture();
+  const resolution = f.load("@/lib/portfolio/portfolioConflictResolution");
+  f.store.saveTagMap({ LEGACY: "unowned data" }, "legacy");
+  const legacyBefore = f.store.readPortfolioLocalFingerprint("legacy");
+  assert.equal(Object.keys(f.store.loadTagMap()).length, 0);
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
+  const reviewing = resolution.prepareLegacyPortfolioReview();
+  const read = await f.waitForRequest();
+  read.reply({ json: { data: null, version: { scope: "a".repeat(64), revision: null } } });
+  const review = await reviewing;
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false, "opening/cancelling a review creates no upload work");
+  assert.equal(Object.keys(f.store.loadTagMap()).length, 0);
+  const choices = Object.fromEntries(review.fields.map((field) => [field.id, "local"]));
+  const uploading = f.queue.submitPortfolioConflictResolution(review, choices);
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  assert.equal(f.requests[1].body.data.tagMap.LEGACY, "unowned data");
+  assert.equal(Object.keys(f.store.loadTagMap()).length, 0, "target stays unchanged before ACK");
+  f.requests[1].reply();
+  assert.equal((await uploading).status, "ok");
+  assert.equal(f.store.loadTagMap().LEGACY, "unowned data");
+  assert.equal(f.store.readPortfolioLocalFingerprint("legacy"), legacyBefore);
+  assert.equal(resolution.hasUnreviewedLegacyPortfolio(), false);
+  f.store.saveTagMap({ LEGACY: "new input from an older tab" }, "legacy");
+  assert.equal(resolution.hasUnreviewedLegacyPortfolio(), true, "later legacy edits still require review");
+  assert.equal(f.store.loadTagMap().LEGACY, "unowned data");
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false, "later legacy input is not uploaded implicitly");
+  f.setAccount("synthetic-b");
+  assert.equal(Object.keys(f.store.loadTagMap()).length, 0);
+});
+
+test("legacy cache: changed original or new target input prevents applying stale ownership decisions", async () => {
+  for (const changedScope of ["legacy", "account:synthetic-a"]) {
+    const f = fixture();
+    const resolution = f.load("@/lib/portfolio/portfolioConflictResolution");
+    f.store.saveTagMap({ LEGACY: "original" }, "legacy");
+    const reviewing = resolution.prepareLegacyPortfolioReview();
+    (await f.waitForRequest()).reply({ json: { data: null, version: { scope: "a".repeat(64), revision: null } } });
+    const review = await reviewing;
+    f.store.saveTagMap({ NEW: "later input" }, changedScope);
+    await assert.rejects(() => f.queue.submitPortfolioConflictResolution(review,
+      Object.fromEntries(review.fields.map((field) => [field.id, "local"]))), /变化|修改/);
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.store.loadTagMap(changedScope).NEW, "later input");
+  }
+});
+
+test("session: a shared late probe cannot restore a signed-out or switched account", async () => {
+  for (const action of ["logout", "switch"]) {
+    const f = fixture();
+    const first = f.session.fetchAccountSession({ force: true });
+    const joined = f.session.fetchAccountSession({ force: true });
+    const request = await f.waitForRequest();
+    assert.equal(f.requests.length, 1);
+    if (action === "logout") f.session.clearAccountSessionCache({ clearLastAuthenticated: true });
+    else f.setAccount("synthetic-b");
+    request.reply({ json: { authenticated: true, account: { id: "synthetic-a", email_hint: "a***@example.invalid", display_name: "A", createdAt: now } } });
+    for (const result of [await first, await joined]) {
+      assert.equal(result.status, "unconfirmed");
+      assert.equal(result.account?.id ?? null, action === "logout" ? null : "synthetic-b");
+    }
+    assert.equal(f.session.getLastAuthenticatedAccount()?.id ?? null, action === "logout" ? null : "synthetic-b");
+  }
 });

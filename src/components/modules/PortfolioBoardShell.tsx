@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import PortfolioConflictDialog from "./PortfolioConflictDialog";
@@ -20,46 +21,36 @@ import {
   type TagMap,
 } from "@/lib/portfolio/positionReport";
 import {
-  loadAllocation,
-  loadDataUpdatedAt,
-  loadLastEmailMessageId,
-  loadMaxNetPct,
-  loadSnapshot,
-  loadTagMap,
+  bindPortfolioStore,
   isPortfolioDataStorageKey,
-  saveAllocation,
-  saveDataUpdatedAt,
-  saveLastEmailMessageId,
-  saveMaxNetPct,
-  saveSnapshot,
-  saveTagMap,
   DEFAULT_GMV_ALLOCATION,
   DEFAULT_MAX_NET_PCT,
 } from "@/lib/portfolio/portfolioStore";
 import {
-  clearSyncPasscode,
-  loadSyncPasscode,
   pullCloudData,
-  saveSyncPasscode,
   type CloudPortfolioData,
 } from "@/lib/portfolio/cloudSync";
+import * as passcodeCloud from "@/lib/portfolio/cloudSync";
 import {
   accountPullCloud,
   fetchShares,
 } from "@/lib/portfolio/accountSync";
-import { PORTFOLIO_ACTIVE_CONFLICT_KEY, PORTFOLIO_CONFLICT_EVENT, readActivePortfolioConflict, readPortfolioCloudBase, rememberPortfolioCloudBase, type PortfolioCloudVersion } from "@/lib/portfolio/portfolioSyncRevision";
+import { PORTFOLIO_ACTIVE_CONFLICT_KEY, PORTFOLIO_CONFLICT_EVENT, type PortfolioCloudVersion } from "@/lib/portfolio/portfolioSyncRevision";
 import {
-  drainPendingPortfolioCloudSync,
-  getPendingPortfolioCloudSyncStatus,
   hasUnsyncedPortfolioChanges,
   markPortfolioCloudSyncFailure,
-  markPortfolioCloudSyncOff,
-  markPortfolioCloudSyncPending,
 } from "@/lib/portfolio/portfolioSyncStatus";
 import {
-  ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+  ACCOUNT_SESSION_CHANGED_EVENT,
+  isAccountSessionStorageKey,
   fetchAccountSession,
+  getLastAuthenticatedAccount,
 } from "@/lib/account/clientSession";
+import { ACCOUNT_PROFILE_UPDATED_EVENT, formatClientAccountLabel } from "@/lib/account/clientProfile";
+import { hasUnreviewedLegacyPortfolio } from "@/lib/portfolio/portfolioConflictResolution";
+import { getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorageKey, type PortfolioStorageScope } from "@/lib/portfolio/portfolioStorageScope";
+import * as portfolioQueue from "@/lib/portfolio/portfolioSyncStatus";
+import * as portfolioRevision from "@/lib/portfolio/portfolioSyncRevision";
 
 type BoardTab = "positions" | "analysis" | "rebalance";
 type SyncStatus = "off" | "syncing" | "synced" | "error";
@@ -76,31 +67,34 @@ function readSyncErrorMessage(result: unknown): string | null {
     : null;
 }
 
-function markPortfolioFailureFromSyncResult(
+function markPortfolioFailureForScope(
   mode: Exclude<SyncMode, null>,
   result: { status: string },
-  fallbackMessage: string
+  fallbackMessage: string,
+  scope: PortfolioStorageScope
 ) {
   // A failed pull is not a local edit and must not create upload work.
-  if (!hasUnsyncedPortfolioChanges()) return;
+  if (!hasUnsyncedPortfolioChanges(scope)) return;
   const message = readSyncErrorMessage(result) ?? fallbackMessage;
   if (result.status === "unconfigured") {
     markPortfolioCloudSyncFailure(mode, message, {
       authRetryStatus: "unconfigured",
+      scope,
     });
     return;
   }
   if (result.status === "unauthenticated") {
     markPortfolioCloudSyncFailure(mode, message, {
       authRetryStatus: "unauthenticated",
+      scope,
     });
     return;
   }
   if (result.status === "forbidden" || result.status === "unauthorized") {
-    markPortfolioCloudSyncFailure(mode, message, { retryable: false });
+    markPortfolioCloudSyncFailure(mode, message, { retryable: false, scope });
     return;
   }
-  markPortfolioCloudSyncFailure(mode, message);
+  markPortfolioCloudSyncFailure(mode, message, { scope });
 }
 
 const PORTFOLIO_AUTO_PULL_MS = 15 * 1000;
@@ -185,7 +179,69 @@ async function fetchPortfolioActionWithTimeout(
   }
 }
 
+function portfolioScopeSnapshot(): PortfolioStorageScope | "checking" {
+  try { return getPortfolioStorageScope(); } catch { return "checking"; }
+}
+
+function subscribePortfolioAccount(callback: () => void) {
+  const retry = () => {
+    if (portfolioScopeSnapshot() === "checking") void fetchAccountSession({ force: true }).then(callback).catch(callback);
+  };
+  const storage = (event: StorageEvent) => {
+    if (!isAccountSessionStorageKey(event.key) && event.key !== null) return;
+    callback();
+    retry();
+  };
+  window.addEventListener("focus", retry);
+  window.addEventListener("online", retry);
+  window.addEventListener("storage", storage);
+  window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, callback);
+  window.addEventListener(ACCOUNT_PROFILE_UPDATED_EVENT, callback);
+  retry();
+  return () => {
+    window.removeEventListener("focus", retry);
+    window.removeEventListener("online", retry);
+    window.removeEventListener("storage", storage);
+    window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, callback);
+    window.removeEventListener(ACCOUNT_PROFILE_UPDATED_EVENT, callback);
+  };
+}
+
 export default function PortfolioBoardShell() {
+  const scope = useSyncExternalStore(subscribePortfolioAccount, portfolioScopeSnapshot, () => "checking" as const);
+  if (scope === "checking") return <div className="flex min-h-screen"><Sidebar /><main className="flex-1 p-8">
+    <p role="status">正在确认组合账号…</p>
+    <button type="button" className="mt-3 text-sm underline" onClick={() => { void fetchAccountSession({ force: true }); }}>重新确认账号</button>
+  </main></div>;
+  return <ScopedPortfolioBoard key={scope} scope={scope} />;
+}
+
+function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
+  const store = useMemo(() => bindPortfolioStore(scope), [scope]);
+  const { loadSyncPasscode, saveSyncPasscode, clearSyncPasscode } = useMemo(() => ({
+    loadSyncPasscode: () => passcodeCloud.loadSyncPasscode(scope),
+    saveSyncPasscode: (code: string) => passcodeCloud.saveSyncPasscode(code, scope),
+    clearSyncPasscode: () => passcodeCloud.clearSyncPasscode(scope),
+  }), [scope]);
+  const { loadSnapshot, loadTagMap, loadAllocation, loadMaxNetPct, loadLastEmailMessageId, loadDataUpdatedAt,
+    saveSnapshot, saveTagMap, saveAllocation, saveMaxNetPct, saveLastEmailMessageId, saveDataUpdatedAt } = store;
+  const mountedRef = useRef(false);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  const isCurrent = useCallback(() => mountedRef.current && isPortfolioScopeCurrent(scope), [scope]);
+  const { getPendingPortfolioCloudSyncStatus, hasUnsyncedPortfolioChanges, markPortfolioCloudSyncPending,
+    markPortfolioCloudSyncOff, drainPendingPortfolioCloudSync, readPortfolioCloudBase, rememberPortfolioCloudBase, readActivePortfolioConflict } = useMemo(() => ({
+      getPendingPortfolioCloudSyncStatus: () => portfolioQueue.getPendingPortfolioCloudSyncStatus(scope),
+      hasUnsyncedPortfolioChanges: () => portfolioQueue.hasUnsyncedPortfolioChanges(scope),
+      markPortfolioCloudSyncPending: (mode: SyncMode, reason?: string) => portfolioQueue.markPortfolioCloudSyncPending(mode, reason, scope),
+      markPortfolioCloudSyncOff: () => portfolioQueue.markPortfolioCloudSyncOff(scope),
+      drainPendingPortfolioCloudSync: (options: { mode?: SyncMode }) => portfolioQueue.drainPendingPortfolioCloudSync({ ...options, scope }),
+      readPortfolioCloudBase: (mode: Exclude<SyncMode, null>) => portfolioRevision.readPortfolioCloudBase(mode, scope),
+      rememberPortfolioCloudBase: (mode: Exclude<SyncMode, null>, version: PortfolioCloudVersion) => portfolioRevision.rememberPortfolioCloudBase(mode, version, scope),
+      readActivePortfolioConflict: (mode: Exclude<SyncMode, null>) => portfolioRevision.readActivePortfolioConflict(mode, scope),
+    }), [scope]);
+  const markPortfolioFailureFromSyncResult = useCallback((mode: Exclude<SyncMode, null>, result: { status: string }, fallback: string) => {
+    if (isCurrent()) markPortfolioFailureForScope(mode, result, fallback, scope);
+  }, [isCurrent, scope]);
   const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
   const [tagMap, setTagMap] = useState<TagMap>({});
   const [allocation, setAllocation] = useState<number>(DEFAULT_GMV_ALLOCATION);
@@ -200,6 +256,15 @@ export default function PortfolioBoardShell() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("off");
   const [hasConflict, setHasConflict] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
+  const [legacyReview, setLegacyReview] = useState(false);
+  const [hasLegacy, setHasLegacy] = useState(false);
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (!isCurrent()) return;
+      try { setHasLegacy(hasUnreviewedLegacyPortfolio(scope)); }
+      catch { setImportError("暂时无法读取旧版组合缓存；原始数据未修改。"); }
+    });
+  }, [scope, isCurrent]);
   // Signed-in browsers sync against the account; others use the passcode.
   const [syncMode, setSyncMode] = useState<SyncMode>(null);
   // Owners (emails) who shared their portfolio with this account.
@@ -226,9 +291,10 @@ export default function PortfolioBoardShell() {
   const initialSyncInFlightRef = useRef(false);
   const [pushRetryVersion, setPushRetryVersion] = useState(0);
   const queueLocalPortfolioChange = useCallback(() => {
+    if (!isCurrent()) return;
     saveDataUpdatedAt(new Date().toISOString());
     markPortfolioCloudSyncPending(syncModeRef.current, "local-change");
-  }, []);
+  }, [isCurrent, saveDataUpdatedAt, markPortfolioCloudSyncPending]);
   // Own local data, stashed while viewing a shared portfolio.
   const viewStashRef = useRef<{
     snapshot: PortfolioSnapshot | null;
@@ -242,15 +308,16 @@ export default function PortfolioBoardShell() {
       try { setHasConflict(Boolean(syncMode && readActivePortfolioConflict(syncMode))); }
       catch { setHasConflict(true); }
     };
-    const storage = (event: StorageEvent) => { if (event.key?.startsWith(PORTFOLIO_ACTIVE_CONFLICT_KEY)) refresh(); };
+    const storage = (event: StorageEvent) => { if (syncMode && event.key === portfolioStorageKey(`${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${syncMode}`, scope)) refresh(); };
     queueMicrotask(refresh);
     window.addEventListener(PORTFOLIO_CONFLICT_EVENT, refresh);
     window.addEventListener("storage", storage);
     return () => { window.removeEventListener(PORTFOLIO_CONFLICT_EVENT, refresh); window.removeEventListener("storage", storage); };
-  }, [syncMode]);
+  }, [syncMode, readActivePortfolioConflict, scope]);
 
   useEffect(() => {
     queueMicrotask(async () => {
+      if (!isCurrent()) return;
       setSnapshot(loadSnapshot());
       setTagMap(loadTagMap());
       setAllocation(loadAllocation());
@@ -258,12 +325,13 @@ export default function PortfolioBoardShell() {
       // Signed in → account sync takes over; otherwise legacy passcode mode.
       try {
         const session = await fetchAccountSession();
+        if (!isCurrent()) return;
         if (session.authenticated) {
           syncModeRef.current = "account";
           setSyncMode("account");
           void runInitialSync(null, false);
           void fetchShares().then((shares) => {
-            if (shares.status === "ok") {
+            if (isCurrent() && shares.status === "ok") {
               setSharedWithMe(shares.data.sharedWithMe);
             }
           });
@@ -272,6 +340,7 @@ export default function PortfolioBoardShell() {
       } catch {
         // offline or account system unconfigured — fall through
       }
+      if (!isCurrent()) return;
       const code = loadSyncPasscode();
       if (code) {
         syncModeRef.current = "passcode";
@@ -337,7 +406,7 @@ export default function PortfolioBoardShell() {
     }
     pushRetryTimerRef.current = window.setTimeout(() => {
       pushRetryTimerRef.current = null;
-      if (viewingOwnerRef.current) return;
+      if (!isCurrent() || viewingOwnerRef.current) return;
       const mode = syncModeRef.current;
       const code = syncPasscode ?? loadSyncPasscode();
       if (!isPortfolioSyncActive(mode, code) || !syncReadyRef.current) return;
@@ -348,9 +417,10 @@ export default function PortfolioBoardShell() {
       setMaxNetPct(loadMaxNetPct());
       setPushRetryVersion((version) => version + 1);
     }, 5000);
-  }, [syncPasscode]);
+  }, [syncPasscode, isCurrent, loadAllocation, loadMaxNetPct, loadSnapshot, loadSyncPasscode, loadTagMap]);
 
   const applyCleanCloudPortfolio = useCallback((cloud: CloudPortfolioData, version: PortfolioCloudVersion, mode: Exclude<SyncMode, null>) => {
+    if (!isCurrent()) return;
     saveSnapshot(cloud.snapshot);
     saveTagMap(cloud.tagMap);
     saveAllocation(cloud.allocation);
@@ -365,11 +435,11 @@ export default function PortfolioBoardShell() {
     setAllocation(cloud.allocation);
     setMaxNetPct(cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
     setSyncStatus("synced");
-  }, []);
+  }, [isCurrent, rememberPortfolioCloudBase, saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap]);
 
   const runInitialSync = useCallback(
     async (code: string | null, manual: boolean) => {
-      if (initialSyncInFlightRef.current || viewingOwnerRef.current) return;
+      if (!isCurrent() || initialSyncInFlightRef.current || viewingOwnerRef.current) return;
       initialSyncInFlightRef.current = true;
       try {
         setSyncStatus("syncing");
@@ -380,6 +450,7 @@ export default function PortfolioBoardShell() {
         const result = accountMode
           ? await accountPullCloud()
           : await pullCloudData(code ?? "");
+        if (!isCurrent()) return;
         if (result.status === "unconfigured") {
           setSyncStatus("off");
           markPortfolioFailureFromSyncResult(
@@ -474,7 +545,7 @@ export default function PortfolioBoardShell() {
         lastPayloadRef.current = localPayload;
         if (!hadPending) markPortfolioCloudSyncPending(activeMode, "initial-local-data");
         const pushed = await drainPendingPortfolioCloudSync({ mode: activeMode });
-        if (viewingOwnerRef.current || syncModeRef.current !== activeMode) return;
+        if (!isCurrent() || viewingOwnerRef.current || syncModeRef.current !== activeMode) return;
         if (pushed.status === "ok") {
           const serverTags = loadTagMap();
           lastPayloadRef.current = corePayload(loadSnapshot(), serverTags, loadAllocation(), loadMaxNetPct());
@@ -495,53 +566,22 @@ export default function PortfolioBoardShell() {
         }
         syncReadyRef.current = true;
       } catch (error) {
+        if (!isCurrent()) return;
         setSyncStatus("error");
         showNotice(error instanceof Error ? error.message : "组合版本暂时无法确认；本地数据已保留。", "warning");
       } finally {
         initialSyncInFlightRef.current = false;
       }
     },
-    [applyCleanCloudPortfolio, schedulePortfolioPushRetry, showNotice]
+    [applyCleanCloudPortfolio, schedulePortfolioPushRetry, showNotice, clearSyncPasscode, drainPendingPortfolioCloudSync,
+      getPendingPortfolioCloudSyncStatus, hasUnsyncedPortfolioChanges, isCurrent, loadAllocation, loadDataUpdatedAt,
+      loadLastEmailMessageId, loadMaxNetPct, loadSnapshot, loadTagMap, markPortfolioCloudSyncPending,
+      markPortfolioFailureFromSyncResult, readPortfolioCloudBase, rememberPortfolioCloudBase]
   );
-
-  useEffect(() => {
-    const handleAccountSessionStorage = (event: StorageEvent) => {
-      if (event.key !== ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) {
-        return;
-      }
-      void (async () => {
-        try {
-          const session = await fetchAccountSession({ force: true });
-          if (session.authenticated) {
-            syncModeRef.current = "account";
-            setSyncMode("account");
-            void runInitialSync(null, false);
-            void fetchShares().then((shares) => {
-              if (shares.status === "ok") {
-                setSharedWithMe(shares.data.sharedWithMe);
-              }
-            });
-            return;
-          }
-          if (session.status === "ok" && syncModeRef.current === "account") {
-            syncModeRef.current = null;
-            setSyncMode(null);
-            setSyncStatus("off");
-          }
-        } catch {
-          // A failed account probe should not disable local portfolio editing.
-        }
-      })();
-    };
-    window.addEventListener("storage", handleAccountSessionStorage);
-    return () => {
-      window.removeEventListener("storage", handleAccountSessionStorage);
-    };
-  }, [runInitialSync]);
 
   const applyRemotePortfolio = useCallback(
     (cloud: CloudPortfolioData | null, version: PortfolioCloudVersion | undefined, mode: Exclude<SyncMode, null>) => {
-      if (viewingOwnerRef.current || syncModeRef.current !== mode) return;
+      if (!isCurrent() || viewingOwnerRef.current || syncModeRef.current !== mode) return;
       if (hasUnsyncedPortfolioChanges()) {
         const pending = getPendingPortfolioCloudSyncStatus();
         setSyncStatus(pending.failed || pending.manualReviewCount ? "error" : "syncing");
@@ -560,14 +600,15 @@ export default function PortfolioBoardShell() {
         showNotice(error instanceof Error ? error.message : "组合读取失败；本地数据已保留。", "warning");
       }
     },
-    [applyCleanCloudPortfolio, showNotice]
+    [applyCleanCloudPortfolio, showNotice, getPendingPortfolioCloudSyncStatus, hasUnsyncedPortfolioChanges, isCurrent, readPortfolioCloudBase]
   );
 
   const pullLatestPortfolio = useCallback(async () => {
-    if (viewingOwnerRef.current || !syncReadyRef.current) return;
+    if (!isCurrent() || viewingOwnerRef.current || !syncReadyRef.current) return;
     const mode = syncModeRef.current;
     if (mode === "account") {
       const result = await accountPullCloud();
+      if (!isCurrent()) return;
       if (result.status === "ok") {
         applyRemotePortfolio(result.data, result.version, "account");
       } else if (result.status === "unauthenticated" || result.status === "forbidden") {
@@ -599,6 +640,7 @@ export default function PortfolioBoardShell() {
     const code = syncPasscode ?? loadSyncPasscode();
     if (mode !== "passcode" || !code) return;
     const result = await pullCloudData(code);
+    if (!isCurrent()) return;
     if (result.status === "ok") {
       applyRemotePortfolio(result.data, result.version, "passcode");
     } else if (result.status === "unauthorized") {
@@ -624,7 +666,7 @@ export default function PortfolioBoardShell() {
         "warning"
       );
     }
-  }, [applyRemotePortfolio, schedulePortfolioPushRetry, showNotice, syncPasscode]);
+  }, [applyRemotePortfolio, schedulePortfolioPushRetry, showNotice, syncPasscode, clearSyncPasscode, isCurrent, loadSyncPasscode, markPortfolioFailureFromSyncResult]);
 
   useEffect(() => {
     const pullIfVisible = () => {
@@ -651,11 +693,11 @@ export default function PortfolioBoardShell() {
       window.removeEventListener("focus", pullIfVisible);
       document.removeEventListener("visibilitychange", pullIfVisible);
     };
-  }, [pullLatestPortfolio, runInitialSync, syncPasscode]);
+  }, [pullLatestPortfolio, runInitialSync, syncPasscode, loadSyncPasscode]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      if (!isPortfolioDataStorageKey(event.key) || viewingOwnerRef.current) return;
+      if (!isCurrent() || !isPortfolioDataStorageKey(event.key, scope) || viewingOwnerRef.current) return;
       const nextSnapshot = loadSnapshot();
       const nextTags = loadTagMap();
       const nextAllocation = loadAllocation();
@@ -670,12 +712,12 @@ export default function PortfolioBoardShell() {
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  }, [hasUnsyncedPortfolioChanges, isCurrent, loadAllocation, loadMaxNetPct, loadSnapshot, loadTagMap, scope]);
 
   // Push local changes to the cloud (debounced) once initial sync completed.
   useEffect(() => {
     // Never push while viewing someone else's shared portfolio.
-    if (viewingOwner) return;
+    if (!isCurrent() || viewingOwner) return;
     const active =
       syncMode === "account" || (syncMode === "passcode" && syncPasscode);
     if (!active || !syncReadyRef.current) return;
@@ -690,10 +732,10 @@ export default function PortfolioBoardShell() {
     pushTimerRef.current = window.setTimeout(() => {
       pushTimerRef.current = null;
       const modeAtPush = syncModeRef.current;
-      if (!modeAtPush || viewingOwnerRef.current) return;
+      if (!isCurrent() || !modeAtPush || viewingOwnerRef.current) return;
       lastPayloadRef.current = payload;
       void drainPendingPortfolioCloudSync({ mode: modeAtPush }).then((result) => {
-        if (viewingOwnerRef.current || syncModeRef.current !== modeAtPush) return;
+        if (!isCurrent() || viewingOwnerRef.current || syncModeRef.current !== modeAtPush) return;
         if (result.status === "ok") {
           const serverTags = loadTagMap();
           lastPayloadRef.current = corePayload(loadSnapshot(), serverTags, loadAllocation(), loadMaxNetPct());
@@ -713,7 +755,7 @@ export default function PortfolioBoardShell() {
           );
         }
       }).catch(() => {
-        if (viewingOwnerRef.current || syncModeRef.current !== modeAtPush) return;
+        if (!isCurrent() || viewingOwnerRef.current || syncModeRef.current !== modeAtPush) return;
         setSyncStatus("error");
         showNotice("无法保存同步状态；待上传记录仍保留，请检查本机存储空间。", "warning");
       });
@@ -732,9 +774,12 @@ export default function PortfolioBoardShell() {
     pushRetryVersion,
     schedulePortfolioPushRetry,
     showNotice,
+    drainPendingPortfolioCloudSync, hasUnsyncedPortfolioChanges, isCurrent, loadAllocation,
+    loadMaxNetPct, loadSnapshot, loadTagMap, markPortfolioCloudSyncPending,
   ]);
 
   const handleEnableSync = useCallback(async () => {
+    if (!isCurrent() || scope !== "local") return;
     const code = window.prompt(
       "设置一个云同步密码（至少 6 位）。\n所有设备输入同一个密码即可共享持仓数据。请使用专门的密码，不要复用其他账号密码。"
     );
@@ -750,10 +795,12 @@ export default function PortfolioBoardShell() {
     setSyncPasscode(trimmed);
     markPortfolioCloudSyncPending("passcode", "enable-passcode-sync");
     await runInitialSync(trimmed, true);
-  }, [runInitialSync]);
+  }, [runInitialSync, isCurrent, markPortfolioCloudSyncPending, saveSyncPasscode, scope]);
 
   const handleSyncChipClick = useCallback(() => {
+    if (!isCurrent()) return;
     if (hasConflict && !viewingOwnerRef.current) {
+      setLegacyReview(false);
       setConflictOpen(true);
       return;
     }
@@ -784,29 +831,30 @@ export default function PortfolioBoardShell() {
       syncReadyRef.current = false;
       markPortfolioCloudSyncOff();
     }
-  }, [hasConflict, syncPasscode, syncStatus, runInitialSync]);
+  }, [hasConflict, syncPasscode, syncStatus, runInitialSync, clearSyncPasscode, isCurrent, markPortfolioCloudSyncOff]);
 
   const handleAllocationChange = useCallback((value: number) => {
-    if (viewingOwnerRef.current) return;
+    if (!isCurrent() || viewingOwnerRef.current) return;
     if (!Number.isFinite(value) || value <= 0) return;
     setAllocation(value);
     saveAllocation(value);
     queueLocalPortfolioChange();
-  }, [queueLocalPortfolioChange]);
+  }, [queueLocalPortfolioChange, isCurrent, saveAllocation]);
 
   const handleMaxNetChange = useCallback((value: number) => {
-    if (viewingOwnerRef.current) return;
+    if (!isCurrent() || viewingOwnerRef.current) return;
     if (!Number.isFinite(value) || value <= 0 || value > 100) return;
     setMaxNetPct(value);
     saveMaxNetPct(value);
     queueLocalPortfolioChange();
-  }, [queueLocalPortfolioChange]);
+  }, [queueLocalPortfolioChange, isCurrent, saveMaxNetPct]);
 
   // Switch between my own portfolio and a friend's shared one (read-only).
   // The friend's data only lives in component state — local storage keeps
   // my own data untouched the whole time.
   const handleViewOwnerChange = useCallback(
     async (owner: string) => {
+      if (!isCurrent()) return;
       if (!owner) {
         const stash = viewStashRef.current;
         if (stash) {
@@ -828,6 +876,7 @@ export default function PortfolioBoardShell() {
         return;
       }
       const result = await accountPullCloud(owner);
+      if (!isCurrent()) return;
       if (result.status !== "ok" || !result.data) {
         showNotice("无法读取对方的云端持仓（对方可能还没有同步过数据）。");
         return;
@@ -843,7 +892,7 @@ export default function PortfolioBoardShell() {
       if (cloud.allocation > 0) setAllocation(cloud.allocation);
       if (cloud.maxNetPct && cloud.maxNetPct > 0) setMaxNetPct(cloud.maxNetPct);
     },
-    [snapshot, tagMap, allocation, maxNetPct, showNotice]
+    [snapshot, tagMap, allocation, maxNetPct, showNotice, isCurrent]
   );
 
   // ----- file imports --------------------------------------------------------
@@ -852,11 +901,12 @@ export default function PortfolioBoardShell() {
 
   const handleImportPositions = useCallback(
     async (file: File) => {
-      if (viewingOwnerRef.current) return;
+      if (!isCurrent() || viewingOwnerRef.current) return;
       setImportError(null);
       try {
         const XLSX = await import("xlsx");
         const buffer = await file.arrayBuffer();
+        if (!isCurrent() || viewingOwnerRef.current) return;
         const workbook = XLSX.read(buffer);
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
@@ -880,16 +930,17 @@ export default function PortfolioBoardShell() {
         setImportError("文件解析失败，请确认是 .xls / .xlsx 持仓报告。");
       }
     },
-    [showNotice, queueLocalPortfolioChange]
+    [showNotice, queueLocalPortfolioChange, isCurrent, loadSyncPasscode, saveSnapshot]
   );
 
   const handleImportBookTags = useCallback(
     async (file: File) => {
-      if (viewingOwnerRef.current) return;
+      if (!isCurrent() || viewingOwnerRef.current) return;
       setImportError(null);
       try {
         const XLSX = await import("xlsx");
         const buffer = await file.arrayBuffer();
+        if (!isCurrent() || viewingOwnerRef.current) return;
         const workbook = XLSX.read(buffer);
         const sheets = workbook.SheetNames.map((name) => ({
           name,
@@ -916,7 +967,7 @@ export default function PortfolioBoardShell() {
         setImportError("Book 文件解析失败，请确认格式。");
       }
     },
-    [showNotice, queueLocalPortfolioChange]
+    [showNotice, queueLocalPortfolioChange, isCurrent, loadTagMap, saveTagMap]
   );
 
   // ----- email auto-import ----------------------------------------------------
@@ -925,14 +976,26 @@ export default function PortfolioBoardShell() {
 
   const handleEmailCheck = useCallback(
     async (auto: boolean) => {
-      if (viewingOwnerRef.current) return;
+      if (!isCurrent() || viewingOwnerRef.current) return;
+      if (!scope.startsWith("account:")) {
+        if (!auto) setImportError("请先登录持仓邮箱所属账号。");
+        return;
+      }
       if (emailChecking) return;
       setEmailChecking(true);
       try {
         const res = await fetchPortfolioActionWithTimeout(
-          "/api/portfolio/email-position"
+          "/api/portfolio/email-position",
+          { headers: { "x-zhinote-account-id": scope.slice("account:".length) }, cache: "no-store" }
         );
+        if (!isCurrent() || viewingOwnerRef.current) return;
         if (res.status === 501) {
+          const data = await res.json().catch(() => null);
+          if (!isCurrent()) return;
+          if (data?.code === "email-owner-unconfigured") {
+            if (!auto) setImportError(data.error);
+            return;
+          }
           if (!auto) {
             const go = window.confirm(
               "邮箱自动导入还没有授权。要打开授权设置页吗？（一次性设置，约 10 分钟）"
@@ -949,12 +1012,18 @@ export default function PortfolioBoardShell() {
           return;
         }
         const data: {
+          accountId?: string;
           found?: boolean;
           messageId?: string;
           fileName?: string;
           receivedAt?: string;
           contentBase64?: string;
         } = await res.json();
+        if (!isCurrent() || viewingOwnerRef.current) return;
+        if (data.accountId !== scope.slice("account:".length)) {
+          if (!auto) setImportError("邮箱返回的账号不一致，未导入任何内容。");
+          return;
+        }
         if (!data.found || !data.messageId || !data.contentBase64) {
           if (!auto) showNotice("邮箱里最近 30 天没有找到 Roger Pos 持仓邮件。");
           return;
@@ -970,6 +1039,7 @@ export default function PortfolioBoardShell() {
           c.charCodeAt(0)
         );
         const XLSX = await import("xlsx");
+        if (!isCurrent() || viewingOwnerRef.current) return;
         const workbook = XLSX.read(bytes);
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
@@ -1006,7 +1076,7 @@ export default function PortfolioBoardShell() {
         setEmailChecking(false);
       }
     },
-    [emailChecking, showNotice, queueLocalPortfolioChange]
+    [emailChecking, showNotice, queueLocalPortfolioChange, isCurrent, loadLastEmailMessageId, loadSyncPasscode, saveLastEmailMessageId, saveSnapshot, scope]
   );
 
   // On open, quietly look for a newer position email and import it.
@@ -1030,14 +1100,14 @@ export default function PortfolioBoardShell() {
   }, [tagMap]);
 
   const handleTagChange = useCallback((key: string, tag: string) => {
-    if (viewingOwnerRef.current) return;
+    if (!isCurrent() || viewingOwnerRef.current) return;
     const next = { ...loadTagMap() };
     if (tag.trim()) next[key] = tag.trim();
     else delete next[key];
     saveTagMap(next);
     queueLocalPortfolioChange();
     setTagMap(next);
-  }, [queueLocalPortfolioChange]);
+  }, [queueLocalPortfolioChange, isCurrent, loadTagMap, saveTagMap]);
 
   const untagged = useMemo(
     () =>
@@ -1048,7 +1118,7 @@ export default function PortfolioBoardShell() {
   );
 
   const handleAiTag = useCallback(async () => {
-    if (viewingOwnerRef.current) return;
+    if (!isCurrent() || viewingOwnerRef.current) return;
     if (!snapshot || untagged.length === 0 || aiTagging) return;
     const ok = window.confirm(
       `将把 ${untagged.length} 只未打标股票的代码和名称发送给 Claude AI 来按主营业务分配标签（不发送仓位金额或 PnL）。确认继续？`
@@ -1067,6 +1137,7 @@ export default function PortfolioBoardShell() {
           }),
         }
       );
+      if (!isCurrent() || viewingOwnerRef.current) return;
       if (res.status === 501) {
         window.alert(
           "AI 功能尚未配置。请在 Vercel 项目设置中添加 ANTHROPIC_API_KEY。"
@@ -1084,7 +1155,7 @@ export default function PortfolioBoardShell() {
         window.alert("AI 没有返回任何标签建议。");
         return;
       }
-      if (viewingOwnerRef.current) return;
+      if (!isCurrent() || viewingOwnerRef.current) return;
       // Suggestions only fill gaps; manual labels entered while AI was running win.
       const next = { ...suggested, ...loadTagMap() };
       saveTagMap(next);
@@ -1100,7 +1171,7 @@ export default function PortfolioBoardShell() {
     } finally {
       setAiTagging(false);
     }
-  }, [snapshot, untagged, knownTags, aiTagging, showNotice, queueLocalPortfolioChange]);
+  }, [snapshot, untagged, knownTags, aiTagging, showNotice, queueLocalPortfolioChange, isCurrent, loadTagMap, saveTagMap]);
 
   // ----- derived numbers ------------------------------------------------------
 
@@ -1154,15 +1225,27 @@ export default function PortfolioBoardShell() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      {conflictOpen && syncMode && !viewingOwner && <PortfolioConflictDialog mode={syncMode}
+      {conflictOpen && syncMode && !viewingOwner && <PortfolioConflictDialog mode={syncMode} scope={scope} legacy={legacyReview}
         onClose={() => setConflictOpen(false)}
         onUpdated={(result) => {
+          if (!isCurrent()) return;
+          setHasLegacy(hasUnreviewedLegacyPortfolio(scope));
           setSnapshot(loadSnapshot()); setTagMap(loadTagMap()); setAllocation(loadAllocation()); setMaxNetPct(loadMaxNetPct());
           lastPayloadRef.current = corePayload(loadSnapshot(), loadTagMap(), loadAllocation(), loadMaxNetPct());
           setSyncStatus(result.status === "ok" ? "synced" : "error");
         }} />}
       <main className="flex-1 overflow-y-auto bg-zinc-50/40 dark:bg-zinc-950">
         <div className="mx-auto max-w-6xl px-8 py-10">
+          {hasLegacy && !viewingOwner && <div className="mb-5 flex flex-wrap items-center gap-3 border-l-2 border-amber-500 pl-3 text-sm">
+            <span>旧版本机组合尚未确认归属，原始数据已保留。</span>
+            <button type="button" className="underline underline-offset-4 disabled:opacity-50" disabled={syncMode !== "account"}
+              onClick={() => {
+                if (!isCurrent()) return;
+                const owner = formatClientAccountLabel(getLastAuthenticatedAccount());
+                if (!window.confirm(`确认旧版本机组合属于当前账号「${owner}」？接下来逐项核对，最终确认前不会上传或替换数据。`)) return;
+                setLegacyReview(true); setConflictOpen(true);
+              }}>核对旧版组合</button>
+          </div>}
           {/* Header */}
           <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>

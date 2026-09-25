@@ -3,6 +3,7 @@
 // cloud copy of the portfolio data.
 
 import type { PortfolioSnapshot, TagMap } from "./positionReport";
+import { assertPortfolioScopeCurrent, getPortfolioStorageScope, portfolioStorage } from "./portfolioStorageScope";
 import {
   acceptPortfolioCloudVersion, createPortfolioPushGuard, parsePortfolioCloudVersion,
   retainPortfolioConflict, type PortfolioCloudVersion, type PortfolioPushGuard,
@@ -33,21 +34,21 @@ export function portfolioCloudAckConfirmsPush(value: unknown, data: CloudPortfol
 const PASSCODE_KEY = "zhinote.portfolio.syncPasscode.v1";
 const PORTFOLIO_PASSCODE_SYNC_REQUEST_TIMEOUT_MS = 12000;
 
-export function loadSyncPasscode(): string | null {
+export function loadSyncPasscode(scope = getPortfolioStorageScope()): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(PASSCODE_KEY);
+    return portfolioStorage(scope).getItem(PASSCODE_KEY);
   } catch {
     return null;
   }
 }
 
-export function saveSyncPasscode(code: string) {
-  window.localStorage.setItem(PASSCODE_KEY, code);
+export function saveSyncPasscode(code: string, scope = getPortfolioStorageScope()) {
+  portfolioStorage(scope).setItem(PASSCODE_KEY, code);
 }
 
-export function clearSyncPasscode() {
-  window.localStorage.removeItem(PASSCODE_KEY);
+export function clearSyncPasscode(scope = getPortfolioStorageScope()) {
+  portfolioStorage(scope).removeItem(PASSCODE_KEY);
 }
 
 export type SyncResult<T> =
@@ -77,10 +78,13 @@ export async function pullCloudData(
 export async function pushCloudData(
   passcode: string,
   data: CloudPortfolioData,
-  reviewedVersion?: PortfolioCloudVersion
+  reviewedVersion?: PortfolioCloudVersion,
+  scope = getPortfolioStorageScope()
 ): Promise<SyncResult<TagMap | null>> {
   try {
-    const localGuard = createPortfolioPushGuard("passcode");
+    assertPortfolioScopeCurrent(scope);
+    if (scope !== "local") throw new Error("已登录账号不能使用匿名组合的同步密码上传。");
+    const localGuard = createPortfolioPushGuard("passcode", scope);
     if (reviewedVersion && localGuard.base && reviewedVersion.scope !== localGuard.base.scope) {
       return { status: "error", retryable: false, message: "同步空间已改变，未上传冲突处理结果。" };
     }
@@ -94,13 +98,14 @@ export async function pushCloudData(
     if (res.status === 501) return { status: "unconfigured" };
     if (res.status === 403) return { status: "unauthorized" };
     const result = await res.json();
+    assertPortfolioScopeCurrent(scope);
     if (!res.ok) {
-      if (res.status === 409 && result.code === "portfolio-conflict") retainPortfolioConflict("passcode", data, result);
+      if (res.status === 409 && result.code === "portfolio-conflict") retainPortfolioConflict("passcode", data, result, scope);
       return { status: "error", message: result.error, retryable: res.status !== 409 && res.status !== 428 };
     }
     if (!portfolioCloudAckConfirmsPush(result.ack, data, guard)) return { status: "error" };
     const version = parsePortfolioCloudVersion(result.ack)!;
-    if (!acceptPortfolioCloudVersion("passcode", localGuard, version)) return { status: "error" };
+    if (!acceptPortfolioCloudVersion("passcode", localGuard, version, scope)) return { status: "error" };
     return {
       status: "ok",
       data: data.tagMap,

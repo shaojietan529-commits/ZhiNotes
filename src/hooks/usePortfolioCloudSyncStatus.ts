@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
-import { isAccountSessionStorageKey } from "@/lib/account/clientSession";
+import { ACCOUNT_SESSION_CHANGED_EVENT, isAccountSessionStorageKey } from "@/lib/account/clientSession";
+import { portfolioStorageKey } from "@/lib/portfolio/portfolioStorageScope";
 import {
   drainPendingPortfolioCloudSync,
   getPendingPortfolioCloudSyncStatus,
@@ -115,20 +116,19 @@ export function usePortfolioCloudSyncStatus() {
     const handleVisible = () => {
       if (document.visibilityState === "visible") refreshAndMaybeRetry();
     };
-    const handleStatus = (event: Event) => {
-      const detail = (event as CustomEvent<PortfolioCloudSyncStatus | undefined>)
-        .detail;
-      if (detail) {
-        setStatusIfMounted(detail);
-        scheduleAutoRetry(detail, PORTFOLIO_AUTO_RETRY_DELAY_MS);
+    // A notification may belong to the previous account. Always read the
+    // currently selected account's status rather than applying event data.
+    const handleStatus = () => refreshAndMaybeRetry();
+    const handleStorage = (event: StorageEvent) => {
+      if (isAccountSessionStorageKey(event.key) || event.key === null) {
+        refreshAndMaybeRetry();
         return;
       }
-      refreshAndMaybeRetry();
-    };
-    const handleStorage = (event: StorageEvent) => {
+      let statusKey: string;
+      try { statusKey = portfolioStorageKey(PORTFOLIO_SYNC_STATUS_STORAGE_KEY); }
+      catch { refreshAndMaybeRetry(); return; }
       if (
-        !isAccountSessionStorageKey(event.key) &&
-        event.key !== PORTFOLIO_SYNC_STATUS_STORAGE_KEY &&
+        event.key !== statusKey &&
         event.key !== PORTFOLIO_SYNC_STATUS_PING_STORAGE_KEY
       ) {
         return;
@@ -140,6 +140,7 @@ export function usePortfolioCloudSyncStatus() {
     window.addEventListener("focus", handleForeground);
     window.addEventListener("online", handleForeground);
     window.addEventListener(PORTFOLIO_SYNC_STATUS_EVENT, handleStatus);
+    window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, handleStatus);
     window.addEventListener("storage", handleStorage);
     window.addEventListener(
       ACCOUNT_PROFILE_UPDATED_EVENT,
@@ -157,6 +158,7 @@ export function usePortfolioCloudSyncStatus() {
       window.removeEventListener("focus", handleForeground);
       window.removeEventListener("online", handleForeground);
       window.removeEventListener(PORTFOLIO_SYNC_STATUS_EVENT, handleStatus);
+      window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, handleStatus);
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(
         ACCOUNT_PROFILE_UPDATED_EVENT,

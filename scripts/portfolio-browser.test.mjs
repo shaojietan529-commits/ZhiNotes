@@ -9,6 +9,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const base = process.env.PORTFOLIO_TEST_URL ?? "http://127.0.0.1:3007";
 assert.ok(["127.0.0.1", "localhost"].includes(new URL(base).hostname));
 const now = "2026-09-25T04:00:00.000Z";
+const scopedPrefix = "zhinote.portfolio.scoped.v1.account%3Asynthetic.";
 const versionOf = (data) => ({ scope: "a".repeat(64), revision: createHash("sha256").update(JSON.stringify(data)).digest("hex") });
 const initial = {
   snapshot: { importedAt: now, sourceName: "synthetic.xlsx", positions: [{
@@ -63,14 +64,14 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
       if (url.pathname.startsWith("/api/")) return json({ error: "isolated test" }, 501);
       return route.continue();
     });
-    await context.addInitScript((data) => {
+    await context.addInitScript(({ data, prefix }) => {
       if (localStorage.getItem("synthetic-portfolio-seeded")) return;
       localStorage.setItem("synthetic-portfolio-seeded", "true");
       for (const [key, value] of Object.entries({
         "snapshot": JSON.stringify(data.snapshot), "tags": JSON.stringify(data.tagMap),
         "allocation": String(data.allocation), "maxNetPct": String(data.maxNetPct), "updatedAt": data.updatedAt,
-      })) localStorage.setItem(`zhinote.portfolio.${key}.v1`, value);
-    }, initial);
+      })) localStorage.setItem(`${prefix}${key}.v1`, value);
+    }, { data: initial, prefix: scopedPrefix });
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
@@ -96,12 +97,12 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     // A focus-triggered pull may return newer remote data, but cannot replace pending input.
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await held.shift()();
-    await page.waitForFunction(() => JSON.parse(localStorage.getItem("zhinote.portfolio.sync.status.v1")).pending === 1);
+    await page.waitForFunction((prefix) => JSON.parse(localStorage.getItem(`${prefix}sync.status.v1`))?.pending === 1, scopedPrefix);
     assert.equal(await tag.textContent(), "newer edit");
     holdUploads = false;
     // A second debounce may have fired before the first reply; the queue must retry regardless.
     for (const reply of held.splice(0)) await reply();
-    await page.waitForFunction(() => JSON.parse(localStorage.getItem("zhinote.portfolio.sync.status.v1")).queueState === "synced", null, { timeout: 20000 });
+    await page.waitForFunction((prefix) => JSON.parse(localStorage.getItem(`${prefix}sync.status.v1`))?.queueState === "synced", scopedPrefix, { timeout: 20000 });
     assert.equal(cloud.tagMap["SAMPLE US"], "newer edit");
     assert.equal(uploads.length, 2);
     await page.evaluate(() => {
@@ -117,7 +118,7 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     // The confirmed server revision wins even when another device's clock is behind.
     cloud = { ...cloud, tagMap: {}, updatedAt: "2020-01-01T00:00:00.000Z" };
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-    await page.waitForFunction(() => Object.keys(JSON.parse(localStorage.getItem("zhinote.portfolio.tags.v1"))).length === 0);
+    await page.waitForFunction((prefix) => Object.keys(JSON.parse(localStorage.getItem(`${prefix}tags.v1`))).length === 0, scopedPrefix);
     assert.equal(await tag.textContent(), "未分类");
     assert.equal(uploads.length, 2, "remote deletion must not be unioned back or uploaded again");
     holdUploads = true;
@@ -128,13 +129,13 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     assert.equal(await tag.textContent(), "saved before reload");
     await until(() => uploads.length === 3);
     assert.equal(uploads[2].tagMap["SAMPLE US"], "saved before reload");
-    await page.waitForFunction(() => JSON.parse(localStorage.getItem("zhinote.portfolio.sync.status.v1")).queueState === "manual_review");
+    await page.waitForFunction((prefix) => JSON.parse(localStorage.getItem(`${prefix}sync.status.v1`))?.queueState === "manual_review", scopedPrefix);
     assert.equal(await tag.textContent(), "saved before reload");
     assert.equal(cloud.tagMap["SAMPLE US"], "another device");
-    const backup = await page.evaluate(() => {
-      const key = Object.keys(localStorage).find((key) => key.startsWith("zhinote.portfolio.conflict.v2"));
+    const backup = await page.evaluate((prefix) => {
+      const key = Object.keys(localStorage).find((key) => key.startsWith(`${prefix}conflict.v2`));
       return key ? JSON.parse(localStorage.getItem(key)) : null;
-    });
+    }, scopedPrefix);
     assert.equal(backup.local.tagMap["SAMPLE US"], "saved before reload");
     assert.equal(backup.cloud.tagMap["SAMPLE US"], "another device");
     await page.getByRole("button", { name: "处理同步冲突", exact: true }).click();
@@ -177,6 +178,189 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     if (process.env.PORTFOLIO_TEST_SCREENSHOT) await page.screenshot({ path: process.env.PORTFOLIO_TEST_SCREENSHOT });
     assert.deepEqual(errors, []);
     console.log("Verified isolated editing, late ACK, cloud deletion, conflict review on desktop/mobile, resolution ACK and clean reload.");
+  } finally { await browser.close(); }
+});
+
+test("portfolio UI: account A/B/A, delayed ACK and explicit legacy ownership review", { timeout: 90000 }, async () => {
+  const browser = await chromium.launch({ headless: true,
+    ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+  try {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    let activeId = "account-a", hold = true;
+    const clouds = new Map(["account-a", "account-b"].map((id) => [id, { ...structuredClone(initial), tagMap: { "SAMPLE US": id } }]));
+    const uploads = [], replies = [], errors = [], emailCalls = [];
+    const account = () => ({ id: activeId, email_hint: "s***@example.invalid", display_name: activeId, createdAt: now });
+    const version = (id, data) => ({ ...versionOf(data), scope: createHash("sha256").update(id).digest("hex") });
+    await context.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.origin !== new URL(base).origin) return route.abort();
+      const id = activeId;
+      const json = (data, status = 200) => route.fulfill({ status, json: data });
+      if (url.pathname === "/api/account/me") return json({ authenticated: true, account: account() });
+      if (url.pathname === "/api/portfolio/email-position") {
+        assert.equal(route.request().headers()["x-zhinote-account-id"], id);
+        emailCalls.push(id);
+        return json({ error: "Synthetic mailbox disabled" }, 403);
+      }
+      if (url.pathname === "/api/portfolio/account-sync") {
+        const body = route.request().postDataJSON();
+        assert.equal(body.expectedAccountId, id);
+        const cloud = clouds.get(id);
+        if (body.action === "shares") return json({ accountId: id, members: [], sharedWithMe: [] });
+        if (body.action === "pull") return json({ accountId: id, data: cloud, version: version(id, cloud) });
+        if (body.action === "push") {
+          uploads.push({ id, data: body.data });
+          if (body.base?.revision !== version(id, cloud).revision && JSON.stringify(cloud) !== JSON.stringify(body.data)) {
+            return json({ accountId: id, code: "portfolio-conflict", data: cloud, version: version(id, cloud), error: "Synthetic conflict" }, 409);
+          }
+          clouds.set(id, body.data);
+          const reply = () => json({ accountId: id, tagMap: body.data.tagMap, ack: {
+            format: "zhinote-portfolio-cloud-ack-receipt", format_version: 2, request_id: body.requestId,
+            ...version(id, body.data), accepted: true, ack_status: "acknowledged", updated_at: body.data.updatedAt,
+          } });
+          if (hold) { replies.push(reply); return; }
+          return reply();
+        }
+      }
+      if (url.pathname.startsWith("/api/")) return json({ error: "isolated test" }, 501);
+      return route.continue();
+    });
+    await context.addInitScript((data) => {
+      if (localStorage.getItem("synthetic-legacy-seeded")) return;
+      localStorage.setItem("synthetic-legacy-seeded", "true");
+      localStorage.setItem("zhinote.portfolio.snapshot.v1", JSON.stringify(data.snapshot));
+      localStorage.setItem("zhinote.portfolio.tags.v1", JSON.stringify({ "SAMPLE US": "unowned legacy" }));
+    }, initial);
+    const page = await context.newPage();
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`${base}/portfolio`);
+    const tag = page.getByTitle("点击修改标签", { exact: true });
+    const synced = page.getByRole("button", { name: "账号已同步" });
+    await synced.waitFor();
+    assert.equal(await tag.textContent(), "account-a");
+    assert.equal(uploads.length, 0, "unowned legacy data must not be adopted automatically");
+    const status = (id) => page.evaluate((id) => JSON.parse(localStorage.getItem(`zhinote.portfolio.scoped.v1.${encodeURIComponent(`account:${id}`)}.sync.status.v1`)), id);
+    async function edit(value) {
+      await tag.click();
+      const input = page.locator('input[list="zhinote-portfolio-tags"]');
+      await input.fill(value); await input.press("Enter");
+      assert.equal(await tag.textContent(), value);
+    }
+    async function switchTo(id) {
+      activeId = id;
+      // Another tab changes local identity while this tab still remembers A.
+      // The app must confirm the server session before remounting its cache.
+      await page.evaluate((info) => {
+        const key = "zhinote:account-session-last-authenticated:v1";
+        const value = JSON.stringify({ account: info, storedAt: Date.now() });
+        localStorage.setItem(key, value);
+        window.dispatchEvent(new StorageEvent("storage", { key, newValue: value }));
+      }, account());
+    }
+    await edit("A pending");
+    await until(() => replies.length === 1);
+    await switchTo("account-b");
+    await synced.waitFor();
+    await page.waitForFunction(() => document.querySelector('[title="点击修改标签"]')?.textContent === "account-b");
+    await replies.shift()();
+    assert.equal((await status("account-a")).pending, 1);
+    assert.equal((await status("account-b"))?.pending ?? 0, 0);
+    assert.equal(await tag.textContent(), "account-b");
+    hold = false;
+    await edit("B edit");
+    await until(() => uploads.some((upload) => upload.id === "account-b"));
+    await synced.waitFor();
+    await switchTo("account-a");
+    await synced.waitFor();
+    await page.waitForFunction(() => document.querySelector('[title="点击修改标签"]')?.textContent === "A pending");
+    assert.equal((await status("account-a")).pending, 0);
+    assert.equal(clouds.get("account-b").tagMap["SAMPLE US"], "B edit");
+    for (const upload of uploads) assert.notEqual(upload.data.tagMap["SAMPLE US"], "unowned legacy");
+    const beforeReview = uploads.length;
+    const legacyButton = page.getByRole("button", { name: "核对旧版组合", exact: true });
+    page.once("dialog", (dialog) => dialog.dismiss());
+    await legacyButton.click();
+    assert.equal(await page.getByRole("dialog").count(), 0);
+    page.once("dialog", (dialog) => dialog.accept());
+    await legacyButton.click();
+    const dialog = page.getByRole("dialog", { name: "核对旧版本机组合" });
+    await dialog.getByText("标签 · SAMPLE US", { exact: true }).waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), true);
+    if (process.env.PORTFOLIO_TEST_SCREENSHOT) await page.screenshot({ path: process.env.PORTFOLIO_TEST_SCREENSHOT.replace(".png", "-legacy-mobile.png") });
+    await dialog.getByRole("button", { name: "全部选本机" }).click();
+    hold = true;
+    await dialog.getByRole("button", { name: "确认并同步" }).click();
+    await until(() => replies.length === 1);
+    assert.equal(await tag.textContent(), "A pending", "ownership decision does not replace current data before ACK");
+    assert.equal(uploads.length, beforeReview + 1);
+    await replies.shift()();
+    await dialog.waitFor({ state: "hidden" });
+    assert.equal(await tag.textContent(), "unowned legacy");
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("zhinote.portfolio.tags.v1"))["SAMPLE US"]), "unowned legacy");
+    assert.equal(await legacyButton.count(), 0, "confirmed ownership is remembered for this account");
+    assert.equal(clouds.get("account-b").tagMap["SAMPLE US"], "B edit");
+    // A stale per-tab identity on boot also needs confirmation, even without
+    // receiving another storage event after mounting the board.
+    await page.evaluate(() => sessionStorage.setItem("zhinote:account-session-last-authenticated:v1",
+      JSON.stringify({ account: { id: "account-b" }, storedAt: Date.now() })));
+    await page.reload();
+    await synced.waitFor();
+    assert.equal(await tag.textContent(), "unowned legacy");
+    assert.deepEqual(errors, []);
+    assert.ok(emailCalls.length > 0);
+  } finally { await browser.close(); }
+});
+
+test("email setup UI: same-account refresh survives; switched account cannot display a late token", { timeout: 45000 }, async () => {
+  const browser = await chromium.launch({ headless: true,
+    ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+  try {
+    const context = await browser.newContext();
+    const replies = [], errors = [];
+    let activeId = "account-a", polls = 0;
+    const info = () => ({ id: activeId, email_hint: "s***@example.invalid", display_name: activeId, createdAt: now });
+    await context.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.origin !== new URL(base).origin) return route.abort();
+      if (url.pathname === "/api/account/me") return route.fulfill({ json: { authenticated: true, account: info() } });
+      if (url.pathname === "/api/portfolio/email-setup") {
+        const id = activeId;
+        assert.equal(route.request().headers()["x-zhinote-account-id"], id);
+        if (route.request().postDataJSON().action === "start") return route.fulfill({ json: {
+          accountId: id, userCode: "SYNTHETIC-CODE", deviceCode: "synthetic-device", verificationUri: "https://example.invalid", interval: 5,
+        } });
+        polls++;
+        replies.push(() => route.fulfill({ json: { accountId: id, status: "ok", refreshToken: "synthetic-private-token" } }));
+        return;
+      }
+      if (url.pathname.startsWith("/api/")) return route.fulfill({ status: 501, json: { error: "isolated" } });
+      return route.continue();
+    });
+    const page = await context.newPage();
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`${base}/portfolio/email-setup`);
+    await page.getByPlaceholder("粘贴 Application (client) ID").fill("synthetic-client");
+    await page.getByRole("button", { name: "开始授权", exact: true }).click();
+    await page.getByText("SYNTHETIC-CODE", { exact: true }).waitFor();
+    const notify = () => page.evaluate((account) => {
+      const key = "zhinote:account-session-last-authenticated:v1";
+      const newValue = JSON.stringify({ account, storedAt: Date.now() });
+      localStorage.setItem(key, newValue);
+      window.dispatchEvent(new StorageEvent("storage", { key, newValue }));
+    }, info());
+    await notify();
+    await page.getByText("SYNTHETIC-CODE", { exact: true }).waitFor();
+    await until(() => replies.length === 1);
+    activeId = "account-b";
+    await notify();
+    await page.getByText("SYNTHETIC-CODE", { exact: true }).waitFor({ state: "hidden" });
+    await replies.shift()();
+    await page.getByRole("button", { name: "开始授权", exact: true }).waitFor();
+    assert.equal(await page.getByText(/授权成功/).count(), 0);
+    assert.equal(await page.evaluate(() => JSON.stringify(localStorage).includes("synthetic-private-token")), false);
+    assert.equal(polls, 1);
+    assert.deepEqual(errors, []);
   } finally { await browser.close(); }
 });
 

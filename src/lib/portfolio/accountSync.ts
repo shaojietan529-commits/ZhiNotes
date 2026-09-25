@@ -10,6 +10,7 @@ import {
   retainPortfolioConflict, type PortfolioCloudVersion,
 } from "./portfolioSyncRevision";
 import { capturePortfolioAccountContext, isPortfolioAccountContextCurrent, type PortfolioAccountContext } from "./portfolioAccountContext";
+import { assertPortfolioScopeCurrent, getPortfolioStorageScope, type PortfolioStorageScope } from "./portfolioStorageScope";
 
 const ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000;
 
@@ -27,11 +28,16 @@ function accountChangedResult(): AccountSyncResult<never> {
 
 async function call<T>(
   body: Record<string, unknown>,
-  pick: (json: Record<string, unknown>) => T
+  pick: (json: Record<string, unknown>) => T,
+  scope?: PortfolioStorageScope
 ): Promise<AccountSyncResult<T>> {
   let context: PortfolioAccountContext | undefined;
   try {
     context = capturePortfolioAccountContext();
+    if (scope) {
+      assertPortfolioScopeCurrent(scope);
+      if (scope !== `account:${context.accountId}`) return accountChangedResult();
+    }
     const accountGate = await checkAccountCloudSyncGate();
     if (!isPortfolioAccountContextCurrent(context)) return accountChangedResult();
     if (accountGate.status === "unconfigured") return { status: "unconfigured" };
@@ -71,7 +77,7 @@ async function call<T>(
     }
     if (!res.ok) {
       if (res.status === 409 && json.code === "portfolio-conflict" && body.action === "push") {
-        retainPortfolioConflict("account", body.data as CloudPortfolioData, json);
+        retainPortfolioConflict("account", body.data as CloudPortfolioData, json, scope);
       }
       return {
         status: "error",
@@ -135,9 +141,11 @@ export function accountPullCloud(
 // Returns only labels confirmed by this version-bound cloud receipt.
 export async function accountPushCloud(
   data: CloudPortfolioData,
-  reviewedVersion?: PortfolioCloudVersion
+  reviewedVersion?: PortfolioCloudVersion,
+  scope = getPortfolioStorageScope()
 ): Promise<AccountSyncResult<TagMap | null>> {
-  const localGuard = createPortfolioPushGuard("account");
+  assertPortfolioScopeCurrent(scope);
+  const localGuard = createPortfolioPushGuard("account", scope);
   if (reviewedVersion && localGuard.base && reviewedVersion.scope !== localGuard.base.scope) {
     return { status: "error", retryable: false, message: "账号已改变，未上传冲突处理结果。" };
   }
@@ -149,12 +157,12 @@ export async function accountPushCloud(
         "组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。"
       );
     }
-    if (!acceptPortfolioCloudVersion("account", localGuard, parsePortfolioCloudVersion(ack)!)) {
+    if (!acceptPortfolioCloudVersion("account", localGuard, parsePortfolioCloudVersion(ack)!, scope)) {
       throw new Error("组合云端版本已变化；保留待上传修改，下次同步重新核对。");
     }
     // v2 persists the exact submitted document; it no longer unions tags.
     return data.tagMap;
-  });
+  }, scope);
 }
 
 export interface ShareInfo {

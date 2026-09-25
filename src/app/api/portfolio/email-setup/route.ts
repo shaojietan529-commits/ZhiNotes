@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requirePortfolioEmailOwner } from "@/lib/portfolio/portfolioEmailAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,8 @@ function portfolioEmailTimeoutResponse(
 }
 
 export async function POST(req: Request) {
+  const access = await requirePortfolioEmailOwner(req);
+  if (access.response) return access.response;
   let body: { action?: string; clientId?: string; deviceCode?: string };
   try {
     body = await req.json();
@@ -123,12 +126,13 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json({
+      accountId: access.account.id,
       verificationUri: data.verification_uri,
       userCode: data.user_code,
       deviceCode: data.device_code,
       interval: data.interval ?? 5,
       expiresIn: data.expires_in ?? 900,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   }
 
   if (body.action === "poll") {
@@ -158,9 +162,10 @@ export async function POST(req: Request) {
     const data = await res.json();
     if (typeof data.refresh_token === "string") {
       return NextResponse.json({
+        accountId: access.account.id,
         status: "ok",
         refreshToken: data.refresh_token,
-      });
+      }, { headers: { "Cache-Control": "private, no-store" } });
     }
     if (data.error === "authorization_pending" || data.error === "slow_down") {
       return NextResponse.json({ status: "pending" });

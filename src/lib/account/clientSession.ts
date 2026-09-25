@@ -10,6 +10,7 @@ export const ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY =
   "zhinote:account-session-last-authenticated:v1";
 export const ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY =
   "zhinote:account-session-explicit-logout:v1";
+export const ACCOUNT_SESSION_CHANGED_EVENT = "zhinote:account-session-changed";
 const ACCOUNT_SESSION_REQUEST_TIMEOUT_MS = 8000;
 // Match the 90-day httpOnly session cookie so transient account API failures
 // do not make a valid long-lived login look signed out after one day.
@@ -45,8 +46,10 @@ let accountSessionInFlight: Promise<AccountSessionResult> | null = null;
 let cachedAccountSession: AccountSessionResult | null = null;
 let cachedAccountSessionAt = 0;
 let accountSessionRetryAfter = 0;
+let accountSessionEpoch = 0;
 
 export function clearAccountSessionRuntimeCache(): void {
+  accountSessionEpoch++;
   accountSessionInFlight = null;
   cachedAccountSession = null;
   cachedAccountSessionAt = 0;
@@ -61,6 +64,7 @@ export function clearAccountSessionCache(
   if (options.clearLastAuthenticated) {
     clearStoredAuthenticatedAccount();
     storeExplicitLogoutMarker(Date.now());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(ACCOUNT_SESSION_CHANGED_EVENT));
   }
 }
 
@@ -73,7 +77,19 @@ export function getLastAuthenticatedAccount(): ClientAccountInfo | null {
 export function rememberLastAuthenticatedAccount(
   account: ClientAccountInfo
 ): void {
+  clearAccountSessionRuntimeCache();
   storeAuthenticatedAccount(account, Date.now());
+}
+
+function accountIdentityStamp(): string | null {
+  if (typeof window === "undefined") return "server";
+  try {
+    return JSON.stringify([window.localStorage, window.sessionStorage].map((storage) => {
+      const raw = storage.getItem(ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY);
+      return [raw ? JSON.parse(raw)?.account?.id : null,
+        storage.getItem(ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY)];
+    }));
+  } catch { return null; }
 }
 
 export async function fetchAccountSession(
@@ -110,11 +126,23 @@ export async function fetchAccountSession(
     return accountSessionInFlight;
   }
 
-  accountSessionInFlight = runFetchAccountSession().finally(() => {
-    accountSessionInFlight = null;
+  const epoch = accountSessionEpoch;
+  const identity = accountIdentityStamp();
+  const request = resolveAccountSession(epoch, identity).finally(() => {
+    if (accountSessionInFlight === request) accountSessionInFlight = null;
   });
+  accountSessionInFlight = request;
+  return request;
+}
+
+async function resolveAccountSession(epoch: number, identity: string | null): Promise<AccountSessionResult> {
+  const fetched = await runFetchAccountSession();
+  if (identity === null || epoch !== accountSessionEpoch || identity !== accountIdentityStamp()) {
+    return withStoredAuthenticatedFallback({ status: "unconfirmed", authenticated: false, account: null,
+      error: "account changed during session check" }, Date.now());
+  }
   const result = withStoredAuthenticatedFallback(
-    await accountSessionInFlight,
+    fetched,
     Date.now()
   );
   cachedAccountSession = result;
@@ -371,6 +399,7 @@ function storeAuthenticatedAccount(
   now: number
 ): void {
   if (typeof window === "undefined") return;
+  const before = accountIdentityStamp();
   clearStoredExplicitLogoutMarker();
   const payload = JSON.stringify({
     storedAt: now,
@@ -397,6 +426,7 @@ function storeAuthenticatedAccount(
   } catch {
     // Cross-tab fallback is best effort and stores no tokens or cookies.
   }
+  if (before !== accountIdentityStamp()) window.dispatchEvent(new Event(ACCOUNT_SESSION_CHANGED_EVENT));
 }
 
 function readStoredAuthenticatedAccount(
