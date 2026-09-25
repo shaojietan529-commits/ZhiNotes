@@ -751,6 +751,7 @@ const accountSync = read("src/app/api/portfolio/account-sync/route.ts");
 const portfolioAccountSyncClient = read("src/lib/portfolio/accountSync.ts");
 const portfolioPasscodeSyncClient = read("src/lib/portfolio/cloudSync.ts");
 const portfolioSyncStatus = read("src/lib/portfolio/portfolioSyncStatus.ts");
+const portfolioVersionedStore = read("src/lib/portfolio/portfolioVersionedStore.ts");
 const portfolioStatusHook = read("src/hooks/usePortfolioCloudSyncStatus.ts");
 for (const token of [
   "getAccountIdentityConfig",
@@ -765,10 +766,12 @@ for (const token of [
 }
 check(!accountSync.includes("console."), "account-sync route 不应该写日志");
 check(
-  accountSync.includes('format: "zhinote-portfolio-cloud-ack-receipt"') &&
-    accountSync.includes('ack_status: "acknowledged"') &&
-    accountSync.includes("accepted: true") &&
-    accountSync.includes("updated_at:"),
+  accountSync.includes("writeVersionedPortfolio") &&
+    portfolioVersionedStore.includes('format: "zhinote-portfolio-cloud-ack-receipt"') &&
+    portfolioVersionedStore.includes('ack_status: "acknowledged"') &&
+    portfolioVersionedStore.includes("accepted: true") &&
+    portfolioVersionedStore.includes("updated_at:") &&
+    portfolioVersionedStore.includes("PORTFOLIO_COMPARE_AND_SET"),
   "portfolio account-sync push 必须返回明确 ACK 回执，客户端只能在 ACK 后清 pending"
 );
 check(
@@ -786,11 +789,12 @@ check(
     portfolioAccountSyncClient.includes("组合同步接口暂时无法确认账号权限；本地组合数据未删除，请稍后重试。") &&
     portfolioAccountSyncClient.includes("portfolioCloudAckConfirmsPush") &&
     portfolioPasscodeSyncClient.includes('ack.format === "zhinote-portfolio-cloud-ack-receipt"') &&
-    portfolioPasscodeSyncClient.includes("ack.format_version === 1") &&
+    portfolioPasscodeSyncClient.includes("ack.format_version === 2") &&
+    portfolioPasscodeSyncClient.includes("ack.request_id === guard.requestId") &&
     portfolioPasscodeSyncClient.includes('ack.ack_status === "acknowledged"') &&
     portfolioPasscodeSyncClient.includes("ack.accepted === true") &&
     portfolioPasscodeSyncClient.includes("ack.updated_at === data.updatedAt") &&
-    portfolioPasscodeSyncClient.includes("portfolioCloudAckConfirmsPush(result.ack, data)") &&
+    portfolioPasscodeSyncClient.includes("portfolioCloudAckConfirmsPush(result.ack, data, guard)") &&
     portfolioAccountSyncClient.includes("组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。") &&
     !portfolioAccountSyncClient.includes('if (res.status === 401) return { status: "unauthenticated" }'),
   "portfolio account-sync client 应先复用共享账号 gate；具体同步接口 401 只能作为可重试错误，且 push 必须看到格式、版本、状态和 updated_at 都匹配的 ACK 后才成功"
