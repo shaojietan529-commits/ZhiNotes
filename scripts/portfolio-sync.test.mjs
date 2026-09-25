@@ -749,6 +749,57 @@ test("atomic edit: unreadable queue or thrown edit callback leaves all persisted
   assert.deepEqual(f.storage, before);
 });
 
+test("pull checkpoint: content, queue, baseline and conflict changes invalidate a read, including another tab", async () => {
+  const f = fixture(); f.seed();
+  const read = () => f.persistence.readPortfolioStorageCheckpoint(f.scope());
+  let checkpoint = read();
+  f.persistence.batchPortfolioStorage(f.scope(), () => {});
+  assert.equal(read(), checkpoint, "adopting unchanged legacy values is not an edit");
+  const tab = fixture(f.storage);
+  tab.store.saveAllocation(200);
+  assert.notEqual(read(), checkpoint, "another tab's persisted state is read without waiting for its event");
+  for (const [key, value] of [
+    ["zhinote.portfolio.sync.base.v2.account", JSON.stringify({ scope: "a".repeat(64), revision: "b".repeat(64) })],
+    ["zhinote.portfolio.sync.conflict.v1.account", JSON.stringify({ scope: "a".repeat(64), revision: "c".repeat(64) })],
+    ["zhinote.portfolio.sync.resolution.v1.account", JSON.stringify({ id: "synthetic-review" })],
+  ]) {
+    checkpoint = read();
+    tab.persistence.portfolioStorage(tab.scope()).setItem(key, value);
+    assert.notEqual(read(), checkpoint, `${key} invalidates a read even when content is unchanged`);
+  }
+  checkpoint = read();
+  f.queue.markPortfolioCloudSyncPending("account");
+  assert.notEqual(read(), checkpoint, "a new queue revision invalidates even identical edits");
+});
+
+test("pull checkpoint: an ACK invalidates the pre-upload snapshot even after pending is clear", async () => {
+  const f = fixture(); f.seed();
+  const before = f.persistence.readPortfolioStorageCheckpoint(f.scope());
+  const uploading = f.queue.drainPendingPortfolioCloudSync();
+  (await f.waitForRequest()).reply();
+  assert.equal((await uploading).status, "ok");
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
+  assert.notEqual(f.persistence.readPortfolioStorageCheckpoint(f.scope()), before);
+});
+
+test("pull checkpoint: checks the in-progress batch, fails closed on corruption and never crosses accounts", () => {
+  const f = fixture(); f.seed();
+  const scope = f.scope();
+  const before = f.persistence.readPortfolioStorageCheckpoint(scope);
+  assert.throws(() => f.persistence.batchPortfolioStorage(scope, () => {
+    assert.equal(f.persistence.readPortfolioStorageCheckpoint(scope), before);
+    f.store.saveAllocation(300);
+    assert.notEqual(f.persistence.readPortfolioStorageCheckpoint(scope), before);
+    throw new Error("Synthetic aborted apply");
+  }), /aborted/);
+  assert.equal(f.persistence.readPortfolioStorageCheckpoint(scope), before, "an aborted apply keeps the previous checkpoint");
+  f.setAccount("synthetic-b");
+  assert.throws(() => f.persistence.readPortfolioStorageCheckpoint(scope), /账号已改变/);
+  f.setAccount("synthetic-a");
+  f.storage.set(f.key("zhinote.portfolio.state.v2"), "corrupt record");
+  assert.throws(() => f.persistence.readPortfolioStorageCheckpoint(scope));
+});
+
 test("scoped cache: A and B have separate queues and concurrent drains, A resumes after returning", async () => {
   const f = fixture(); f.seed();
   const aScope = f.scope();

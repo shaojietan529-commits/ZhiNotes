@@ -29,6 +29,15 @@ function readState(scope: PortfolioStorageScope): StateValues | null {
   return parsed.values;
 }
 
+// Private, memory-only comparison token. Include queue/baseline changes, not
+// only content: an edit may already be acknowledged when an older pull arrives.
+export function readPortfolioStorageCheckpoint(scope: PortfolioStorageScope): string {
+  assertPortfolioScopeCurrent(scope);
+  const values = batches.get(scope)?.values ?? readState(scope);
+  return JSON.stringify(STATE_KEYS.map((key) => values
+    ? values[key] : window.localStorage.getItem(portfolioStorageKey(key, scope))));
+}
+
 // One native setItem is the commit boundary. Old individual keys are retained
 // untouched; no rollback, replay engine or second storage provider is needed.
 export function batchPortfolioStorage<T>(scope: PortfolioStorageScope, write: () => T): T {

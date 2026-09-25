@@ -476,6 +476,125 @@ test("email setup UI: same-account refresh survives; switched account cannot dis
   } finally { await browser.close(); }
 });
 
+for (const mode of ["account", "passcode"]) {
+  test(`portfolio ${mode} UI: late clean pulls cannot undo a newer pull, confirmed edit, or initial-sync edit`, { timeout: 90000 }, async () => {
+    const browser = await chromium.launch({ headless: true,
+      ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+    try {
+      const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+      await installPortfolioStorageProbe(context);
+      const prefix = mode === "account" ? scopedPrefix : "zhinote.portfolio.scoped.v1.local.";
+      const apiPath = mode === "account" ? "/api/portfolio/account-sync" : "/api/portfolio/sync";
+      if (mode === "passcode") await context.addInitScript((prefix) => {
+        localStorage.setItem(`${prefix}syncPasscode.v1`, "synthetic-passcode");
+      }, prefix);
+      let cloud = structuredClone(initial), holdNextPull = false;
+      const held = [], uploads = [], errors = [];
+      await context.route("**/*", async (route) => {
+        const url = new URL(route.request().url());
+        if (url.origin !== new URL(base).origin) return route.abort();
+        const json = (body, status = 200) => route.fulfill({ status, json: { accountId: "synthetic", ...body } });
+        if (url.pathname === "/api/account/me") return json(mode === "passcode" ? { authenticated: false } : { authenticated: true, account: {
+          id: "synthetic", email_hint: "s***@example.invalid", display_name: "Synthetic", createdAt: now,
+        } });
+        if (url.pathname === apiPath) {
+          const body = route.request().postDataJSON();
+          if (body.action === "pull") {
+            const copy = structuredClone(cloud);
+            const reply = (status = 200) => json(status === 200 ? { data: copy, version: versionOf(copy) }
+              : { error: "Synthetic late failure" }, status);
+            if (holdNextPull) { holdNextPull = false; held.push(reply); return; }
+            return reply();
+          }
+          if (body.action === "push") {
+            uploads.push(body.data);
+            if (JSON.stringify(body.data) !== JSON.stringify(cloud)) {
+              assert.equal(body.base?.revision, versionOf(cloud).revision, "local edits keep their confirmed baseline");
+            }
+            cloud = body.data;
+            return json({ tagMap: cloud.tagMap, ack: {
+              format: "zhinote-portfolio-cloud-ack-receipt", format_version: 2,
+              request_id: body.requestId, ...versionOf(cloud), ack_status: "acknowledged",
+              accepted: true, updated_at: cloud.updatedAt,
+            } });
+          }
+        }
+        if (url.pathname.startsWith("/api/")) return json({ error: "isolated" }, 501);
+        return route.continue();
+      });
+      const page = await context.newPage();
+      page.on("pageerror", (error) => errors.push(error.message));
+      const tag = page.getByTitle("点击修改标签", { exact: true });
+      const synced = page.getByRole("button", { name: /已同步/ });
+      const focus = () => page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      const expectTag = async (text) => page.waitForFunction((value) =>
+        document.querySelector('[title="点击修改标签"]')?.textContent === value, text);
+      const edit = async (text) => {
+        await tag.click();
+        const input = page.locator('input[list="zhinote-portfolio-tags"]');
+        await input.fill(text); await input.press("Enter");
+        await expectTag(text);
+      };
+      const release = async (status = 200) => {
+        const response = page.waitForResponse((r) => r.url().endsWith(apiPath) &&
+          r.request().postDataJSON().action === "pull" && r.status() === status);
+        await held.shift()(status);
+        await (await response).finished();
+        // Let the fetch continuation and React state update run, not only HTTP completion.
+        await page.waitForTimeout(200);
+      };
+      await page.goto(`${base}/portfolio`);
+      await synced.waitFor(); await expectTag("original");
+      holdNextPull = true; await focus(); await until(() => held.length === 1);
+      cloud = { ...cloud, tagMap: { "SAMPLE US": "newer remote" } };
+      await focus(); await expectTag("newer remote");
+      await release();
+      assert.equal(await tag.textContent(), "newer remote", "a slower older pull must not roll back a newer pull");
+      assert.equal(uploads.length, 0);
+
+      for (const lateStatus of [200, 403]) {
+        holdNextPull = true; await focus(); await until(() => held.length === 1);
+        const text = `confirmed edit ${lateStatus}`;
+        await edit(text); await synced.waitFor();
+        assert.equal(cloud.tagMap["SAMPLE US"], text);
+        const saved = await page.evaluate((prefix) => localStorage.getItem(`${prefix}state.v2`), prefix);
+        await release(lateStatus);
+        assert.equal(await tag.textContent(), text, "a cleared queue is not permission to apply a pre-edit response");
+        assert.equal(await synced.count(), 1, "a late failure cannot regress confirmed status");
+        assert.equal(await page.evaluate((prefix) => localStorage.getItem(`${prefix}state.v2`), prefix), saved);
+      }
+
+      // A real second browser tab shares localStorage, not the first tab's refs.
+      holdNextPull = true; await focus(); await until(() => held.length === 1);
+      const second = await context.newPage();
+      second.on("pageerror", (error) => errors.push(error.message));
+      await second.goto(`${base}/portfolio`);
+      await second.getByRole("button", { name: /已同步/ }).waitFor();
+      await second.getByTitle("点击修改标签", { exact: true }).click();
+      const secondInput = second.locator('input[list="zhinote-portfolio-tags"]');
+      await secondInput.fill("confirmed in another tab"); await secondInput.press("Enter");
+      await second.getByRole("button", { name: /已同步/ }).waitFor();
+      await expectTag("confirmed in another tab");
+      await release();
+      assert.equal(await tag.textContent(), "confirmed in another tab", "an old pull cannot overwrite another tab's confirmed edit");
+      assert.equal(cloud.tagMap["SAMPLE US"], "confirmed in another tab");
+      await second.close();
+
+      holdNextPull = true; await page.reload(); await until(() => held.length === 1);
+      await edit("edit during initial pull");
+      await release();
+      await synced.waitFor();
+      assert.equal(cloud.tagMap["SAMPLE US"], "edit during initial pull");
+      assert.equal(await tag.textContent(), "edit during initial pull");
+      const count = uploads.length;
+      await page.reload(); await synced.waitFor();
+      assert.equal(await tag.textContent(), "edit during initial pull");
+      assert.equal(uploads.length, count, "a confirmed reload must stay quiet");
+      assert.deepEqual(errors, []);
+    } finally { await browser.close(); }
+  });
+}
+
 async function until(check) {
   const start = Date.now();
   while (!check()) {

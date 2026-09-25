@@ -49,7 +49,7 @@ import {
 } from "@/lib/account/clientSession";
 import { ACCOUNT_PROFILE_UPDATED_EVENT, formatClientAccountLabel } from "@/lib/account/clientProfile";
 import { hasUnreviewedLegacyPortfolio, readPortfolioConflictResolution, PORTFOLIO_RESOLUTION_KEY } from "@/lib/portfolio/portfolioConflictResolution";
-import { batchPortfolioStorage, getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorageKey, PORTFOLIO_STATE_KEY, type PortfolioStorageScope } from "@/lib/portfolio/portfolioStorageScope";
+import { batchPortfolioStorage, getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorageKey, readPortfolioStorageCheckpoint, PORTFOLIO_STATE_KEY, type PortfolioStorageScope } from "@/lib/portfolio/portfolioStorageScope";
 import * as portfolioQueue from "@/lib/portfolio/portfolioSyncStatus";
 import * as portfolioRevision from "@/lib/portfolio/portfolioSyncRevision";
 
@@ -57,6 +57,7 @@ type BoardTab = "positions" | "analysis" | "rebalance";
 type SyncStatus = "off" | "syncing" | "synced" | "error";
 type SyncMode = "account" | "passcode" | null;
 type NoticeTone = "info" | "warning";
+type PortfolioPull = { isCurrent: () => boolean; isUnchanged: () => boolean };
 
 function readSyncErrorMessage(result: unknown): string | null {
   if (!result || typeof result !== "object" || !("message" in result)) {
@@ -290,6 +291,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
   const viewingOwnerRef = useRef<string | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
   const initialSyncInFlightRef = useRef(false);
+  const pullSequenceRef = useRef(0);
   const [pushRetryVersion, setPushRetryVersion] = useState(0);
   const queueLocalPortfolioChange = useCallback((edit: (current: CloudPortfolioData) => Partial<CloudPortfolioData>) => {
     if (!isCurrent() || viewingOwnerRef.current) return null;
@@ -436,9 +438,21 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     }, 5000);
   }, [syncPasscode, isCurrent, loadAllocation, loadMaxNetPct, loadSnapshot, loadSyncPasscode, loadTagMap]);
 
-  const applyCleanCloudPortfolio = useCallback((cloud: CloudPortfolioData, version: PortfolioCloudVersion, mode: Exclude<SyncMode, null>) => {
-    if (!isCurrent()) return;
-    batchPortfolioStorage(scope, () => {
+  const beginOwnPortfolioPull = useCallback((mode: Exclude<SyncMode, null>, code: string | null): PortfolioPull => {
+    const sequence = ++pullSequenceRef.current;
+    const checkpoint = readPortfolioStorageCheckpoint(scope);
+    const isCurrentRequest = () => isCurrent() && !viewingOwnerRef.current && syncModeRef.current === mode &&
+      pullSequenceRef.current === sequence && (mode !== "passcode" || loadSyncPasscode() === code);
+    return {
+      isCurrent: isCurrentRequest,
+      isUnchanged: () => isCurrentRequest() && readPortfolioStorageCheckpoint(scope) === checkpoint,
+    };
+  }, [isCurrent, loadSyncPasscode, scope]);
+
+  const applyCleanCloudPortfolio = useCallback((cloud: CloudPortfolioData, version: PortfolioCloudVersion, mode: Exclude<SyncMode, null>, pull: PortfolioPull) => {
+    if (!pull.isUnchanged()) return false;
+    const applied = batchPortfolioStorage(scope, () => {
+      if (!pull.isUnchanged()) return false;
       readLocalPortfolioData(scope);
       if (hasUnsyncedPortfolioChanges()) throw new Error("本机存在待确认修改，未用云端覆盖。");
       saveSnapshot(cloud.snapshot);
@@ -448,29 +462,36 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
       saveLastEmailMessageId(cloud.lastEmailMessageId ?? null);
       saveDataUpdatedAt(cloud.updatedAt);
       rememberPortfolioCloudBase(mode, version);
+      return true;
     });
+    if (!applied) return false;
     lastPayloadRef.current = corePayload(cloud.snapshot, cloud.tagMap, cloud.allocation, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
     setSnapshot(cloud.snapshot);
     setTagMap(cloud.tagMap);
     setAllocation(cloud.allocation);
     setMaxNetPct(cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
     setSyncStatus("synced");
-  }, [isCurrent, rememberPortfolioCloudBase, saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap, scope, hasUnsyncedPortfolioChanges]);
+    return true;
+  }, [rememberPortfolioCloudBase, saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap, scope, hasUnsyncedPortfolioChanges]);
 
   const runInitialSync = useCallback(
-    async (code: string | null, manual: boolean) => {
+    async function initialize(code: string | null, manual: boolean, retryStale = true) {
       if (!isCurrent() || initialSyncInFlightRef.current || viewingOwnerRef.current) return;
       initialSyncInFlightRef.current = true;
+      let pull: PortfolioPull | undefined;
+      let needsFreshPull = false;
       try {
         setSyncStatus("syncing");
         const accountMode = syncModeRef.current === "account";
         const activeMode: Exclude<SyncMode, null> = accountMode
           ? "account"
           : "passcode";
+        pull = beginOwnPortfolioPull(activeMode, code);
         const result = accountMode
           ? await accountPullCloud()
           : await pullCloudData(code ?? "");
-        if (!isCurrent()) return;
+        if (!pull.isCurrent()) return;
+        if (!pull.isUnchanged()) { needsFreshPull = true; return; }
         if (result.status === "unconfigured") {
           setSyncStatus("off");
           markPortfolioFailureFromSyncResult(
@@ -550,12 +571,18 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         const localEmpty = !localUpdated && !localSnapshot && Object.keys(localTags).length === 0 &&
           localAlloc === DEFAULT_GMV_ALLOCATION && localMaxNet === DEFAULT_MAX_NET_PCT;
         if (!hadPending && cloud && (base || sameContent || localEmpty)) {
-          applyCleanCloudPortfolio(cloud, version, activeMode);
+          if (!applyCleanCloudPortfolio(cloud, version, activeMode, pull)) { needsFreshPull = true; return; }
           syncReadyRef.current = true;
           return;
         }
         if (!hadPending && !cloud && localEmpty) {
-          rememberPortfolioCloudBase(activeMode, version);
+          const currentPull = pull;
+          const applied = batchPortfolioStorage(scope, () => {
+            if (!currentPull.isUnchanged() || hasUnsyncedPortfolioChanges()) return false;
+            rememberPortfolioCloudBase(activeMode, version);
+            return true;
+          });
+          if (!applied) { needsFreshPull = true; return; }
           lastPayloadRef.current = localPayload;
           syncReadyRef.current = true;
           setSyncStatus("synced");
@@ -587,22 +614,25 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         }
         syncReadyRef.current = true;
       } catch (error) {
-        if (!isCurrent()) return;
+        if (!isCurrent() || (pull && !pull.isCurrent())) return;
         setSyncStatus("error");
         showNotice(error instanceof Error ? error.message : "组合版本暂时无法确认；本地数据已保留。", "warning");
       } finally {
         initialSyncInFlightRef.current = false;
+        // Retry an invalidated startup read once without waiting for the polling
+        // interval. Continuous edits still fall back to the normal retry cycle.
+        if (needsFreshPull && retryStale && pull?.isCurrent()) void initialize(code, false, false);
       }
     },
-    [applyCleanCloudPortfolio, schedulePortfolioPushRetry, showNotice, clearSyncPasscode, drainPendingPortfolioCloudSync,
+    [applyCleanCloudPortfolio, beginOwnPortfolioPull, schedulePortfolioPushRetry, showNotice, clearSyncPasscode, drainPendingPortfolioCloudSync,
       getPendingPortfolioCloudSyncStatus, hasUnsyncedPortfolioChanges, isCurrent, loadAllocation, loadDataUpdatedAt,
       loadLastEmailMessageId, loadMaxNetPct, loadSnapshot, loadTagMap, markPortfolioCloudSyncPending,
       markPortfolioFailureFromSyncResult, readPortfolioCloudBase, rememberPortfolioCloudBase, scope]
   );
 
   const applyRemotePortfolio = useCallback(
-    (cloud: CloudPortfolioData | null, version: PortfolioCloudVersion | undefined, mode: Exclude<SyncMode, null>) => {
-      if (!isCurrent() || viewingOwnerRef.current || syncModeRef.current !== mode) return;
+    (cloud: CloudPortfolioData | null, version: PortfolioCloudVersion | undefined, mode: Exclude<SyncMode, null>, pull: PortfolioPull) => {
+      if (!pull.isUnchanged()) return;
       if (hasUnsyncedPortfolioChanges()) {
         const pending = getPendingPortfolioCloudSyncStatus();
         setSyncStatus(pending.failed || pending.manualReviewCount ? "error" : "syncing");
@@ -615,36 +645,49 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
           if (base.revision !== null) throw new Error("云端组合暂时为空；本机数据已保留，请重试确认。");
           return;
         }
-        applyCleanCloudPortfolio(cloud, version, mode);
+        applyCleanCloudPortfolio(cloud, version, mode, pull);
       } catch (error) {
         setSyncStatus("error");
         showNotice(error instanceof Error ? error.message : "组合读取失败；本地数据已保留。", "warning");
       }
     },
-    [applyCleanCloudPortfolio, showNotice, getPendingPortfolioCloudSyncStatus, hasUnsyncedPortfolioChanges, isCurrent, readPortfolioCloudBase]
+    [applyCleanCloudPortfolio, showNotice, getPendingPortfolioCloudSyncStatus, hasUnsyncedPortfolioChanges, readPortfolioCloudBase]
   );
 
   const pullLatestPortfolio = useCallback(async () => {
     if (!isCurrent() || viewingOwnerRef.current || !syncReadyRef.current) return;
     const mode = syncModeRef.current;
-    if (mode === "account") {
-      const result = await accountPullCloud();
-      if (!isCurrent()) return;
+    const code = mode === "passcode" ? loadSyncPasscode() : null;
+    if (!mode || (mode === "passcode" && !code)) return;
+    let pull: PortfolioPull | undefined;
+    try {
+      pull = beginOwnPortfolioPull(mode, code);
+      const result = mode === "account" ? await accountPullCloud() : await pullCloudData(code!);
+      // Check failures too: a pre-edit failure must not regress a later ACK or
+      // clear a passcode that the user replaced while this request was pending.
+      if (!pull.isUnchanged()) return;
       if (result.status === "ok") {
-        applyRemotePortfolio(result.data, result.version, "account");
+        applyRemotePortfolio(result.data, result.version, mode, pull);
       } else if (result.status === "unauthenticated" || result.status === "forbidden") {
         setSyncStatus("error");
         markPortfolioFailureFromSyncResult(
-          "account",
+          mode,
           result,
           "组合同步暂时无法确认账号；本地组合数据已保留，会稍后重试。"
         );
         schedulePortfolioPushRetry();
+      } else if (result.status === "unauthorized") {
+        clearSyncPasscode();
+        setSyncPasscode(null);
+        setSyncMode(null);
+        syncModeRef.current = null;
+        setSyncStatus("off");
+        markPortfolioFailureFromSyncResult(mode, result, "同步密码校验失败；本地组合数据已保留，需要人工确认。");
       } else if (result.status === "error") {
         setSyncStatus("error");
         const message = readSyncErrorMessage(result);
         markPortfolioFailureFromSyncResult(
-          "account",
+          mode,
           result,
           message ??
             "组合云同步暂时无法拉取最新数据；当前显示的是本机缓存，稍后会自动重试。"
@@ -655,39 +698,12 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
           "warning"
         );
       }
-      return;
-    }
-
-    const code = syncPasscode ?? loadSyncPasscode();
-    if (mode !== "passcode" || !code) return;
-    const result = await pullCloudData(code);
-    if (!isCurrent()) return;
-    if (result.status === "ok") {
-      applyRemotePortfolio(result.data, result.version, "passcode");
-    } else if (result.status === "unauthorized") {
-      clearSyncPasscode();
-      setSyncPasscode(null);
-      setSyncMode(null);
-      syncModeRef.current = null;
-      setSyncStatus("off");
-      markPortfolioFailureFromSyncResult(
-        "passcode",
-        result,
-        "同步密码校验失败；本地组合数据已保留，需要人工确认。"
-      );
-    } else if (result.status === "error") {
+    } catch (error) {
+      if (!isCurrent() || (pull && !pull.isCurrent())) return;
       setSyncStatus("error");
-      markPortfolioFailureFromSyncResult(
-        "passcode",
-        result,
-        "组合云同步暂时无法拉取最新数据；当前显示的是本机缓存，稍后会自动重试。"
-      );
-      showNotice(
-        "组合云同步暂时无法拉取最新数据；当前显示的是本机缓存，稍后会自动重试。",
-        "warning"
-      );
+      showNotice(error instanceof Error ? error.message : "组合读取失败；本地数据已保留。", "warning");
     }
-  }, [applyRemotePortfolio, schedulePortfolioPushRetry, showNotice, syncPasscode, clearSyncPasscode, isCurrent, loadSyncPasscode, markPortfolioFailureFromSyncResult]);
+  }, [applyRemotePortfolio, beginOwnPortfolioPull, schedulePortfolioPushRetry, showNotice, clearSyncPasscode, isCurrent, loadSyncPasscode, markPortfolioFailureFromSyncResult]);
 
   useEffect(() => {
     const pullIfVisible = () => {

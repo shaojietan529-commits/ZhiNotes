@@ -102,6 +102,13 @@
   Status-only record changes do not trigger cross-tab content refresh/upload.
 - Failed manual saves keep the tag/allocation/limit input open and show an
   explicit unsaved warning instead of displaying the draft as persisted.
+- Own-portfolio pulls now capture a private memory-only checkpoint of content,
+  queue, baseline and recovery state before awaiting the network. They recheck
+  it before applying and within the local batch. A local edit, another tab's
+  commit or an ACK invalidates the old response even after pending is clear.
+  Only the latest-started own pull may apply; late errors cannot regress newer
+  confirmed status or clear a replaced passcode. An invalidated startup read
+  retries once immediately, then uses the existing polling/retry cycle.
 
 No new provider, dependency, automatic data reassignment, private-data export or production data
 repair is included. Status/base fields contain identifiers, not holdings.
@@ -114,9 +121,9 @@ Neither form is included in metadata exports or logs.
 ## Evidence
 
 - Existing 49 page/database/settings behavior tests pass.
-- 70 portfolio/mailbox behavior tests pass against the actual client modules, queue,
+- 73 portfolio/mailbox behavior tests pass against the actual client modules, queue,
   both routes and shared versioned store. Redis atomicity is simulated in memory;
-  this is not a test against a running Redis server. Total behavior tests: 119.
+  this is not a test against a running Redis server. Total behavior tests: 122.
   Account tests cover switched cookies on every action, missing intent, missing
   response identity, late ACK/conflict/failure, same-tab and cross-tab switches,
   explicit logout, profile refresh and the final queue apply boundary.
@@ -124,7 +131,7 @@ Neither form is included in metadata exports or logs.
   additive adoption, retained old keys, deferred notifications, reload/retry,
   newer edits surviving old ACKs, cloud baseline/content consistency, damaged
   state fail-closed behavior and distinguishing data from status-only events.
-- Three isolated Edge/Playwright tests pass against the local app. The first covers two successive
+- Five isolated Edge/Playwright tests pass against the local app. The first covers two successive
   edits while an ACK is held, a remote pull during pending work, exact eventual
   upload, no status-ping write loop, clean reload, remote label deletion with
   an older timestamp, and reload after a third edit that conflicts with another
@@ -145,6 +152,14 @@ Neither form is included in metadata exports or logs.
   a stale per-tab account cache. The ownership dialog fits the 390px viewport.
   The third covers the actual email setup UI: same-account storage refresh
   continues polling; a switched-account late token is not displayed or stored.
+- The two new account/passcode browser cases first reproduced an older pull
+  replacing a newer cloud label on the unpatched app. They now cover reordered
+  clean pulls, edits acknowledged before an old read/error returns, an actual
+  second tab saving while the first tab's pull is held, startup edits, and quiet
+  confirmed reloads. All API data remains synthetic. Checkpoint behavior tests
+  also cover legacy adoption, queue/base/conflict-only changes, aborted batches,
+  unreadable state and account isolation. This is not simultaneous-writer or
+  physical two-device acceptance.
 - Mailbox route tests use synthetic identity and Graph responses only. They
   reject missing owner configuration, non-owner accounts, stale account intent,
   signed-out and temporarily unconfirmed sessions before any Graph access.
@@ -173,7 +188,8 @@ write any production account. Synthetic screenshot stays under `.local/`.
   read/modify/write lock. The optimistic snapshot check does not close the
   race between checking and committing in separate browser processes. Add
   serialization using a native browser primitive before enabling this format
-  in production, and test simultaneous edits plus delayed clean-pull responses.
+  in production, and test simultaneous edits. Delayed clean pulls are now
+  guarded and tested, but the final native write still needs that same lock.
   Old clients/rollback builds must not silently keep writing stale individual
   keys after the new format is present; rollout/rollback remains gated.
 - Corrupt content is now blocked from synchronization, but its repair UI and
