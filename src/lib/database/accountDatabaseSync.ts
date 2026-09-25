@@ -476,7 +476,7 @@ async function fastForwardDatabaseMetadataDeltaFromLocalCursor(
     }
     if (changes.records.length > 0) {
       try {
-        await applyRemoteDatabaseRecords(changes.records);
+        changes.records = await applyRemoteDatabaseRecords(changes.records);
       } catch {
         cacheWriteFailed = true;
       }
@@ -1098,7 +1098,7 @@ export async function syncCloudDatabaseMetadata(
   let cacheWriteFailed = false;
   if (metadata.records.length > 0) {
     try {
-      await applyRemoteDatabaseRecords(metadata.records);
+      metadata.records = await applyRemoteDatabaseRecords(metadata.records);
     } catch {
       cacheWriteFailed = true;
     }
@@ -1473,12 +1473,12 @@ export async function syncCloudDatabaseById(
     }
     total = result.total;
     if (result.records.length > 0) {
-      if (collectRecords) records.push(...result.records);
       try {
-        await applyRemoteDatabaseRecords(result.records);
+        result.records = await applyRemoteDatabaseRecords(result.records);
       } catch {
         cacheWriteFailed = true;
       }
+      if (collectRecords) records.push(...result.records);
       pulled += result.records.length;
     }
     hasMore = result.hasMore && result.nextOffset !== null;
@@ -1516,6 +1516,7 @@ export async function syncCloudDatabaseById(
 export async function pushCloudDatabaseRecords(
   records: CloudDatabaseRecord[]
 ): Promise<PushCloudDatabasesResult> {
+  records = records.map((record) => ({ ...record }));
   if (records.length === 0) {
     recordDatabaseSyncOutcome({
       status: "ok",
@@ -1531,6 +1532,19 @@ export async function pushCloudDatabaseRecords(
   markPendingCloudDatabasePushRecords(records);
   markPendingCloudDatabasePushAttemptRecords(records);
   emitDatabaseSyncStatusChanged();
+  // Capture only the edits represented by this version before awaiting the ACK.
+  const sentByKey = new Map(records.map((record) => [
+    getRemoteDatabaseRecordKey(record), databaseRecordRevision(record),
+  ]));
+  const snapshot = await getPendingDatabaseSyncRecords(
+    1000, [...sentByKey.keys()]
+  ).catch(() => null);
+  const matchingKeys = new Set(snapshot?.records
+    .filter((record) => sentByKey.get(getRemoteDatabaseRecordKey(record)) ===
+      databaseRecordRevision(record))
+    .map(getRemoteDatabaseRecordKey));
+  const snapshotEntries = snapshot?.entries
+    .filter((entry) => matchingKeys.has(entry.key)) ?? [];
   const res = await call({ action: "push", records });
   if (!res.ok) {
     markPendingCloudDatabasePushFailedRecords(records, res.status, res.message);
@@ -1563,6 +1577,9 @@ export async function pushCloudDatabaseRecords(
     : [];
   const ack = normalizeDatabaseCloudAckReceipt(res.json.ack);
   if (
+    [...accepted, ...skipped, ...rejected].some((key) => !sentByKey.has(key)) ||
+    new Set([...accepted, ...skipped, ...rejected]).size !==
+      accepted.length + skipped.length + rejected.length ||
     !databaseCloudAckConfirmsPush(ack, {
       requested: records.length,
       accepted: accepted.length,
@@ -1632,7 +1649,24 @@ export async function pushCloudDatabaseRecords(
     );
     emitDatabaseSyncStatusChanged();
   }
-  clearPendingCloudDatabasePushKeys(acknowledgedKeys);
+  if (snapshot) {
+    try {
+      await markDatabaseSyncLogEntriesSynced(
+        snapshotEntries.filter((entry) => acknowledgedKeySet.has(entry.key))
+          .map((entry) => entry.logId)
+      );
+      const current = await getDatabaseRecordsForSyncByKeys(acknowledgedKeys);
+      clearPendingCloudDatabasePushKeys(current.filter((record) => {
+        const key = getRemoteDatabaseRecordKey(record);
+        const queued = queuedCloudDatabasePush.get(key);
+        const sent = sentByKey.get(key);
+        return sent === databaseRecordRevision(record) &&
+          (!queued || sent === databaseRecordRevision(queued));
+      }).map(getRemoteDatabaseRecordKey));
+    } catch {
+      // Keep local pending when the ACK cannot be reconciled with local state.
+    }
+  }
   setLastDatabaseSyncAtNow();
   recordDatabaseSyncOutcome({
     status: unacknowledgedRecords.length > 0 ? "error" : "ok",
@@ -1710,15 +1744,8 @@ function markPendingCloudDatabasePushFailedKeys(
   setPendingCloudDatabasePushMeta(next);
 }
 
-async function markAcknowledgedDatabaseSyncKeys(keys: string[]): Promise<void> {
-  const acknowledged = new Set(keys.filter(isValidRecordKey));
-  if (acknowledged.size === 0) return;
-  const pending = await getPendingDatabaseSyncRecords(1000);
-  await markDatabaseSyncLogEntriesSynced(
-    pending.entries
-      .filter((entry) => acknowledged.has(entry.key))
-      .map((entry) => entry.logId)
-  );
+function databaseRecordRevision(record: CloudDatabaseRecord): string {
+  return JSON.stringify(Object.entries(record).sort(([a], [b]) => a.localeCompare(b)));
 }
 
 export function queueCloudDatabaseRecords(
@@ -1968,10 +1995,6 @@ async function pushCloudDatabaseRecordsInBatches(
         acceptedKeys.push(...result.accepted);
         skippedKeys.push(...result.skipped);
         if (result.status !== "ok") {
-          await markAcknowledgedDatabaseSyncKeys([
-            ...acceptedKeys,
-            ...skippedKeys,
-          ]);
           return {
             status: result.status,
             pushed,
@@ -2008,7 +2031,6 @@ async function pushCloudDatabaseRecordsInBatches(
     acceptedKeys.push(...result.accepted);
     skippedKeys.push(...result.skipped);
     if (result.status !== "ok") {
-      await markAcknowledgedDatabaseSyncKeys([...acceptedKeys, ...skippedKeys]);
       return {
         status: result.status,
         pushed,
@@ -2020,7 +2042,6 @@ async function pushCloudDatabaseRecordsInBatches(
       };
     }
   }
-  await markAcknowledgedDatabaseSyncKeys([...acceptedKeys, ...skippedKeys]);
   if (oversizedKeys.length > 0) {
     return {
       status: "error",
@@ -2325,7 +2346,7 @@ export async function syncCloudDatabaseDelta(
       };
     }
     if (changes.records.length > 0) {
-      await applyRemoteDatabaseRecords(changes.records);
+      changes.records = await applyRemoteDatabaseRecords(changes.records);
       pulled += changes.records.length;
       pulledDatabaseRecords.push(...toDatabaseUpdatePayloads(changes.records));
     }
@@ -2589,7 +2610,7 @@ export async function rebuildDatabaseCacheFromCloud(): Promise<RebuildDatabaseCa
       };
     }
     if (result.records.length > 0) {
-      await applyRemoteDatabaseRecords(result.records);
+      result.records = await applyRemoteDatabaseRecords(result.records);
       pulled += result.records.length;
     }
   }

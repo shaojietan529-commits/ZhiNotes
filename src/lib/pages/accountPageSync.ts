@@ -613,11 +613,11 @@ export async function pullCloudPagesByIds(
   if (!res.ok) {
     return { status: res.status, pulled: 0, message: res.message };
   }
-  const pages = Array.isArray(res.json.pages)
+  let pages = Array.isArray(res.json.pages)
     ? (res.json.pages as RemotePageRecord[])
     : [];
   if (pages.length > 0) {
-    await applyRemotePages(pages);
+    pages = await applyRemotePages(pages);
     setLastPageSyncAtNow();
     emitPagesUpdated("cloud-pull", pages.length, toPageUpdatePayloads(pages));
   }
@@ -1164,7 +1164,7 @@ async function runCloudPageMetadataDelta(
     }
     if (cloud.pages.length > 0) {
       try {
-        await applyRemotePageMetadata(cloud.pages);
+        cloud.pages = await applyRemotePageMetadata(cloud.pages);
         emitPagesUpdated(
           "cloud-pull",
           cloud.pages.length,
@@ -1202,7 +1202,7 @@ async function runCloudPageMetadataDelta(
     }
     if (changes.pages.length > 0) {
       try {
-        await applyRemotePageMetadata(changes.pages);
+        changes.pages = await applyRemotePageMetadata(changes.pages);
       } catch {
         // Keep going: usePages can render the returned metadata directly if
         // the local cache cannot be rebuilt on this device.
@@ -1234,12 +1234,26 @@ async function runCloudPageMetadataDelta(
 export async function pushCloudPages(
   records: RemotePageRecord[]
 ): Promise<PushCloudPagesResult> {
+  records = records.map((record) => ({ ...record }));
   markPendingCloudPushRecords(records);
   markPendingCloudPushAttemptRecords(records);
   emitPageSyncStatusChanged();
   if (!isPageSyncEnabled()) {
     return { status: "disabled", accepted: [], skipped: [] };
   }
+  // Bind the receipt to the durable edits represented by this request, not
+  // whatever edits happen to be pending when the network response arrives.
+  const sentById = new Map(
+    records.map((record) => [record.id, JSON.stringify(toRecord(record))])
+  );
+  const snapshot = await getPendingPageSyncRecords(
+    1000, records.map((record) => record.id)
+  ).catch(() => null);
+  const matchingIds = new Set(snapshot?.records
+    .filter((page) => sentById.get(page.id) === JSON.stringify(toRecord(page)))
+    .map((page) => page.id));
+  const snapshotEntries = snapshot?.entries
+    .filter((entry) => matchingIds.has(entry.pageId)) ?? [];
   const res = await call({ action: "push", pages: records });
   if (!res.ok) {
     markPendingCloudPushFailedRecords(records, res.status, res.message);
@@ -1269,6 +1283,9 @@ export async function pushCloudPages(
     : [];
   const ack = normalizePageCloudAckReceipt(res.json.ack);
   if (
+    [...accepted, ...skipped].some((id) => !sentById.has(id)) ||
+    new Set([...accepted, ...skipped]).size !==
+      accepted.length + skipped.length ||
     !pageCloudAckConfirmsPush(ack, {
       requested: records.length,
       accepted: accepted.length,
@@ -1338,11 +1355,24 @@ export async function pushCloudPages(
       PARTIAL_CLOUD_PAGE_ACK_MESSAGE
     );
   }
-  clearPendingCloudPushIds(acknowledgedIds);
-  void markAcknowledgedPageSyncIds(acknowledgedIds).catch(() => {
-    // Keep the upload success path non-blocking; the next status refresh will
-    // surface any unacknowledged local sync_log rows.
-  });
+  if (snapshot) {
+    try {
+      await markPageSyncLogEntriesSynced(
+        snapshotEntries.filter((entry) => acknowledgedSet.has(entry.pageId))
+          .map((entry) => entry.logId)
+      );
+      const current = await getPagesForSyncByIds(acknowledgedIds);
+      clearPendingCloudPushIds(current.filter((page) => {
+        const queued = queuedCloudPush.get(page.id);
+        const sent = sentById.get(page.id);
+        return sent === JSON.stringify(toRecord(page)) &&
+          (!queued || sent === JSON.stringify(toRecord(queued)));
+      }).map((page) => page.id));
+    } catch {
+      // Cloud success alone cannot retire an unverified local revision.
+      // Keep the durable log / ID queue available for the next retry.
+    }
+  }
   recordPageSyncOutcome({
     status: unacknowledgedRecords.length > 0 ? "error" : "ok",
     source: "direct-push",
@@ -1410,7 +1440,6 @@ async function pushCloudRecordsInBatches(
       const result = await flush();
       if (result) {
         if (result.ack) lastAck = result.ack;
-        clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
         accepted += result.accepted.length;
         skipped += result.skipped.length;
         acceptedIds.push(...result.accepted);
@@ -1447,7 +1476,6 @@ async function pushCloudRecordsInBatches(
   const result = await flush();
   if (result) {
     if (result.ack) lastAck = result.ack;
-    clearPendingCloudPushIds([...result.accepted, ...result.skipped]);
     accepted += result.accepted.length;
     skipped += result.skipped.length;
     acceptedIds.push(...result.accepted);
@@ -1507,15 +1535,15 @@ export async function forcePullDailyCloudPages(): Promise<PullDailyCloudResult> 
   let failed = 0;
   let failedReason: string | undefined;
   try {
-    await applyRemotePageMetadata(pages);
-    pulled = pages.length;
-    pulledPages.push(...pages);
+    const applied = await applyRemotePageMetadata(pages);
+    pulled = applied.length;
+    pulledPages.push(...applied);
   } catch {
     for (const page of pages) {
       try {
-        await applyRemotePageMetadata([page]);
-        pulled += 1;
-        pulledPages.push(page);
+        const applied = await applyRemotePageMetadata([page]);
+        pulled += applied.length;
+        pulledPages.push(...applied);
       } catch (error) {
         failed += 1;
         if (!failedReason) {
@@ -1647,7 +1675,7 @@ export async function fetchMeetingCloudMetadata(
   };
 }
 
-function toRecord(page: Page): RemotePageRecord {
+function toRecord(page: Page | RemotePageRecord): RemotePageRecord {
   const cover =
     page.cover_url && page.cover_url.length > MAX_COVER_CHARS
       ? null
@@ -1815,17 +1843,6 @@ async function flushPendingCloudPushes(
     skipped: result.skipped,
     pending: getPendingCloudPushIds().length,
   };
-}
-
-async function markAcknowledgedPageSyncIds(ids: string[]): Promise<number> {
-  const acknowledged = new Set(ids.filter(isValidRemotePageId));
-  if (acknowledged.size === 0) return 0;
-  const pending = await getPendingPageSyncRecords(1000);
-  return markPageSyncLogEntriesSynced(
-    pending.entries
-      .filter((entry) => acknowledged.has(entry.pageId))
-      .map((entry) => entry.logId)
-  );
 }
 
 export async function pushPendingLocalPageChangesToCloud(): Promise<PushLocalPagesResult> {
@@ -2428,7 +2445,7 @@ async function fastForwardMetadataDeltaFromLocalCursor(
     }
     if (changes.pages.length > 0) {
       try {
-        await applyRemotePageMetadata(changes.pages);
+        changes.pages = await applyRemotePageMetadata(changes.pages);
       } catch {
         // The caller can still merge returned metadata into in-memory state.
       }
@@ -3286,9 +3303,9 @@ export async function rebuildPageCacheFromCloud(): Promise<RebuildPageCacheResul
     const pulledIds = pages.map((page) => page.id).filter(isValidRemotePageId);
     cleared += await clearLocalPageCacheForIds(pulledIds);
     if (pages.length > 0) {
-      await applyRemotePages(pages);
-      pulled += pages.length;
-      pulledPages.push(...pages);
+      const applied = await applyRemotePages(pages);
+      pulled += applied.length;
+      pulledPages.push(...applied);
     }
   }
 
@@ -3337,7 +3354,7 @@ async function pullIncrementalCloudChanges(
     };
   }
   if (changes.pages.length > 0) {
-    await applyRemotePages(changes.pages);
+    changes.pages = await applyRemotePages(changes.pages);
     emitPagesUpdated(
       "cloud-pull",
       changes.pages.length,
@@ -3571,9 +3588,9 @@ export async function reconcilePageSync(
         ? (res.json.pages as RemotePageRecord[])
         : [];
       if (pages.length > 0) {
-        await applyRemotePages(pages);
-        pulled += pages.length;
-        pulledPages.push(...pages);
+        const applied = await applyRemotePages(pages);
+        pulled += applied.length;
+        pulledPages.push(...applied);
       }
     }
 

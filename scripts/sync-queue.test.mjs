@@ -20,20 +20,30 @@ function fixture(domain, options = {}) {
   const key = (row) => domain === "page" ? row.id : `${row.type}:${row.id}`;
   const storage = options.storage ?? new Map();
   const requests = [];
-  const local = { records: options.records ?? [], readError: false };
-  const readRows = async () => {
+  const events = [];
+  const local = options.local ?? { records: options.records ?? [], entries: options.entries ?? [], readError: false };
+  const readRows = async (keys) => {
     if (local.readError) throw new Error("Synthetic local read failure");
-    return local.records;
+    return structuredClone(local.records.filter((row) => !keys || keys.includes(key(row))));
   };
-  const emptyLog = async () => ({ entries: [], records: [] });
+  const pendingLog = async (_limit, keys) => ({
+    entries: structuredClone(local.entries.filter((entry) => !keys || keys.includes(entry.pageId ?? entry.key))),
+    records: await readRows(keys),
+  });
+  const acknowledgeLog = async (ids) => {
+    local.entries = local.entries.filter((entry) => !ids.includes(entry.logId));
+    await options.duringLocalAck?.(local);
+    return ids.length;
+  };
   const queries = {
+    applyRemotePages: async (rows) => rows.filter((row) => !local.entries.some((entry) => entry.pageId === row.id)),
     getPagesForSyncByIds: readRows,
     getDatabaseRecordsForSyncByKeys: readRows,
     getRemoteDatabaseRecordKey: (row) => `${row.type}:${row.id}`,
-    getPendingPageSyncRecords: emptyLog,
-    getPendingDatabaseSyncRecords: emptyLog,
-    markPageSyncLogEntriesSynced: async () => 0,
-    markDatabaseSyncLogEntriesSynced: async () => 0,
+    getPendingPageSyncRecords: pendingLog,
+    getPendingDatabaseSyncRecords: pendingLog,
+    markPageSyncLogEntriesSynced: acknowledgeLog,
+    markDatabaseSyncLogEntriesSynced: acknowledgeLog,
     getPageSyncLogPendingCounts: async () => ({ pending: 0, failed: 0, manualReview: 0 }),
     getDatabaseSyncLogPendingCounts: async () => ({ pending: 0, failed: 0, manualReview: 0 }),
   };
@@ -46,7 +56,7 @@ function fixture(domain, options = {}) {
     "@/lib/db/local/queries": queries,
     "@/lib/pages/moduleWorkspaces": { MODULE_WORKSPACE_LIST: [] },
     "@/lib/pages/pageProperties": {},
-    "@/lib/pages/pageUpdateBus": { emitPagesUpdated: () => {} },
+    "@/lib/pages/pageUpdateBus": { emitPagesUpdated: (...args) => events.push(args) },
     "@/lib/database/databaseUpdateBus": { emitDatabasesUpdated: () => {} },
     "@/lib/account/accountCloudSyncGate": {
       checkAccountCloudSyncGate: async () => ({ status: options.gate ?? "ready" }),
@@ -64,13 +74,17 @@ function fixture(domain, options = {}) {
     fetch: async (_url, init) => {
       const body = JSON.parse(init.body);
       requests.push(body);
+      if (body.action === "pull") {
+        return { ok: true, status: 200, json: async () => ({ pages: options.cloudRows ?? [] }) };
+      }
+      await options.duringRequest?.(local, body, requests.length);
       if (options.networkError) throw new Error("Synthetic network failure");
       const sent = body.pages ?? body.records;
-      const accepted = sent.map(key);
+      const accepted = options.accepted ?? sent.map(key);
       const ack = {
         format: `zhinote-${domain}-cloud-ack-receipt`, format_version: 1,
         ack_status: "acknowledged", generated_at: now,
-        requested_count: sent.length, accepted_count: sent.length,
+        requested_count: sent.length, accepted_count: accepted.length,
         skipped_count: 0, rejected_count: 0, index_count: sent.length, index_deleted: 0,
         remote_watermark: "server-after-other-device-change", remote_cursor: "server-latest",
         boundary: {
@@ -96,7 +110,7 @@ function fixture(domain, options = {}) {
     ? "\nexports.flush = flushPendingCloudPushes;"
     : "\nexports.flush = flushPendingCloudDatabasePushes;"), sandbox, { filename: path });
   return {
-    api: sandbox.exports, storage, local, requests, queueKey,
+    api: sandbox.exports, storage, local, requests, events, queueKey,
     pending: () => JSON.parse(storage.get(queueKey) ?? "[]"),
     meta: () => JSON.parse(storage.get(prefix + "pendingPushMeta") ?? "{}"),
     enqueue: (ids) => storage.set(queueKey, JSON.stringify(ids)),
@@ -106,6 +120,132 @@ function fixture(domain, options = {}) {
 
 for (const domain of ["page", "database"]) {
   const id = domain === "page" ? "missing" : "database:missing";
+  const entry = (logId) => ({ logId, ...(domain === "page" ? { pageId: "missing" } : { key: id }) });
+  const push = (f, rows) => domain === "page" ? f.api.pushCloudPages(rows) : f.api.pushCloudDatabaseRecords(rows);
+
+  for (const change of ["rename", "delete", "body"]) {
+    test(`${domain}: late ACK cannot consume a concurrent ${change}; next retry uploads it`, async () => {
+      const original = record("missing");
+      const next = { ...original, ...(change === "rename" ? { title: "New name" }
+        : change === "delete" ? { deleted_at: now } : { content_text: "New text", field_values: '{"x":2}' }) };
+      const f = fixture(domain, {
+        records: [original], entries: [entry(1)],
+        duringRequest(local, _body, count) {
+          if (count !== 1) return;
+          // Same timestamp deliberately: the payload, not the wall clock, identifies this revision.
+          local.records = [next];
+          local.entries.push(entry(2));
+        },
+      });
+      f.enqueue([id]);
+      await f.api.flush();
+      assert.deepEqual(f.pending(), [id]);
+      assert.deepEqual(f.local.entries, [entry(2)]);
+      await f.api.flush();
+      assert.deepEqual(f.pending(), []);
+      assert.deepEqual(f.local.entries, []);
+      const sent = f.requests[1].pages ?? f.requests[1].records;
+      assert.equal(sent[0].title, next.title);
+      assert.equal(sent[0].deleted_at, next.deleted_at);
+    });
+  }
+
+  test(`${domain}: an already stale queued snapshot cannot ACK a newer durable edit`, async () => {
+    const f = fixture(domain, { records: [{ ...record("missing"), title: "Already edited" }], entries: [entry(1)] });
+    await push(f, [record("missing")]);
+    assert.deepEqual(f.local.entries, [entry(1)]);
+    assert.deepEqual(f.pending(), [id]);
+  });
+
+  test(`${domain}: newer request ACK arriving before an older tab ACK stays authoritative`, async () => {
+    let release;
+    let sent;
+    const started = new Promise((resolve) => { sent = resolve; });
+    const held = new Promise((resolve) => { release = resolve; });
+    const older = fixture(domain, {
+      records: [record("missing")], entries: [entry(1)],
+      async duringRequest() { sent(); await held; },
+    });
+    const uploading = push(older, [record("missing")]);
+    await started;
+    older.local.records = [{ ...record("missing"), title: "Newest revision" }];
+    older.local.entries.push(entry(2));
+    const newer = fixture(domain, { local: older.local, storage: older.storage });
+    await newer.api.flush();
+    assert.deepEqual(newer.pending(), []);
+    assert.deepEqual(newer.local.entries, []);
+    release();
+    await uploading;
+    assert.deepEqual(older.pending(), []);
+    assert.deepEqual(older.local.entries, []);
+    assert.equal(older.local.records[0].title, "Newest revision");
+  });
+
+  test(`${domain}: local read failure after cloud ACK cannot retire the retry pointer`, async () => {
+    const f = fixture(domain, { records: [record("missing")], entries: [entry(1)],
+      duringRequest(local) { local.readError = true; },
+    });
+    await push(f, [record("missing")]);
+    assert.deepEqual(f.pending(), [id]);
+  });
+
+  test(`${domain}: duplicate ACK identifiers do not confirm an omitted record`, async () => {
+    const other = domain === "page" ? "other" : "database:other";
+    const f = fixture(domain, { records: [record("missing"), record("other")], accepted: [id, id] });
+    const result = await push(f, f.local.records);
+    assert.equal(result.status, "error");
+    assert.deepEqual(f.pending(), [id, other]);
+  });
+
+  test(`${domain}: edits during local ACK persistence remain pending`, async () => {
+    const f = fixture(domain, {
+      records: [record("missing")], entries: [entry(1)],
+      duringLocalAck(local) {
+        local.records = [{ ...record("missing"), title: "Edited during ACK" }];
+        local.entries.push(entry(2));
+      },
+    });
+    await push(f, [record("missing")]);
+    assert.deepEqual(f.local.entries, [entry(2)]);
+    assert.deepEqual(f.pending(), [id]);
+  });
+
+  test(`${domain}: a forged ACK for another pending record cannot clear either record`, async () => {
+    const other = domain === "page" ? "other" : "database:other";
+    const f = fixture(domain, { records: [record("missing"), record("other")], accepted: [other] });
+    f.enqueue([id, other]);
+    const result = await push(f, [record("missing")]);
+    assert.equal(result.status, "error");
+    assert.deepEqual(f.pending(), [id, other]);
+  });
+
+  test(`${domain}: partial ACK clears only the confirmed revision`, async () => {
+    const other = domain === "page" ? "other" : "database:other";
+    const otherEntry = { logId: 2, ...(domain === "page" ? { pageId: "other" } : { key: other }) };
+    const f = fixture(domain, { records: [record("missing"), record("other")],
+      entries: [entry(1), otherEntry], accepted: [id],
+    });
+    const result = await push(f, f.local.records);
+    assert.equal(result.status, "error");
+    assert.deepEqual(f.pending(), [other]);
+    assert.deepEqual(f.local.entries, [otherEntry]);
+  });
+
+  test(`${domain}: reconnect retries the latest durable version after network failure`, async () => {
+    const f = fixture(domain, { records: [record("missing")], entries: [entry(1)], networkError: true });
+    f.enqueue([id]);
+    await f.api.flush();
+    assert.deepEqual(f.local.entries, [entry(1)]);
+    const recovered = fixture(domain, { storage: f.storage, records: [{ ...record("missing"), title: "Offline edit" }], entries: [entry(1), entry(2)] });
+    // The online/session probe clears the bounded network backoff before retry.
+    recovered.api[domain === "page" ? "recordPageSyncAuthRetryStatus" : "recordDatabaseSyncAuthRetryStatus"]("ok");
+    await recovered.api.flush();
+    assert.deepEqual(recovered.pending(), []);
+    assert.deepEqual(recovered.local.entries, []);
+    const sent = recovered.requests[0].pages ?? recovered.requests[0].records;
+    assert.equal(sent[0].title, "Offline edit");
+  });
+
   test(`${domain}: missing local records stay pending across reload and do not become cloud skips`, async () => {
     const f = fixture(domain);
     f.enqueue([id]);
@@ -167,4 +307,14 @@ test("page: upload ACK must not skip unread changes from another device", async 
   assert.deepEqual(f.pending(), []);
   assert.equal(f.storage.get(f.prefix + "remoteCursor"), "last-downloaded");
   assert.equal(f.storage.get(f.prefix + "remoteWatermark"), "last-downloaded-summary");
+});
+
+test("page: cross-tab notifications exclude cloud rows rejected by the pending-edit guard", async () => {
+  const f = fixture("page", { entries: [{ logId: 1, pageId: "editing" }],
+    cloudRows: [record("editing"), record("clean")],
+  });
+  const result = await f.api.pullCloudPagesByIds(["editing", "clean"]);
+  assert.equal(result.pulled, 1);
+  assert.equal(f.events.length, 1);
+  assert.deepEqual(Array.from(f.events[0][2], (row) => row.id), ["clean"]);
 });

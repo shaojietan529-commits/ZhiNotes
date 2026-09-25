@@ -230,3 +230,94 @@ test("settings SQL: only log entries included in the acknowledged snapshot are c
     }
   } finally { db.close(); }
 });
+
+function localDatabaseFixture() {
+  const db = new DatabaseSync(":memory:");
+  const adapter = { query: (sql, params = []) => db.prepare(sql).all(...params),
+    run: (sql, params = []) => db.prepare(sql).run(...params) };
+  const load = loader({ "@/lib/db/local/client": { getDb: async () => adapter } });
+  db.exec(load("@/lib/db/local/schema").CREATE_TABLES_SQL);
+  const owner = load("@/lib/utils/id").DEFAULT_OWNER_ID;
+  const now = "2026-09-25T04:00:00.000Z";
+  db.prepare("INSERT INTO users (id, name, created_at, updated_at) VALUES (?, 'Synthetic', ?, ?)").run(owner, now, now);
+  const page = (id) => ({ id, parent_id: null, title: "Synthetic page", icon: null,
+    cover_url: null, content_text: "Local text", properties: null, position: 0, depth: 0,
+    created_at: now, updated_at: now, deleted_at: null });
+  const record = (type, id) => ({ type, id, database_id: "db", parent_page_id: null,
+    page_id: type === "row" ? "page" : null, owner_id: owner, title: "Synthetic database",
+    icon: null, description: null, name: "Local name", field_type: "text", view_type: "table",
+    config: "{}", field_values: '{"text":"Local value"}', position: 0,
+    created_at: now, updated_at: now, deleted_at: null });
+  const pending = (table, id, status = "pending") => Number(db.prepare(
+    `INSERT INTO sync_log (table_name, row_id, operation, changed_cols, timestamp, synced, status, next_retry_at)
+     VALUES (?, ?, 'update', '["title"]', ?, 0, ?, ?)`
+  ).run(table, id, now, status, status === "failed" ? "2099-01-01T00:00:00.000Z" : null).lastInsertRowid);
+  return { db, queries: load("@/lib/db/local/queries"), page, record, pending };
+}
+
+for (const method of ["applyRemotePages", "applyRemotePageMetadata"]) {
+  test(`${method}: pending rename/body/delete survive pull, then converge after ACK`, async () => {
+    const f = localDatabaseFixture();
+    try {
+      await f.queries.applyRemotePages([f.page("page")]);
+      for (const status of ["pending", "in_flight", "failed"]) {
+        f.db.prepare("UPDATE pages SET title = 'Local rename', content_text = 'Unsent text', deleted_at = ? WHERE id = 'page'")
+          .run(status === "failed" ? f.page("page").updated_at : null);
+        const before = { ...f.db.prepare("SELECT * FROM pages WHERE id = 'page'").get() };
+        const logId = f.pending("pages", "page", status);
+        const remote = { ...f.page("page"), title: "Remote rename", content_text: "Remote text" };
+        const applied = await f.queries[method]([remote, f.page("new-cloud-page")]);
+        assert.deepEqual(Array.from(applied, (row) => row.id), ["new-cloud-page"]);
+        assert.deepEqual({ ...f.db.prepare("SELECT * FROM pages WHERE id = 'page'").get() }, before);
+        assert.ok(f.db.prepare("SELECT id FROM pages WHERE id = 'new-cloud-page'").get());
+        await f.queries.markPageSyncLogEntriesSynced([logId]);
+        await f.queries[method]([remote]);
+        assert.equal(f.db.prepare("SELECT title FROM pages WHERE id = 'page'").get().title, "Remote rename");
+      }
+    } finally { f.db.close(); }
+  });
+}
+
+for (const [type, table] of [["database", "databases"], ["field", "database_fields"], ["row", "database_rows"], ["view", "database_views"]]) {
+  test(`database SQL: pending ${type} survives pull, clean records apply, ACK permits convergence`, async () => {
+    const f = localDatabaseFixture();
+    try {
+      await f.queries.applyRemotePages([f.page("page")]);
+      await f.queries.applyRemoteDatabaseRecords([f.record("database", "db")]);
+      const record = f.record(type, type === "database" ? "db" : "item");
+      await f.queries.applyRemoteDatabaseRecords([record]);
+      const before = { ...f.db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(record.id) };
+      const logId = f.pending(table, record.id, "failed");
+      const remote = { ...record, title: "Remote change", name: "Remote change", field_values: '{"text":"Remote change"}', deleted_at: record.updated_at };
+      const applied = await f.queries.applyRemoteDatabaseRecords([remote, f.record("database", "clean-db")]);
+      assert.deepEqual(Array.from(applied, (row) => row.id), ["clean-db"]);
+      assert.deepEqual({ ...f.db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(record.id) }, before);
+      assert.ok(f.db.prepare("SELECT id FROM databases WHERE id = 'clean-db'").get());
+      await f.queries.markDatabaseSyncLogEntriesSynced([logId]);
+      await f.queries.applyRemoteDatabaseRecords([remote]);
+      assert.equal(f.db.prepare(`SELECT deleted_at FROM ${table} WHERE id = ?`).get(record.id).deleted_at, record.updated_at);
+    } finally { f.db.close(); }
+  });
+}
+
+test("upload snapshots: filter requested IDs/types before limiting; no unrelated page bodies loaded", async () => {
+  const f = localDatabaseFixture();
+  try {
+    await f.queries.applyRemotePages([f.page("page"), f.page("other")]);
+    await f.queries.applyRemoteDatabaseRecords([f.record("database", "db"), f.record("field", "db")]);
+    f.pending("pages", "other");
+    const wantedPage = f.pending("pages", "page", "failed");
+    f.pending("database_fields", "db");
+    const wantedDatabase = f.pending("databases", "db", "failed");
+    const pages = await f.queries.getPendingPageSyncRecords(1, ["page"]);
+    assert.equal(pages.entries.length, 1);
+    assert.equal(pages.entries[0].logId, wantedPage);
+    assert.equal(pages.records[0].id, "page");
+    const records = await f.queries.getPendingDatabaseSyncRecords(1, ["database:db"]);
+    assert.equal(records.entries.length, 1);
+    assert.equal(records.entries[0].logId, wantedDatabase);
+    assert.equal(records.records[0].type, "database");
+    assert.equal((await f.queries.getPendingPageSyncRecords(1000, [])).entries.length, 0);
+    assert.equal((await f.queries.getPendingDatabaseSyncRecords(1000, ["invalid"])).entries.length, 0);
+  } finally { f.db.close(); }
+});

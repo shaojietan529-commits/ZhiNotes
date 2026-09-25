@@ -2577,9 +2577,11 @@ export interface RemotePageRecord {
 // echo the same page back up). Intentionally does NOT write sync_log.
 export async function applyRemotePages(
   records: RemotePageRecord[]
-): Promise<void> {
+): Promise<RemotePageRecord[]> {
   const db = await getDb();
-  const validRecords = records.filter((record) => record.id);
+  const validRecords = records.filter(
+    (record) => record.id && !hasPendingSyncChange(db, "pages", record.id)
+  );
   const incomingIds = new Set(validRecords.map((record) => record.id));
 
   for (const record of validRecords) {
@@ -2607,8 +2609,7 @@ export async function applyRemotePages(
     }
   }
 
-  for (const record of records) {
-    if (!record.id) continue;
+  for (const record of validRecords) {
     let parentId = record.parent_id;
     if (parentId && !incomingIds.has(parentId)) {
       const parent = db.query("SELECT id FROM pages WHERE id = ?", [
@@ -2640,13 +2641,16 @@ export async function applyRemotePages(
       ]
     );
   }
+  return validRecords;
 }
 
 export async function applyRemotePageMetadata(
   records: RemotePageRecord[]
-): Promise<void> {
+): Promise<RemotePageRecord[]> {
   const db = await getDb();
-  const validRecords = records.filter((record) => record.id);
+  const validRecords = records.filter(
+    (record) => record.id && !hasPendingSyncChange(db, "pages", record.id)
+  );
   const incomingIds = new Set(validRecords.map((record) => record.id));
 
   for (const record of validRecords) {
@@ -2700,6 +2704,7 @@ export async function applyRemotePageMetadata(
       ]
     );
   }
+  return validRecords;
 }
 
 export async function searchPages(query: string, limit = 20): Promise<Page[]> {
@@ -4107,21 +4112,34 @@ export async function getDatabaseRecordsForSyncByKeys(
 }
 
 export async function getPendingDatabaseSyncRecords(
-  limit: number = 200
+  limit: number = 200,
+  keys?: string[]
 ): Promise<PendingDatabaseSyncRecords> {
+  if (keys?.length === 0) return { entries: [], records: [] };
   const db = await getDb();
   const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 1000);
   const now = nowISO();
+  const requested = keys
+    ?.map(parseRemoteDatabaseRecordKey)
+    .filter((key) => key !== null);
+  if (requested?.length === 0) return { entries: [], records: [] };
+  const tableForType = Object.fromEntries(
+    Object.entries(DATABASE_SYNC_TABLE_TYPES).map(([table, type]) => [type, table])
+  );
   const rows = db.query(
     `SELECT id, table_name as tableName, row_id as rowId
      FROM sync_log
      WHERE synced = 0
        AND status != 'synced'
-       AND (next_retry_at IS NULL OR next_retry_at <= ?)
+       ${requested ? "" : "AND (next_retry_at IS NULL OR next_retry_at <= ?)"}
        AND table_name IN ('databases', 'database_fields', 'database_rows', 'database_views')
+       ${requested ? `AND (${requested.map(() => "(table_name = ? AND row_id = ?)").join(" OR ")})` : ""}
      ORDER BY timestamp ASC, id ASC
      LIMIT ?`,
-    [now, safeLimit]
+    [
+      ...(requested ? requested.flatMap(({ type, id }) => [tableForType[type], id]) : [now]),
+      safeLimit,
+    ]
   ) as unknown as Array<{
     id: number;
     tableName: string;
@@ -4217,8 +4235,10 @@ export async function getDatabaseSyncLogPendingCounts(): Promise<PendingSyncLogR
 }
 
 export async function getPendingPageSyncRecords(
-  limit: number = 200
+  limit: number = 200,
+  pageIds?: string[]
 ): Promise<PendingPageSyncRecords> {
+  if (pageIds?.length === 0) return { entries: [], records: [] };
   const db = await getDb();
   const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 1000);
   const now = nowISO();
@@ -4227,11 +4247,12 @@ export async function getPendingPageSyncRecords(
      FROM sync_log
      WHERE synced = 0
        AND status != 'synced'
-       AND (next_retry_at IS NULL OR next_retry_at <= ?)
+       ${pageIds ? "" : "AND (next_retry_at IS NULL OR next_retry_at <= ?)"}
        AND table_name = 'pages'
+       ${pageIds ? `AND row_id IN (${pageIds.map(() => "?").join(", ")})` : ""}
      ORDER BY timestamp ASC, id ASC
      LIMIT ?`,
-    [now, safeLimit]
+    [...(pageIds ?? [now]), safeLimit]
   ) as unknown as Array<{
     id: number;
     rowId: string;
@@ -4764,11 +4785,14 @@ export async function clearLocalDatabaseCacheExceptKeys(
 
 export async function applyRemoteDatabaseRecords(
   records: RemoteDatabaseRecord[]
-): Promise<void> {
+): Promise<RemoteDatabaseRecord[]> {
   const db = await getDb();
-  const validRecords = records.filter(
-    (record) => record.id && isRemoteDatabaseRecordType(record.type)
-  );
+  const validRecords = records.filter((record) => {
+    if (!record.id || !isRemoteDatabaseRecordType(record.type)) return false;
+    const table = Object.entries(DATABASE_SYNC_TABLE_TYPES)
+      .find(([, type]) => type === record.type)?.[0];
+    return table !== undefined && !hasPendingSyncChange(db, table, record.id);
+  });
   const order: Record<RemoteDatabaseRecordType, number> = {
     database: 0,
     field: 1,
@@ -4790,6 +4814,7 @@ export async function applyRemoteDatabaseRecords(
       upsertRemoteDatabaseRow(db, record);
     }
   }
+  return sorted;
 }
 
 function hasPage(db: SqliteDb, id: string | null): boolean {
@@ -5581,7 +5606,7 @@ export async function applyRemoteKnowledgeRecords(
   for (const record of records) {
     if (!record.id || !isRemoteKnowledgeRecordType(record.type)) continue;
     const tableName = KNOWLEDGE_SYNC_TYPE_TABLES[record.type];
-    if (hasPendingKnowledgeSyncLogEntry(db, tableName, record.id)) {
+    if (hasPendingSyncChange(db, tableName, record.id)) {
       skippedLocalPending += 1;
       continue;
     }
@@ -5730,11 +5755,13 @@ function remoteKnowledgeRecordFromPageVersion(
   };
 }
 
-function hasPendingKnowledgeSyncLogEntry(
+function hasPendingSyncChange(
   db: SqliteDb,
   tableName: string,
   rowId: string
 ): boolean {
+  // Check at the write boundary: a pull may finish after a local edit,
+  // including one still in flight or waiting for a failed upload to retry.
   const rows = db.query(
     `SELECT 1 as present
      FROM sync_log
