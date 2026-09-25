@@ -23,6 +23,7 @@ import {
   saveTagMap,
 } from "@/lib/portfolio/portfolioStore";
 import { clearActivePortfolioConflict, readActivePortfolioConflict } from "./portfolioSyncRevision";
+import { capturePortfolioAccountContext, isPortfolioAccountContextCurrent, type PortfolioAccountContext } from "./portfolioAccountContext";
 import {
   finishPortfolioConflictResolution, readPortfolioConflictResolution, saveLocalPortfolioData,
   stagePortfolioConflictResolution, writePortfolioConflictResolution,
@@ -80,6 +81,7 @@ export interface PortfolioCloudSyncAttempt {
   pendingRevision: string | null;
   attemptId: string;
   localFingerprint: string;
+  accountContext: PortfolioAccountContext | null;
 }
 
 export interface PortfolioCloudSyncLastOutcome {
@@ -184,6 +186,7 @@ export function markPortfolioCloudSyncAttempt(mode: PortfolioSyncMode): Portfoli
     pendingRevision: previous.pendingRevision,
     attemptId: crypto.randomUUID(),
     localFingerprint: readPortfolioLocalFingerprint(),
+    accountContext: mode === "account" ? capturePortfolioAccountContext() : null,
   };
   writePortfolioCloudSyncStatus({
     ...previous,
@@ -203,6 +206,7 @@ export function markPortfolioCloudSyncAttempt(mode: PortfolioSyncMode): Portfoli
 }
 
 export function isPortfolioCloudSyncAttemptCurrent(attempt: PortfolioCloudSyncAttempt): boolean {
+  if (attempt.accountContext && !isPortfolioAccountContextCurrent(attempt.accountContext)) return false;
   const current = getPendingPortfolioCloudSyncStatus();
   return current.mode === attempt.mode &&
     current.pendingRevision === attempt.pendingRevision &&

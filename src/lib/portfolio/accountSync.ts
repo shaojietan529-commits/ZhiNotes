@@ -9,6 +9,7 @@ import {
   acceptPortfolioCloudVersion, createPortfolioPushGuard, parsePortfolioCloudVersion,
   retainPortfolioConflict, type PortfolioCloudVersion,
 } from "./portfolioSyncRevision";
+import { capturePortfolioAccountContext, isPortfolioAccountContextCurrent, type PortfolioAccountContext } from "./portfolioAccountContext";
 
 const ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000;
 
@@ -17,14 +18,22 @@ export type AccountSyncResult<T> =
   | { status: "unauthenticated" }
   | { status: "unconfigured" }
   | { status: "forbidden" }
-  | { status: "error"; message?: string; retryable?: boolean };
+  | { status: "error"; message?: string; retryable?: boolean; code?: "account-changed" };
+
+function accountChangedResult(): AccountSyncResult<never> {
+  return { status: "error", code: "account-changed", retryable: false,
+    message: "登录账号已改变，已停止处理旧账号的组合同步结果；本机数据和待上传记录仍保留。" };
+}
 
 async function call<T>(
   body: Record<string, unknown>,
   pick: (json: Record<string, unknown>) => T
 ): Promise<AccountSyncResult<T>> {
+  let context: PortfolioAccountContext | undefined;
   try {
+    context = capturePortfolioAccountContext();
     const accountGate = await checkAccountCloudSyncGate();
+    if (!isPortfolioAccountContextCurrent(context)) return accountChangedResult();
     if (accountGate.status === "unconfigured") return { status: "unconfigured" };
     if (accountGate.status === "signed-out") return { status: "unauthenticated" };
     if (accountGate.status === "unconfirmed") {
@@ -41,7 +50,11 @@ async function call<T>(
           "账号状态暂时无法确认；组合数据仍保留在本地，稍后可重试。",
       };
     }
-    const res = await fetchAccountPortfolioSync(body);
+    if (!context.accountId) {
+      return { status: "error", message: "账号身份暂时无法确认，未发送组合数据；请在账号页确认登录。" };
+    }
+    const res = await fetchAccountPortfolioSync({ ...body, expectedAccountId: context.accountId });
+    if (!isPortfolioAccountContextCurrent(context)) return accountChangedResult();
     if (res.status === 501) return { status: "unconfigured" };
     if (res.status === 401) {
       return {
@@ -52,6 +65,10 @@ async function call<T>(
     }
     if (res.status === 403) return { status: "forbidden" };
     const json = await res.json().catch(() => ({}));
+    if (!isPortfolioAccountContextCurrent(context) || json.code === "account-changed") return accountChangedResult();
+    if ((res.ok || json.code === "portfolio-conflict") && json.accountId !== context.accountId) {
+      throw new Error("组合同步结果缺少匹配的账号确认；未应用云端数据，待上传记录仍保留。");
+    }
     if (!res.ok) {
       if (res.status === 409 && json.code === "portfolio-conflict" && body.action === "push") {
         retainPortfolioConflict("account", body.data as CloudPortfolioData, json);
@@ -64,6 +81,7 @@ async function call<T>(
     }
     return { status: "ok", data: pick(json), version: parsePortfolioCloudVersion(json.version) ?? undefined };
   } catch (error) {
+    if (context && !isPortfolioAccountContextCurrent(context)) return accountChangedResult();
     return {
       status: "error",
       message: isAbortError(error)

@@ -17,7 +17,7 @@ const compiled = new Map();
 
 function fixture(mode) {
   const values = new Map(), modules = new Map();
-  const controls = { failWrite: false, beforeEval: null };
+  const controls = { failWrite: false, beforeEval: null, accountId: "synthetic", reads: 0 };
   const config = { kv: { url: "https://synthetic.invalid", token: "synthetic" }, allowedEmails: new Set() };
   class Redis {
     async get(key) { return values.get(key) ?? null; }
@@ -36,9 +36,9 @@ function fixture(mode) {
     if (name === "@upstash/redis") return { Redis };
     if (name === "@/lib/account/server") return {
       accountIdentityMissingEnv: () => [], getAccountIdentityConfig: () => config,
-      getSessionAccount: async () => ({ id: "synthetic", email: "test@example.invalid" }),
+      getSessionAccount: async () => ({ id: controls.accountId, email: "test@example.invalid" }),
       readSessionToken: () => "synthetic-session", normalizeEmail: (email) => email ?? "",
-      kvGet: async (_, key) => values.get(key) ?? null,
+      kvGet: async (_, key) => { controls.reads++; return values.get(key) ?? null; },
       kvSet: async (_, key, value) => values.set(key, value),
     };
     if (!name.startsWith("@/") && !name.startsWith(".")) return nativeRequire(name);
@@ -66,7 +66,7 @@ function fixture(mode) {
   const key = mode === "account" ? "zhinotes:portfolio:data:acct:test@example.invalid" : "zhinotes:portfolio:data:v1";
   const send = async (body) => {
     const res = await route.POST(new Request("https://synthetic.invalid/api/portfolio/sync", {
-      method: "POST", body: JSON.stringify({ passcode: "synthetic-only", ...body }),
+      method: "POST", body: JSON.stringify({ passcode: "synthetic-only", expectedAccountId: "synthetic", ...body }),
     }));
     return { status: res.status, body: await res.json() };
   };
@@ -74,6 +74,37 @@ function fixture(mode) {
   const push = (data, base = null, requestId = "test-request") => send({ action: "push", protocol: 2, requestId, base, data });
   return { values, key, controls, pull, push, send };
 }
+
+test("account: a cookie changed to another account rejects all old requests before reading or writing", async () => {
+  const f = fixture("account");
+  f.controls.accountId = "account-b";
+  for (const action of ["push", "pull", "shares", "share-add", "share-remove"]) {
+    const result = await f.send({ action, protocol: 2, requestId: "old-account-request", base: null,
+      data: initial, email: "synthetic@example.invalid" });
+    assert.equal(result.status, 409);
+    assert.equal(result.body.code, "account-changed");
+    for (const field of ["data", "members", "sharedWithMe", "accountId", "ack"]) assert.equal(result.body[field], undefined);
+  }
+  assert.equal(f.controls.reads, 0);
+  assert.equal(f.values.size, 0, "even an empty B account cannot accept an unbased A upload");
+});
+
+test("account: all reads and writes require identity intent; success echoes confirmed identity", async () => {
+  const f = fixture("account");
+  for (const expectedAccountId of [undefined, null, "", 1]) {
+    for (const action of ["push", "pull", "shares", "share-add", "share-remove"]) {
+      const result = await f.send({ action, expectedAccountId, data: initial });
+      assert.equal(result.status, 428);
+      assert.equal(result.body.ack, undefined);
+    }
+  }
+  assert.equal(f.controls.reads, 0);
+  assert.equal(f.values.size, 0);
+  for (const result of [await f.push(initial), await f.pull(), await f.send({ action: "shares" })]) {
+    assert.equal(result.status, 200);
+    assert.equal(result.body.accountId, "synthetic");
+  }
+});
 
 for (const mode of ["account", "passcode"]) {
   test(`${mode}: durable versioned ACK and idempotent retry; no ACK on failed write`, async () => {

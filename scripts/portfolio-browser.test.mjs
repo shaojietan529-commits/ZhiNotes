@@ -31,13 +31,16 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     await context.route("**/*", async (route) => {
       const url = new URL(route.request().url());
       if (url.origin !== new URL(base).origin) return route.abort();
-      const json = (body, status = 200) => route.fulfill({ status, json: body });
+      const json = (body, status = 200) => route.fulfill({ status, json: {
+        ...(url.pathname === "/api/portfolio/account-sync" ? { accountId: "synthetic" } : {}), ...body,
+      } });
       if (url.pathname === "/api/account/me") {
         return json({ authenticated: true, account: { id: "synthetic", email_hint: "s***@example.invalid",
           display_name: "Synthetic test", createdAt: now } });
       }
       if (url.pathname === "/api/portfolio/account-sync") {
         const body = route.request().postDataJSON();
+        assert.equal(body.expectedAccountId, "synthetic");
         if (body.action === "shares") return json({ members: [], sharedWithMe: [] });
         if (body.action === "pull") return json({ data: cloud, version: versionOf(cloud) });
         if (body.action === "push") {

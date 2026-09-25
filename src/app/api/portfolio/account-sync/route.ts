@@ -77,6 +77,7 @@ export async function POST(request: Request) {
     protocol?: unknown;
     requestId?: unknown;
     base?: unknown;
+    expectedAccountId?: unknown;
   };
   try {
     body = await request.json();
@@ -91,6 +92,16 @@ export async function POST(request: Request) {
         "组合同步暂时无法确认账号；本地组合数据已保留，请稍后重试。"
       );
     }
+    if (typeof body.expectedAccountId !== "string" || !body.expectedAccountId) {
+      return NextResponse.json({ code: "account-refresh-required", error: "请刷新页面后重新确认组合同步账号。" }, { status: 428 });
+    }
+    if (body.expectedAccountId !== account.id) {
+      // Reject before reading portfolio/share data, including an unbased push
+      // into an empty account. A session cookie alone cannot identify intent.
+      return NextResponse.json({ code: "account-changed", error: "登录账号已改变，未执行旧账号的组合请求。" }, { status: 409 });
+    }
+    const respond = (payload: Record<string, unknown>, status = 200) =>
+      NextResponse.json({ ...payload, accountId: account.id }, { status });
     const me = account.email;
 
     if (body.action === "pull") {
@@ -111,7 +122,7 @@ export async function POST(request: Request) {
           config.kv,
           `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${from}`
         );
-        return NextResponse.json({
+        return respond({
           data: raw ? JSON.parse(raw) : null,
           readOnly: true,
         });
@@ -120,14 +131,14 @@ export async function POST(request: Request) {
         config.kv,
         `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`
       );
-      return NextResponse.json(portfolioCloudEnvelope(raw, `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`));
+      return respond(portfolioCloudEnvelope(raw, `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`));
     }
 
     if (body.action === "push") {
       const result = await writeVersionedPortfolio(config.kv,
         `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`, body,
         { key: `${PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX}${me}`, owner: me });
-      return NextResponse.json(result.body, { status: result.status });
+      return respond(result.body, result.status);
     }
 
     if (body.action === "shares") {
@@ -135,7 +146,7 @@ export async function POST(request: Request) {
         readEmailList(config, `${PORTFOLIO_ACCOUNT_SHARE_KEY_PREFIX}${me}`),
         readEmailList(config, `${PORTFOLIO_ACCOUNT_SHARED_WITH_KEY_PREFIX}${me}`),
       ]);
-      return NextResponse.json({ members, sharedWithMe });
+      return respond({ members, sharedWithMe });
     }
 
     if (body.action === "share-add") {
@@ -163,7 +174,7 @@ export async function POST(request: Request) {
         `${PORTFOLIO_ACCOUNT_SHARE_KEY_PREFIX}${me}`
       );
       if (members.includes(email)) {
-        return NextResponse.json({ members });
+        return respond({ members });
       }
       if (members.length >= MAX_SHARE_MEMBERS) {
         return NextResponse.json(
@@ -190,7 +201,7 @@ export async function POST(request: Request) {
               [...reverse, me]
             ),
       ]);
-      return NextResponse.json({ members: nextMembers });
+      return respond({ members: nextMembers });
     }
 
     if (body.action === "share-remove") {
@@ -219,7 +230,7 @@ export async function POST(request: Request) {
           reverse.filter((item) => item !== me)
         ),
       ]);
-      return NextResponse.json({ members: nextMembers });
+      return respond({ members: nextMembers });
     }
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });

@@ -20,11 +20,17 @@ class FixedDate extends Date {
 
 function fixture(storage = new Map()) {
   const requests = [];
-  const controls = { failContentRead: false, gate: "ready", failWritePrefix: null };
+  const controls = { failContentRead: false, gate: "ready", failWritePrefix: null, beforeGate: null };
+  const tabStorage = new Map();
+  const sessionStorage = {
+    getItem: (key) => tabStorage.get(key) ?? null,
+    setItem: (key, value) => tabStorage.set(key, String(value)),
+    removeItem: (key) => tabStorage.delete(key),
+  };
   const modules = new Map();
   const localStorage = {
     getItem(key) {
-      if (controls.failContentRead && !key.includes("sync.")) throw new Error("Synthetic read error");
+      if (controls.failContentRead && key.startsWith("zhinote.portfolio.") && !key.includes("sync.")) throw new Error("Synthetic read error");
       return storage.get(key) ?? null;
     },
     setItem: (key, value) => {
@@ -35,7 +41,10 @@ function fixture(storage = new Map()) {
   };
   function load(name, parent = path.join(root, "src/entry.ts")) {
     if (name === "@/lib/account/accountCloudSyncGate") {
-      return { checkAccountCloudSyncGate: async () => ({ status: controls.gate }) };
+      return { checkAccountCloudSyncGate: async () => {
+        if (controls.beforeGate) await controls.beforeGate();
+        return { status: controls.gate };
+      } };
     }
     if (!name.startsWith("@/") && !name.startsWith(".")) return nativeRequire(name);
     const file = name.startsWith("@/") ? path.join(root, "src", name.slice(2)) + ".ts"
@@ -50,10 +59,12 @@ function fixture(storage = new Map()) {
       exports: loadedModule.exports, module: loadedModule, require: (dependency) => load(dependency, file),
       Date: FixedDate, crypto: webcrypto, AbortController, setTimeout, clearTimeout, Event,
       CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
-      window: { localStorage, dispatchEvent: () => {} },
+      window: { localStorage, sessionStorage, dispatchEvent: () => {} },
       fetch: async (url, init) => new Promise((resolve, reject) => {
         const body = JSON.parse(init.body);
-        requests.push({ url, body, reject, reply: (options = {}) => resolve(Response.json(options.json ?? {
+        requests.push({ url, body, reject, reply: (options = {}) => resolve(Response.json({
+          ...(options.noAccountId ? {} : { accountId: options.accountId ?? body.expectedAccountId }),
+          ...(options.json ?? {
           tagMap: options.tags ?? body.data?.tagMap,
           ...(options.noAck ? {} : { ack: {
             format: "zhinote-portfolio-cloud-ack-receipt", format_version: 2,
@@ -62,6 +73,7 @@ function fixture(storage = new Map()) {
             scope: options.scope ?? "a".repeat(64), revision: options.revision ?? "b".repeat(64),
             updated_at: options.updatedAt ?? body.data?.updatedAt,
           } }),
+          }),
         }, { status: options.status ?? 200 })) });
       }),
     }, { filename: file });
@@ -69,6 +81,12 @@ function fixture(storage = new Map()) {
   }
   const store = load("@/lib/portfolio/portfolioStore");
   const queue = load("@/lib/portfolio/portfolioSyncStatus");
+  const session = load("@/lib/account/clientSession");
+  const setAccount = (id) => session.rememberLastAuthenticatedAccount({
+    id, email_hint: "synthetic@example.invalid", display_name: "Synthetic", createdAt: now,
+  });
+  if (!storage.has(session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) &&
+      !storage.has(session.ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY)) setAccount("synthetic-a");
   const seed = (mode = "account") => {
     store.saveSnapshot({ importedAt: now, fileName: "synthetic.xlsx", positions: [] });
     store.saveTagMap({ SAMPLE: "original" });
@@ -83,7 +101,7 @@ function fixture(storage = new Map()) {
     assert.ok(requests.length);
     return requests.at(-1);
   };
-  return { store, queue, seed, waitForRequest, requests, controls, storage, load };
+  return { store, queue, seed, waitForRequest, requests, controls, storage, load, session, setAccount };
 }
 
 test("portfolio: exact ACK clears only the uploaded revision without applying unsolicited labels", async () => {
@@ -206,6 +224,101 @@ test("portfolio: transient account confirmation error preserves local pending an
   assert.equal(f.requests.length, 0);
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
   assert.equal(f.store.loadTagMap().SAMPLE, "original");
+});
+
+test("account boundary: request carries the intended identity and rejects an unbound response", async () => {
+  for (const invalidReply of [{ noAccountId: true }, { accountId: "synthetic-b" }]) {
+    const f = fixture(); f.seed();
+    const uploading = f.queue.drainPendingPortfolioCloudSync();
+    const request = await f.waitForRequest();
+    assert.equal(request.body.expectedAccountId, "synthetic-a");
+    request.reply(invalidReply);
+    assert.equal((await uploading).status, "failed");
+    assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+    assert.equal(f.load("@/lib/portfolio/portfolioSyncRevision").readPortfolioCloudBase("account"), null);
+  }
+});
+
+for (const response of ["ack", "conflict", "network-error"]) {
+  test(`account boundary: ${response} for A cannot mutate B after a same-tab account switch`, async () => {
+    const f = fixture(); f.seed();
+    const uploading = f.queue.drainPendingPortfolioCloudSync();
+    const request = await f.waitForRequest();
+    f.setAccount("synthetic-b");
+    // B may have the same local values and pending revision. Identity must
+    // still invalidate A's attempt, independently of content comparisons.
+    const protectedState = new Map(f.storage);
+    if (response === "network-error") request.reject(new Error("Synthetic offline"));
+    else if (response === "conflict") request.reply({ status: 409, json: {
+      code: "portfolio-conflict", data: { allocation: 999 }, version: { scope: "a".repeat(64), revision: "c".repeat(64) },
+    } });
+    else request.reply();
+    assert.equal((await uploading).status, "deferred");
+    assert.deepEqual(f.storage, protectedState, "no new baseline, conflict, status or content for another identity");
+    assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+  });
+}
+
+test("account boundary: session confirmation that changes identity cannot send an old payload", async () => {
+  const f = fixture(); f.seed();
+  f.controls.beforeGate = () => f.setAccount("synthetic-b");
+  const result = await f.queue.drainPendingPortfolioCloudSync();
+  assert.equal(result.status, "deferred");
+  assert.equal(f.requests.length, 0);
+  assert.equal(f.store.loadTagMap().SAMPLE, "original");
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+});
+
+test("account boundary: another tab's switch blocks stale sessionStorage and late reads", async () => {
+  const storage = new Map();
+  const a = fixture(storage), b = fixture(storage); a.seed();
+  const first = a.load("@/lib/portfolio/accountSync").accountPullCloud();
+  const request = await a.waitForRequest();
+  b.setAccount("synthetic-b");
+  const protectedState = new Map(storage);
+  request.reply({ json: { data: { allocation: 999 }, version: { scope: "a".repeat(64), revision: "c".repeat(64) } } });
+  const result = await first;
+  assert.equal(result.status, "error");
+  assert.equal(result.code, "account-changed");
+  assert.equal(result.data, undefined);
+  assert.deepEqual(storage, protectedState);
+  const next = await a.load("@/lib/portfolio/accountSync").accountPullCloud();
+  assert.equal(next.status, "error");
+  assert.equal(a.requests.length, 1, "stale tab must not send using either account's identity");
+});
+
+test("account boundary: explicit logout preserves pending and prevents late ACK or new requests", async () => {
+  const f = fixture(); f.seed();
+  const uploading = f.queue.drainPendingPortfolioCloudSync();
+  const request = await f.waitForRequest();
+  f.session.clearAccountSessionCache({ clearLastAuthenticated: true });
+  const protectedState = new Map(f.storage);
+  request.reply();
+  assert.equal((await uploading).status, "deferred");
+  assert.deepEqual(f.storage, protectedState);
+  const next = await f.load("@/lib/portfolio/accountSync").accountPullCloud();
+  assert.equal(next.status, "error");
+  assert.equal(f.requests.length, 1);
+});
+
+test("account boundary: profile refresh for the same account does not invalidate its upload", async () => {
+  const f = fixture(); f.seed();
+  const uploading = f.queue.drainPendingPortfolioCloudSync();
+  const request = await f.waitForRequest();
+  f.session.rememberLastAuthenticatedAccount({ id: "synthetic-a", email_hint: "x***@example.invalid",
+    display_name: "Updated name", createdAt: now });
+  request.reply();
+  assert.equal((await uploading).status, "ok");
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
+});
+
+test("account boundary: the queue checks identity again before applying a received ACK", () => {
+  const f = fixture(); f.seed();
+  const attempt = f.queue.markPortfolioCloudSyncAttempt("account");
+  f.setAccount("synthetic-b");
+  const protectedState = new Map(f.storage);
+  assert.equal(f.queue.markPortfolioCloudSyncAck("account", attempt, { SAMPLE: "old response" }), false);
+  assert.deepEqual(f.storage, protectedState);
 });
 
 test("portfolio: status pings are not data changes; legacy pending state still blocks pulls", () => {

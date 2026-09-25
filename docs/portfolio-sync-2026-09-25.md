@@ -45,17 +45,31 @@
 - A status persistence failure now throws instead of emitting a false synced
   state. Account/passcode v2 ACKs apply only the submitted labels, never an
   unsolicited response tag map.
+- Account requests now carry the intended account ID. The server rejects a
+  missing identity (428) or a cookie for a different account (409) before
+  reading/writing portfolio or sharing data, including first writes with no
+  prior cloud version. Successful/data-bearing replies echo the confirmed ID.
+- Client requests and queue attempts capture the existing local/session login
+  identity and recheck it after asynchronous boundaries. A switch in this or
+  another tab, logout, or disagreement between the two identity caches prevents
+  applying an old receipt, cloud data, conflict backup or failure status. Same
+  account profile refreshes do not invalidate uploads. No auth reset is added.
 
 No new provider, dependency, migration, private-data export or production data
-repair is included. The status/base fields contain identifiers, not holdings;
-the comparison fingerprint stays in memory and is never logged or persisted.
+repair is included. Status/base fields contain identifiers, not holdings.
+Request/attempt fingerprints stay in memory; conflict review journals contain
+private originals and a local comparison fingerprint, only in browser storage.
+Neither form is included in metadata exports or logs.
 
 ## Evidence
 
 - Existing 49 page/database/settings behavior tests pass.
-- 42 portfolio behavior tests pass against the actual client modules, queue,
+- 53 portfolio behavior tests pass against the actual client modules, queue,
   both routes and shared versioned store. Redis atomicity is simulated in memory;
-  this is not a test against a running Redis server. Total behavior tests: 91.
+  this is not a test against a running Redis server. Total behavior tests: 102.
+  Account tests cover switched cookies on every action, missing intent, missing
+  response identity, late ACK/conflict/failure, same-tab and cross-tab switches,
+  explicit logout, profile refresh and the final queue apply boundary.
 - Isolated Edge/Playwright test passes against the local app: two successive
   edits while an ACK is held, a remote pull during pending work, exact eventual
   upload, no status-ping write loop, clean reload, remote label deletion with
@@ -86,9 +100,12 @@ write any production account. Synthetic screenshot stays under `.local/`.
   pending; capacity management and an explicit recovery path for an interrupted
   local apply remain rollout work. A failed apply is journaled and blocked from
   further automatic uploads; it must not be declared converged.
-- Portfolio account-switch cache isolation and shared-tab race behavior need
-  further verification. Scope-bound receipts do not by themselves isolate the
-  currently global local portfolio cache.
+- Portfolio account-switch cache isolation remains next. Request identity
+  guards do not bind ownership of the currently global local portfolio cache or
+  pending/conflict records. They do not prevent a *new* request from treating an
+  old unowned cache as the newly signed-in account's data. Keep this checkpoint
+  undeployed until account namespaces, legacy ownership confirmation, async UI
+  imports, A-to-B-to-A transitions and stale auth-probe races are addressed.
 - Exercise the actual Lua script against isolated Redis before rollout, and
   test protocol upgrade/rollback. Existing clients will need refresh; reverting
   to the old unguarded server would reintroduce the overwrite hazard.
