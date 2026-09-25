@@ -785,11 +785,12 @@ check(
     portfolioAccountSyncClient.includes('accountGate.status === "signed-out"') &&
     portfolioAccountSyncClient.includes("组合同步接口暂时无法确认账号权限；本地组合数据未删除，请稍后重试。") &&
     portfolioAccountSyncClient.includes("portfolioCloudAckConfirmsPush") &&
-    portfolioAccountSyncClient.includes('ack.format === "zhinote-portfolio-cloud-ack-receipt"') &&
-    portfolioAccountSyncClient.includes("ack.format_version === 1") &&
-    portfolioAccountSyncClient.includes('ack.ack_status === "acknowledged"') &&
-    portfolioAccountSyncClient.includes("ack.accepted === true") &&
-    portfolioAccountSyncClient.includes("ack.updated_at === expectedUpdatedAt") &&
+    portfolioPasscodeSyncClient.includes('ack.format === "zhinote-portfolio-cloud-ack-receipt"') &&
+    portfolioPasscodeSyncClient.includes("ack.format_version === 1") &&
+    portfolioPasscodeSyncClient.includes('ack.ack_status === "acknowledged"') &&
+    portfolioPasscodeSyncClient.includes("ack.accepted === true") &&
+    portfolioPasscodeSyncClient.includes("ack.updated_at === data.updatedAt") &&
+    portfolioPasscodeSyncClient.includes("portfolioCloudAckConfirmsPush(result.ack, data)") &&
     portfolioAccountSyncClient.includes("组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。") &&
     !portfolioAccountSyncClient.includes('if (res.status === 401) return { status: "unauthenticated" }'),
   "portfolio account-sync client 应先复用共享账号 gate；具体同步接口 401 只能作为可重试错误，且 push 必须看到格式、版本、状态和 updated_at 都匹配的 ACK 后才成功"
@@ -844,8 +845,12 @@ check(
 );
 check(
   board.includes("markPortfolioCloudSyncPending") &&
-    board.includes("markPortfolioCloudSyncAttempt") &&
-    board.includes("markPortfolioCloudSyncAck") &&
+    board.includes("drainPendingPortfolioCloudSync") &&
+    board.includes("queueLocalPortfolioChange") &&
+    board.includes("hasUnsyncedPortfolioChanges") &&
+    !board.includes("accountPushCloud(") &&
+    portfolioSyncStatus.includes("isPortfolioCloudSyncAttemptCurrent(attempt)") &&
+    portfolioSyncStatus.includes("readPortfolioLocalFingerprint() !== attempt.localFingerprint") &&
     board.includes("markPortfolioFailureFromSyncResult") &&
     !board.includes("Session expired mid-flight; stop account sync quietly."),
   "PortfolioBoardShell 必须把本地修改先标为 pending，云端 ACK 后才清 pending；账号临时失败不能静默关闭同步"
