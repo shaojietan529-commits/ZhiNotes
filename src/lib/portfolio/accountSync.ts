@@ -116,9 +116,14 @@ export function accountPullCloud(
 
 // Returns only labels confirmed by this version-bound cloud receipt.
 export async function accountPushCloud(
-  data: CloudPortfolioData
+  data: CloudPortfolioData,
+  reviewedVersion?: PortfolioCloudVersion
 ): Promise<AccountSyncResult<TagMap | null>> {
-  const guard = createPortfolioPushGuard("account");
+  const localGuard = createPortfolioPushGuard("account");
+  if (reviewedVersion && localGuard.base && reviewedVersion.scope !== localGuard.base.scope) {
+    return { status: "error", retryable: false, message: "账号已改变，未上传冲突处理结果。" };
+  }
+  const guard = reviewedVersion ? { ...localGuard, base: reviewedVersion } : localGuard;
   return call({ action: "push", data, ...guard }, (json) => {
     const ack = json.ack;
     if (!portfolioCloudAckConfirmsPush(ack, data, guard)) {
@@ -126,12 +131,11 @@ export async function accountPushCloud(
         "组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。"
       );
     }
-    if (!acceptPortfolioCloudVersion("account", guard, parsePortfolioCloudVersion(ack)!)) {
+    if (!acceptPortfolioCloudVersion("account", localGuard, parsePortfolioCloudVersion(ack)!)) {
       throw new Error("组合云端版本已变化；保留待上传修改，下次同步重新核对。");
     }
-    return json.tagMap && typeof json.tagMap === "object"
-      ? (json.tagMap as TagMap)
-      : null;
+    // v2 persists the exact submitted document; it no longer unions tags.
+    return data.tagMap;
   });
 }
 

@@ -22,6 +22,12 @@ import {
   saveDataUpdatedAt,
   saveTagMap,
 } from "@/lib/portfolio/portfolioStore";
+import { clearActivePortfolioConflict, readActivePortfolioConflict } from "./portfolioSyncRevision";
+import {
+  finishPortfolioConflictResolution, readPortfolioConflictResolution, saveLocalPortfolioData,
+  stagePortfolioConflictResolution, writePortfolioConflictResolution,
+  type PortfolioConflictChoice, type PortfolioConflictResolution, type PortfolioConflictReview,
+} from "./portfolioConflictResolution";
 
 export const PORTFOLIO_SYNC_STATUS_STORAGE_KEY =
   "zhinote.portfolio.sync.status.v1";
@@ -142,16 +148,19 @@ export function markPortfolioCloudSyncPending(
 ): void {
   const now = new Date().toISOString();
   const previous = getPendingPortfolioCloudSyncStatus();
+  const needsReview = mode && readActivePortfolioConflict(mode) && reason !== "conflict-resolution";
   writePortfolioCloudSyncStatus({
     ...previous,
     mode,
-    queueState: "pending",
+    queueState: needsReview ? "manual_review" : "pending",
     pendingRevision: crypto.randomUUID(),
     attemptId: null,
     pending: 1,
     inFlight: 0,
     failed: 0,
-    manualReviewCount: 0,
+    manualReviewCount: needsReview ? 1 : 0,
+    failureCountTotal: reason === "conflict-resolution" ? 0 : previous.failureCountTotal,
+    maxFailureCount: reason === "conflict-resolution" ? 0 : previous.maxFailureCount,
     lastQueuedAt: now,
     lastFailureMessage: null,
     authRetryStatus: null,
@@ -209,7 +218,8 @@ export function hasUnsyncedPortfolioChanges(): boolean {
 export function markPortfolioCloudSyncAck(
   mode: PortfolioSyncMode,
   attempt: PortfolioCloudSyncAttempt,
-  serverTags: ReturnType<typeof loadTagMap> | null = null
+  serverTags: ReturnType<typeof loadTagMap> | null = null,
+  resolution?: PortfolioConflictResolution
 ): boolean {
   if (mode !== attempt.mode || !isPortfolioCloudSyncAttemptCurrent(attempt)) return false;
   if (readPortfolioLocalFingerprint() !== attempt.localFingerprint) {
@@ -217,6 +227,22 @@ export function markPortfolioCloudSyncAck(
     return false;
   }
   // No await between comparing the local revision and applying this receipt.
+  if (resolution && mode) {
+    const stored = readPortfolioConflictResolution(mode);
+    if (stored?.review.id !== resolution.review.id) return false;
+    writePortfolioConflictResolution({ ...resolution, state: "applying" });
+    try {
+      saveLocalPortfolioData(resolution.data);
+      writePortfolioConflictResolution({ ...resolution, state: "applied" });
+    } catch (error) {
+      // The immutable review retains both originals even if local persistence fails.
+      try {
+        saveLocalPortfolioData(resolution.review.local);
+        writePortfolioConflictResolution({ ...resolution, state: "queued" });
+      } catch { /* Keep the applying journal for explicit recovery. */ }
+      throw error;
+    }
+  }
   if (serverTags) saveTagMap(serverTags);
   const now = new Date().toISOString();
   const next: PortfolioCloudSyncStatus = {
@@ -245,8 +271,22 @@ export function markPortfolioCloudSyncAck(
     },
     storesPortfolioContent: false,
   };
+  if (resolution && mode) {
+    finishPortfolioConflictResolution(mode, resolution.review.id);
+    clearActivePortfolioConflict(mode, resolution.review.version);
+  }
   writePortfolioCloudSyncStatus(next);
   return true;
+}
+
+export async function submitPortfolioConflictResolution(
+  review: PortfolioConflictReview,
+  choices: Record<string, PortfolioConflictChoice>
+): Promise<DrainPortfolioCloudSyncResult> {
+  if (getPendingPortfolioCloudSyncStatus().inFlight > 0) throw new Error("上一笔上传仍在确认，请稍后重试。");
+  stagePortfolioConflictResolution(review, choices);
+  markPortfolioCloudSyncPending(review.mode, "conflict-resolution");
+  return drainPendingPortfolioCloudSync({ mode: review.mode });
 }
 
 export function markPortfolioCloudSyncFailure(
@@ -370,15 +410,20 @@ async function drainPortfolioCloudSync(
   let attempt: PortfolioCloudSyncAttempt | undefined;
   let result: Awaited<ReturnType<typeof accountPushCloud>> | Awaited<ReturnType<typeof pushCloudData>>;
   try {
+    const resolution = readPortfolioConflictResolution(mode);
+    if (resolution && (resolution.state !== "queued" || readPortfolioLocalFingerprint() !== resolution.review.fingerprint)) {
+      markPortfolioCloudSyncFailure(mode, "处理期间本机有新修改或保存被中断；原始版本仍保留，请重新读取差异。", { retryable: false });
+      return { status: "manual_review", attempted: 0, synced: 0, failed: 0, manualReview: 1, authDeferred: 0, pendingAfter: 1 };
+    }
     // A retry is not a new edit. Keep its original timestamp.
-    if (!loadDataUpdatedAt()) saveDataUpdatedAt(new Date().toISOString());
+    if (!resolution && !loadDataUpdatedAt()) saveDataUpdatedAt(new Date().toISOString());
     attempt = markPortfolioCloudSyncAttempt(mode);
-    const data = buildPortfolioCloudData();
+    const data = resolution?.data ?? buildPortfolioCloudData();
     result = mode === "account"
-      ? await accountPushCloud(data)
-      : await pushCloudData(loadSyncPasscode() ?? "", data);
+      ? await accountPushCloud(data, resolution?.review.version)
+      : await pushCloudData(loadSyncPasscode() ?? "", data, resolution?.review.version);
     if (result.status === "ok") {
-      const cleared = markPortfolioCloudSyncAck(mode, attempt, result.data);
+      const cleared = markPortfolioCloudSyncAck(mode, attempt, result.data, resolution ?? undefined);
       const current = getPendingPortfolioCloudSyncStatus();
       return {
         status: cleared ? "ok" : "deferred",
@@ -514,14 +559,10 @@ function writePortfolioCloudSyncStatus(
 ): void {
   if (typeof window === "undefined") return;
   const normalized = normalizePortfolioCloudSyncStatus(status);
-  try {
-    window.localStorage.setItem(
-      PORTFOLIO_SYNC_STATUS_STORAGE_KEY,
-      JSON.stringify(normalized)
-    );
-  } catch {
-    // The visible page badge still updates through the same-tab event.
-  }
+  window.localStorage.setItem(
+    PORTFOLIO_SYNC_STATUS_STORAGE_KEY,
+    JSON.stringify(normalized)
+  );
   emitPortfolioCloudSyncStatusEvent(normalized);
 }
 

@@ -13,6 +13,24 @@ export interface PortfolioPushGuard {
 
 type Mode = "account" | "passcode";
 const BASE_KEY = "zhinote.portfolio.sync.base.v2";
+export const PORTFOLIO_CONFLICT_EVENT = "zhinote:portfolio-conflict";
+export const PORTFOLIO_ACTIVE_CONFLICT_KEY = "zhinote.portfolio.sync.conflict.v1";
+
+export function readActivePortfolioConflict(mode: Mode): PortfolioCloudVersion | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(`${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${mode}`);
+  if (!raw) return null;
+  const version = parsePortfolioCloudVersion(JSON.parse(raw));
+  if (!version) throw new Error("组合冲突记录无法读取；本机数据已保留。");
+  return version;
+}
+
+export function clearActivePortfolioConflict(mode: Mode, expected: PortfolioCloudVersion): void {
+  const current = readActivePortfolioConflict(mode);
+  if (current?.scope !== expected.scope || current?.revision !== expected.revision) return;
+  window.localStorage.removeItem(`${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${mode}`);
+  window.dispatchEvent(new Event(PORTFOLIO_CONFLICT_EVENT));
+}
 
 export function parsePortfolioCloudVersion(value: unknown): PortfolioCloudVersion | null {
   if (!value || typeof value !== "object") return null;
@@ -58,4 +76,6 @@ export function retainPortfolioConflict(mode: Mode, local: CloudPortfolioData, r
   if (window.localStorage.getItem(key) === null) {
     window.localStorage.setItem(key, JSON.stringify({ local, cloud: response.data, version, savedAt: new Date().toISOString() }));
   }
+  window.localStorage.setItem(`${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${mode}`, JSON.stringify(version));
+  window.dispatchEvent(new Event(PORTFOLIO_CONFLICT_EVENT));
 }

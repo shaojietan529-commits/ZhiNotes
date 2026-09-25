@@ -33,6 +33,18 @@
   Failed recovery persistence cannot clear pending or acknowledge the upload.
 - Legacy clients without version preconditions receive 428 (refresh required).
   No silent fallback to unconditional writes is allowed during rollout.
+- Conflict review is now available from the portfolio sync button. It fetches a
+  fresh cloud version and lets the user select local/cloud values separately
+  for the report, allocation, net exposure limit and each stock label, including
+  label removal. The report/import marker stay together as one unit.
+- Decisions use the existing upload drain, not a second transport. A durable
+  retry journal and immutable recovery copy preserve the decision across lost
+  responses/reload; the live local portfolio is not replaced until a matching
+  cloud ACK. Stale local input requires a new review, and renewed cloud
+  conflicts go back through the server's version guard.
+- A status persistence failure now throws instead of emitting a false synced
+  state. Account/passcode v2 ACKs apply only the submitted labels, never an
+  unsolicited response tag map.
 
 No new provider, dependency, migration, private-data export or production data
 repair is included. The status/base fields contain identifiers, not holdings;
@@ -41,15 +53,18 @@ the comparison fingerprint stays in memory and is never logged or persisted.
 ## Evidence
 
 - Existing 49 page/database/settings behavior tests pass.
-- 30 portfolio behavior tests pass against the actual client modules, queue,
+- 42 portfolio behavior tests pass against the actual client modules, queue,
   both routes and shared versioned store. Redis atomicity is simulated in memory;
-  this is not a test against a running Redis server. Total behavior tests: 79.
+  this is not a test against a running Redis server. Total behavior tests: 91.
 - Isolated Edge/Playwright test passes against the local app: two successive
   edits while an ACK is held, a remote pull during pending work, exact eventual
   upload, no status-ping write loop, clean reload, remote label deletion with
   an older timestamp, and reload after a third edit that conflicts with another
-  device. The conflict preserves both versions and stays pending for review.
-  Three revisions produce three requests; no page errors or
+  device. The conflict preserves both versions; the test opens the review on
+  desktop and 390px mobile, cancels without writing, retries a decision made
+  stale by a new cloud edit, then verifies local input stays intact before ACK
+  and confirms convergence and a quiet reload. Five requests include the two
+  conflicts; no page errors or
   React cross-component render/update warnings.
 - TypeScript, lint, production build, `verify:account`, and
   `verify:sync-pending-domains` pass. Source checks are not device acceptance.
@@ -64,10 +79,13 @@ write any production account. Synthetic screenshot stays under `.local/`.
 
 ## Not Yet Complete
 
-- Do not deploy this checkpoint yet. A conflict review/resolution UI and safe
-  adoption of divergent legacy local/cloud copies are still needed. Stopping
-  unsafe writes alone is not usable conflict resolution. Automatic merging of
-  independent fields can follow using a proven three-way comparison strategy.
+- Do not deploy this checkpoint yet. Explicit review handles divergent legacy
+  copies, but automatic three-way merging of independent edits is not included.
+- Recovery records currently use localStorage and retain private originals.
+  Large/repeated conflicts may reach its quota. These failures must retain
+  pending; capacity management and an explicit recovery path for an interrupted
+  local apply remain rollout work. A failed apply is journaled and blocked from
+  further automatic uploads; it must not be declared converged.
 - Portfolio account-switch cache isolation and shared-tab race behavior need
   further verification. Scope-bound receipts do not by themselves isolate the
   currently global local portfolio cache.

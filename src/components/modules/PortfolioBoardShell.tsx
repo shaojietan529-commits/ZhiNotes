@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
+import PortfolioConflictDialog from "./PortfolioConflictDialog";
 import {
   buildExposures,
   parseBookTagRows,
@@ -46,7 +47,7 @@ import {
   accountPullCloud,
   fetchShares,
 } from "@/lib/portfolio/accountSync";
-import { readPortfolioCloudBase, rememberPortfolioCloudBase, type PortfolioCloudVersion } from "@/lib/portfolio/portfolioSyncRevision";
+import { PORTFOLIO_ACTIVE_CONFLICT_KEY, PORTFOLIO_CONFLICT_EVENT, readActivePortfolioConflict, readPortfolioCloudBase, rememberPortfolioCloudBase, type PortfolioCloudVersion } from "@/lib/portfolio/portfolioSyncRevision";
 import {
   drainPendingPortfolioCloudSync,
   getPendingPortfolioCloudSyncStatus,
@@ -197,6 +198,8 @@ export default function PortfolioBoardShell() {
   const [emailChecking, setEmailChecking] = useState(false);
   const [syncPasscode, setSyncPasscode] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("off");
+  const [hasConflict, setHasConflict] = useState(false);
+  const [conflictOpen, setConflictOpen] = useState(false);
   // Signed-in browsers sync against the account; others use the passcode.
   const [syncMode, setSyncMode] = useState<SyncMode>(null);
   // Owners (emails) who shared their portfolio with this account.
@@ -233,6 +236,18 @@ export default function PortfolioBoardShell() {
     allocation: number;
     maxNetPct: number;
   } | null>(null);
+
+  useEffect(() => {
+    const refresh = () => {
+      try { setHasConflict(Boolean(syncMode && readActivePortfolioConflict(syncMode))); }
+      catch { setHasConflict(true); }
+    };
+    const storage = (event: StorageEvent) => { if (event.key?.startsWith(PORTFOLIO_ACTIVE_CONFLICT_KEY)) refresh(); };
+    queueMicrotask(refresh);
+    window.addEventListener(PORTFOLIO_CONFLICT_EVENT, refresh);
+    window.addEventListener("storage", storage);
+    return () => { window.removeEventListener(PORTFOLIO_CONFLICT_EVENT, refresh); window.removeEventListener("storage", storage); };
+  }, [syncMode]);
 
   useEffect(() => {
     queueMicrotask(async () => {
@@ -697,6 +712,10 @@ export default function PortfolioBoardShell() {
             "warning"
           );
         }
+      }).catch(() => {
+        if (viewingOwnerRef.current || syncModeRef.current !== modeAtPush) return;
+        setSyncStatus("error");
+        showNotice("无法保存同步状态；待上传记录仍保留，请检查本机存储空间。", "warning");
       });
     }, 1500);
     return () => {
@@ -734,6 +753,10 @@ export default function PortfolioBoardShell() {
   }, [runInitialSync]);
 
   const handleSyncChipClick = useCallback(() => {
+    if (hasConflict && !viewingOwnerRef.current) {
+      setConflictOpen(true);
+      return;
+    }
     if (syncModeRef.current === "account") {
       if (syncStatus === "error") {
         void runInitialSync(null, true);
@@ -761,7 +784,7 @@ export default function PortfolioBoardShell() {
       syncReadyRef.current = false;
       markPortfolioCloudSyncOff();
     }
-  }, [syncPasscode, syncStatus, runInitialSync]);
+  }, [hasConflict, syncPasscode, syncStatus, runInitialSync]);
 
   const handleAllocationChange = useCallback((value: number) => {
     if (viewingOwnerRef.current) return;
@@ -1122,7 +1145,7 @@ export default function PortfolioBoardShell() {
       snapshot ? buildExposures(snapshot.positions, (p) => p.country) : null,
     [snapshot]
   );
-  const syncDescription = getPortfolioSyncDescription(
+  const syncDescription = hasConflict ? "存在待确认的同步冲突，本机和云端版本均已保留。" : getPortfolioSyncDescription(
     syncMode,
     syncPasscode,
     syncStatus
@@ -1131,6 +1154,13 @@ export default function PortfolioBoardShell() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
+      {conflictOpen && syncMode && !viewingOwner && <PortfolioConflictDialog mode={syncMode}
+        onClose={() => setConflictOpen(false)}
+        onUpdated={(result) => {
+          setSnapshot(loadSnapshot()); setTagMap(loadTagMap()); setAllocation(loadAllocation()); setMaxNetPct(loadMaxNetPct());
+          lastPayloadRef.current = corePayload(loadSnapshot(), loadTagMap(), loadAllocation(), loadMaxNetPct());
+          setSyncStatus(result.status === "ok" ? "synced" : "error");
+        }} />}
       <main className="flex-1 overflow-y-auto bg-zinc-50/40 dark:bg-zinc-950">
         <div className="mx-auto max-w-6xl px-8 py-10">
           {/* Header */}
@@ -1211,6 +1241,8 @@ export default function PortfolioBoardShell() {
               >
                 {syncMode !== "account" && !syncPasscode
                   ? "☁️ 开启云同步"
+                  : hasConflict && !viewingOwner
+                    ? "处理同步冲突"
                   : syncStatus === "syncing"
                     ? "☁️ 同步中…"
                     : syncStatus === "error"

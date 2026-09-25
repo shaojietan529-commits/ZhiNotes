@@ -76,10 +76,15 @@ export async function pullCloudData(
 // Returns only the labels confirmed by this version-bound cloud receipt.
 export async function pushCloudData(
   passcode: string,
-  data: CloudPortfolioData
+  data: CloudPortfolioData,
+  reviewedVersion?: PortfolioCloudVersion
 ): Promise<SyncResult<TagMap | null>> {
   try {
-    const guard = createPortfolioPushGuard("passcode");
+    const localGuard = createPortfolioPushGuard("passcode");
+    if (reviewedVersion && localGuard.base && reviewedVersion.scope !== localGuard.base.scope) {
+      return { status: "error", retryable: false, message: "同步空间已改变，未上传冲突处理结果。" };
+    }
+    const guard = reviewedVersion ? { ...localGuard, base: reviewedVersion } : localGuard;
     const res = await fetchPortfolioPasscodeSync({
       action: "push",
       passcode,
@@ -95,13 +100,10 @@ export async function pushCloudData(
     }
     if (!portfolioCloudAckConfirmsPush(result.ack, data, guard)) return { status: "error" };
     const version = parsePortfolioCloudVersion(result.ack)!;
-    if (!acceptPortfolioCloudVersion("passcode", guard, version)) return { status: "error" };
+    if (!acceptPortfolioCloudVersion("passcode", localGuard, version)) return { status: "error" };
     return {
       status: "ok",
-      data:
-        result.tagMap && typeof result.tagMap === "object"
-          ? (result.tagMap as TagMap)
-          : null,
+      data: data.tagMap,
     };
   } catch (error) {
     return { status: "error", message: error instanceof Error ? error.message : undefined };
