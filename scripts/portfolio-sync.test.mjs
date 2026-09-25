@@ -20,7 +20,7 @@ class FixedDate extends Date {
 
 function fixture(storage = new Map()) {
   const requests = [];
-  const controls = { failContentRead: false, gate: "ready", failWritePrefix: null, beforeGate: null };
+  const controls = { failContentRead: false, failReadPrefix: null, gate: "ready", failWritePrefix: null, beforeGate: null };
   const tabStorage = new Map();
   const sessionStorage = {
     getItem: (key) => tabStorage.get(key) ?? null,
@@ -30,6 +30,7 @@ function fixture(storage = new Map()) {
   const modules = new Map();
   const localStorage = {
     getItem(key) {
+      if (controls.failReadPrefix && key.startsWith(controls.failReadPrefix)) throw new Error("Synthetic read error");
       if (controls.failContentRead && key.startsWith("zhinote.portfolio.") && !key.includes("sync.")) throw new Error("Synthetic read error");
       return storage.get(key) ?? null;
     },
@@ -336,6 +337,8 @@ test("portfolio: status pings are not data changes; legacy pending state still b
     f.storage.set(f.key("zhinote.portfolio.sync.status.v1"), JSON.stringify({ mode: "account", queueState, [field]: 1 }));
     assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
   }
+  f.storage.set(f.key("zhinote.portfolio.sync.status.v1"), JSON.stringify({ mode: "account", queueState: "manual_review" }));
+  assert.equal(f.queue.getPendingPortfolioCloudSyncStatus().manualReviewCount, 1, "legacy manual state must still expose the recovery entry");
 });
 
 test("portfolio: another request's ACK cannot confirm this request", async () => {
@@ -531,6 +534,111 @@ test("portfolio: failure to persist a cleared status cannot report successful sy
   await assert.rejects(uploading, /full storage/);
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
   assert.equal(f.queue.getPendingPortfolioCloudSyncStatus().lastAckAt, null);
+});
+
+test("unreadable queue: blocks clean pulls, uploads and implicit resets without altering raw records", async () => {
+  for (const raw of ["not-json", "null", "[]", "{}", "", '{"mode":"account"}', '{"mode":"account","pending":-1}', '{"mode":"account","queueState":"unknown"}']) {
+    const f = fixture(); f.seed();
+    const key = f.key("zhinote.portfolio.sync.status.v1");
+    f.storage.set(key, raw);
+    const content = f.store.readPortfolioLocalFingerprint();
+    assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+    assert.equal(f.queue.getPendingPortfolioCloudSyncStatus().storageError, true);
+    assert.equal((await f.queue.drainPendingPortfolioCloudSync({ mode: "account" })).status, "manual_review");
+    assert.throws(() => f.queue.markPortfolioCloudSyncPending("account"), /原始/);
+    assert.throws(() => f.queue.markPortfolioCloudSyncOff(), /无法读取/);
+    assert.equal(f.storage.get(key), raw);
+    assert.equal(f.store.readPortfolioLocalFingerprint(), content);
+    assert.equal(f.requests.length, 0);
+  }
+  const f = fixture(); f.seed();
+  const key = f.key("zhinote.portfolio.sync.status.v1"), before = f.storage.get(key);
+  f.controls.failReadPrefix = key;
+  assert.equal((await f.queue.drainPendingPortfolioCloudSync({ mode: "account" })).status, "manual_review");
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+  f.controls.failReadPrefix = null;
+  assert.equal(f.storage.get(key), before);
+  const retry = f.queue.drainPendingPortfolioCloudSync();
+  (await f.waitForRequest()).reply();
+  assert.equal((await retry).status, "ok");
+});
+
+test("unreadable content: ordinary uploads never turn corrupted values into empty/default data", async () => {
+  for (const [name, raw] of [["tags", "broken"], ["tags", "[]"], ["tags", '{"SAMPLE":123}'],
+    ["allocation", "NaN"], ["snapshot", '{"positions":null}'], ["maxNetPct", "999"], ["updatedAt", "bad-date"]]) {
+    const f = fixture(); f.seed();
+    f.storage.set(f.key(`zhinote.portfolio.${name}.v1`), raw);
+    const before = f.store.readPortfolioLocalFingerprint();
+    assert.throws(() => f.store.readLocalPortfolioData());
+    await f.queue.drainPendingPortfolioCloudSync();
+    assert.equal(f.requests.length, 0);
+    assert.equal(f.store.readPortfolioLocalFingerprint(), before);
+    assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+  }
+  const f = fixture(); f.seed();
+  const key = f.key("zhinote.portfolio.updatedAt.v1"), before = "2025-01-01T00:00:00.000Z";
+  f.storage.set(key, before);
+  f.controls.failReadPrefix = key;
+  await f.queue.drainPendingPortfolioCloudSync();
+  assert.equal(f.requests.length, 0);
+  assert.equal(f.storage.get(key), before, "failed timestamp read must not synthesize a newer edit");
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+});
+
+test("queue repair: explicit review retains malformed metadata and waits for ACK", async () => {
+  const f = conflictFixture();
+  const key = f.key("zhinote.portfolio.sync.status.v1");
+  f.storage.set(key, "broken-queue");
+  const preparing = f.resolution.preparePortfolioConflictReview("account");
+  (await f.waitForRequest()).reply({ json: { data: f.review.cloud, version: f.review.version } });
+  const review = await preparing;
+  assert.equal(f.storage.get(key), "broken-queue", "opening or cancelling review cannot reset metadata");
+  const applying = f.queue.submitPortfolioConflictResolution(review, Object.fromEntries(review.fields.map((field) => [field.id, "cloud"])));
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  const backup = JSON.parse(f.storage.get(f.key(`zhinote.portfolio.conflict.review.v1.${review.id}`)));
+  assert.equal(backup.review.queueSnapshot, "broken-queue");
+  assert.equal(f.store.loadAllocation(), 100);
+  f.requests.at(-1).reply({ revision: "d".repeat(64) });
+  assert.equal((await applying).status, "ok");
+  assert.equal(f.store.loadAllocation(), 250);
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
+});
+
+test("interrupted apply: refresh and mixed original/current/cloud recovery preserve newer input until ACK", async () => {
+  const f = conflictFixture();
+  const saving = f.queue.submitPortfolioConflictResolution(f.review, f.choices);
+  const request = await f.waitForRequest();
+  f.controls.failWritePrefix = f.key("zhinote.portfolio.allocation");
+  request.reply({ revision: "d".repeat(64) });
+  await saving;
+  const g = fixture(f.storage);
+  assert.equal((await g.queue.drainPendingPortfolioCloudSync()).status, "manual_review");
+  g.store.saveTagMap({ SAMPLE: "new input after interruption", LATER: "keep me" });
+  g.queue.markPortfolioCloudSyncPending("account");
+  const resolution = g.load("@/lib/portfolio/portfolioConflictResolution");
+  const preparing = resolution.preparePortfolioConflictReview("account");
+  (await g.waitForRequest()).reply({ json: { data: request.body.data, version: { ...f.review.version, revision: "d".repeat(64) } } });
+  const review = await preparing;
+  assert.equal(review.recoveryOriginal.allocation, 100);
+  assert.equal(review.local.tagMap.SAMPLE, "new input after interruption");
+  assert.equal(review.cloud.tagMap.REMOTE, "only in cloud");
+  const choices = Object.fromEntries(review.fields.map((field) => [field.id,
+    field.id === "allocation" ? "original" : field.id === "tag:REMOTE" ? "cloud" : "local"]));
+  const before = g.store.readPortfolioLocalFingerprint();
+  const applying = g.queue.submitPortfolioConflictResolution(review, choices);
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  const upload = g.requests.at(-1);
+  assert.equal(upload.body.data.allocation, 100);
+  assert.equal(upload.body.data.tagMap.SAMPLE, "new input after interruption");
+  assert.equal(upload.body.data.tagMap.LATER, "keep me");
+  assert.equal(upload.body.data.tagMap.REMOTE, "only in cloud");
+  assert.equal(g.store.readPortfolioLocalFingerprint(), before);
+  upload.reply({ revision: "e".repeat(64) });
+  assert.equal((await applying).status, "ok");
+  assert.equal(resolution.readPortfolioConflictResolution("account"), null);
+  assert.equal(g.queue.hasUnsyncedPortfolioChanges(), false);
+  assert.equal(g.store.loadTagMap().LATER, "keep me");
+  assert.ok(g.storage.has(g.key("zhinote.portfolio.conflict.review.v1.synthetic-review")));
 });
 
 test("scoped cache: A and B have separate queues and concurrent drains, A resumes after returning", async () => {

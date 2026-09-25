@@ -73,6 +73,20 @@
   The import checks the response account; the setup wizard drops stale replies
   and displayed credentials after an account switch. Same-account identity
   refreshes do not interrupt the setup flow.
+- Ordinary uploads, initial reconciliation and clean pulls now use one strict
+  local content snapshot. Invalid JSON, malformed labels/numbers/timestamps or
+  unreadable storage cannot become empty/default values that authorize upload
+  or cloud replacement. Only genuinely absent fields receive defaults.
+- Unreadable queue metadata blocks automatic upload and clean pulls, retaining
+  its exact raw value. An explicit review keeps that value in its immutable
+  recovery record before rebuilding pending state; cancellation changes neither
+  the raw queue nor the live portfolio. Legacy manual-review state still exposes
+  the recovery entry even if its count was absent.
+- An unfinished conflict-resolution apply now exposes the existing review
+  dialog after reload. It compares the saved-before, current-local and fresh
+  cloud versions, including label deletion. Per-field recovery uses the same
+  ACK-gated queue; newer input remains protected, and older recovery copies are
+  retained. This covers interrupted resolution, not all ordinary local writes.
 
 No new provider, dependency, automatic data reassignment, private-data export or production data
 repair is included. Status/base fields contain identifiers, not holdings.
@@ -85,9 +99,9 @@ Neither form is included in metadata exports or logs.
 ## Evidence
 
 - Existing 49 page/database/settings behavior tests pass.
-- 61 portfolio/mailbox behavior tests pass against the actual client modules, queue,
+- 65 portfolio/mailbox behavior tests pass against the actual client modules, queue,
   both routes and shared versioned store. Redis atomicity is simulated in memory;
-  this is not a test against a running Redis server. Total behavior tests: 110.
+  this is not a test against a running Redis server. Total behavior tests: 114.
   Account tests cover switched cookies on every action, missing intent, missing
   response identity, late ACK/conflict/failure, same-tab and cross-tab switches,
   explicit logout, profile refresh and the final queue apply boundary.
@@ -98,9 +112,12 @@ Neither form is included in metadata exports or logs.
   device. The conflict preserves both versions; the test opens the review on
   desktop and 390px mobile, cancels without writing, retries a decision made
   stale by a new cloud edit, then verifies local input stays intact before ACK
-  and confirms convergence and a quiet reload. Five requests include the two
-  conflicts; no page errors or
-  React cross-component render/update warnings.
+  and confirms convergence and a quiet reload. It then injects a failed local
+  allocation write after ACK (including a failed rollback), reloads, opens the
+  three-version recovery dialog on desktop/390px mobile and restores the
+  saved-before version only after ACK. A damaged queue is retained through
+  cancellation, then explicitly repaired with its raw value archived. No page
+  errors or React cross-component render/update warnings were observed.
 - The second browser test covers A-to-B-to-A with A's ACK held in flight, B's
   separate edit, A retry, explicit legacy ownership confirmation/cancellation,
   no local replacement before ACK, retained originals and clean reload with
@@ -128,13 +145,13 @@ write any production account. Synthetic screenshot stays under `.local/`.
   not required for this stage's non-overwrite guarantee.
 - Recovery records currently use localStorage and retain private originals.
   Large/repeated conflicts may reach its quota. These failures must retain
-  pending; capacity management and an explicit recovery path for an interrupted
-  local apply remain rollout work. A failed apply is journaled and blocked from
-  further automatic uploads; it must not be declared converged.
-- Audit unreadable/corrupt ordinary content and queue state, not only conflict
-  journals: display-loader empty/default fallbacks must never authorize a
-  destructive clean pull or upload. Ordinary multi-key local writes also need
-  interruption/recovery coverage before rollout.
+  pending; capacity management remains rollout work. A failed resolution apply
+  is journaled and blocked until explicit recovery, not declared converged.
+- Ordinary multi-key edits and clean pulls still need interruption/recovery
+  coverage before rollout, especially content saved before its pending marker.
+  Corrupt content is now blocked from synchronization, but its repair UI and
+  recovery into an empty cloud account remain open. Current queue recovery
+  requires valid local content and a readable nonempty cloud version.
 - Before enabling the fixed mailbox integration, set server-only
   `ZHINOTES_PORTFOLIO_EMAIL_OWNER_EMAIL` to the owner's allowed ZhiNotes login
   email. Do not infer it from the Graph sender or the first allowlisted account.

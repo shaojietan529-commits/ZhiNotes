@@ -3,6 +3,7 @@
 // cloud sync is enabled.
 
 import type { PortfolioSnapshot, TagMap } from "./positionReport";
+import type { CloudPortfolioData } from "./cloudSync";
 import { getPortfolioStorageScope, portfolioStorage, portfolioStorageKey, type PortfolioStorageScope } from "./portfolioStorageScope";
 
 const SNAPSHOT_KEY = "zhinote.portfolio.snapshot.v1";
@@ -25,6 +26,25 @@ export function readPortfolioLocalFingerprint(scope = getPortfolioStorageScope()
 
 export const DEFAULT_GMV_ALLOCATION = 108_700_000;
 export const DEFAULT_MAX_NET_PCT = 12;
+
+// Sync and recovery use one strict snapshot, never the display loaders' defaults.
+export function readLocalPortfolioData(scope = getPortfolioStorageScope()): CloudPortfolioData {
+  const raw = JSON.parse(readPortfolioLocalFingerprint(scope)) as (string | null)[];
+  const snapshot = raw[0] === null ? null : JSON.parse(raw[0]);
+  const tagMap = raw[1] === null ? {} : JSON.parse(raw[1]);
+  const allocation = raw[2] === null ? DEFAULT_GMV_ALLOCATION : Number(raw[2]);
+  const maxNetPct = raw[3] === null ? DEFAULT_MAX_NET_PCT : Number(raw[3]);
+  if ((snapshot !== null && (!snapshot || !Array.isArray(snapshot.positions))) ||
+      !tagMap || typeof tagMap !== "object" || Array.isArray(tagMap) ||
+      !Object.values(tagMap).every((tag) => typeof tag === "string") ||
+      !Number.isFinite(allocation) || allocation <= 0 ||
+      !Number.isFinite(maxNetPct) || maxNetPct <= 0 || maxNetPct > 100 ||
+      (raw[5] !== null && !Number.isFinite(Date.parse(raw[5])))) {
+    throw new Error("本机组合格式异常，未用空值替代原始内容，请先恢复备份。");
+  }
+  return { snapshot, tagMap, allocation, maxNetPct, lastEmailMessageId: raw[4],
+    updatedAt: raw[5] ?? new Date().toISOString() };
+}
 
 export function loadSnapshot(scope = getPortfolioStorageScope()): PortfolioSnapshot | null {
   if (typeof window === "undefined") return null;

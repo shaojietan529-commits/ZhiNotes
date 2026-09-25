@@ -22,6 +22,7 @@ import {
 } from "@/lib/portfolio/positionReport";
 import {
   bindPortfolioStore,
+  readLocalPortfolioData,
   isPortfolioDataStorageKey,
   DEFAULT_GMV_ALLOCATION,
   DEFAULT_MAX_NET_PCT,
@@ -47,7 +48,7 @@ import {
   getLastAuthenticatedAccount,
 } from "@/lib/account/clientSession";
 import { ACCOUNT_PROFILE_UPDATED_EVENT, formatClientAccountLabel } from "@/lib/account/clientProfile";
-import { hasUnreviewedLegacyPortfolio } from "@/lib/portfolio/portfolioConflictResolution";
+import { hasUnreviewedLegacyPortfolio, readPortfolioConflictResolution, PORTFOLIO_RESOLUTION_KEY } from "@/lib/portfolio/portfolioConflictResolution";
 import { getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorageKey, type PortfolioStorageScope } from "@/lib/portfolio/portfolioStorageScope";
 import * as portfolioQueue from "@/lib/portfolio/portfolioSyncStatus";
 import * as portfolioRevision from "@/lib/portfolio/portfolioSyncRevision";
@@ -305,15 +306,25 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
 
   useEffect(() => {
     const refresh = () => {
-      try { setHasConflict(Boolean(syncMode && readActivePortfolioConflict(syncMode))); }
+      try { setHasConflict(Boolean(syncMode && (readActivePortfolioConflict(syncMode) || readPortfolioConflictResolution(syncMode, scope) ||
+        getPendingPortfolioCloudSyncStatus().manualReviewCount > 0))); }
       catch { setHasConflict(true); }
     };
-    const storage = (event: StorageEvent) => { if (syncMode && event.key === portfolioStorageKey(`${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${syncMode}`, scope)) refresh(); };
+    const storage = (event: StorageEvent) => {
+      if (syncMode && [
+        `${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${syncMode}`, `${PORTFOLIO_RESOLUTION_KEY}.${syncMode}`, portfolioQueue.PORTFOLIO_SYNC_STATUS_STORAGE_KEY,
+      ].some((key) => event.key === portfolioStorageKey(key, scope))) refresh();
+    };
     queueMicrotask(refresh);
     window.addEventListener(PORTFOLIO_CONFLICT_EVENT, refresh);
+    window.addEventListener(portfolioQueue.PORTFOLIO_SYNC_STATUS_EVENT, refresh);
     window.addEventListener("storage", storage);
-    return () => { window.removeEventListener(PORTFOLIO_CONFLICT_EVENT, refresh); window.removeEventListener("storage", storage); };
-  }, [syncMode, readActivePortfolioConflict, scope]);
+    return () => {
+      window.removeEventListener(PORTFOLIO_CONFLICT_EVENT, refresh);
+      window.removeEventListener(portfolioQueue.PORTFOLIO_SYNC_STATUS_EVENT, refresh);
+      window.removeEventListener("storage", storage);
+    };
+  }, [syncMode, readActivePortfolioConflict, getPendingPortfolioCloudSyncStatus, scope]);
 
   useEffect(() => {
     queueMicrotask(async () => {
@@ -421,6 +432,8 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
 
   const applyCleanCloudPortfolio = useCallback((cloud: CloudPortfolioData, version: PortfolioCloudVersion, mode: Exclude<SyncMode, null>) => {
     if (!isCurrent()) return;
+    readLocalPortfolioData(scope);
+    if (hasUnsyncedPortfolioChanges()) throw new Error("本机存在待确认修改，未用云端覆盖。");
     saveSnapshot(cloud.snapshot);
     saveTagMap(cloud.tagMap);
     saveAllocation(cloud.allocation);
@@ -435,7 +448,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     setAllocation(cloud.allocation);
     setMaxNetPct(cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
     setSyncStatus("synced");
-  }, [isCurrent, rememberPortfolioCloudBase, saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap]);
+  }, [isCurrent, rememberPortfolioCloudBase, saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap, scope, hasUnsyncedPortfolioChanges]);
 
   const runInitialSync = useCallback(
     async (code: string | null, manual: boolean) => {
@@ -517,10 +530,11 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
           return;
         }
         const localUpdated = loadDataUpdatedAt();
-        const localSnapshot = loadSnapshot();
-        const localTags = loadTagMap();
-        const localAlloc = loadAllocation();
-        const localMaxNet = loadMaxNetPct();
+        const local = readLocalPortfolioData(scope);
+        const localSnapshot = local.snapshot;
+        const localTags = local.tagMap;
+        const localAlloc = local.allocation;
+        const localMaxNet = local.maxNetPct ?? DEFAULT_MAX_NET_PCT;
 
         const localPayload = corePayload(localSnapshot, localTags, localAlloc, localMaxNet);
         const sameContent = cloud && localPayload === corePayload(
@@ -576,7 +590,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     [applyCleanCloudPortfolio, schedulePortfolioPushRetry, showNotice, clearSyncPasscode, drainPendingPortfolioCloudSync,
       getPendingPortfolioCloudSyncStatus, hasUnsyncedPortfolioChanges, isCurrent, loadAllocation, loadDataUpdatedAt,
       loadLastEmailMessageId, loadMaxNetPct, loadSnapshot, loadTagMap, markPortfolioCloudSyncPending,
-      markPortfolioFailureFromSyncResult, readPortfolioCloudBase, rememberPortfolioCloudBase]
+      markPortfolioFailureFromSyncResult, readPortfolioCloudBase, rememberPortfolioCloudBase, scope]
   );
 
   const applyRemotePortfolio = useCallback(

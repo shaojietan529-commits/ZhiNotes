@@ -1,17 +1,17 @@
 import { accountPullCloud } from "./accountSync";
 import { loadSyncPasscode, pullCloudData, type CloudPortfolioData } from "./cloudSync";
 import {
-  DEFAULT_GMV_ALLOCATION, DEFAULT_MAX_NET_PCT, loadAllocation, loadDataUpdatedAt, loadLastEmailMessageId,
-  loadMaxNetPct, loadSnapshot, loadTagMap, readPortfolioLocalFingerprint,
+  DEFAULT_GMV_ALLOCATION, DEFAULT_MAX_NET_PCT, readLocalPortfolioData, readPortfolioLocalFingerprint,
   saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap,
 } from "./portfolioStore";
 import { parsePortfolioCloudVersion, readActivePortfolioConflict, readPortfolioCloudBase, retainPortfolioConflict, type PortfolioCloudVersion } from "./portfolioSyncRevision";
 import { assertPortfolioScopeCurrent, getPortfolioStorageScope, portfolioStorage, type PortfolioStorageScope } from "./portfolioStorageScope";
-import { hasUnsyncedPortfolioChanges } from "./portfolioSyncStatus";
+import { hasUnsyncedPortfolioChanges, PORTFOLIO_SYNC_STATUS_STORAGE_KEY } from "./portfolioSyncStatus";
+export { readLocalPortfolioData } from "./portfolioStore";
 
 export type PortfolioConflictMode = "account" | "passcode";
-export type PortfolioConflictChoice = "local" | "cloud";
-export interface PortfolioConflictField { id: string; label: string; local: string; cloud: string }
+export type PortfolioConflictChoice = "local" | "cloud" | "original";
+export interface PortfolioConflictField { id: string; label: string; local: string; cloud: string; original?: string }
 export interface PortfolioConflictReview {
   id: string;
   mode: PortfolioConflictMode;
@@ -23,13 +23,16 @@ export interface PortfolioConflictReview {
   fields: PortfolioConflictField[];
   legacyFingerprint?: string;
   previousLocal?: CloudPortfolioData;
+  recoveryOriginal?: CloudPortfolioData;
+  recoveryId?: string;
+  queueSnapshot?: string | null;
 }
 export interface PortfolioConflictResolution {
   review: PortfolioConflictReview;
   data: CloudPortfolioData;
   state: "queued" | "applying" | "applied";
 }
-const RESOLUTION_KEY = "zhinote.portfolio.sync.resolution.v1";
+export const PORTFOLIO_RESOLUTION_KEY = "zhinote.portfolio.sync.resolution.v1";
 export const PORTFOLIO_LEGACY_REVIEWED_KEY = "zhinote.portfolio.legacy-reviewed.v1";
 
 export function hasUnreviewedLegacyPortfolio(scope = getPortfolioStorageScope()): boolean {
@@ -58,23 +61,6 @@ export async function prepareLegacyPortfolioReview(scope = getPortfolioStorageSc
     local, cloud, previousLocal, fingerprint, legacyFingerprint, fields: portfolioConflictFields(local, cloud) };
 }
 
-export function readLocalPortfolioData(scope = getPortfolioStorageScope()): CloudPortfolioData {
-  // A damaged cache must not become default/empty values in a merge decision.
-  const raw = JSON.parse(readPortfolioLocalFingerprint(scope)) as (string | null)[];
-  const snapshot = raw[0] === null ? null : JSON.parse(raw[0]);
-  const tags = raw[1] === null ? {} : JSON.parse(raw[1]);
-  if ((snapshot !== null && (!snapshot || !Array.isArray(snapshot.positions))) ||
-      !tags || typeof tags !== "object" || Array.isArray(tags) ||
-      !Object.values(tags).every((tag) => typeof tag === "string") ||
-      (raw[2] !== null && (!Number.isFinite(Number(raw[2])) || Number(raw[2]) <= 0)) ||
-      (raw[3] !== null && (!Number.isFinite(Number(raw[3])) || Number(raw[3]) <= 0 || Number(raw[3]) > 100))) {
-    throw new Error("本机组合格式异常，未用空值替代原始内容，请先恢复备份。");
-  }
-  return { snapshot: loadSnapshot(scope), tagMap: loadTagMap(scope), allocation: loadAllocation(scope),
-    maxNetPct: loadMaxNetPct(scope), lastEmailMessageId: loadLastEmailMessageId(scope),
-    updatedAt: loadDataUpdatedAt(scope) ?? new Date().toISOString() };
-}
-
 export function saveLocalPortfolioData(data: CloudPortfolioData, scope = getPortfolioStorageScope()): void {
   saveSnapshot(data.snapshot, scope);
   saveTagMap(data.tagMap, scope);
@@ -88,19 +74,22 @@ function tagValue(data: CloudPortfolioData, key: string): string | null {
   return Object.hasOwn(data.tagMap, key) ? data.tagMap[key] : null;
 }
 
-export function portfolioConflictFields(local: CloudPortfolioData, cloud: CloudPortfolioData): PortfolioConflictField[] {
+export function portfolioConflictFields(local: CloudPortfolioData, cloud: CloudPortfolioData, original?: CloudPortfolioData): PortfolioConflictField[] {
   const fields: PortfolioConflictField[] = [];
-  const add = (id: string, label: string, a: unknown, b: unknown) => {
+  const add = (id: string, label: string, a: unknown, b: unknown, previous?: unknown) => {
     const value = (item: unknown) => item === null ? "无" : typeof item === "string" ? item : JSON.stringify(item, null, 2);
-    if (JSON.stringify(a) !== JSON.stringify(b)) fields.push({ id, label, local: value(a), cloud: value(b) });
+    if (JSON.stringify(a) !== JSON.stringify(b) || (original && JSON.stringify(a) !== JSON.stringify(previous))) {
+      fields.push({ id, label, local: value(a), cloud: value(b), ...(original ? { original: value(previous) } : {}) });
+    }
   };
   // A report and its import marker are one unit; never combine positions from different reports.
   add("report", "持仓报告", { snapshot: local.snapshot, lastEmailMessageId: local.lastEmailMessageId },
-    { snapshot: cloud.snapshot, lastEmailMessageId: cloud.lastEmailMessageId });
-  add("allocation", "资金规模", local.allocation, cloud.allocation);
-  add("maxNetPct", "最大净敞口 (%)", local.maxNetPct ?? DEFAULT_MAX_NET_PCT, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
-  for (const key of [...new Set([...Object.keys(local.tagMap), ...Object.keys(cloud.tagMap)])].sort()) {
-    add(`tag:${key}`, `标签 · ${key}`, tagValue(local, key), tagValue(cloud, key));
+    { snapshot: cloud.snapshot, lastEmailMessageId: cloud.lastEmailMessageId },
+    original ? { snapshot: original.snapshot, lastEmailMessageId: original.lastEmailMessageId } : undefined);
+  add("allocation", "资金规模", local.allocation, cloud.allocation, original?.allocation);
+  add("maxNetPct", "最大净敞口 (%)", local.maxNetPct ?? DEFAULT_MAX_NET_PCT, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT, original?.maxNetPct ?? DEFAULT_MAX_NET_PCT);
+  for (const key of [...new Set([...Object.keys(local.tagMap), ...Object.keys(cloud.tagMap), ...Object.keys(original?.tagMap ?? {})])].sort()) {
+    add(`tag:${key}`, `标签 · ${key}`, tagValue(local, key), tagValue(cloud, key), original ? tagValue(original, key) : undefined);
   }
   return fields;
 }
@@ -108,26 +97,34 @@ export function portfolioConflictFields(local: CloudPortfolioData, cloud: CloudP
 export async function preparePortfolioConflictReview(mode: PortfolioConflictMode, scope = getPortfolioStorageScope()): Promise<PortfolioConflictReview> {
   assertPortfolioScopeCurrent(scope);
   const fingerprint = readPortfolioLocalFingerprint(scope);
+  const interrupted = readPortfolioConflictResolution(mode, scope);
+  const queueSnapshot = portfolioStorage(scope).getItem(PORTFOLIO_SYNC_STATUS_STORAGE_KEY);
   const result = mode === "account" ? await accountPullCloud() : await pullCloudData(loadSyncPasscode(scope) ?? "");
   assertPortfolioScopeCurrent(scope);
   if (result.status !== "ok" || !result.version || !result.data) {
     throw new Error("暂时无法取得完整云端版本；未改动本机数据，请稍后重试。");
   }
   if (readPortfolioLocalFingerprint(scope) !== fingerprint) throw new Error("本机组合刚有新修改，请重新读取差异。");
+  if (readPortfolioConflictResolution(mode, scope)?.review.id !== interrupted?.review.id ||
+      portfolioStorage(scope).getItem(PORTFOLIO_SYNC_STATUS_STORAGE_KEY) !== queueSnapshot) throw new Error("恢复记录已变化，请重新读取差异。");
   const base = readPortfolioCloudBase(mode, scope);
   const active = readActivePortfolioConflict(mode, scope);
   if ((base && base.scope !== result.version.scope) || (active && active.scope !== result.version.scope)) {
     throw new Error("登录账号或同步空间已改变，未进行跨账号合并。");
   }
   const local = readLocalPortfolioData(scope);
+  const recoveryOriginal = interrupted?.review.previousLocal ?? interrupted?.review.local;
   retainPortfolioConflict(mode, local, { data: result.data, version: result.version }, scope);
   return { id: crypto.randomUUID(), mode, storageScope: scope, version: result.version, local, cloud: result.data,
-    fingerprint, fields: portfolioConflictFields(local, result.data) };
+    fingerprint, queueSnapshot, recoveryOriginal, recoveryId: interrupted?.review.id,
+    fields: portfolioConflictFields(local, result.data, recoveryOriginal) };
 }
 
 export function stagePortfolioConflictResolution(review: PortfolioConflictReview, choices: Record<string, PortfolioConflictChoice>): PortfolioConflictResolution {
   assertPortfolioScopeCurrent(review.storageScope);
   if (readPortfolioLocalFingerprint(review.storageScope) !== review.fingerprint) throw new Error("本机内容已变化，旧选择未应用，请重新读取差异。");
+  if (review.queueSnapshot !== undefined && portfolioStorage(review.storageScope).getItem(PORTFOLIO_SYNC_STATUS_STORAGE_KEY) !== review.queueSnapshot) throw new Error("同步记录已变化，请重新读取差异。");
+  if (review.recoveryId && readPortfolioConflictResolution(review.mode, review.storageScope)?.review.id !== review.recoveryId) throw new Error("恢复记录已变化，请重新读取差异。");
   const active = readActivePortfolioConflict(review.mode, review.storageScope);
   if (review.legacyFingerprint) {
     if (readPortfolioLocalFingerprint("legacy") !== review.legacyFingerprint || hasUnsyncedPortfolioChanges(review.storageScope)) {
@@ -139,14 +136,15 @@ export function stagePortfolioConflictResolution(review: PortfolioConflictReview
   const data: CloudPortfolioData = { ...review.local, tagMap: { ...review.local.tagMap }, updatedAt: new Date().toISOString() };
   for (const field of review.fields) {
     const choice = choices[field.id];
-    if (choice !== "local" && choice !== "cloud") throw new Error("请为每一项差异选择保留版本。");
+    if (choice !== "local" && choice !== "cloud" && !(choice === "original" && review.recoveryOriginal)) throw new Error("请为每一项差异选择保留版本。");
     if (choice === "local") continue;
-    if (field.id === "report") { data.snapshot = review.cloud.snapshot; data.lastEmailMessageId = review.cloud.lastEmailMessageId; }
-    else if (field.id === "allocation") data.allocation = review.cloud.allocation;
-    else if (field.id === "maxNetPct") data.maxNetPct = review.cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT;
+    const selected = choice === "original" ? review.recoveryOriginal! : review.cloud;
+    if (field.id === "report") { data.snapshot = selected.snapshot; data.lastEmailMessageId = selected.lastEmailMessageId; }
+    else if (field.id === "allocation") data.allocation = selected.allocation;
+    else if (field.id === "maxNetPct") data.maxNetPct = selected.maxNetPct ?? DEFAULT_MAX_NET_PCT;
     else {
       const key = field.id.slice(4);
-      const value = tagValue(review.cloud, key);
+      const value = tagValue(selected, key);
       if (value === null) delete data.tagMap[key];
       else Object.defineProperty(data.tagMap, key, { value, enumerable: true, writable: true, configurable: true });
     }
@@ -159,7 +157,7 @@ export function stagePortfolioConflictResolution(review: PortfolioConflictReview
 }
 
 export function readPortfolioConflictResolution(mode: PortfolioConflictMode, scope = getPortfolioStorageScope()): PortfolioConflictResolution | null {
-  const raw = portfolioStorage(scope).getItem(`${RESOLUTION_KEY}.${mode}`);
+  const raw = portfolioStorage(scope).getItem(`${PORTFOLIO_RESOLUTION_KEY}.${mode}`);
   if (!raw) return null;
   const resolution = JSON.parse(raw) as PortfolioConflictResolution;
   if (resolution.review?.mode !== mode || resolution.review.storageScope !== scope || !parsePortfolioCloudVersion(resolution.review.version) ||
@@ -170,11 +168,11 @@ export function readPortfolioConflictResolution(mode: PortfolioConflictMode, sco
 }
 
 export function writePortfolioConflictResolution(resolution: PortfolioConflictResolution): void {
-  portfolioStorage(resolution.review.storageScope).setItem(`${RESOLUTION_KEY}.${resolution.review.mode}`, JSON.stringify(resolution));
+  portfolioStorage(resolution.review.storageScope).setItem(`${PORTFOLIO_RESOLUTION_KEY}.${resolution.review.mode}`, JSON.stringify(resolution));
 }
 
 export function finishPortfolioConflictResolution(mode: PortfolioConflictMode, id: string, scope = getPortfolioStorageScope()): void {
   if (readPortfolioConflictResolution(mode, scope)?.review.id !== id) return;
   // Only remove the retry pointer. Immutable recovery copies remain untouched.
-  portfolioStorage(scope).removeItem(`${RESOLUTION_KEY}.${mode}`);
+  portfolioStorage(scope).removeItem(`${PORTFOLIO_RESOLUTION_KEY}.${mode}`);
 }

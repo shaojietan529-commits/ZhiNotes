@@ -21,7 +21,7 @@ const initial = {
   lastEmailMessageId: null, updatedAt: now,
 };
 
-test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping upload loop", { timeout: 90000 }, async () => {
+test("portfolio UI: instant editing, late ACK, interrupted-save recovery, and no status-ping upload loop", { timeout: 120000 }, async () => {
   const browser = await chromium.launch({ headless: true,
     ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
   try {
@@ -175,9 +175,76 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     await page.getByRole("button", { name: "账号已同步" }).waitFor();
     assert.equal(await tag.textContent(), "another device");
     assert.equal(uploads.length, 5, "confirmed resolution must not re-upload on refresh");
+
+    await editTag("before interrupted save");
+    cloud = { ...cloud, allocation: 300, tagMap: { "SAMPLE US": "remote recovery" } };
+    await until(() => uploads.length === 6);
+    await page.waitForFunction((prefix) => JSON.parse(localStorage.getItem(`${prefix}sync.status.v1`))?.queueState === "manual_review", scopedPrefix);
+    await page.getByRole("button", { name: "处理同步冲突", exact: true }).click();
+    await dialog.getByText("资金规模", { exact: true }).waitFor();
+    await dialog.getByRole("button", { name: "全部选云端" }).click();
+    await dialog.getByRole("button", { name: "确认并同步" }).click();
+    await until(() => held.length === 1);
+    await page.evaluate((prefix) => {
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (key === `${prefix}allocation.v1`) throw new DOMException("Synthetic interrupted write", "QuotaExceededError");
+        return setItem.call(this, key, value);
+      };
+    }, scopedPrefix);
+    await held.shift()();
+    await dialog.getByRole("alert").waitFor();
+    assert.equal(await page.evaluate((prefix) => JSON.parse(localStorage.getItem(`${prefix}sync.resolution.v1.account`)).state, scopedPrefix), "applying");
+    await page.reload();
+    await page.getByRole("button", { name: "处理同步冲突", exact: true }).click();
+    await dialog.getByRole("button", { name: "全部选保存前" }).waitFor();
+    await dialog.getByText("上次保存未完成。保存前副本、本机当前内容与云端版本均已保留。", { exact: true }).waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), true, "three-way recovery must fit mobile");
+    if (process.env.PORTFOLIO_TEST_SCREENSHOT) await page.screenshot({ path: process.env.PORTFOLIO_TEST_SCREENSHOT.replace(".png", "-recovery-mobile.png") });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    if (process.env.PORTFOLIO_TEST_SCREENSHOT) await page.screenshot({ path: process.env.PORTFOLIO_TEST_SCREENSHOT.replace(".png", "-recovery-desktop.png") });
+    const currentTag = await tag.textContent();
+    await dialog.getByRole("button", { name: "全部选保存前" }).click();
+    await dialog.getByRole("button", { name: "确认并同步" }).click();
+    await until(() => held.length === 1);
+    assert.equal(await tag.textContent(), currentTag, "recovery cannot replace content before ACK");
+    await held.shift()();
+    await dialog.waitFor({ state: "hidden" });
+    await page.getByRole("button", { name: "账号已同步" }).waitFor();
+    assert.equal(await tag.textContent(), "before interrupted save");
+    assert.equal(cloud.allocation, 250);
+    const afterRecovery = uploads.length;
+    await page.reload();
+    await page.getByRole("button", { name: "账号已同步" }).waitFor();
+    assert.equal(await tag.textContent(), "before interrupted save");
+    assert.equal(uploads.length, afterRecovery);
+
+    await page.evaluate((prefix) => {
+      const key = `${prefix}sync.status.v1`, newValue = "synthetic broken queue";
+      localStorage.setItem(key, newValue);
+      window.dispatchEvent(new StorageEvent("storage", { key, newValue }));
+      window.dispatchEvent(new Event("focus"));
+    }, scopedPrefix);
+    await page.getByRole("button", { name: "处理同步冲突", exact: true }).click();
+    await dialog.getByText("内容已一致，等待云端确认。", { exact: true }).waitFor();
+    await page.keyboard.press("Escape");
+    assert.equal(await page.evaluate((prefix) => localStorage.getItem(`${prefix}sync.status.v1`), scopedPrefix), "synthetic broken queue", "opening/cancelling review must retain raw damaged state");
+    assert.equal(uploads.length, afterRecovery);
+    await page.getByRole("button", { name: "处理同步冲突", exact: true }).click();
+    await dialog.getByText("内容已一致，等待云端确认。", { exact: true }).waitFor();
+    await dialog.getByRole("button", { name: "确认并同步" }).click();
+    await until(() => held.length === 1);
+    assert.equal(await page.evaluate((prefix) => Object.keys(localStorage).some((key) =>
+      key.startsWith(`${prefix}conflict.review.v1.`) && JSON.parse(localStorage.getItem(key)).review?.queueSnapshot === "synthetic broken queue"), scopedPrefix), true);
+    assert.equal(await tag.textContent(), "before interrupted save");
+    await held.shift()();
+    await dialog.waitFor({ state: "hidden" });
+    await page.getByRole("button", { name: "账号已同步" }).waitFor();
+    assert.equal(uploads.length, afterRecovery + 1);
     if (process.env.PORTFOLIO_TEST_SCREENSHOT) await page.screenshot({ path: process.env.PORTFOLIO_TEST_SCREENSHOT });
     assert.deepEqual(errors, []);
-    console.log("Verified isolated editing, late ACK, cloud deletion, conflict review on desktop/mobile, resolution ACK and clean reload.");
+    console.log("Verified isolated editing, late ACK, cloud deletion, conflict/recovery review on desktop/mobile, damaged queue repair and clean reload.");
   } finally { await browser.close(); }
 });
 

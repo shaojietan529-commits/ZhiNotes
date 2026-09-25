@@ -4,20 +4,14 @@ import {
   clearSyncPasscode,
   loadSyncPasscode,
   pushCloudData,
-  type CloudPortfolioData,
 } from "@/lib/portfolio/cloudSync";
 import {
   accountPushCloud,
   type AccountSyncResult,
 } from "@/lib/portfolio/accountSync";
 import {
-  DEFAULT_MAX_NET_PCT,
-  loadAllocation,
-  loadDataUpdatedAt,
-  loadLastEmailMessageId,
-  loadMaxNetPct,
-  loadSnapshot,
   loadTagMap,
+  readLocalPortfolioData,
   readPortfolioLocalFingerprint,
   saveDataUpdatedAt,
   saveTagMap,
@@ -76,6 +70,7 @@ export interface PortfolioCloudSyncStatus {
   authRetryUntil: string | null;
   lastOutcome: PortfolioCloudSyncLastOutcome | null;
   storesPortfolioContent: false;
+  storageError?: boolean;
 }
 
 export interface PortfolioCloudSyncAttempt {
@@ -143,7 +138,11 @@ export function getPendingPortfolioCloudSyncStatus(scope?: PortfolioStorageScope
       portfolioStorage(scope).getItem(PORTFOLIO_SYNC_STATUS_STORAGE_KEY)
     );
   } catch {
-    return buildEmptyPortfolioCloudSyncStatus();
+    // Unknown queue state must block both uploads and clean pulls. Never write
+    // this synthetic status over the raw record needed for explicit recovery.
+    return { ...buildEmptyPortfolioCloudSyncStatus(), queueState: "manual_review",
+      pending: 1, failed: 1, manualReviewCount: 1, storageError: true,
+      lastFailureMessage: "本机同步记录无法读取；原始记录已保留，请重新核对后恢复。" };
   }
 }
 
@@ -153,7 +152,16 @@ export function markPortfolioCloudSyncPending(
   scope = getPortfolioStorageScope()
 ): void {
   const now = new Date().toISOString();
-  const previous = getPendingPortfolioCloudSyncStatus(scope);
+  let previous = getPendingPortfolioCloudSyncStatus(scope);
+  if (previous.storageError && reason === "conflict-resolution" && mode) {
+    const staged = readPortfolioConflictResolution(mode, scope);
+    if (staged?.state === "queued" && staged.review.queueSnapshot !== undefined &&
+        staged.review.queueSnapshot === portfolioStorage(scope).getItem(PORTFOLIO_SYNC_STATUS_STORAGE_KEY)) {
+      // Only an explicit staged review can replace unreadable queue metadata.
+      // Its immutable recovery record already holds the original raw value.
+      previous = buildEmptyPortfolioCloudSyncStatus(mode);
+    }
+  }
   const needsReview = mode && readActivePortfolioConflict(mode, scope) && reason !== "conflict-resolution";
   writePortfolioCloudSyncStatus({
     ...previous,
@@ -360,6 +368,7 @@ export function markPortfolioCloudSyncFailure(
 }
 
 export function markPortfolioCloudSyncOff(scope = getPortfolioStorageScope()): void {
+  if (getPendingPortfolioCloudSyncStatus(scope).storageError) throw new Error("同步记录无法读取，未清除待上传状态。");
   const now = new Date().toISOString();
   writePortfolioCloudSyncStatus({
     ...buildEmptyPortfolioCloudSyncStatus(null),
@@ -403,6 +412,10 @@ async function drainPortfolioCloudSync(
   }
   const snapshotStatus = getPendingPortfolioCloudSyncStatus(scope);
   const mode = options.mode ?? snapshotStatus.mode;
+  if (snapshotStatus.storageError) return {
+    status: "manual_review", attempted: 0, synced: 0, failed: 0, manualReview: 1,
+    authDeferred: 0, pendingAfter: 1, message: snapshotStatus.lastFailureMessage ?? undefined,
+  };
   if (mode !== "account" && mode !== "passcode") {
     setPortfolioCloudSyncOutcome("disabled", mode, 0, "组合同步未开启。", scope);
     return {
@@ -439,10 +452,11 @@ async function drainPortfolioCloudSync(
       markPortfolioCloudSyncFailure(mode, "处理期间本机有新修改或保存被中断；原始版本仍保留，请重新读取差异。", { retryable: false, scope });
       return { status: "manual_review", attempted: 0, synced: 0, failed: 0, manualReview: 1, authDeferred: 0, pendingAfter: 1 };
     }
-    // A retry is not a new edit. Keep its original timestamp.
-    if (!resolution && !loadDataUpdatedAt(scope)) saveDataUpdatedAt(new Date().toISOString(), scope);
+    const data = resolution?.data ?? readLocalPortfolioData(scope);
+    // Validate the entire snapshot before touching metadata. Retries retain the
+    // original timestamp; only a truly absent timestamp receives a new one.
+    if (!resolution) saveDataUpdatedAt(data.updatedAt, scope);
     attempt = markPortfolioCloudSyncAttempt(mode, scope);
-    const data = resolution?.data ?? buildPortfolioCloudData(scope);
     result = mode === "account"
       ? await accountPushCloud(data, resolution?.review.version, scope)
       : await pushCloudData(loadSyncPasscode(scope) ?? "", data, resolution?.review.version, scope);
@@ -510,17 +524,6 @@ export function emitPortfolioCloudSyncStatusEvent(
   }
 }
 
-function buildPortfolioCloudData(scope: PortfolioStorageScope): CloudPortfolioData {
-  return {
-    snapshot: loadSnapshot(scope),
-    tagMap: loadTagMap(scope),
-    allocation: loadAllocation(scope),
-    maxNetPct: loadMaxNetPct(scope) || DEFAULT_MAX_NET_PCT,
-    lastEmailMessageId: loadLastEmailMessageId(scope),
-    updatedAt: loadDataUpdatedAt(scope)!,
-  };
-}
-
 function classifyPortfolioCloudSyncFailure(
   result: AccountSyncResult<unknown> | { status: "unauthorized" | "error" | "unconfigured" }
 ): {
@@ -585,6 +588,7 @@ function writePortfolioCloudSyncStatus(
   scope: PortfolioStorageScope
 ): void {
   if (typeof window === "undefined") return;
+  if (status.storageError) throw new Error("同步记录无法读取，未覆盖原始记录。");
   const normalized = normalizePortfolioCloudSyncStatus(status);
   portfolioStorage(scope).setItem(
     PORTFOLIO_SYNC_STATUS_STORAGE_KEY,
@@ -596,24 +600,25 @@ function writePortfolioCloudSyncStatus(
 function normalizePortfolioCloudSyncStatus(
   raw: string | PortfolioCloudSyncStatus | null
 ): PortfolioCloudSyncStatus {
-  if (!raw) return buildEmptyPortfolioCloudSyncStatus();
+  if (raw === null) return buildEmptyPortfolioCloudSyncStatus();
   let parsed: unknown = raw;
   if (typeof raw === "string") {
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return buildEmptyPortfolioCloudSyncStatus();
-    }
+    parsed = JSON.parse(raw);
   }
-  if (!parsed || typeof parsed !== "object") {
-    return buildEmptyPortfolioCloudSyncStatus();
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Invalid portfolio queue");
   }
   const candidate = parsed as Partial<PortfolioCloudSyncStatus>;
+  if ((candidate.mode !== undefined && candidate.mode !== null && candidate.mode !== "account" && candidate.mode !== "passcode") ||
+      (candidate.queueState !== undefined && !["off", "pending", "syncing", "synced", "failed", "manual_review"].includes(candidate.queueState)) ||
+      [candidate.pending, candidate.failed, candidate.inFlight, candidate.manualReviewCount].some((value) => value !== undefined &&
+        (typeof value !== "number" || !Number.isInteger(value) || value < 0)) ||
+      !["queueState", "pending"].some((key) => Object.hasOwn(candidate, key))) throw new Error("Invalid portfolio queue");
   const mode = normalizeMode(candidate.mode);
   const queueState = normalizeQueueState(candidate.queueState, mode);
-  const pending = safeCount(candidate.pending);
+  const pending = Math.max(safeCount(candidate.pending), ["pending", "syncing", "failed", "manual_review"].includes(queueState) ? 1 : 0);
   const failed = safeCount(candidate.failed);
-  const manualReviewCount = safeCount(candidate.manualReviewCount);
+  const manualReviewCount = Math.max(safeCount(candidate.manualReviewCount), queueState === "manual_review" ? 1 : 0);
   const inFlight = safeCount(candidate.inFlight);
   return {
     enabled: true,

@@ -80,24 +80,26 @@ export default function PortfolioConflictDialog({ mode, scope, legacy = false, o
             <button type="button" className={buttonClass} onClick={readAgain} disabled={loading || submitting}>重新读取差异</button>
             <button type="button" className={buttonClass} onClick={() => selectAll("local")} disabled={!review || submitting}>全部选本机</button>
             <button type="button" className={buttonClass} onClick={() => selectAll("cloud")} disabled={!review || submitting}>全部选云端</button>
+            {review?.recoveryOriginal && <button type="button" className={buttonClass} onClick={() => selectAll("original")} disabled={submitting}>全部选保存前</button>}
             <input type="search" aria-label="筛选差异" placeholder="筛选差异" value={query} onChange={(event) => setQuery(event.target.value)}
               className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-600" />
           </div>
+          {review?.recoveryOriginal && <p className="mb-4 border-l-2 border-amber-500 pl-3 text-sm">上次保存未完成。保存前副本、本机当前内容与云端版本均已保留。</p>}
           {review?.fields.length === 0 && <p className="py-8 text-center text-sm text-zinc-500">内容已一致，等待云端确认。</p>}
           {review?.fields.filter((field) => field.label.toLowerCase().includes(query.toLowerCase())).map((field) => (
             <fieldset key={field.id} className="min-w-0 border-t border-zinc-200 py-4 dark:border-zinc-700" disabled={submitting}>
               <legend className="max-w-full break-words px-1 text-sm font-medium">{field.label}</legend>
-              <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-                {(["local", "cloud"] as const).map((side) => (
+              <div className={`grid min-w-0 gap-4 ${review.recoveryOriginal ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+                {(review.recoveryOriginal ? ["local", "cloud", "original"] as const : ["local", "cloud"] as const).map((side) => (
                   <div key={side} className="min-w-0">
                     <label className="flex cursor-pointer items-center gap-2 text-sm">
                       <input type="radio" name={`choice-${field.id}`} value={side} checked={choices[field.id] === side}
                         onChange={() => setChoices((current) => ({ ...current, [field.id]: side }))} />
-                      {side === "local" ? (legacy ? "保留旧版本机" : "保留本机") : (legacy ? "保留当前账号云端" : "保留云端")}
+                      {side === "original" ? "恢复保存前" : side === "local" ? (legacy ? "保留旧版本机" : "保留本机") : (legacy ? "保留当前账号云端" : "保留云端")}
                     </label>
                     {field.id === "report" ? (
                       <details className="mt-2 text-xs">
-                        <summary className="cursor-pointer">{(side === "local" ? review.local : review.cloud).snapshot?.positions.length ?? 0} 条持仓 · 查看完整报告</summary>
+                        <summary className="cursor-pointer">{(side === "original" ? review.recoveryOriginal : side === "local" ? review.local : review.cloud)?.snapshot?.positions.length ?? 0} 条持仓 · 查看完整报告</summary>
                         <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs">{field[side]}</pre>
                       </details>
                     ) : <p className="mt-2 whitespace-pre-wrap break-words text-sm text-zinc-600 dark:text-zinc-300">{field[side]}</p>}
