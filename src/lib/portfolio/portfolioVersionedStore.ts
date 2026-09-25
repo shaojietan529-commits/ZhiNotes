@@ -7,9 +7,11 @@ type PushBody = { data?: unknown; protocol?: unknown; requestId?: unknown; base?
 
 // The comparison and both writes run in one Redis operation. A concurrent
 // request cannot slip a write between our version check and persistence.
+// A transport retry can replay EVAL with its original expected value after
+// the first call committed. Only an exact desired-value match is safe to replay.
 export const PORTFOLIO_COMPARE_AND_SET = `
 local current = redis.call('GET', KEYS[1])
-if (current or '') ~= ARGV[1] then
+if (current or '') ~= ARGV[1] and current ~= ARGV[2] then
   return {0, current or ''}
 end
 redis.call('SET', KEYS[1], ARGV[2])

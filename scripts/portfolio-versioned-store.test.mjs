@@ -26,7 +26,7 @@ function fixture(mode) {
       if (controls.beforeEval) { const run = controls.beforeEval; controls.beforeEval = null; await run(); }
       if (controls.failWrite) throw new Error("Synthetic write failure");
       const actual = values.get(keys[0]) ?? "";
-      if (actual !== args[0]) return [0, actual];
+      if (actual !== args[0] && actual !== args[1]) return [0, actual];
       values.set(keys[0], args[1]);
       if (keys.length > 1) values.set(keys[1], args[2]);
       return [1, args[1]];

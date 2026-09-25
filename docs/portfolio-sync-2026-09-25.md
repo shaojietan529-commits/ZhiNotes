@@ -1,5 +1,45 @@
 # Stage 1: portfolio acknowledgements and concurrent writes
 
+## Native Redis Write Verification (2026-09-26)
+
+An independent server fix now handles replay of the *same EVAL request* after
+its response is lost. The installed Upstash SDK can retry the command with its
+original comparison value even though Redis already committed the first call.
+Both routes previously returned 409 in that case. The production Lua now
+accepts either the expected original value or the exact requested new value;
+any other intervening value still returns a conflict without writing.
+
+- `scripts/portfolio-native-redis.test.mjs` runs the actual account/passcode
+  routes, installed Upstash SDK and production Lua against a fresh local
+  Redis 7.2.12 process. Only authentication is synthetic. A loopback HTTP adapter
+  forwards SDK requests to the real Redis CLI over a private Unix socket.
+- Ten scenarios (eleven Node test entries including the parent) pass: racing
+  writes, SDK-level lost-response replay, total response loss and explicit
+  retry, a third write between initial commit and replay, and OOM refusal,
+  separately for account and passcode modes. Metadata must agree with the
+  winning content; missing replies and rejected writes do not produce ACKs.
+- The two SDK replay scenarios failed with 409 before the Lua change and pass
+  with 200 plus the matching receipt after it. No unconditional overwrite or
+  timestamp-based ordering was introduced.
+- No production URL, session, mailbox, holdings or credentials are used. Redis
+  opens no TCP port, uses no persistence, and is stopped after the test. Its
+  own temporary directory is removed. The loopback adapter also closes.
+- Redis source was downloaded from the official release archive into ignored
+  `.local/redis-native/`, verified against the official SHA-256 and compiled
+  there. Nothing was installed globally or added to application dependencies.
+  SHA-256: `97c60478a7c777ac914ca9d87a7e88ba265926456107e758c62d8f971d0196bc`.
+  Reference: <https://github.com/redis/redis-hashes>.
+- Current checks: 124 existing sync behavior tests, 11 native Redis test entries,
+  lint, production build (including TypeScript) and `verify:account` pass.
+  Browser concurrency still fails as recorded below; no deployment is claimed.
+
+Run with `PORTFOLIO_NATIVE_REDIS_BIN=/absolute/path/to/redis/src node --test
+scripts/portfolio-native-redis.test.mjs`. The directory must contain both
+`redis-server` and `redis-cli`; this test never attaches to an existing server.
+This closes the local native-Lua execution gap, not managed Upstash deployment
+verification, disk-failure durability, old-client rollout or real-device
+acceptance. The browser-local concurrency gate below is still unresolved.
+
 ## Current Working Tree: Native Storage Gate (2026-09-26)
 
 The local concurrency changes are **not release-ready**. The earlier completed
@@ -266,8 +306,9 @@ write any production account. Synthetic screenshot stays under `.local/`.
   Missing ownership configuration disables mail import/setup, not manual
   file imports or account sync. No production configuration was inspected or
   changed in this batch; confirm ownership before release.
-- Exercise the actual Lua script against isolated Redis before rollout, and
-  test protocol upgrade/rollback. Existing clients will need refresh; reverting
+- Actual Lua execution against isolated Redis is now covered above. Verify
+  the managed-provider deployment and protocol upgrade/rollback before rollout.
+  Existing clients will need refresh; reverting
   to the old unguarded server would reintroduce the overwrite hazard.
 - Full Stage 1 domain coverage and real same-account physical A/B acceptance
   remain open. Simulated clients and this isolated browser are not that result.
