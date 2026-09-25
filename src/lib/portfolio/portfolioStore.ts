@@ -38,7 +38,7 @@ export function loadSnapshot(): PortfolioSnapshot | null {
   }
 }
 
-export function saveSnapshot(snapshot: PortfolioSnapshot) {
+export function saveSnapshot(snapshot: PortfolioSnapshot | null) {
   window.localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
 }
 
@@ -102,8 +102,9 @@ export function loadLastEmailMessageId(): string | null {
   }
 }
 
-export function saveLastEmailMessageId(id: string) {
-  window.localStorage.setItem(EMAIL_MESSAGE_KEY, id);
+export function saveLastEmailMessageId(id: string | null) {
+  if (id === null) window.localStorage.removeItem(EMAIL_MESSAGE_KEY);
+  else window.localStorage.setItem(EMAIL_MESSAGE_KEY, id);
 }
 
 export function loadDataUpdatedAt(): string | null {

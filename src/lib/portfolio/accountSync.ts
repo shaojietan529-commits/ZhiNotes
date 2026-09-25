@@ -5,15 +5,19 @@
 import { checkAccountCloudSyncGate } from "@/lib/account/accountCloudSyncGate";
 import { portfolioCloudAckConfirmsPush, type CloudPortfolioData } from "./cloudSync";
 import type { TagMap } from "./positionReport";
+import {
+  acceptPortfolioCloudVersion, createPortfolioPushGuard, parsePortfolioCloudVersion,
+  retainPortfolioConflict, type PortfolioCloudVersion,
+} from "./portfolioSyncRevision";
 
 const ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000;
 
 export type AccountSyncResult<T> =
-  | { status: "ok"; data: T }
+  | { status: "ok"; data: T; version?: PortfolioCloudVersion }
   | { status: "unauthenticated" }
   | { status: "unconfigured" }
   | { status: "forbidden" }
-  | { status: "error"; message?: string };
+  | { status: "error"; message?: string; retryable?: boolean };
 
 async function call<T>(
   body: Record<string, unknown>,
@@ -49,12 +53,16 @@ async function call<T>(
     if (res.status === 403) return { status: "forbidden" };
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (res.status === 409 && json.code === "portfolio-conflict" && body.action === "push") {
+        retainPortfolioConflict("account", body.data as CloudPortfolioData, json);
+      }
       return {
         status: "error",
         message: typeof json.error === "string" ? json.error : undefined,
+        retryable: res.status !== 409 && res.status !== 428,
       };
     }
-    return { status: "ok", data: pick(json) };
+    return { status: "ok", data: pick(json), version: parsePortfolioCloudVersion(json.version) ?? undefined };
   } catch (error) {
     return {
       status: "error",
@@ -100,21 +108,26 @@ function isAbortError(error: unknown): boolean {
 export function accountPullCloud(
   from?: string
 ): Promise<AccountSyncResult<CloudPortfolioData | null>> {
-  return call({ action: "pull", from }, (json) =>
-    json.data ? (json.data as CloudPortfolioData) : null
-  );
+  return call({ action: "pull", from }, (json) => {
+    if (!json.readOnly && !parsePortfolioCloudVersion(json.version)) throw new Error("云端版本暂时无法确认，请稍后重试。");
+    return json.data ? (json.data as CloudPortfolioData) : null;
+  });
 }
 
-// On success returns the server-merged tag map (cloud union of all devices).
-export function accountPushCloud(
+// Returns only labels confirmed by this version-bound cloud receipt.
+export async function accountPushCloud(
   data: CloudPortfolioData
 ): Promise<AccountSyncResult<TagMap | null>> {
-  return call({ action: "push", data }, (json) => {
+  const guard = createPortfolioPushGuard("account");
+  return call({ action: "push", data, ...guard }, (json) => {
     const ack = json.ack;
-    if (!portfolioCloudAckConfirmsPush(ack, data)) {
+    if (!portfolioCloudAckConfirmsPush(ack, data, guard)) {
       throw new Error(
         "组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。"
       );
+    }
+    if (!acceptPortfolioCloudVersion("account", guard, parsePortfolioCloudVersion(ack)!)) {
+      throw new Error("组合云端版本已变化；保留待上传修改，下次同步重新核对。");
     }
     return json.tagMap && typeof json.tagMap === "object"
       ? (json.tagMap as TagMap)

@@ -408,7 +408,7 @@ async function drainPortfolioCloudSync(
   });
   const nextStatus = getPendingPortfolioCloudSyncStatus();
   return {
-    status: failure.authRetryStatus ? "deferred" : "failed",
+    status: failure.authRetryStatus ? "deferred" : nextStatus.manualReviewCount > 0 ? "manual_review" : "failed",
     attempted: 1,
     synced: 0,
     failed: failure.authRetryStatus ? 0 : 1,
@@ -483,7 +483,7 @@ function classifyPortfolioCloudSyncFailure(
     message:
       ("message" in result && typeof result.message === "string" ? result.message : null) ??
       "组合云同步暂时失败；本地组合数据已保留，会稍后继续补传。",
-    retryable: true,
+    retryable: !("retryable" in result && result.retryable === false),
     authRetryStatus: null,
   };
 }

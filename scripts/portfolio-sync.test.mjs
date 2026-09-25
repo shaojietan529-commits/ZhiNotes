@@ -53,8 +53,10 @@ function fixture(storage = new Map()) {
         requests.push({ url, body, reject, reply: (options = {}) => resolve(Response.json({
           tagMap: options.tags ?? body.data.tagMap,
           ...(options.noAck ? {} : { ack: {
-            format: "zhinote-portfolio-cloud-ack-receipt", format_version: 1,
+            format: "zhinote-portfolio-cloud-ack-receipt", format_version: 2,
             ack_status: "acknowledged", accepted: true,
+            request_id: options.requestId ?? body.requestId,
+            scope: options.scope ?? "a".repeat(64), revision: options.revision ?? "b".repeat(64),
             updated_at: options.updatedAt ?? body.data.updatedAt,
           } }),
         }, { status: options.status ?? 200 })) });
@@ -78,7 +80,7 @@ function fixture(storage = new Map()) {
     assert.ok(requests.length);
     return requests.at(-1);
   };
-  return { store, queue, seed, waitForRequest, requests, controls, storage };
+  return { store, queue, seed, waitForRequest, requests, controls, storage, load };
 }
 
 test("portfolio: exact ACK clears only the uploaded local revision and applies merged labels", async () => {
@@ -215,40 +217,37 @@ test("portfolio: status pings are not data changes; legacy pending state still b
   }
 });
 
-test("portfolio passcode route: ACK follows durable write; failed write never acknowledges", async () => {
-  const values = new Map();
-  let failWrite = false;
-  const loadedModule = { exports: {} };
-  const file = path.join(root, "src/app/api/portfolio/sync/route.ts");
-  const source = ts.transpileModule(readFileSync(file, "utf8"), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  vm.runInNewContext(source, {
-    exports: loadedModule.exports, module: loadedModule, require: nativeRequire,
-    Buffer, Date, AbortController, setTimeout, clearTimeout,
-    process: { env: { KV_REST_API_URL: "https://synthetic.invalid", KV_REST_API_TOKEN: "synthetic" } },
-    fetch: async (url, init) => {
-      const [, command, key] = new URL(url).pathname.split("/");
-      if (command === "get") return Response.json({ result: values.get(key) ?? null });
-      assert.equal(command, "set");
-      if (failWrite) return Response.json({ error: "synthetic write failure" }, { status: 503 });
-      values.set(key, init.body);
-      return Response.json({ result: "OK" });
-    },
-  }, { filename: file });
-  const post = (updatedAt) => loadedModule.exports.POST(new Request("https://synthetic.invalid/api/portfolio/sync", {
-    method: "POST", body: JSON.stringify({ action: "push", passcode: "synthetic-only",
-      data: { snapshot: null, tagMap: {}, allocation: 100, updatedAt } }),
-  }));
-  const first = await post(now);
-  assert.equal(first.status, 200);
-  const receipt = (await first.json()).ack;
-  assert.equal(receipt.accepted, true);
-  assert.equal(receipt.updated_at, now);
-  assert.equal(JSON.parse(values.get("zhinotes:portfolio:data:v1")).updatedAt, now);
-  failWrite = true;
-  const failed = await post("2026-09-25T05:00:00.000Z");
-  assert.equal(failed.status, 502);
-  assert.equal((await failed.json()).ack, undefined);
-  assert.equal(JSON.parse(values.get("zhinotes:portfolio:data:v1")).updatedAt, now);
+test("portfolio: another request's ACK cannot confirm this request", async () => {
+  const f = fixture(); f.seed();
+  const uploading = f.queue.drainPendingPortfolioCloudSync();
+  (await f.waitForRequest()).reply({ requestId: "different-request" });
+  assert.equal((await uploading).status, "failed");
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+});
+
+test("portfolio: a late ACK cannot regress another tab's cloud baseline", async () => {
+  const f = fixture();
+  const versions = f.load("@/lib/portfolio/portfolioSyncRevision");
+  const initial = { scope: "a".repeat(64), revision: "b".repeat(64) };
+  versions.rememberPortfolioCloudBase("account", initial);
+  const old = versions.createPortfolioPushGuard("account");
+  const newer = { scope: initial.scope, revision: "c".repeat(64) };
+  versions.rememberPortfolioCloudBase("account", newer);
+  assert.equal(versions.acceptPortfolioCloudVersion("account", old, initial), false);
+  assert.equal(versions.readPortfolioCloudBase("account").revision, newer.revision);
+});
+
+test("portfolio: retaining a conflict does not apply remote data or change the upload baseline", () => {
+  const f = fixture(); f.seed();
+  const versions = f.load("@/lib/portfolio/portfolioSyncRevision");
+  const fingerprint = f.store.readPortfolioLocalFingerprint();
+  versions.retainPortfolioConflict("account", { tagMap: { SAMPLE: "local" } }, {
+    data: { tagMap: { SAMPLE: "remote" } }, version: { scope: "a".repeat(64), revision: "c".repeat(64) },
+  });
+  assert.equal(f.store.readPortfolioLocalFingerprint(), fingerprint);
+  assert.equal(versions.readPortfolioCloudBase("account"), null);
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+  const backup = JSON.parse([...f.storage].find(([key]) => key.startsWith("zhinote.portfolio.conflict.v2"))[1]);
+  assert.equal(backup.local.tagMap.SAMPLE, "local");
+  assert.equal(backup.cloud.tagMap.SAMPLE, "remote");
 });

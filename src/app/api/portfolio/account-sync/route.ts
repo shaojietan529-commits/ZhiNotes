@@ -10,6 +10,7 @@ import {
   type AccountIdentityConfig,
 } from "@/lib/account/server";
 import { accountSessionUnconfirmedResponse } from "@/lib/account/sessionResponses";
+import { portfolioCloudEnvelope, writeVersionedPortfolio } from "@/lib/portfolio/portfolioVersionedStore";
 import {
   PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX,
   PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX,
@@ -21,10 +22,9 @@ export const dynamic = "force-dynamic";
 
 // Account-scoped portfolio cloud sync. Each signed-in account owns one
 // cloud copy keyed by its email, and can share read-only access with
-// other allowlisted emails. The passcode-based /api/portfolio/sync route
-// stays untouched for devices that are not signed in.
+// other allowlisted emails. Account and passcode routes share the same
+// atomic versioned write boundary.
 
-const MAX_PAYLOAD_BYTES = 1024 * 1024;
 const MAX_SHARE_MEMBERS = 20;
 
 async function readEmailList(
@@ -74,6 +74,9 @@ export async function POST(request: Request) {
     data?: unknown;
     email?: unknown;
     from?: unknown;
+    protocol?: unknown;
+    requestId?: unknown;
+    base?: unknown;
   };
   try {
     body = await request.json();
@@ -117,74 +120,14 @@ export async function POST(request: Request) {
         config.kv,
         `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`
       );
-      return NextResponse.json({ data: raw ? JSON.parse(raw) : null });
+      return NextResponse.json(portfolioCloudEnvelope(raw, `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`));
     }
 
     if (body.action === "push") {
-      if (!body.data || typeof body.data !== "object") {
-        return NextResponse.json({ error: "缺少数据" }, { status: 400 });
-      }
-      const incoming = body.data as Record<string, unknown>;
-
-      // Same server-side tag union as the passcode route: a stale device
-      // can never wipe labels added elsewhere.
-      const incomingTags =
-        incoming.tagMap && typeof incoming.tagMap === "object"
-          ? (incoming.tagMap as Record<string, string>)
-          : {};
-      let mergedTags = incomingTags;
-      const existingRaw = await kvGet(
-        config.kv,
-        `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`
-      );
-      if (existingRaw) {
-        try {
-          const existing = JSON.parse(existingRaw);
-          if (existing?.tagMap && typeof existing.tagMap === "object") {
-            mergedTags = { ...existing.tagMap, ...incomingTags };
-          }
-        } catch {
-          // corrupt existing payload — overwrite it
-        }
-      }
-      incoming.tagMap = mergedTags;
-
-      const serialized = JSON.stringify(incoming);
-      if (serialized.length > MAX_PAYLOAD_BYTES) {
-        return NextResponse.json({ error: "数据过大" }, { status: 413 });
-      }
-      const ackUpdatedAt =
-        typeof incoming.updatedAt === "string" ? incoming.updatedAt : null;
-      const ackedAt = new Date().toISOString();
-      await Promise.all([
-        kvSet(config.kv, `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`, serialized),
-        kvSet(
-          config.kv,
-          `${PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX}${me}`,
-          JSON.stringify({
-            format: "zhinote-portfolio-account-cloud-metadata",
-            format_version: 1,
-            metadata_status: "acknowledged",
-            owner: me,
-            updated_at: ackUpdatedAt,
-            last_ack_at: ackedAt,
-            has_data: true,
-            stores_portfolio_content: false,
-          })
-        ),
-      ]);
-      return NextResponse.json({
-        ok: true,
-        tagMap: mergedTags,
-        ack: {
-          format: "zhinote-portfolio-cloud-ack-receipt",
-          format_version: 1,
-          ack_status: "acknowledged",
-          accepted: true,
-          owner: me,
-          updated_at: ackUpdatedAt,
-        },
-      });
+      const result = await writeVersionedPortfolio(config.kv,
+        `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`, body,
+        { key: `${PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX}${me}`, owner: me });
+      return NextResponse.json(result.body, { status: result.status });
     }
 
     if (body.action === "shares") {

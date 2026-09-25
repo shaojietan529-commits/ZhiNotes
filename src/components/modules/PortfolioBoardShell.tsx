@@ -46,6 +46,7 @@ import {
   accountPullCloud,
   fetchShares,
 } from "@/lib/portfolio/accountSync";
+import { readPortfolioCloudBase, rememberPortfolioCloudBase, type PortfolioCloudVersion } from "@/lib/portfolio/portfolioSyncRevision";
 import {
   drainPendingPortfolioCloudSync,
   getPendingPortfolioCloudSyncStatus,
@@ -270,9 +271,7 @@ export default function PortfolioBoardShell() {
   }, []);
 
   // ----- cloud sync -----------------------------------------------------------
-  // One cloud copy in the project's KV store, shared by every device that
-  // enters the same sync passcode. Snapshots follow the newer side; tag maps
-  // are always merged (union) so syncing can never wipe labels.
+  // Cloud versions, not device timestamps, decide whether a write is safe.
 
   const corePayload = (
     snap: PortfolioSnapshot | null,
@@ -335,6 +334,23 @@ export default function PortfolioBoardShell() {
       setPushRetryVersion((version) => version + 1);
     }, 5000);
   }, [syncPasscode]);
+
+  const applyCleanCloudPortfolio = useCallback((cloud: CloudPortfolioData, version: PortfolioCloudVersion, mode: Exclude<SyncMode, null>) => {
+    saveSnapshot(cloud.snapshot);
+    saveTagMap(cloud.tagMap);
+    saveAllocation(cloud.allocation);
+    saveMaxNetPct(cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
+    saveLastEmailMessageId(cloud.lastEmailMessageId ?? null);
+    saveDataUpdatedAt(cloud.updatedAt);
+    // Record the baseline only after the complete cloud version is local.
+    rememberPortfolioCloudBase(mode, version);
+    lastPayloadRef.current = corePayload(cloud.snapshot, cloud.tagMap, cloud.allocation, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
+    setSnapshot(cloud.snapshot);
+    setTagMap(cloud.tagMap);
+    setAllocation(cloud.allocation);
+    setMaxNetPct(cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
+    setSyncStatus("synced");
+  }, []);
 
   const runInitialSync = useCallback(
     async (code: string | null, manual: boolean) => {
@@ -404,6 +420,10 @@ export default function PortfolioBoardShell() {
 
         const cloud = result.data;
         if (viewingOwnerRef.current || syncModeRef.current !== activeMode) return;
+        const version = result.version;
+        if (!version) throw new Error("云端未返回组合版本；已保留本机数据。");
+        const base = readPortfolioCloudBase(activeMode);
+        if (base && base.scope !== version.scope) throw new Error("账号或同步空间已改变；本机组合已保留，请先确认账号。");
         const hadPending = hasUnsyncedPortfolioChanges();
         if (!manual && getPendingPortfolioCloudSyncStatus().manualReviewCount > 0) {
           syncReadyRef.current = true;
@@ -416,58 +436,28 @@ export default function PortfolioBoardShell() {
         const localAlloc = loadAllocation();
         const localMaxNet = loadMaxNetPct();
 
-        const cloudNewer = Boolean(
-          cloud && !hadPending &&
-          (!localUpdated || cloud.updatedAt > localUpdated)
-        );
-
-        // Union of both tag maps; the newer side wins per-stock conflicts.
-        const mergedTags: TagMap = hadPending ? localTags : cloudNewer
-          ? { ...localTags, ...(cloud?.tagMap ?? {}) }
-          : { ...(cloud?.tagMap ?? {}), ...localTags };
-
-        const snapshotToUse =
-          cloudNewer && cloud?.snapshot ? cloud.snapshot : localSnapshot;
-        const allocToUse =
-          cloudNewer && cloud && cloud.allocation > 0
-            ? cloud.allocation
-            : localAlloc;
-        const maxNetToUse =
-          cloudNewer && cloud?.maxNetPct && cloud.maxNetPct > 0
-            ? cloud.maxNetPct
-            : localMaxNet;
-
-        if (snapshotToUse) {
-          saveSnapshot(snapshotToUse);
-          setSnapshot(snapshotToUse);
+        const localPayload = corePayload(localSnapshot, localTags, localAlloc, localMaxNet);
+        const sameContent = cloud && localPayload === corePayload(
+          cloud.snapshot, cloud.tagMap, cloud.allocation, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT
+        ) && loadLastEmailMessageId() === (cloud.lastEmailMessageId ?? null);
+        const localEmpty = !localUpdated && !localSnapshot && Object.keys(localTags).length === 0 &&
+          localAlloc === DEFAULT_GMV_ALLOCATION && localMaxNet === DEFAULT_MAX_NET_PCT;
+        if (!hadPending && cloud && (base || sameContent || localEmpty)) {
+          applyCleanCloudPortfolio(cloud, version, activeMode);
+          syncReadyRef.current = true;
+          return;
         }
-        setTagMap(mergedTags);
-        saveTagMap(mergedTags);
-        setAllocation(allocToUse);
-        saveAllocation(allocToUse);
-        setMaxNetPct(maxNetToUse);
-        saveMaxNetPct(maxNetToUse);
-        if (cloudNewer && cloud?.lastEmailMessageId) {
-          saveLastEmailMessageId(cloud.lastEmailMessageId);
-        }
-
-        lastPayloadRef.current = corePayload(
-          snapshotToUse,
-          mergedTags,
-          allocToUse,
-          maxNetToUse
-        );
-        // Opening an already-converged portfolio is a read, not a new edit.
-        if (!hadPending && cloud && lastPayloadRef.current === corePayload(
-          cloud.snapshot, cloud.tagMap ?? {}, cloud.allocation, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT
-        )) {
-          saveDataUpdatedAt(cloud.updatedAt);
+        if (!hadPending && !cloud && localEmpty) {
+          rememberPortfolioCloudBase(activeMode, version);
+          lastPayloadRef.current = localPayload;
           syncReadyRef.current = true;
           setSyncStatus("synced");
           return;
         }
-        if (!hadPending) saveDataUpdatedAt(new Date().toISOString());
-        markPortfolioCloudSyncPending(activeMode, "initial-merge");
+        // Pending or unbased legacy input must not adopt a pull as its baseline:
+        // doing so would authorize it to overwrite edits made on another device.
+        lastPayloadRef.current = localPayload;
+        if (!hadPending) markPortfolioCloudSyncPending(activeMode, "initial-local-data");
         const pushed = await drainPendingPortfolioCloudSync({ mode: activeMode });
         if (viewingOwnerRef.current || syncModeRef.current !== activeMode) return;
         if (pushed.status === "ok") {
@@ -489,11 +479,14 @@ export default function PortfolioBoardShell() {
           );
         }
         syncReadyRef.current = true;
+      } catch (error) {
+        setSyncStatus("error");
+        showNotice(error instanceof Error ? error.message : "组合版本暂时无法确认；本地数据已保留。", "warning");
       } finally {
         initialSyncInFlightRef.current = false;
       }
     },
-    [schedulePortfolioPushRetry, showNotice]
+    [applyCleanCloudPortfolio, schedulePortfolioPushRetry, showNotice]
   );
 
   useEffect(() => {
@@ -532,63 +525,27 @@ export default function PortfolioBoardShell() {
   }, [runInitialSync]);
 
   const applyRemotePortfolio = useCallback(
-    (cloud: CloudPortfolioData | null) => {
-      if (viewingOwnerRef.current) return;
+    (cloud: CloudPortfolioData | null, version: PortfolioCloudVersion | undefined, mode: Exclude<SyncMode, null>) => {
+      if (viewingOwnerRef.current || syncModeRef.current !== mode) return;
       if (hasUnsyncedPortfolioChanges()) {
         const pending = getPendingPortfolioCloudSyncStatus();
         setSyncStatus(pending.failed || pending.manualReviewCount ? "error" : "syncing");
         return;
       }
-      const localUpdated = loadDataUpdatedAt();
-      if (!cloud || (localUpdated && cloud.updatedAt <= localUpdated)) {
-        setSyncStatus("synced");
-        return;
+      try {
+        const base = readPortfolioCloudBase(mode);
+        if (!version || !base || base.scope !== version.scope) return;
+        if (!cloud) {
+          if (base.revision !== null) throw new Error("云端组合暂时为空；本机数据已保留，请重试确认。");
+          return;
+        }
+        applyCleanCloudPortfolio(cloud, version, mode);
+      } catch (error) {
+        setSyncStatus("error");
+        showNotice(error instanceof Error ? error.message : "组合读取失败；本地数据已保留。", "warning");
       }
-
-      const localTags = loadTagMap();
-      const mergedTags: TagMap = { ...localTags, ...(cloud.tagMap ?? {}) };
-      const nextSnapshot = cloud.snapshot ?? loadSnapshot();
-      const nextAllocation =
-        cloud.allocation && cloud.allocation > 0
-          ? cloud.allocation
-          : loadAllocation();
-      const nextMaxNet =
-        cloud.maxNetPct && cloud.maxNetPct > 0
-          ? cloud.maxNetPct
-          : loadMaxNetPct();
-
-      if (nextSnapshot) {
-        saveSnapshot(nextSnapshot);
-        setSnapshot(nextSnapshot);
-      }
-      saveTagMap(mergedTags);
-      setTagMap(mergedTags);
-      saveAllocation(nextAllocation);
-      setAllocation(nextAllocation);
-      saveMaxNetPct(nextMaxNet);
-      setMaxNetPct(nextMaxNet);
-      if (cloud.lastEmailMessageId) {
-        saveLastEmailMessageId(cloud.lastEmailMessageId);
-      }
-      saveDataUpdatedAt(cloud.updatedAt);
-
-      const mergedPayload = corePayload(
-        nextSnapshot,
-        mergedTags,
-        nextAllocation,
-        nextMaxNet
-      );
-      const cloudPayload = corePayload(
-        cloud.snapshot,
-        cloud.tagMap ?? {},
-        cloud.allocation,
-        cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT
-      );
-      lastPayloadRef.current =
-        mergedPayload === cloudPayload ? mergedPayload : null;
-      setSyncStatus("synced");
     },
-    []
+    [applyCleanCloudPortfolio, showNotice]
   );
 
   const pullLatestPortfolio = useCallback(async () => {
@@ -597,7 +554,7 @@ export default function PortfolioBoardShell() {
     if (mode === "account") {
       const result = await accountPullCloud();
       if (result.status === "ok") {
-        applyRemotePortfolio(result.data);
+        applyRemotePortfolio(result.data, result.version, "account");
       } else if (result.status === "unauthenticated" || result.status === "forbidden") {
         setSyncStatus("error");
         markPortfolioFailureFromSyncResult(
@@ -628,7 +585,7 @@ export default function PortfolioBoardShell() {
     if (mode !== "passcode" || !code) return;
     const result = await pullCloudData(code);
     if (result.status === "ok") {
-      applyRemotePortfolio(result.data);
+      applyRemotePortfolio(result.data, result.version, "passcode");
     } else if (result.status === "unauthorized") {
       clearSyncPasscode();
       setSyncPasscode(null);

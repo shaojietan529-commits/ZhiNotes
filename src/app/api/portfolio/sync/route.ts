@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
+import { portfolioCloudEnvelope, writeVersionedPortfolio } from "@/lib/portfolio/portfolioVersionedStore";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,6 @@ export const dynamic = "force-dynamic";
 
 const AUTH_KEY = "zhinotes:portfolio:auth:v1";
 const DATA_KEY = "zhinotes:portfolio:data:v1";
-const MAX_PAYLOAD_BYTES = 1024 * 1024;
 const PORTFOLIO_PASSCODE_SERVER_SYNC_TIMEOUT_MS = 8000;
 
 class PortfolioPasscodeServerSyncTimeoutError extends Error {
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
     );
   }
 
-  let body: { action?: string; passcode?: string; data?: unknown };
+  let body: { action?: string; passcode?: string; data?: unknown; protocol?: unknown; requestId?: unknown; base?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -137,51 +137,12 @@ export async function POST(req: Request) {
 
     if (body.action === "pull") {
       const raw = await kvGet(env, DATA_KEY);
-      return NextResponse.json({ data: raw ? JSON.parse(raw) : null });
+      return NextResponse.json(portfolioCloudEnvelope(raw, DATA_KEY));
     }
 
     if (body.action === "push") {
-      if (!body.data || typeof body.data !== "object") {
-        return NextResponse.json({ error: "缺少数据" }, { status: 400 });
-      }
-      const incoming = body.data as Record<string, unknown>;
-
-      // Server-side tag union: a device pushing a stale/empty tag map can
-      // never wipe labels added elsewhere. Incoming values win per stock.
-      const incomingTags =
-        incoming.tagMap && typeof incoming.tagMap === "object"
-          ? (incoming.tagMap as Record<string, string>)
-          : {};
-      let mergedTags = incomingTags;
-      const existingRaw = await kvGet(env, DATA_KEY);
-      if (existingRaw) {
-        try {
-          const existing = JSON.parse(existingRaw);
-          if (existing?.tagMap && typeof existing.tagMap === "object") {
-            mergedTags = { ...existing.tagMap, ...incomingTags };
-          }
-        } catch {
-          // corrupt existing payload — overwrite it
-        }
-      }
-      incoming.tagMap = mergedTags;
-
-      const serialized = JSON.stringify(incoming);
-      if (serialized.length > MAX_PAYLOAD_BYTES) {
-        return NextResponse.json({ error: "数据过大" }, { status: 413 });
-      }
-      await kvSet(env, DATA_KEY, serialized);
-      return NextResponse.json({
-        ok: true,
-        tagMap: mergedTags,
-        ack: {
-          format: "zhinote-portfolio-cloud-ack-receipt",
-          format_version: 1,
-          ack_status: "acknowledged",
-          accepted: true,
-          updated_at: typeof incoming.updatedAt === "string" ? incoming.updatedAt : null,
-        },
-      });
+      const result = await writeVersionedPortfolio(env, DATA_KEY, body);
+      return NextResponse.json(result.body, { status: result.status });
     }
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });

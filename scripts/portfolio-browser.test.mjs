@@ -2,12 +2,14 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { test } from "node:test";
+import { createHash } from "node:crypto";
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const base = process.env.PORTFOLIO_TEST_URL ?? "http://127.0.0.1:3007";
 assert.ok(["127.0.0.1", "localhost"].includes(new URL(base).hostname));
 const now = "2026-09-25T04:00:00.000Z";
+const versionOf = (data) => ({ scope: "a".repeat(64), revision: createHash("sha256").update(JSON.stringify(data)).digest("hex") });
 const initial = {
   snapshot: { importedAt: now, sourceName: "synthetic.xlsx", positions: [{
     key: "SAMPLE US", ticker: "SAMPLE", name: "Synthetic position", nmv: 10, gmv: 10,
@@ -37,13 +39,17 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
       if (url.pathname === "/api/portfolio/account-sync") {
         const body = route.request().postDataJSON();
         if (body.action === "shares") return json({ members: [], sharedWithMe: [] });
-        if (body.action === "pull") return json({ data: cloud });
+        if (body.action === "pull") return json({ data: cloud, version: versionOf(cloud) });
         if (body.action === "push") {
           uploads.push(body.data);
+          if (body.base?.revision !== versionOf(cloud).revision && JSON.stringify(body.data) !== JSON.stringify(cloud)) {
+            return json({ code: "portfolio-conflict", error: "Synthetic conflict: both versions retained", data: cloud, version: versionOf(cloud) }, 409);
+          }
+          cloud = body.data;
           const reply = async () => {
-            cloud = body.data;
             await json({ tagMap: body.data.tagMap, ack: {
-              format: "zhinote-portfolio-cloud-ack-receipt", format_version: 1,
+              format: "zhinote-portfolio-cloud-ack-receipt", format_version: 2,
+              request_id: body.requestId, ...versionOf(body.data),
               ack_status: "acknowledged", accepted: true, updated_at: body.data.updatedAt,
             } });
           };
@@ -85,7 +91,6 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     await until(() => uploads.length === 1);
     await editTag("newer edit");
     // A focus-triggered pull may return newer remote data, but cannot replace pending input.
-    cloud = { ...initial, tagMap: { "SAMPLE US": "remote conflict" }, updatedAt: "2099-01-01T00:00:00.000Z" };
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await held.shift()();
     await page.waitForFunction(() => JSON.parse(localStorage.getItem("zhinote.portfolio.sync.status.v1")).pending === 1);
@@ -106,6 +111,12 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     await page.getByRole("button", { name: "账号已同步" }).waitFor();
     assert.equal(await tag.textContent(), "newer edit");
     assert.equal(uploads.length, 2, "reload must not re-upload already confirmed data");
+    // The confirmed server revision wins even when another device's clock is behind.
+    cloud = { ...cloud, tagMap: {}, updatedAt: "2020-01-01T00:00:00.000Z" };
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.waitForFunction(() => Object.keys(JSON.parse(localStorage.getItem("zhinote.portfolio.tags.v1"))).length === 0);
+    assert.equal(await tag.textContent(), "未分类");
+    assert.equal(uploads.length, 2, "remote deletion must not be unioned back or uploaded again");
     holdUploads = true;
     await editTag("saved before reload");
     cloud = { ...cloud, tagMap: { "SAMPLE US": "another device" }, updatedAt: "2099-01-01T00:00:00.000Z" };
@@ -114,11 +125,18 @@ test("portfolio UI: instant editing, late ACK safety, reload, and no status-ping
     assert.equal(await tag.textContent(), "saved before reload");
     await until(() => uploads.length === 3);
     assert.equal(uploads[2].tagMap["SAMPLE US"], "saved before reload");
-    await held.shift()();
-    await page.getByRole("button", { name: "账号已同步" }).waitFor();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem("zhinote.portfolio.sync.status.v1")).queueState === "manual_review");
+    assert.equal(await tag.textContent(), "saved before reload");
+    assert.equal(cloud.tagMap["SAMPLE US"], "another device");
+    const backup = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find((key) => key.startsWith("zhinote.portfolio.conflict.v2"));
+      return key ? JSON.parse(localStorage.getItem(key)) : null;
+    });
+    assert.equal(backup.local.tagMap["SAMPLE US"], "saved before reload");
+    assert.equal(backup.cloud.tagMap["SAMPLE US"], "another device");
     if (process.env.PORTFOLIO_TEST_SCREENSHOT) await page.screenshot({ path: process.env.PORTFOLIO_TEST_SCREENSHOT });
     assert.deepEqual(errors, []);
-    console.log("Verified isolated browser editing, late ACK, pending reload and clean reload; 3 uploads for 3 revisions.");
+    console.log("Verified isolated browser editing, late ACK, clean reload and conflict retention; 3 uploads for 3 revisions.");
   } finally { await browser.close(); }
 });
 
