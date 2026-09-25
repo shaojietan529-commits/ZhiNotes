@@ -20,7 +20,8 @@ class FixedDate extends Date {
 
 function fixture(storage = new Map()) {
   const requests = [];
-  const controls = { failContentRead: false, failReadPrefix: null, gate: "ready", failWritePrefix: null, beforeGate: null };
+  const controls = { failContentRead: false, failReadPrefix: null, gate: "ready", failWritePrefix: null, failWriteIf: null, beforeGate: null };
+  const writes = [], notifications = [];
   const tabStorage = new Map();
   const sessionStorage = {
     getItem: (key) => tabStorage.get(key) ?? null,
@@ -35,8 +36,10 @@ function fixture(storage = new Map()) {
       return storage.get(key) ?? null;
     },
     setItem: (key, value) => {
+      if (controls.failWriteIf?.(key, value)) throw new Error("Synthetic full storage");
       if (controls.failWritePrefix && key.startsWith(controls.failWritePrefix)) throw new Error("Synthetic full storage");
       storage.set(key, String(value));
+      writes.push({ key, value: String(value) });
     },
     removeItem: (key) => storage.delete(key),
   };
@@ -60,7 +63,7 @@ function fixture(storage = new Map()) {
       exports: loadedModule.exports, module: loadedModule, require: (dependency) => load(dependency, file),
       Date: FixedDate, crypto: webcrypto, AbortController, setTimeout, clearTimeout, Event,
       CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
-      window: { localStorage, sessionStorage, dispatchEvent: () => {} },
+      window: { localStorage, sessionStorage, dispatchEvent: (event) => notifications.push(event.type) },
       fetch: async (url, init) => new Promise((resolve, reject) => {
         const body = init.body ? JSON.parse(init.body) : {};
         requests.push({ url, body, reject, reply: (options = {}) => resolve(Response.json({
@@ -105,7 +108,7 @@ function fixture(storage = new Map()) {
   };
   const scope = load("@/lib/portfolio/portfolioStorageScope");
   return { store, queue, seed, waitForRequest, requests, controls, storage, load, session, setAccount,
-    key: scope.portfolioStorageKey, scope: scope.getPortfolioStorageScope };
+    key: scope.portfolioStorageKey, scope: scope.getPortfolioStorageScope, persistence: scope, writes, notifications };
 }
 
 test("portfolio: exact ACK clears only the uploaded revision without applying unsolicited labels", async () => {
@@ -202,7 +205,7 @@ test("portfolio: local read failure after cloud ACK retains retryable work", asy
   const request = await f.waitForRequest();
   f.controls.failContentRead = true;
   request.reply();
-  assert.equal((await uploading).status, "failed");
+  assert.equal((await uploading).status, "manual_review");
   assert.equal(f.queue.getPendingPortfolioCloudSyncStatus().lastAckAt, null);
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
 });
@@ -514,7 +517,7 @@ test("conflicts: local application failure after ACK retains pending and the imm
   const f = conflictFixture();
   const resolving = f.queue.submitPortfolioConflictResolution(f.review, f.choices);
   const request = await f.waitForRequest();
-  f.controls.failWritePrefix = f.key("zhinote.portfolio.allocation");
+  f.controls.failWritePrefix = f.key("zhinote.portfolio.state.v2");
   request.reply({ revision: "d".repeat(64) });
   await resolving;
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
@@ -522,16 +525,23 @@ test("conflicts: local application failure after ACK retains pending and the imm
   const backup = JSON.parse(f.storage.get(f.key("zhinote.portfolio.conflict.review.v1.synthetic-review")));
   assert.equal(backup.review.local.tagMap.SAMPLE, "original");
   assert.equal(backup.review.cloud.allocation, 250);
-  assert.equal((await f.queue.drainPendingPortfolioCloudSync()).status, "manual_review");
+  assert.equal(f.store.loadAllocation(), 100, "a failed atomic apply cannot partially replace the old portfolio");
+  f.controls.failWritePrefix = null;
+  const retry = f.queue.drainPendingPortfolioCloudSync();
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  f.requests.at(-1).reply({ revision: "d".repeat(64) });
+  assert.equal((await retry).status, "ok");
+  assert.equal(f.store.loadAllocation(), 250);
 });
 
 test("portfolio: failure to persist a cleared status cannot report successful synchronization", async () => {
   const f = fixture(); f.seed();
   const uploading = f.queue.drainPendingPortfolioCloudSync();
   const request = await f.waitForRequest();
-  f.controls.failWritePrefix = f.key("zhinote.portfolio.sync.status.v1");
+  f.controls.failWriteIf = (key, value) => key === f.key("zhinote.portfolio.state.v2") &&
+    JSON.parse(JSON.parse(value).values["zhinote.portfolio.sync.status.v1"]).queueState === "synced";
   request.reply();
-  await assert.rejects(uploading, /full storage/);
+  assert.equal((await uploading).status, "failed");
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
   assert.equal(f.queue.getPendingPortfolioCloudSyncStatus().lastAckAt, null);
 });
@@ -604,20 +614,20 @@ test("queue repair: explicit review retains malformed metadata and waits for ACK
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
 });
 
-test("interrupted apply: refresh and mixed original/current/cloud recovery preserve newer input until ACK", async () => {
+test("legacy interrupted apply: refresh and mixed original/current/cloud recovery preserve newer input until ACK", async () => {
   const f = conflictFixture();
-  const saving = f.queue.submitPortfolioConflictResolution(f.review, f.choices);
-  const request = await f.waitForRequest();
-  f.controls.failWritePrefix = f.key("zhinote.portfolio.allocation");
-  request.reply({ revision: "d".repeat(64) });
-  await saving;
+  // Earlier releases could leave this multi-key journal mid-apply. New commits
+  // are atomic, but existing interrupted records must still be recoverable.
+  const staged = f.resolution.stagePortfolioConflictResolution(f.review, f.choices);
+  f.resolution.writePortfolioConflictResolution({ ...staged, state: "applying" });
+  f.store.saveTagMap(staged.data.tagMap);
   const g = fixture(f.storage);
   assert.equal((await g.queue.drainPendingPortfolioCloudSync()).status, "manual_review");
   g.store.saveTagMap({ SAMPLE: "new input after interruption", LATER: "keep me" });
   g.queue.markPortfolioCloudSyncPending("account");
   const resolution = g.load("@/lib/portfolio/portfolioConflictResolution");
   const preparing = resolution.preparePortfolioConflictReview("account");
-  (await g.waitForRequest()).reply({ json: { data: request.body.data, version: { ...f.review.version, revision: "d".repeat(64) } } });
+  (await g.waitForRequest()).reply({ json: { data: staged.data, version: { ...f.review.version, revision: "d".repeat(64) } } });
   const review = await preparing;
   assert.equal(review.recoveryOriginal.allocation, 100);
   assert.equal(review.local.tagMap.SAMPLE, "new input after interruption");
@@ -639,6 +649,104 @@ test("interrupted apply: refresh and mixed original/current/cloud recovery prese
   assert.equal(g.queue.hasUnsyncedPortfolioChanges(), false);
   assert.equal(g.store.loadTagMap().LATER, "keep me");
   assert.ok(g.storage.has(g.key("zhinote.portfolio.conflict.review.v1.synthetic-review")));
+});
+
+test("atomic local edit: one native commit contains content, timestamp and pending; reload can retry", async () => {
+  const f = fixture(); f.seed();
+  const oldKeys = new Map(f.storage);
+  f.writes.length = 0;
+  const edited = f.queue.commitPortfolioLocalEdit("account", (current) => ({
+    snapshot: { ...current.snapshot, fileName: "new-synthetic.xlsx" },
+    tagMap: { ...current.tagMap, EXTRA: "new input" }, allocation: 220, lastEmailMessageId: "synthetic-mail-id",
+  }));
+  const commits = f.writes.filter(({ key }) => key === f.key("zhinote.portfolio.state.v2"));
+  assert.equal(commits.length, 1);
+  assert.ok(f.writes.every(({ key }) => key.endsWith("state.v2") || key.endsWith("sync.status.ping.v1")));
+  for (const [key, value] of oldKeys) assert.equal(f.storage.get(key), value, "individual old keys are not erased or rewritten");
+  const g = fixture(f.storage);
+  assert.equal(JSON.stringify(g.store.readLocalPortfolioData()), JSON.stringify(edited));
+  assert.equal(g.queue.hasUnsyncedPortfolioChanges(), true);
+  const upload = g.queue.drainPendingPortfolioCloudSync();
+  const request = await g.waitForRequest();
+  assert.equal(request.body.data.allocation, 220);
+  assert.equal(request.body.data.lastEmailMessageId, "synthetic-mail-id");
+  request.reply();
+  assert.equal((await upload).status, "ok");
+  assert.equal(g.queue.hasUnsyncedPortfolioChanges(), false);
+  g.queue.commitPortfolioLocalEdit("account", (current) => ({ snapshot: { ...current.snapshot, fileName: "manual-synthetic.xlsx" } }));
+  assert.equal(g.store.loadLastEmailMessageId(), "synthetic-mail-id", "manual report replacement preserves mail deduplication");
+});
+
+test("atomic local edit: quota failure leaves the complete previous version and emits no saved notification", () => {
+  for (const promoted of [false, true]) {
+    const f = fixture(); f.seed();
+    if (promoted) f.queue.commitPortfolioLocalEdit("account", () => ({ allocation: 125 }));
+    const before = new Map(f.storage), fingerprint = f.store.readPortfolioLocalFingerprint();
+    f.notifications.length = 0;
+    f.controls.failWritePrefix = f.key("zhinote.portfolio.state.v2");
+    assert.throws(() => f.queue.commitPortfolioLocalEdit("account", () => ({ tagMap: { NEW: "unsaved" }, allocation: 200 })), /full storage/);
+    assert.deepEqual(f.storage, before);
+    assert.equal(f.store.readPortfolioLocalFingerprint(), fingerprint);
+    assert.deepEqual(f.notifications, []);
+    const reloaded = fixture(f.storage);
+    assert.equal(reloaded.store.readPortfolioLocalFingerprint(), fingerprint);
+    f.controls.failWritePrefix = null;
+    f.queue.commitPortfolioLocalEdit("account", () => ({ allocation: 200 }));
+    assert.equal(f.store.loadAllocation(), 200);
+  }
+});
+
+test("atomic local edit: older ACK cannot clear a later committed edit, status changes are not data changes", async () => {
+  const f = fixture(); f.seed();
+  const key = f.key("zhinote.portfolio.state.v2");
+  f.queue.commitPortfolioLocalEdit("account", () => ({ allocation: 200 }));
+  const before = f.storage.get(key);
+  const first = f.queue.drainPendingPortfolioCloudSync();
+  const request = await f.waitForRequest();
+  assert.equal(f.store.hasPortfolioDataStorageChange({ key, oldValue: before, newValue: f.storage.get(key) }), false);
+  f.queue.commitPortfolioLocalEdit("account", () => ({ allocation: 300 }));
+  assert.equal(f.store.hasPortfolioDataStorageChange({ key, oldValue: before, newValue: f.storage.get(key) }), true);
+  request.reply();
+  assert.equal((await first).status, "deferred");
+  assert.equal(f.store.loadAllocation(), 300);
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+});
+
+test("atomic cache: cloud content and baseline commit together, failure or corrupt state never falls back to stale keys", () => {
+  const f = fixture(); f.seed();
+  const versions = f.load("@/lib/portfolio/portfolioSyncRevision");
+  const resolution = f.load("@/lib/portfolio/portfolioConflictResolution");
+  const before = f.store.readPortfolioLocalFingerprint();
+  const cloud = { ...f.store.readLocalPortfolioData(), allocation: 400, tagMap: { REMOTE: "cloud" } };
+  const version = { scope: "a".repeat(64), revision: "b".repeat(64) };
+  const apply = () => f.persistence.batchPortfolioStorage(f.scope(), () => {
+    resolution.saveLocalPortfolioData(cloud);
+    versions.rememberPortfolioCloudBase("account", version);
+  });
+  f.controls.failWritePrefix = f.key("zhinote.portfolio.state.v2");
+  assert.throws(apply, /full storage/);
+  assert.equal(f.store.readPortfolioLocalFingerprint(), before);
+  assert.equal(versions.readPortfolioCloudBase("account"), null);
+  f.controls.failWritePrefix = null;
+  apply();
+  const g = fixture(f.storage);
+  assert.equal(g.store.loadAllocation(), 400);
+  assert.equal(g.load("@/lib/portfolio/portfolioSyncRevision").readPortfolioCloudBase("account").revision, version.revision);
+  f.storage.set(f.key("zhinote.portfolio.state.v2"), "broken atomic record");
+  assert.throws(() => f.store.readLocalPortfolioData());
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+  assert.throws(() => f.queue.commitPortfolioLocalEdit("account", () => ({ allocation: 700 })));
+  assert.equal(f.storage.get(f.key("zhinote.portfolio.state.v2")), "broken atomic record");
+});
+
+test("atomic edit: unreadable queue or thrown edit callback leaves all persisted fields untouched", () => {
+  const f = fixture(); f.seed();
+  f.storage.set(f.key("zhinote.portfolio.sync.status.v1"), "damaged queue");
+  const before = new Map(f.storage);
+  assert.throws(() => f.queue.commitPortfolioLocalEdit("account", () => ({ allocation: 700 })));
+  assert.deepEqual(f.storage, before);
+  assert.throws(() => f.queue.commitPortfolioLocalEdit("account", () => { throw new Error("Synthetic aborted edit"); }), /aborted/);
+  assert.deepEqual(f.storage, before);
 });
 
 test("scoped cache: A and B have separate queues and concurrent drains, A resumes after returning", async () => {

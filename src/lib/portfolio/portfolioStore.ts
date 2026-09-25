@@ -4,7 +4,7 @@
 
 import type { PortfolioSnapshot, TagMap } from "./positionReport";
 import type { CloudPortfolioData } from "./cloudSync";
-import { getPortfolioStorageScope, portfolioStorage, portfolioStorageKey, type PortfolioStorageScope } from "./portfolioStorageScope";
+import { getPortfolioStorageScope, portfolioStorage, portfolioStorageKey, PORTFOLIO_STATE_KEY, type PortfolioStorageScope } from "./portfolioStorageScope";
 
 const SNAPSHOT_KEY = "zhinote.portfolio.snapshot.v1";
 const TAGS_KEY = "zhinote.portfolio.tags.v1";
@@ -15,7 +15,17 @@ const UPDATED_AT_KEY = "zhinote.portfolio.updatedAt.v1";
 const DATA_KEYS = [SNAPSHOT_KEY, TAGS_KEY, ALLOCATION_KEY, MAX_NET_KEY, EMAIL_MESSAGE_KEY, UPDATED_AT_KEY];
 
 export function isPortfolioDataStorageKey(key: string | null, scope = getPortfolioStorageScope()): boolean {
-  return key !== null && DATA_KEYS.some((dataKey) => key === portfolioStorageKey(dataKey, scope));
+  return key !== null && [...DATA_KEYS, PORTFOLIO_STATE_KEY].some((dataKey) => key === portfolioStorageKey(dataKey, scope));
+}
+
+export function hasPortfolioDataStorageChange(event: Pick<StorageEvent, "key" | "oldValue" | "newValue">, scope = getPortfolioStorageScope()): boolean {
+  if (!isPortfolioDataStorageKey(event.key, scope)) return false;
+  if (event.key !== portfolioStorageKey(PORTFOLIO_STATE_KEY, scope)) return true;
+  try {
+    const before = event.oldValue === null ? null : JSON.parse(event.oldValue).values;
+    const after = event.newValue === null ? null : JSON.parse(event.newValue).values;
+    return DATA_KEYS.some((key) => before?.[key] !== after?.[key]);
+  } catch { return true; }
 }
 
 // Memory-only comparison token. Unlike display loaders, a failed read must

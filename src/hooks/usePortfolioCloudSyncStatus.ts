@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import { ACCOUNT_SESSION_CHANGED_EVENT, isAccountSessionStorageKey } from "@/lib/account/clientSession";
-import { portfolioStorageKey } from "@/lib/portfolio/portfolioStorageScope";
+import { portfolioStorageKey, PORTFOLIO_STATE_KEY } from "@/lib/portfolio/portfolioStorageScope";
 import {
   drainPendingPortfolioCloudSync,
   getPendingPortfolioCloudSyncStatus,
@@ -129,6 +129,7 @@ export function usePortfolioCloudSyncStatus() {
       catch { refreshAndMaybeRetry(); return; }
       if (
         event.key !== statusKey &&
+        event.key !== portfolioStorageKey(PORTFOLIO_STATE_KEY) &&
         event.key !== PORTFOLIO_SYNC_STATUS_PING_STORAGE_KEY
       ) {
         return;

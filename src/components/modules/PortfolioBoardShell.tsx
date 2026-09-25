@@ -23,7 +23,7 @@ import {
 import {
   bindPortfolioStore,
   readLocalPortfolioData,
-  isPortfolioDataStorageKey,
+  hasPortfolioDataStorageChange,
   DEFAULT_GMV_ALLOCATION,
   DEFAULT_MAX_NET_PCT,
 } from "@/lib/portfolio/portfolioStore";
@@ -49,7 +49,7 @@ import {
 } from "@/lib/account/clientSession";
 import { ACCOUNT_PROFILE_UPDATED_EVENT, formatClientAccountLabel } from "@/lib/account/clientProfile";
 import { hasUnreviewedLegacyPortfolio, readPortfolioConflictResolution, PORTFOLIO_RESOLUTION_KEY } from "@/lib/portfolio/portfolioConflictResolution";
-import { getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorageKey, type PortfolioStorageScope } from "@/lib/portfolio/portfolioStorageScope";
+import { batchPortfolioStorage, getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorageKey, PORTFOLIO_STATE_KEY, type PortfolioStorageScope } from "@/lib/portfolio/portfolioStorageScope";
 import * as portfolioQueue from "@/lib/portfolio/portfolioSyncStatus";
 import * as portfolioRevision from "@/lib/portfolio/portfolioSyncRevision";
 
@@ -291,11 +291,17 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
   const noticeTimerRef = useRef<number | null>(null);
   const initialSyncInFlightRef = useRef(false);
   const [pushRetryVersion, setPushRetryVersion] = useState(0);
-  const queueLocalPortfolioChange = useCallback(() => {
-    if (!isCurrent()) return;
-    saveDataUpdatedAt(new Date().toISOString());
-    markPortfolioCloudSyncPending(syncModeRef.current, "local-change");
-  }, [isCurrent, saveDataUpdatedAt, markPortfolioCloudSyncPending]);
+  const queueLocalPortfolioChange = useCallback((edit: (current: CloudPortfolioData) => Partial<CloudPortfolioData>) => {
+    if (!isCurrent() || viewingOwnerRef.current) return null;
+    try {
+      const next = portfolioQueue.commitPortfolioLocalEdit(syncModeRef.current, edit, scope);
+      setImportError(null);
+      return next;
+    } catch (error) {
+      setImportError(`本次修改未保存，请保留输入并重试；上一份完整组合仍在本机。${error instanceof Error ? error.message : "请检查浏览器存储空间。"}`);
+      return null;
+    }
+  }, [isCurrent, scope]);
   // Own local data, stashed while viewing a shared portfolio.
   const viewStashRef = useRef<{
     snapshot: PortfolioSnapshot | null;
@@ -312,7 +318,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     };
     const storage = (event: StorageEvent) => {
       if (syncMode && [
-        `${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${syncMode}`, `${PORTFOLIO_RESOLUTION_KEY}.${syncMode}`, portfolioQueue.PORTFOLIO_SYNC_STATUS_STORAGE_KEY,
+        `${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${syncMode}`, `${PORTFOLIO_RESOLUTION_KEY}.${syncMode}`, portfolioQueue.PORTFOLIO_SYNC_STATUS_STORAGE_KEY, PORTFOLIO_STATE_KEY,
       ].some((key) => event.key === portfolioStorageKey(key, scope))) refresh();
     };
     queueMicrotask(refresh);
@@ -432,16 +438,17 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
 
   const applyCleanCloudPortfolio = useCallback((cloud: CloudPortfolioData, version: PortfolioCloudVersion, mode: Exclude<SyncMode, null>) => {
     if (!isCurrent()) return;
-    readLocalPortfolioData(scope);
-    if (hasUnsyncedPortfolioChanges()) throw new Error("本机存在待确认修改，未用云端覆盖。");
-    saveSnapshot(cloud.snapshot);
-    saveTagMap(cloud.tagMap);
-    saveAllocation(cloud.allocation);
-    saveMaxNetPct(cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
-    saveLastEmailMessageId(cloud.lastEmailMessageId ?? null);
-    saveDataUpdatedAt(cloud.updatedAt);
-    // Record the baseline only after the complete cloud version is local.
-    rememberPortfolioCloudBase(mode, version);
+    batchPortfolioStorage(scope, () => {
+      readLocalPortfolioData(scope);
+      if (hasUnsyncedPortfolioChanges()) throw new Error("本机存在待确认修改，未用云端覆盖。");
+      saveSnapshot(cloud.snapshot);
+      saveTagMap(cloud.tagMap);
+      saveAllocation(cloud.allocation);
+      saveMaxNetPct(cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
+      saveLastEmailMessageId(cloud.lastEmailMessageId ?? null);
+      saveDataUpdatedAt(cloud.updatedAt);
+      rememberPortfolioCloudBase(mode, version);
+    });
     lastPayloadRef.current = corePayload(cloud.snapshot, cloud.tagMap, cloud.allocation, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
     setSnapshot(cloud.snapshot);
     setTagMap(cloud.tagMap);
@@ -711,7 +718,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      if (!isCurrent() || !isPortfolioDataStorageKey(event.key, scope) || viewingOwnerRef.current) return;
+      if (!isCurrent() || !hasPortfolioDataStorageChange(event, scope) || viewingOwnerRef.current) return;
       const nextSnapshot = loadSnapshot();
       const nextTags = loadTagMap();
       const nextAllocation = loadAllocation();
@@ -848,20 +855,18 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
   }, [hasConflict, syncPasscode, syncStatus, runInitialSync, clearSyncPasscode, isCurrent, markPortfolioCloudSyncOff]);
 
   const handleAllocationChange = useCallback((value: number) => {
-    if (!isCurrent() || viewingOwnerRef.current) return;
-    if (!Number.isFinite(value) || value <= 0) return;
+    if (!isCurrent() || viewingOwnerRef.current || !Number.isFinite(value) || value <= 0) return false;
+    if (!queueLocalPortfolioChange(() => ({ allocation: value }))) return false;
     setAllocation(value);
-    saveAllocation(value);
-    queueLocalPortfolioChange();
-  }, [queueLocalPortfolioChange, isCurrent, saveAllocation]);
+    return true;
+  }, [queueLocalPortfolioChange, isCurrent]);
 
   const handleMaxNetChange = useCallback((value: number) => {
-    if (!isCurrent() || viewingOwnerRef.current) return;
-    if (!Number.isFinite(value) || value <= 0 || value > 100) return;
+    if (!isCurrent() || viewingOwnerRef.current || !Number.isFinite(value) || value <= 0 || value > 100) return false;
+    if (!queueLocalPortfolioChange(() => ({ maxNetPct: value }))) return false;
     setMaxNetPct(value);
-    saveMaxNetPct(value);
-    queueLocalPortfolioChange();
-  }, [queueLocalPortfolioChange, isCurrent, saveMaxNetPct]);
+    return true;
+  }, [queueLocalPortfolioChange, isCurrent]);
 
   // Switch between my own portfolio and a friend's shared one (read-only).
   // The friend's data only lives in component state — local storage keeps
@@ -929,8 +934,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
           setImportError(result.error);
           return;
         }
-        saveSnapshot(result.snapshot);
-        queueLocalPortfolioChange();
+        if (!queueLocalPortfolioChange(() => ({ snapshot: result.snapshot }))) return;
         setSnapshot(result.snapshot);
         showNotice(
           getPortfolioImportNotice(
@@ -944,7 +948,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         setImportError("文件解析失败，请确认是 .xls / .xlsx 持仓报告。");
       }
     },
-    [showNotice, queueLocalPortfolioChange, isCurrent, loadSyncPasscode, saveSnapshot]
+    [showNotice, queueLocalPortfolioChange, isCurrent, loadSyncPasscode]
   );
 
   const handleImportBookTags = useCallback(
@@ -971,17 +975,16 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
           return;
         }
         // Imported book tags fill gaps but never overwrite manual edits.
-        const merged = { ...imported, ...loadTagMap() };
-        saveTagMap(merged);
-        queueLocalPortfolioChange();
-        setTagMap(merged);
+        const saved = queueLocalPortfolioChange((current) => ({ tagMap: { ...imported, ...current.tagMap } }));
+        if (!saved) return;
+        setTagMap(saved.tagMap);
         showNotice(`已从 Book 导入 ${count} 个标签映射`);
       } catch (err) {
         console.error("[Zhinote] Failed to import book tags:", err);
         setImportError("Book 文件解析失败，请确认格式。");
       }
     },
-    [showNotice, queueLocalPortfolioChange, isCurrent, loadTagMap, saveTagMap]
+    [showNotice, queueLocalPortfolioChange, isCurrent]
   );
 
   // ----- email auto-import ----------------------------------------------------
@@ -1062,10 +1065,8 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
           if (!auto) setImportError(`邮件附件解析失败：${result.error}`);
           return;
         }
-        saveSnapshot(result.snapshot);
+        if (!queueLocalPortfolioChange(() => ({ snapshot: result.snapshot, lastEmailMessageId: data.messageId }))) return;
         setSnapshot(result.snapshot);
-        saveLastEmailMessageId(data.messageId);
-        queueLocalPortfolioChange();
         const synced = isPortfolioSyncActive(
           syncModeRef.current,
           loadSyncPasscode()
@@ -1090,7 +1091,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         setEmailChecking(false);
       }
     },
-    [emailChecking, showNotice, queueLocalPortfolioChange, isCurrent, loadLastEmailMessageId, loadSyncPasscode, saveLastEmailMessageId, saveSnapshot, scope]
+    [emailChecking, showNotice, queueLocalPortfolioChange, isCurrent, loadLastEmailMessageId, loadSyncPasscode, scope]
   );
 
   // On open, quietly look for a newer position email and import it.
@@ -1114,14 +1115,17 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
   }, [tagMap]);
 
   const handleTagChange = useCallback((key: string, tag: string) => {
-    if (!isCurrent() || viewingOwnerRef.current) return;
-    const next = { ...loadTagMap() };
-    if (tag.trim()) next[key] = tag.trim();
-    else delete next[key];
-    saveTagMap(next);
-    queueLocalPortfolioChange();
-    setTagMap(next);
-  }, [queueLocalPortfolioChange, isCurrent, loadTagMap, saveTagMap]);
+    if (!isCurrent() || viewingOwnerRef.current) return false;
+    const saved = queueLocalPortfolioChange((current) => {
+      const next = { ...current.tagMap };
+      if (tag.trim()) next[key] = tag.trim();
+      else delete next[key];
+      return { tagMap: next };
+    });
+    if (!saved) return false;
+    setTagMap(saved.tagMap);
+    return true;
+  }, [queueLocalPortfolioChange, isCurrent]);
 
   const untagged = useMemo(
     () =>
@@ -1171,10 +1175,9 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
       }
       if (!isCurrent() || viewingOwnerRef.current) return;
       // Suggestions only fill gaps; manual labels entered while AI was running win.
-      const next = { ...suggested, ...loadTagMap() };
-      saveTagMap(next);
-      queueLocalPortfolioChange();
-      setTagMap(next);
+      const saved = queueLocalPortfolioChange((current) => ({ tagMap: { ...suggested, ...current.tagMap } }));
+      if (!saved) return;
+      setTagMap(saved.tagMap);
       showNotice(`AI 已为 ${count} 只股票分配标签，可随时手动修改`);
     } catch (error) {
       if (error instanceof PortfolioActionRequestTimeoutError) {
@@ -1185,7 +1188,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     } finally {
       setAiTagging(false);
     }
-  }, [snapshot, untagged, knownTags, aiTagging, showNotice, queueLocalPortfolioChange, isCurrent, loadTagMap, saveTagMap]);
+  }, [snapshot, untagged, knownTags, aiTagging, showNotice, queueLocalPortfolioChange, isCurrent]);
 
   // ----- derived numbers ------------------------------------------------------
 
@@ -1640,7 +1643,7 @@ function AllocationCard({
 }: {
   allocation: number;
   usedGmv: number;
-  onChange: (value: number) => void;
+  onChange: (value: number) => boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -1651,9 +1654,9 @@ function AllocationCard({
   };
 
   const commit = () => {
-    setEditing(false);
     const parsed = Number(draft.replace(/[,\s]/g, ""));
-    if (Number.isFinite(parsed) && parsed > 0) onChange(parsed * 1_000_000);
+    if (Number.isFinite(parsed) && parsed > 0 && !onChange(parsed * 1_000_000)) return;
+    setEditing(false);
   };
 
   const usedPct = allocation > 0 ? (usedGmv / allocation) * 100 : 0;
@@ -1737,7 +1740,7 @@ function NetExposureCard({
   netPct: number;
   netMoney: string;
   maxNetPct: number;
-  onMaxNetChange: (value: number) => void;
+  onMaxNetChange: (value: number) => boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -1748,11 +1751,11 @@ function NetExposureCard({
   };
 
   const commit = () => {
-    setEditing(false);
     const parsed = Number(draft.replace(/[%\s,]/g, ""));
     if (Number.isFinite(parsed) && parsed > 0 && parsed <= 100) {
-      onMaxNetChange(parsed);
+      if (!onMaxNetChange(parsed)) return;
     }
+    setEditing(false);
   };
 
   const usedAbs = Math.abs(netPct);
@@ -2836,7 +2839,7 @@ function PositionTable({
   allocation: number;
   tagOf: (position: PortfolioPosition) => string;
   knownTags: string[];
-  onTagChange: (key: string, tag: string) => void;
+  onTagChange: (key: string, tag: string) => boolean;
 }) {
   const toneBar = tone === "long" ? "bg-emerald-500" : "bg-rose-500";
   const toneText =
@@ -3090,18 +3093,18 @@ function TagEditor({
 }: {
   value: string;
   knownTags: string[];
-  onChange: (tag: string) => void;
+  onChange: (tag: string) => boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
 
   useEffect(() => {
-    queueMicrotask(() => setDraft(value));
-  }, [value]);
+    if (!editing) queueMicrotask(() => setDraft(value));
+  }, [value, editing]);
 
   const commit = () => {
+    if (draft.trim() !== value && !onChange(draft)) return;
     setEditing(false);
-    if (draft.trim() !== value) onChange(draft);
   };
 
   if (editing) {

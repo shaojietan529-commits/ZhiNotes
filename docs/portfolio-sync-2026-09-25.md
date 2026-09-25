@@ -86,7 +86,22 @@
   dialog after reload. It compares the saved-before, current-local and fresh
   cloud versions, including label deletion. Per-field recovery uses the same
   ACK-gated queue; newer input remains protected, and older recovery copies are
-  retained. This covers interrupted resolution, not all ordinary local writes.
+  retained, including interrupted journals from older releases.
+- Ordinary edits now commit their full content, timestamp and pending marker
+  with one native localStorage write under the existing account namespace.
+  File/mail imports and manual/Book/AI labels use this same path. The report and
+  mail import marker are one unit; manual imports preserve the last processed
+  mail marker to avoid duplicate auto-import. No provider/dependency was added.
+- A clean pull commits content plus cloud baseline together. Applying a
+  resolution ACK commits content, queue clearance and retry-pointer retirement
+  together, so failed storage writes no longer need a multi-step rollback.
+  Status/conflict notifications are emitted only after the native commit.
+- The additive state record preserves the earlier individual keys unchanged.
+  Once present it is authoritative; unreadable state never falls back to stale
+  keys. Decoded state is cached by its exact raw value, not by a stale timestamp.
+  Status-only record changes do not trigger cross-tab content refresh/upload.
+- Failed manual saves keep the tag/allocation/limit input open and show an
+  explicit unsaved warning instead of displaying the draft as persisted.
 
 No new provider, dependency, automatic data reassignment, private-data export or production data
 repair is included. Status/base fields contain identifiers, not holdings.
@@ -99,12 +114,16 @@ Neither form is included in metadata exports or logs.
 ## Evidence
 
 - Existing 49 page/database/settings behavior tests pass.
-- 65 portfolio/mailbox behavior tests pass against the actual client modules, queue,
+- 70 portfolio/mailbox behavior tests pass against the actual client modules, queue,
   both routes and shared versioned store. Redis atomicity is simulated in memory;
-  this is not a test against a running Redis server. Total behavior tests: 114.
+  this is not a test against a running Redis server. Total behavior tests: 119.
   Account tests cover switched cookies on every action, missing intent, missing
   response identity, late ACK/conflict/failure, same-tab and cross-tab switches,
   explicit logout, profile refresh and the final queue apply boundary.
+  Atomic-save tests cover a single native commit, quota failure before/after
+  additive adoption, retained old keys, deferred notifications, reload/retry,
+  newer edits surviving old ACKs, cloud baseline/content consistency, damaged
+  state fail-closed behavior and distinguishing data from status-only events.
 - Three isolated Edge/Playwright tests pass against the local app. The first covers two successive
   edits while an ACK is held, a remote pull during pending work, exact eventual
   upload, no status-ping write loop, clean reload, remote label deletion with
@@ -112,9 +131,11 @@ Neither form is included in metadata exports or logs.
   device. The conflict preserves both versions; the test opens the review on
   desktop and 390px mobile, cancels without writing, retries a decision made
   stale by a new cloud edit, then verifies local input stays intact before ACK
-  and confirms convergence and a quiet reload. It then injects a failed local
-  allocation write after ACK (including a failed rollback), reloads, opens the
-  three-version recovery dialog on desktop/390px mobile and restores the
+  and confirms convergence and a quiet reload. It also rejects a manual save
+  with synthetic full storage, keeps the unsaved input open and retries it.
+  A failed atomic resolution commit after ACK retains the complete old data
+  and queued decision. A separately seeded legacy interrupted journal then
+  exercises three-version recovery on desktop/390px mobile and restores the
   saved-before version only after ACK. A damaged queue is retained through
   cancellation, then explicitly repaired with its raw value archived. No page
   errors or React cross-component render/update warnings were observed.
@@ -145,11 +166,17 @@ write any production account. Synthetic screenshot stays under `.local/`.
   not required for this stage's non-overwrite guarantee.
 - Recovery records currently use localStorage and retain private originals.
   Large/repeated conflicts may reach its quota. These failures must retain
-  pending; capacity management remains rollout work. A failed resolution apply
-  is journaled and blocked until explicit recovery, not declared converged.
-- Ordinary multi-key edits and clean pulls still need interruption/recovery
-  coverage before rollout, especially content saved before its pending marker.
-  Corrupt content is now blocked from synchronization, but its repair UI and
+  pending; capacity management and near-limit input latency remain rollout
+  work. Failed atomic commits retain the queued decision for retry; legacy
+  partially applied journals remain blocked until explicit recovery.
+- One native write prevents partial records, but is not a cross-tab
+  read/modify/write lock. The optimistic snapshot check does not close the
+  race between checking and committing in separate browser processes. Add
+  serialization using a native browser primitive before enabling this format
+  in production, and test simultaneous edits plus delayed clean-pull responses.
+  Old clients/rollback builds must not silently keep writing stale individual
+  keys after the new format is present; rollout/rollback remains gated.
+- Corrupt content is now blocked from synchronization, but its repair UI and
   recovery into an empty cloud account remain open. Current queue recovery
   requires valid local content and a readable nonempty cloud version.
 - Before enabling the fixed mailbox integration, set server-only

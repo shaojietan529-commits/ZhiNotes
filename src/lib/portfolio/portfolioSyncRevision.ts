@@ -1,5 +1,5 @@
 import type { CloudPortfolioData } from "./cloudSync";
-import { getPortfolioStorageScope, portfolioStorage } from "./portfolioStorageScope";
+import { afterPortfolioStorageCommit, getPortfolioStorageScope, portfolioStorage } from "./portfolioStorageScope";
 
 export interface PortfolioCloudVersion {
   scope: string;
@@ -30,7 +30,7 @@ export function clearActivePortfolioConflict(mode: Mode, expected: PortfolioClou
   const current = readActivePortfolioConflict(mode, scope);
   if (current?.scope !== expected.scope || current?.revision !== expected.revision) return;
   portfolioStorage(scope).removeItem(`${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${mode}`);
-  window.dispatchEvent(new Event(PORTFOLIO_CONFLICT_EVENT));
+  afterPortfolioStorageCommit(scope, () => window.dispatchEvent(new Event(PORTFOLIO_CONFLICT_EVENT)));
 }
 
 export function parsePortfolioCloudVersion(value: unknown): PortfolioCloudVersion | null {

@@ -4,6 +4,7 @@ import {
   clearSyncPasscode,
   loadSyncPasscode,
   pushCloudData,
+  type CloudPortfolioData,
 } from "@/lib/portfolio/cloudSync";
 import {
   accountPushCloud,
@@ -18,10 +19,10 @@ import {
 } from "@/lib/portfolio/portfolioStore";
 import { clearActivePortfolioConflict, readActivePortfolioConflict } from "./portfolioSyncRevision";
 import { capturePortfolioAccountContext, isPortfolioAccountContextCurrent, type PortfolioAccountContext } from "./portfolioAccountContext";
-import { assertPortfolioScopeCurrent, getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorage, type PortfolioStorageScope } from "./portfolioStorageScope";
+import { afterPortfolioStorageCommit, batchPortfolioStorage, assertPortfolioScopeCurrent, getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorage, type PortfolioStorageScope } from "./portfolioStorageScope";
 import {
   finishPortfolioConflictResolution, readPortfolioConflictResolution, saveLocalPortfolioData,
-  stagePortfolioConflictResolution, writePortfolioConflictResolution,
+  stagePortfolioConflictResolution,
   PORTFOLIO_LEGACY_REVIEWED_KEY,
   type PortfolioConflictChoice, type PortfolioConflictResolution, type PortfolioConflictReview,
 } from "./portfolioConflictResolution";
@@ -191,6 +192,21 @@ export function markPortfolioCloudSyncPending(
   }, scope);
 }
 
+export function commitPortfolioLocalEdit(
+  mode: PortfolioSyncMode,
+  edit: (current: CloudPortfolioData) => Partial<CloudPortfolioData>,
+  scope = getPortfolioStorageScope()
+): CloudPortfolioData {
+  return batchPortfolioStorage(scope, () => {
+    const current = readLocalPortfolioData(scope);
+    const next = { ...current, ...edit(current), updatedAt: new Date().toISOString() };
+    saveLocalPortfolioData(next, scope);
+    readLocalPortfolioData(scope);
+    markPortfolioCloudSyncPending(mode, "local-change", scope);
+    return next;
+  });
+}
+
 export function markPortfolioCloudSyncAttempt(mode: PortfolioSyncMode, scope = getPortfolioStorageScope()): PortfolioCloudSyncAttempt {
   const previous = getPendingPortfolioCloudSyncStatus(scope);
   const attempt: PortfolioCloudSyncAttempt = {
@@ -240,6 +256,16 @@ export function markPortfolioCloudSyncAck(
   resolution?: PortfolioConflictResolution
 ): boolean {
   if (mode !== attempt.mode || !isPortfolioCloudSyncAttemptCurrent(attempt)) return false;
+  return batchPortfolioStorage(attempt.storageScope, () => applyPortfolioCloudSyncAck(mode, attempt, serverTags, resolution));
+}
+
+function applyPortfolioCloudSyncAck(
+  mode: PortfolioSyncMode,
+  attempt: PortfolioCloudSyncAttempt,
+  serverTags: ReturnType<typeof loadTagMap> | null,
+  resolution?: PortfolioConflictResolution
+): boolean {
+  if (!isPortfolioCloudSyncAttemptCurrent(attempt)) return false;
   const scope = attempt.storageScope;
   if (readPortfolioLocalFingerprint(scope) !== attempt.localFingerprint) {
     markPortfolioCloudSyncPending(mode, "local-change-during-upload", scope);
@@ -249,18 +275,7 @@ export function markPortfolioCloudSyncAck(
   if (resolution && mode) {
     const stored = readPortfolioConflictResolution(mode, scope);
     if (stored?.review.id !== resolution.review.id) return false;
-    writePortfolioConflictResolution({ ...resolution, state: "applying" });
-    try {
-      saveLocalPortfolioData(resolution.data, scope);
-      writePortfolioConflictResolution({ ...resolution, state: "applied" });
-    } catch (error) {
-      // The immutable review retains both originals even if local persistence fails.
-      try {
-        saveLocalPortfolioData(resolution.review.previousLocal ?? resolution.review.local, scope);
-        writePortfolioConflictResolution({ ...resolution, state: "queued" });
-      } catch { /* Keep the applying journal for explicit recovery. */ }
-      throw error;
-    }
+    saveLocalPortfolioData(resolution.data, scope);
   }
   if (serverTags) saveTagMap(serverTags, scope);
   const now = new Date().toISOString();
@@ -479,7 +494,7 @@ async function drainPortfolioCloudSync(
   // An older request's failure must not undo a later ACK or a newer edit.
   if (attempt && !isPortfolioCloudSyncAttemptCurrent(attempt)) {
     const current = getPendingPortfolioCloudSyncStatus(scope);
-    return { status: "deferred", attempted: 1, synced: 0, failed: 0,
+    return { status: current.storageError ? "manual_review" : "deferred", attempted: 1, synced: 0, failed: 0,
       manualReview: current.manualReviewCount, authDeferred: 0, pendingAfter: current.pending };
   }
   const failure = classifyPortfolioCloudSyncFailure(result);
@@ -594,7 +609,7 @@ function writePortfolioCloudSyncStatus(
     PORTFOLIO_SYNC_STATUS_STORAGE_KEY,
     JSON.stringify(normalized)
   );
-  emitPortfolioCloudSyncStatusEvent(normalized);
+  afterPortfolioStorageCommit(scope, () => emitPortfolioCloudSyncStatusEvent(normalized));
 }
 
 function normalizePortfolioCloudSyncStatus(
