@@ -12,6 +12,7 @@ iframe{width:100%;height:280px;border:1px solid #ccc}nav{border-bottom:1px solid
   <h1>插件合成测试</h1>
   <select id="scenario" aria-label="测试场景">
     <option value="main">主正文和噪音</option>
+    <option value="recommendation">播放器与推荐会议干扰</option>
     <option value="iframe">同源 iframe</option>
     <option value="delayed">异步正文</option>
     <option value="empty">空壳页面</option>
@@ -34,6 +35,9 @@ function prepare() {
   document.getElementById("result").textContent = "尚未发送";
   document.getElementById("capture").disabled = false;
   if (scenario.value === "main") fixture.innerHTML = main;
+  if (scenario.value === "recommendation") {
+    fixture.innerHTML = `<div class="content"><div class="video-player"><div class="meeting-info"><h1>示例证券｜推荐的另一场策略会议</h1><p>会议时间：2026-07-26 09:30</p></div></div><section class="recommended-roadshows"><h1>示例证券｜不能混入的相关会议</h1><p>时间：2026-08-01 11:00</p><iframe title="推荐会议" srcdoc="<h1>推荐的框架会议</h1><p>时间：2026-08-02 12:00</p>"></iframe></section>${main}</div>`;
+  }
   if (scenario.value === "iframe") {
     const frame = document.createElement("iframe");
     frame.title = "同源测试会议";
@@ -61,7 +65,10 @@ window.chrome = {
       const result = await func();
       document.getElementById("result").textContent = JSON.stringify({
         reads, sends, hasMeetingSignal: result.hasMeetingSignal,
-        hiddenOrSecretLeaked: /SYNTHETIC_ONLY|隐藏内容|不应读取|不应抓取|导航噪音|页脚噪音/.test(result.text)
+        hiddenOrSecretLeaked: /SYNTHETIC_ONLY|隐藏内容|不应读取|不应抓取|导航噪音|页脚噪音/.test(result.text),
+        recommendationLeaked: /推荐的|相关会议|2026-07-26|2026-08-0[12]/.test(result.text),
+        date: ZhiHuiIntake.parseMeetingInviteInput(result.text).meeting.date,
+        time: ZhiHuiIntake.parseMeetingInviteInput(result.text).meeting.time
       });
       return [{result}];
     }

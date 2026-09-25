@@ -53,6 +53,19 @@ async function grabPageText() {
     /^(home|note|en|sign in|sign out|login|log in|register|download|tips|ok|i know|首页|登录|注册|下载|下载app|我的|返回|分享|收藏|提示|知道了)$/i;
   const GENERIC_HEADING_PATTERN =
     /^(专场|会议介绍|会议详情|详情|简介|议程|嘉宾介绍|相关会议|热门推荐|新财富|加载中|暂无数据)$/i;
+  // A replay can show another event's date inside its recommendation overlay.
+  // Exclude these subtrees everywhere, including title candidates and iframes.
+  const EXCLUDED_CONTENT = [
+    "script", "style", "noscript", "template", "svg", "nav", "footer",
+    "input", "textarea", "select", "button", "video", "audio",
+    "[hidden]", "[aria-hidden='true']", "[role='navigation']", "[role='contentinfo']",
+    "#zhinote-meeting-review-root",
+    ...["password", "passcode", "player", "recommend", "related"].flatMap((name) => [
+      `[class*='${name}' i]`, `[id*='${name}' i]`,
+    ]),
+    "[aria-label*='推荐']", "[aria-label*='相关会议']", "[aria-label*='相关路演']",
+    "[aria-label*='recommend' i]", "[aria-label*='related' i]",
+  ].join(",");
 
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -124,9 +137,8 @@ async function grabPageText() {
   };
 
   const readCandidateText = (node) => {
-    const excluded = "script,style,noscript,template,svg,nav,footer,input,textarea,select,button,[hidden],[aria-hidden='true'],[role='navigation'],[role='contentinfo'],#zhinote-meeting-review-root,[class*='password' i],[id*='password' i],[class*='passcode' i],[id*='passcode' i]";
     const read = (element) => {
-      if (!isVisible(element) || element.closest(excluded)) return "";
+      if (!isVisible(element) || element.closest(EXCLUDED_CONTENT)) return "";
       const parts = [];
       for (const child of element.childNodes) {
         if (child.nodeType === Node.TEXT_NODE) parts.push(child.nodeValue || "");
@@ -230,7 +242,7 @@ async function grabPageText() {
     if (depth < 2) {
       for (const frame of doc.querySelectorAll("iframe")) {
         try {
-          if (!isVisible(frame)) continue;
+          if (!isVisible(frame) || frame.closest(EXCLUDED_CONTENT)) continue;
           const frameDoc = frame.contentDocument;
           if (frameDoc && frameDoc.body) {
             const frameText = collectDocumentText(frameDoc, depth + 1);
