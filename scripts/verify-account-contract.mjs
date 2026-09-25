@@ -1312,10 +1312,11 @@ check(
 );
 check(
   pageSyncClient.includes("isLocalCacheEvictionTombstone") &&
-    pageSyncClient.includes("clearPendingCloudPushIds([...missing, ...evicted])") &&
+    pageSyncClient.includes("markPendingCloudPushFailedIds(") &&
+    !pageSyncClient.includes("clearPendingCloudPushIds([...missing, ...evicted])") &&
     !pageSyncClient.includes("const toPush: Page[]") &&
     !pageSyncClient.includes("if (!remote && isLocalCacheEvictionTombstone(page)) continue;"),
-  "被云端 manifest 驱逐的本机缓存页不能再通过 pending push 或 reconcile 反向污染云端"
+  "被驱逐的本机缓存不能反向上传；缺失记录不能被当作云端已确认而清除 pending"
 );
 check(
   pageSyncClient.includes("clearAllPendingCloudPushesForCacheRebuild") &&
@@ -1408,7 +1409,7 @@ check(
     pushCloudPagesBody.indexOf("markPendingCloudPushRecords(records);") <
       pushCloudPagesBody.indexOf("if (!isPageSyncEnabled())") &&
     pushCloudPagesBody.includes("normalizePageCloudAckReceipt(res.json.ack)") &&
-    pushCloudPagesBody.includes("applyPageCloudAckReceipt(ack)") &&
+    pushCloudPagesBody.includes("...toPageCloudAckOutcomeFields(ack)") &&
     pushCloudPagesBody.includes("const acknowledgedIds = [...accepted, ...skipped]") &&
     pushCloudPagesBody.includes("clearPendingCloudPushIds(acknowledgedIds)") &&
     pushCloudPagesBody.includes("if (acknowledgedIds.length > 0) setLastPageSyncAtNow();"),
@@ -1420,11 +1421,11 @@ check(
     pageSyncClient.includes("remoteAckWatermark") &&
     pageSyncClient.includes("remoteAckAccepted") &&
     pageSyncClient.includes("remoteAckSkipped") &&
-    pageSyncClient.includes("setRemoteWatermark(ack.remote_watermark)") &&
-    pageSyncClient.includes("setRemoteCursor(ack.remote_cursor)") &&
+    !pageSyncClient.includes("setRemoteWatermark(ack.remote_watermark)") &&
+    !pageSyncClient.includes("setRemoteCursor(ack.remote_cursor)") &&
     pageSyncClient.includes("lastAck: PageCloudAckReceipt | null") &&
     pageSyncClient.includes("...toPageCloudAckOutcomeFields(result.lastAck)"),
-  "页面同步客户端应把云端 ACK cursor/watermark 写入最近同步回执，供同步页和多设备交接判断使用"
+  "云端 ACK cursor/watermark 只记录在上传回执，不能推进尚未下载的远端变更游标"
 );
 check(
   pageSyncClient.includes("getPagesForSyncByIds") &&
