@@ -573,8 +573,10 @@ check(
     accountClientSession.includes("if (retryable) {\n        return {\n          status: \"unconfirmed\"") &&
     accountClientSession.includes("error: retryable.reason") &&
     accountClientSession.includes(
-      "const result = withStoredAuthenticatedFallback(\n    await accountSessionInFlight,"
+      "const result = withStoredAuthenticatedFallback(\n    fetched,"
     ) &&
+    accountClientSession.includes("const request = resolveAccountSession(epoch, identity).finally") &&
+    accountClientSession.includes("epoch !== accountSessionEpoch || identity !== accountIdentityStamp()") &&
     accountClientSession.includes(
       'if (result.status === "unconfigured") {\n    storeUnconfiguredAccountSession(Date.now());'
     ) &&
@@ -854,25 +856,23 @@ check(
     board.includes("hasUnsyncedPortfolioChanges") &&
     !board.includes("accountPushCloud(") &&
     portfolioSyncStatus.includes("isPortfolioCloudSyncAttemptCurrent(attempt)") &&
-    portfolioSyncStatus.includes("readPortfolioLocalFingerprint() !== attempt.localFingerprint") &&
+    portfolioSyncStatus.includes("readPortfolioLocalFingerprint(scope) !== attempt.localFingerprint") &&
     board.includes("markPortfolioFailureFromSyncResult") &&
     !board.includes("Session expired mid-flight; stop account sync quietly."),
   "PortfolioBoardShell 必须把本地修改先标为 pending，云端 ACK 后才清 pending；账号临时失败不能静默关闭同步"
 );
 check(
-  board.includes("ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY") &&
-    board.includes("handleAccountSessionStorage") &&
-    board.includes(
-      "event.key !== ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY"
-    ) &&
+  board.includes("useSyncExternalStore(subscribePortfolioAccount, portfolioScopeSnapshot") &&
+    board.includes("!isAccountSessionStorageKey(event.key) && event.key !== null") &&
+    board.includes("<ScopedPortfolioBoard key={scope} scope={scope}") &&
     board.includes("fetchAccountSession({ force: true })") &&
-    board.includes('window.addEventListener("storage", handleAccountSessionStorage)') &&
-    board.includes(
-      'window.removeEventListener("storage", handleAccountSessionStorage)'
-    ) &&
+    board.includes('window.addEventListener("storage", storage)') &&
+    board.includes('window.removeEventListener("storage", storage)') &&
+    board.includes("ACCOUNT_SESSION_CHANGED_EVENT") &&
+    board.includes("bindPortfolioStore(scope)") &&
     board.includes('syncModeRef.current = "account"') &&
     board.includes("void runInitialSync(null, false)") &&
-    board.includes("A failed account probe should not disable local portfolio editing."),
+    board.includes("if (!isCurrent()) return;"),
   "PortfolioBoardShell 应监听跨标签账号状态变化：登录后自动接管账号同步，临时账号探测失败不能禁用本地组合编辑"
 );
 check(
@@ -884,11 +884,11 @@ check(
   "PortfolioBoardShell 初次云同步失败后必须由定时/聚焦拉取自动重试，不能永久停在本机缓存"
 );
 check(
-  board.includes("if (viewingOwner) return;"),
+  board.includes("if (!isCurrent() || viewingOwner) return;"),
   "查看共享持仓时不应触发云端 push"
 );
 check(
-  (board.match(/if \(viewingOwnerRef\.current\) return;/g) ?? []).length >= 6,
+  (board.match(/if \(!isCurrent\(\) \|\| viewingOwnerRef\.current\) return;/g) ?? []).length >= 6,
   "查看共享持仓时导入/打标/修改操作应全部禁用"
 );
 check(

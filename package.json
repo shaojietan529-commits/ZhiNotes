@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:sync": "node --test scripts/sync-queue.test.mjs scripts/settings-sync.test.mjs scripts/portfolio-sync.test.mjs scripts/portfolio-versioned-store.test.mjs",
+    "test:sync": "node --test scripts/sync-queue.test.mjs scripts/settings-sync.test.mjs scripts/portfolio-sync.test.mjs scripts/portfolio-versioned-store.test.mjs scripts/portfolio-email-access.test.mjs",
     "verify:ai": "node scripts/verify-ai-contract.mjs",
     "verify:database": "node scripts/verify-database-contract.mjs",
     "verify:editor": "node scripts/verify-editor-commands.mjs",
