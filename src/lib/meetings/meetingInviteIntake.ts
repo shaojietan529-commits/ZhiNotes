@@ -28,6 +28,112 @@ export interface MeetingInviteIntakeResult {
   meeting: MeetingInviteIntakeMeeting;
 }
 
+export const MEETING_PLATFORMS = [
+  "进门财经", "久谦论坛", "腾讯会议", "Zoom", "Webex", "Teams", "Google Meet", "其他",
+];
+
+export type ReviewedMeetingFields = Pick<
+  MeetingInviteIntakeMeeting,
+  "topic" | "organizer" | "platform" | "date" | "time" | "endTime"
+> & { url: string };
+
+const REVIEW_HEADER = "ZhiHui 已确认会议信息 v1";
+const REVIEW_FIELDS = [
+  ["topic", "会议主题"], ["organizer", "组织者"], ["platform", "会议平台"],
+  ["date", "会议日期"], ["time", "开始时间"], ["endTime", "结束时间"], ["url", "来源网址"],
+] as const;
+
+export function isReviewedMeetingInput(input: string) {
+  return input.trim().startsWith(REVIEW_HEADER + "\n");
+}
+
+// Only a public, numeric Comein roadshow path is retained. Unknown URL paths,
+// queries and fragments may contain credentials; keep their origin only.
+export function safeMeetingSourceUrl(value: string) {
+  try {
+    const url = new URL(value);
+    if (!["https:", "http:"].includes(url.protocol)) return "";
+    const publicPath = /(^|\.)comein\.cn$/i.test(url.hostname) &&
+      /^\/roadshow\/home\/\d+\/?$/.test(url.pathname);
+    return url.origin + (publicPath ? url.pathname : "");
+  } catch {
+    return "";
+  }
+}
+
+export function sanitizeCapturedMeetingText(value: string) {
+  let skipNextValue = false;
+  return value.replace(/\r/g, "\n").split("\n")
+    .filter((line) => {
+      if (!line.trim()) return true;
+      const secretLabel = /(密码|口令|验证码|令牌|password|passcode|token|secret|authorization)/i;
+      const skip = skipNextValue;
+      skipNextValue = secretLabel.test(line) && /(?:密码|口令|验证码|令牌|password|passcode|token|secret|authorization)\s*[:：]?\s*$/i.test(line);
+      return !skip && !secretLabel.test(line);
+    })
+    .map((line) => line
+      .replace(/https?:\/\/[^\s<>"'，。；、)）]+/gi, (url) => safeMeetingSourceUrl(url))
+      .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, "")
+      .replace(/(?:\+?86[- ]?)?1[3-9]\d{9}\b/g, ""))
+    .join("\n");
+}
+
+export function serializeReviewedMeetingInput(fields: ReviewedMeetingFields) {
+  const values = Object.fromEntries(REVIEW_FIELDS.map(([key]) => {
+    const value = fields[key];
+    if (typeof value !== "string") throw new Error("会议信息格式不正确，请重新核对。");
+    return [key, value.replace(/\s+/g, " ").trim()];
+  })) as ReviewedMeetingFields;
+  values.url = safeMeetingSourceUrl(values.url);
+  validateReviewedFields(values);
+  return [REVIEW_HEADER, ...REVIEW_FIELDS.map(([key, label]) => `${label}：${values[key]}`)].join("\n");
+}
+
+function validateReviewedFields(fields: ReviewedMeetingFields) {
+  if (!fields.topic || fields.topic.length > 500 || fields.organizer.length > 200) {
+    throw new Error("请填写会议主题（最多 500 字）并核对组织者（最多 200 字）。");
+  }
+  for (const value of [fields.topic, fields.organizer]) {
+    if (sanitizeCapturedMeetingText(value) !== value || /https?:\/\//i.test(value)) {
+      throw new Error("主题或组织者含链接、联系方式或敏感字段，请删除后再发送。");
+    }
+  }
+  if (!MEETING_PLATFORMS.includes(fields.platform)) throw new Error("请选择会议平台。");
+  if (!fields.date || !fields.time) throw new Error("请补齐会议日期和开始时间，避免导入到错误日期。");
+  if (fields.date) {
+    const date = new Date(`${fields.date}T00:00:00Z`);
+    if (!/^20\d{2}-\d{2}-\d{2}$/.test(fields.date) || Number.isNaN(date.getTime()) ||
+        date.toISOString().slice(0, 10) !== fields.date) throw new Error("会议日期无效。");
+  }
+  for (const time of [fields.time, fields.endTime]) {
+    if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error("会议时间无效。");
+  }
+  if (fields.endTime && !fields.time) throw new Error("请先填写开始时间，或清空结束时间。");
+}
+
+function readReviewedMeetingInput(input: string): MeetingInviteIntakeResult {
+  const lines = input.trim().split("\n");
+  const fields = {} as ReviewedMeetingFields;
+  if (lines.length !== REVIEW_FIELDS.length + 1) throw new Error("已确认的会议信息格式不完整。");
+  REVIEW_FIELDS.forEach(([key, label], index) => {
+    const prefix = `${label}：`;
+    if (!lines[index + 1].startsWith(prefix)) throw new Error("已确认的会议信息字段不匹配。");
+    fields[key] = lines[index + 1].slice(prefix.length).trim();
+  });
+  validateReviewedFields(fields);
+  const joinUrl = safeMeetingSourceUrl(fields.url);
+  // Blank fields are intentional owner edits, never filled back from the page.
+  return { meeting: {
+    topic: fields.topic, organizer: fields.organizer, platform: fields.platform,
+    date: fields.date, time: fields.time, endTime: fields.endTime,
+    durationMinutes: fields.time && fields.endTime ? minutesBetween(fields.time, fields.endTime) : null,
+    hasJoinUrl: Boolean(joinUrl), joinUrl, joinUrlHost: safeUrlHost(joinUrl),
+    meetingId: "", passcode: "", source: "pasted_text",
+    confidence: getConfidence(fields),
+    warnings: buildWarnings({ ...fields, hasUrl: Boolean(joinUrl) }),
+  } };
+}
+
 const URL_PATTERN = /https?:\/\/[^\s<>"'，。；、)）]+/i;
 const URL_GLOBAL_PATTERN = /https?:\/\/[^\s<>"'，。；、)）]+/gi;
 
@@ -66,6 +172,7 @@ export function parseMeetingInviteInput(
   input: string,
   fetched?: FetchedMeetingLinkText | null
 ): MeetingInviteIntakeResult {
+  if (isReviewedMeetingInput(input)) return readReviewedMeetingInput(input);
   const inputText = normalizeText(input);
   const fetchedText = fetched
     ? normalizeText(
@@ -138,7 +245,15 @@ function getSource(
 
 function detectPlatform(text: string, host: string) {
   const hostSignal = safeUrlHost(host) || host;
-  const haystack = `${text}\n${hostSignal}`.toLowerCase();
+  const domains: [string, string][] = [
+    ["comein.cn", "进门财经"], ["meritco-group.com", "久谦论坛"],
+    ["meeting.tencent.com", "腾讯会议"], ["zoom.us", "Zoom"],
+    ["webex.com", "Webex"], ["teams.microsoft.com", "Teams"], ["meet.google.com", "Google Meet"],
+  ];
+  for (const [domain, platform] of domains) {
+    if (hostSignal.toLowerCase() === domain || hostSignal.toLowerCase().endsWith(`.${domain}`)) return platform;
+  }
+  const haystack = text.replace(URL_GLOBAL_PATTERN, "").toLowerCase();
   if (haystack.includes("meeting.tencent.com") || haystack.includes("腾讯会议")) {
     return "腾讯会议";
   }
@@ -256,6 +371,7 @@ function hasDateTime(line: string) {
 
 function cleanTopicCandidate(value: string) {
   return value
+    .replace(/^[【\[]\s*(?:回放|直播|路演|专场)\s*[】\]]\s*/i, "")
     .replace(URL_GLOBAL_PATTERN, "")
     .replace(/^[【\[]?\s*(?:会议邀请|邀请函|会议通知)\s*[】\]]?\s*[:：]?\s*/i, "")
     .replace(/^(?:页面标题|候选标题|主标题|大标题|路演主题|活动主题|会议主题|主题|标题|名称)\s*[:：]\s*/i, "")
@@ -313,6 +429,7 @@ function extractOrganizer(text: string) {
 function cleanOrganizerCandidate(value: string) {
   return cleanLine(value)
     .replace(/^(?:页面标题|候选标题|主标题|大标题)\s*[:：]\s*/i, "")
+    .replace(/^[【\[]\s*(?:回放|直播|路演|专场)\s*[】\]]\s*/i, "")
     .trim();
 }
 
@@ -822,6 +939,13 @@ function findTime(
   while ((labelMatch = labelPattern.exec(text)) !== null) {
     const afterLabel = text.slice(labelMatch.index + labelMatch[0].length);
     const hit = parseTimeRange(afterLabel, options);
+    if (hit) return hit;
+  }
+
+  // A date and clock on the same line outrank an unrelated video timer.
+  for (const line of text.split("\n")) {
+    if (!findDate(line)) continue;
+    const hit = parseTimeRange(line, options);
     if (hit) return hit;
   }
 

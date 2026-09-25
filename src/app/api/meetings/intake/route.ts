@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   extractFirstMeetingUrl,
+  isReviewedMeetingInput,
   parseMeetingInviteInput,
   type FetchedMeetingLinkText,
 } from "@/lib/meetings/meetingInviteIntake";
@@ -281,7 +282,10 @@ export async function POST(req: Request) {
   let fetched: FetchedMeetingLinkText | null = null;
   let fetchWarning = "";
 
-  if (url) {
+  // The browser owner has already reviewed these fields. Do not fetch a
+  // logged-out copy of the source page and overwrite their corrections.
+  const reviewed = isReviewedMeetingInput(input);
+  if (url && !reviewed) {
     const fetchResult = await fetchMeetingLinkText(url);
     if ("fetched" in fetchResult) {
       fetched = fetchResult.fetched;
@@ -290,11 +294,20 @@ export async function POST(req: Request) {
     }
   }
 
-  const parsed = parseMeetingInviteInput(input, fetched);
+  let parsed;
+  try {
+    parsed = parseMeetingInviteInput(input, fetched);
+  } catch {
+    return intakeJson(intakeFailurePayload({
+      code: "meeting_intake_invalid_review",
+      error: "已确认的会议信息无效，请回到插件重新核对。",
+      retryable: false,
+    }), { status: 400 });
+  }
   if (fetchWarning) parsed.meeting.warnings.push(fetchWarning);
   const intakeReceipt = intakeSuccessReceipt({
     fetched: Boolean(fetched),
-    fetchAttempted: Boolean(url),
+    fetchAttempted: Boolean(url) && !reviewed,
     warningCount: parsed.meeting.warnings.length,
     confidence: parsed.meeting.confidence,
     returnsJoinUrlForCalendarStorage: Boolean(parsed.meeting.joinUrl),

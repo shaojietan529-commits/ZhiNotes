@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>测试页</title>
+<style>
+body{font:16px system-ui;margin:24px;line-height:1.6;color:#18181b;background:#fafafa}
+button,select{font:inherit;padding:8px;margin:4px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+iframe{width:100%;height:280px;border:1px solid #ccc}nav{border-bottom:1px solid #ddd;padding-bottom:12px}
+</style>
+<nav>
+  <h1>插件合成测试</h1>
+  <select id="scenario" aria-label="测试场景">
+    <option value="main">主正文和噪音</option>
+    <option value="iframe">同源 iframe</option>
+    <option value="delayed">异步正文</option>
+    <option value="empty">空壳页面</option>
+  </select>
+  <button id="capture">抓取本页会议信息</button>
+  <div id="status" role="status"></div>
+  <pre id="result" aria-live="polite">尚未发送</pre>
+  <span>导航噪音：2025-01-01 03:00</span>
+</nav>
+<div id="fixture"></div>
+<footer>页脚噪音：2024-01-01 04:00</footer>
+<script src="meeting-parser.js"></script>
+<script>
+// Entirely synthetic. No requests to ZhiNote, storage writes or calendar writes.
+const fixture = document.getElementById("fixture");
+const scenario = document.getElementById("scenario");
+const main = `<main><h1>示例证券｜行业展望与策略讨论</h1><p>播放器 00:00 / 00:00</p><p>2026-06-14 16:00</p><p>进门财经</p><h2>会议介绍</h2><p>6月14日（周日）16:00，示例证券为您带来：行业展望与策略讨论。敬请关注！</p><p hidden>隐藏内容不应抓取</p><input value="不应读取表单"><p class="password">会议密码：SYNTHETIC_ONLY</p></main>`;
+function prepare() {
+  fixture.replaceChildren();
+  document.getElementById("result").textContent = "尚未发送";
+  document.getElementById("capture").disabled = false;
+  if (scenario.value === "main") fixture.innerHTML = main;
+  if (scenario.value === "iframe") {
+    const frame = document.createElement("iframe");
+    frame.title = "同源测试会议";
+    frame.srcdoc = main;
+    fixture.append(frame);
+    const hidden = document.createElement("iframe");
+    hidden.hidden = true;
+    hidden.srcdoc = "<h1>不应抓取的隐藏会议</h1><p>2023-01-01 05:00</p>";
+    fixture.append(hidden);
+  }
+}
+scenario.addEventListener("change", prepare);
+prepare();
+let reads = 0;
+let sends = 0;
+window.chrome = {
+  tabs: { query: async () => [{ id: 1 }] },
+  scripting: { executeScript: async ({files, func, args}) => {
+    if (files) {
+      if (scenario.value === "delayed") setTimeout(() => { fixture.innerHTML = main; }, 700);
+      return [];
+    }
+    if (!args) {
+      reads++;
+      const result = await func();
+      document.getElementById("result").textContent = JSON.stringify({
+        reads, sends, hasMeetingSignal: result.hasMeetingSignal,
+        hiddenOrSecretLeaked: /SYNTHETIC_ONLY|隐藏内容|不应读取|不应抓取|导航噪音|页脚噪音/.test(result.text)
+      });
+      return [{result}];
+    }
+    func(...args);
+    return [];
+  } },
+  runtime: { sendMessage: (message, callback) => {
+    sends++;
+    const input = ZhiHuiIntake.serializeReviewedMeetingInput(message.fields);
+    const parsed = ZhiHuiIntake.parseMeetingInviteInput(input).meeting;
+    document.getElementById("result").textContent = JSON.stringify({
+      reads, sends, topic: parsed.topic, organizer: parsed.organizer,
+      platform: parsed.platform, date: parsed.date, time: parsed.time, endTime: parsed.endTime,
+      rawBodySent: /原始抓取|SYNTHETIC_ONLY/.test(input), calendarWrites: 0,
+    }, null, 2);
+    callback({ok:true});
+  } }
+};
+window.close = () => {};
+</script>
+<script src="popup.js"></script>
+</html>

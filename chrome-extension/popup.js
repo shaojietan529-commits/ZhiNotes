@@ -7,20 +7,12 @@
 // pages in the background.
 
 const MAX_CHARS = 15000;
-const PLATFORMS = [
-  "进门财经",
-  "久谦论坛",
-  "腾讯会议",
-  "Zoom",
-  "Webex",
-  "Teams",
-  "Google Meet",
-  "其他",
-];
+const PLATFORMS = globalThis.ZhiHuiIntake.MEETING_PLATFORMS;
 
 // Runs in the page: returns the URL, title and useful visible text. Kept
 // self-contained because it is injected as a function.
 async function grabPageText() {
+  const { sanitizeCapturedMeetingText, safeMeetingSourceUrl, parseMeetingInviteInput } = globalThis.ZhiHuiIntake;
   const MEETING_KEYWORDS = [
     "会议",
     "时间",
@@ -66,7 +58,7 @@ async function grabPageText() {
 
   const normalizeText = (value) => {
     const seen = new Set();
-    return String(value || "")
+    return sanitizeCapturedMeetingText(String(value || ""))
       .replace(/\r/g, "\n")
       .replace(/\u00a0/g, " ")
       .split("\n")
@@ -89,20 +81,18 @@ async function grabPageText() {
     );
 
   const isUseful = (text) => {
-    const normalized = normalizeText(text);
-    return keywordHits(normalized) >= 2 || normalized.length >= 800;
+    const { meeting } = parseMeetingInviteInput(normalizeText(text));
+    return Boolean(meeting.date && meeting.time && meeting.topic !== `${meeting.platform}会议`);
   };
 
   const isVisible = (node) => {
     if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
-    if (node === document.body || node === document.documentElement) return true;
-    const style = node.ownerDocument.defaultView.getComputedStyle(node);
-    return (
-      style.display !== "none" &&
-      style.visibility !== "hidden" &&
-      style.opacity !== "0" &&
-      node.getClientRects().length > 0
-    );
+    for (let element = node; element; element = element.parentElement) {
+      const style = node.ownerDocument.defaultView.getComputedStyle(element);
+      if (style.display === "none" || style.visibility === "hidden" ||
+          style.opacity === "0" || style.contentVisibility === "hidden") return false;
+    }
+    return node.getClientRects().length > 0;
   };
 
   const scoreText = (text) => {
@@ -117,6 +107,7 @@ async function grabPageText() {
     if (!text || text.length < 8 || text.length > 140) return 0;
     if (GENERIC_HEADING_PATTERN.test(text)) return 0;
     if (/^\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}/.test(text)) return 0;
+    if (/^(路演时间|会议时间|开始时间|直播时间|活动时间|日期时间|时间)\s*[:：]?/.test(text)) return 0;
     if (/(次浏览|浏览|报名|已结束|进行中)/.test(text)) return 0;
     if (/^(电子|通信|传媒|计算机|医药|消费|金融|汽车|机械|化工|有色|煤炭|地产)(\s+\+?\d+)?$/.test(text)) {
       return 0;
@@ -133,24 +124,40 @@ async function grabPageText() {
   };
 
   const readCandidateText = (node) => {
-    if (!isVisible(node)) return "";
-    return normalizeText(node.innerText || node.textContent || "");
+    const excluded = "script,style,noscript,template,svg,nav,footer,input,textarea,select,button,[hidden],[aria-hidden='true'],[role='navigation'],[role='contentinfo'],#zhinote-meeting-review-root,[class*='password' i],[id*='password' i],[class*='passcode' i],[id*='passcode' i]";
+    const read = (element) => {
+      if (!isVisible(element) || element.closest(excluded)) return "";
+      const parts = [];
+      for (const child of element.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) parts.push(child.nodeValue || "");
+        else if (child.nodeType === Node.ELEMENT_NODE) {
+          if (child.tagName === "BR") parts.push("\n");
+          else {
+            const text = read(child);
+            const display = child.ownerDocument.defaultView.getComputedStyle(child).display;
+            parts.push(display === "inline" ? text : `\n${text}\n`);
+          }
+        }
+      }
+      return parts.join("");
+    };
+    return normalizeText(read(node));
   };
 
   const collectTitleCandidates = (doc) => {
     const candidates = [];
-    const addLines = (value) => {
+    const addLines = (value, bonus = 0) => {
       for (const line of normalizeText(value).split("\n")) {
         const cleaned = normalizeText(line);
         const score = titleScore(cleaned);
-        if (score > 0) candidates.push({ text: cleaned, score });
+        if (score > 0) candidates.push({ text: cleaned, score: score + bonus });
       }
     };
 
     for (const selector of TITLE_SELECTORS) {
       try {
         for (const node of doc.querySelectorAll(selector)) {
-          if (isVisible(node)) addLines(node.innerText || node.textContent || "");
+          if (isVisible(node)) addLines(readCandidateText(node), node.tagName === "H1" ? 60 : 0);
         }
       } catch {
         // Keep title extraction best-effort and generic.
@@ -178,7 +185,7 @@ async function grabPageText() {
       {
         label: "page-url",
         score: 1200,
-        text: `页面网址：${doc.location?.href || ""}`,
+        text: `页面网址：${safeMeetingSourceUrl(doc.location?.href || "")}`,
       },
       ...collectTitleCandidates(doc).map((title) => ({
         label: "page-title",
@@ -196,9 +203,6 @@ async function grabPageText() {
       });
     };
 
-    addCandidate("url", doc.location?.href || "");
-    addCandidate("title", doc.title || "");
-
     for (const selector of MAIN_SELECTORS) {
       try {
         for (const node of doc.querySelectorAll(selector)) {
@@ -209,7 +213,7 @@ async function grabPageText() {
       }
     }
 
-    if (doc.body) {
+    if (candidates.length === 0 && doc.body) {
       addCandidate("body", readCandidateText(doc.body));
     }
 
@@ -226,6 +230,7 @@ async function grabPageText() {
     if (depth < 2) {
       for (const frame of doc.querySelectorAll("iframe")) {
         try {
+          if (!isVisible(frame)) continue;
           const frameDoc = frame.contentDocument;
           if (frameDoc && frameDoc.body) {
             const frameText = collectDocumentText(frameDoc, depth + 1);
@@ -244,18 +249,17 @@ async function grabPageText() {
   let best = "";
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const text = collectDocumentText(document, 0);
-    if (text.length > best.length || scoreText(text) > scoreText(best)) {
+    if (isUseful(text) || !best || scoreText(text) > scoreText(best)) {
       best = text;
     }
     if (isUseful(text)) break;
-    await wait(350 + attempt * 250);
+    if (attempt < 5) await wait(350 + attempt * 250);
   }
 
-  const text = normalizeText(best);
+  const text = normalizeText(best).slice(0, 15000);
   return {
     text,
-    url: location.href,
-    title: document.title,
+    url: safeMeetingSourceUrl(location.href),
     hasMeetingSignal: isUseful(text),
     keywordHits: keywordHits(text),
     length: text.length,
@@ -264,203 +268,21 @@ async function grabPageText() {
 
 function buildReviewDraft(captured) {
   const text = String(captured?.text || "");
-  const url = String(captured?.url || matchFirstUrl(text) || "");
-  const title = extractLabel(text, "页面标题") || String(captured?.title || "");
-  const topic = extractTopic(text, title);
-  const organizer = extractOrganizer(text, topic);
-  const timeRange = extractDateTime(text);
-
+  const { parseMeetingInviteInput, safeMeetingSourceUrl } = globalThis.ZhiHuiIntake;
+  const url = safeMeetingSourceUrl(String(captured?.url || ""));
+  const { meeting } = parseMeetingInviteInput(`页面网址：${url}\n${text}`);
   return {
     url,
-    title,
-    topic,
-    organizer,
-    platform: detectPlatform(`${text}\n${url}`),
-    date: timeRange.date,
-    time: timeRange.time,
-    endTime: timeRange.endTime,
-    rawText: text,
+    topic: meeting.topic,
+    organizer: meeting.organizer,
+    platform: meeting.platform,
+    date: meeting.date,
+    time: meeting.time,
+    endTime: meeting.endTime,
   };
-}
-
-function matchFirstUrl(text) {
-  return String(text || "").match(/https?:\/\/[^\s<>"'，。；、)）]+/i)?.[0] || "";
-}
-
-function extractLabel(text, label) {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = String(text || "").match(
-    new RegExp(`(?:^|\\n)${escaped}\\s*[:：]\\s*([^\\n]+)`, "i")
-  );
-  return cleanValue(match?.[1] || "");
-}
-
-function cleanValue(value) {
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .replace(/[，。；;,]+$/g, "")
-    .trim();
-}
-
-function cleanTopic(value) {
-  return cleanValue(value)
-    .replace(/^(?:页面标题|会议主题|路演主题|活动主题|主题|标题)\s*[:：]\s*/i, "")
-    .replace(/(?:。?敬请关注[！!]?)$/g, "")
-    .trim();
-}
-
-function isGoodTopic(value) {
-  const text = cleanTopic(value);
-  if (text.length < 8 || text.length > 140) return false;
-  if (/^(专场|会议介绍|会议详情|详情|简介|议程|新财富|加载中|暂无数据)$/.test(text)) {
-    return false;
-  }
-  if (/^(路演时间|会议时间|活动时间|直播时间|开始时间|日期时间|时间)$/.test(text)) {
-    return false;
-  }
-  if (/(次浏览|浏览|报名|已结束|进行中)/.test(text)) return false;
-  if (/^(电子|通信|传媒|计算机|医药|消费|金融|汽车|机械|化工|有色|煤炭|地产)(\s+\+?\d+)?$/.test(text)) {
-    return false;
-  }
-  return true;
-}
-
-function extractTopic(text, pageTitle) {
-  for (const label of ["页面标题", "路演主题", "活动主题", "会议主题", "主题", "标题"]) {
-    const candidate = cleanTopic(extractLabel(text, label));
-    if (isGoodTopic(candidate)) return candidate;
-  }
-
-  const lines = String(text || "").split("\n").map(cleanValue).filter(Boolean);
-  for (const line of lines) {
-    const match = line.match(
-      /(?:为您带来|为您分享|带来|主题为|主题是)\s*[:：]?\s*([^。！？!；;\n]+)/
-    );
-    const candidate = cleanTopic(match?.[1] || "");
-    if (isGoodTopic(candidate)) return candidate;
-  }
-
-  const titleCandidate = cleanTopic(pageTitle);
-  if (isGoodTopic(titleCandidate)) return titleCandidate;
-
-  for (const line of lines) {
-    const candidate = cleanTopic(line);
-    if (isGoodTopic(candidate)) return candidate;
-  }
-
-  return "";
-}
-
-function extractOrganizer(text, topic) {
-  const labeled = extractLabel(text, "组织者") || extractLabel(text, "主办方");
-  if (labeled) return labeled;
-
-  const titleMatch = String(topic || "").match(/^([^｜|]+?)\s*[｜|]\s*.+$/);
-  if (titleMatch) return cleanValue(titleMatch[1]);
-
-  const introMatch = String(text || "").match(
-    /[，,]\s*([^\n，,。；;]{2,40}?)(?:为您带来|为您分享|带来)/
-  );
-  return cleanValue(introMatch?.[1] || "");
-}
-
-function detectPlatform(value) {
-  const text = String(value || "").toLowerCase();
-  if (text.includes("comein.cn") || text.includes("进门财经")) return "进门财经";
-  if (text.includes("meritco-group.com") || text.includes("久谦")) return "久谦论坛";
-  if (text.includes("meeting.tencent.com") || text.includes("腾讯会议")) return "腾讯会议";
-  if (text.includes("zoom.us") || /\bzoom\b/i.test(value)) return "Zoom";
-  if (text.includes("webex.com") || /\bwebex\b/i.test(value)) return "Webex";
-  if (text.includes("teams.microsoft.com") || /\bteams\b/i.test(value)) return "Teams";
-  if (text.includes("meet.google.com") || text.includes("google meet")) return "Google Meet";
-  return "其他";
-}
-
-function extractDateTime(text) {
-  const value = String(text || "");
-  const date = extractDate(value);
-  const time = extractTime(value);
-  return {
-    date,
-    time: time.time,
-    endTime: time.endTime,
-  };
-}
-
-function extractDate(text) {
-  const withYear = String(text || "").match(
-    /(20\d{2})\s*[\/.\-年]\s*(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*[日号]?/
-  );
-  if (withYear) {
-    return `${withYear[1]}-${pad(Number(withYear[2]))}-${pad(Number(withYear[3]))}`;
-  }
-
-  const monthDay =
-    String(text || "").match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/) ||
-    String(text || "").match(/(?:^|[^\d])(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[日号]/);
-  if (!monthDay) return "";
-
-  const now = new Date();
-  let year = now.getFullYear();
-  const month = Number(monthDay[1]);
-  const day = Number(monthDay[2]);
-  const candidate = new Date(year, month - 1, day);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const deltaDays = Math.floor((candidate.getTime() - today.getTime()) / 86400000);
-  if (deltaDays < -180) year += 1;
-  return `${year}-${pad(month)}-${pad(day)}`;
-}
-
-function extractTime(text) {
-  const value = String(text || "");
-  const timeMatch = value.match(
-    /(上午|下午|中午|晚上|凌晨)?\s*([01]?\d|2[0-3])\s*(?::|：|点|时)\s*([0-5]\d)?(?:\s*点?\s*(?:-|--|---|~|至|到|to)\s*(上午|下午|中午|晚上|凌晨)?\s*([01]?\d|2[0-3])\s*(?::|：|点|时)\s*([0-5]\d)?)?/i
-  );
-  if (!timeMatch) return { time: "", endTime: "" };
-  const startHour = applyPeriod(Number(timeMatch[2]), timeMatch[1] || "");
-  const startMinute = Number(timeMatch[3] || 0);
-  const endTime = timeMatch[5]
-    ? `${pad(applyPeriod(Number(timeMatch[5]), timeMatch[4] || timeMatch[1] || ""))}:${pad(Number(timeMatch[6] || 0))}`
-    : "";
-  return {
-    time: `${pad(startHour)}:${pad(startMinute)}`,
-    endTime,
-  };
-}
-
-function applyPeriod(hour, period) {
-  if ((period === "下午" || period === "晚上" || period === "中午") && hour < 12) {
-    return hour + 12;
-  }
-  if ((period === "上午" || period === "凌晨") && hour === 12) return 0;
-  return hour;
-}
-
-function pad(value) {
-  return String(value).padStart(2, "0");
 }
 
 function showMeetingReviewDialog(draft, platforms) {
-  const buildReviewedText = (fields) => {
-    const range = fields.time
-      ? `${fields.time}${fields.endTime ? `-${fields.endTime}` : ""}`
-      : "";
-    const lines = [
-      `页面网址：${fields.url || ""}`,
-      `页面标题：${fields.title || fields.topic || ""}`,
-      `会议主题：${fields.topic || ""}`,
-      `组织者：${fields.organizer || ""}`,
-      `会议平台：${fields.platform || ""}`,
-      `会议日期：${fields.date || ""}`,
-      `会议时间：${[fields.date, range].filter(Boolean).join(" ")}`,
-      `开始时间：${fields.time || ""}`,
-      `结束时间：${fields.endTime || ""}`,
-      "",
-      "原始抓取文本：",
-      fields.rawText || "",
-    ];
-    return lines.join("\n").slice(0, 15000).trim();
-  };
 
   const existing = document.getElementById("zhinote-meeting-review-root");
   if (existing) existing.remove();
@@ -487,7 +309,7 @@ function showMeetingReviewDialog(draft, platforms) {
       width: min(720px, calc(100vw - 32px));
       max-height: calc(100vh - 32px);
       overflow: auto;
-      border-radius: 12px;
+      border-radius: 8px;
       border: 1px solid #e4e4e7;
       background: #fff;
       box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
@@ -614,19 +436,18 @@ function showMeetingReviewDialog(draft, platforms) {
       <div class="header">
         <div>
           <h2 id="zhinote-review-title">核对会议信息</h2>
-          <p class="sub">确认后才会发送到 ZhiNote。可以直接修改识别不准的字段。</p>
         </div>
         <button class="close" type="button" aria-label="关闭">×</button>
       </div>
       <div class="body">
         <label class="full">会议主题
-          <textarea data-field="topic"></textarea>
+          <textarea data-field="topic" maxlength="500"></textarea>
         </label>
         <label>会议日期
-          <input data-field="date" type="date" />
+          <input data-field="date" type="date" required />
         </label>
         <label>开始时间
-          <input data-field="time" type="time" />
+          <input data-field="time" type="time" required />
         </label>
         <label>结束时间
           <input data-field="endTime" type="time" />
@@ -635,14 +456,14 @@ function showMeetingReviewDialog(draft, platforms) {
           <select data-field="platform"></select>
         </label>
         <label>组织者
-          <input data-field="organizer" type="text" />
+          <input data-field="organizer" type="text" maxlength="200" />
         </label>
         <label class="full">来源页面
           <div class="url"></div>
         </label>
       </div>
       <div class="footer">
-        <div class="status"></div>
+        <div class="status" role="status" aria-live="polite"></div>
         <div class="actions">
           <button class="cancel" type="button">取消</button>
           <button class="primary" type="button">发送到 ZhiNote</button>
@@ -678,7 +499,29 @@ function showMeetingReviewDialog(draft, platforms) {
   fields.organizer.value = draft.organizer || "";
   find(".url").textContent = draft.url || "未识别来源网址";
 
-  const close = () => root.remove();
+  const previousFocus = document.activeElement;
+  const close = () => {
+    root.remove();
+    previousFocus?.focus();
+  };
+  wrapper.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+    }
+    if (event.key === "Tab") {
+      const controls = [...wrapper.querySelectorAll("button:not(:disabled),input,textarea,select")];
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && shadow.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && shadow.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  });
   find(".close").addEventListener("click", close);
   find(".cancel").addEventListener("click", close);
   wrapper.addEventListener("click", (event) => {
@@ -705,6 +548,14 @@ function showMeetingReviewDialog(draft, platforms) {
       return;
     }
 
+    try {
+      globalThis.ZhiHuiIntake.serializeReviewedMeetingInput(reviewed);
+    } catch (error) {
+      status.textContent = error.message;
+      status.className = "status err";
+      return;
+    }
+
     status.textContent = "正在发送到 ZhiNote...";
     status.className = "status";
     primary.disabled = true;
@@ -712,7 +563,7 @@ function showMeetingReviewDialog(draft, platforms) {
     chrome.runtime.sendMessage(
       {
         type: "zhihui:sendReviewedIntake",
-        text: buildReviewedText(reviewed),
+        fields: reviewed,
       },
       (response) => {
         if (chrome.runtime.lastError || !response?.ok) {
@@ -754,6 +605,10 @@ button.addEventListener("click", async () => {
       return;
     }
 
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ["meeting-parser.js"],
+    });
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: grabPageText,
