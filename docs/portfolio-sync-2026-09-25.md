@@ -1,5 +1,70 @@
 # Stage 1: portfolio acknowledgements and concurrent writes
 
+## Current Working Tree: Native Storage Gate (2026-09-26)
+
+The local concurrency changes are **not release-ready**. The earlier completed
+checks below describe the preceding checkpoint, not proof that simultaneous
+writers are safe now. Do not push/deploy these working-tree changes as a fix.
+
+- A real three-tab Edge test queues independent label/allocation edits behind
+  the same native Web Lock. The second writer can read the pre-edit native
+  localStorage value at lock grant and overwrite the first writer's field.
+  This remains a failing acceptance test in `portfolio-browser.test.mjs`.
+  Lock ownership and a synchronous callback do not establish storage freshness.
+- Removed the app entirely to isolate the cause. In one 100-round native
+  read/increment/write experiment, 74 rounds read a stale value. A second,
+  committed-field experiment retained only 134/200 localStorage updates, versus
+  200/200 using native IndexedDB read/write transactions. Counts vary with
+  scheduling; they are observations, not a predicted production failure rate.
+- `scripts/portfolio-storage-primitives.test.mjs` reproduces that comparison in
+  fresh tabs, with synthetic content and every navigation intercepted. It also
+  checks transaction abort preservation and continuing after another tab closes.
+  The IndexedDB assertion is a feasibility test, **not an app migration, cloud
+  integration test or physical-device acceptance**. No dependency was added.
+- The browser storage standard explicitly does not specify cross-agent-cluster
+  locking for localStorage: <https://html.spec.whatwg.org/multipage/webstorage.html>.
+  Native transaction semantics: <https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction>.
+- The async local-write callers, account-at-grant guards and failure UI are
+  still uncommitted work. Reuse the useful parts, but do not keep adding locks,
+  sleeps or a bespoke localStorage coordination protocol to chase this race.
+- Independently fixed disabling passcode sync: retain content, pending revision,
+  failure/review metadata and backups; invalidate the old in-flight attempt.
+  A late ACK cannot clear it, and enabling sync resumes through the existing
+  ACK-gated drain. A new behavior test covers this sequence.
+- Local-save completion and durable queue notifications now update the sync
+  button immediately; it must not retain the previous "synced" label while
+  the new edit is waiting to upload. Failed enabling of passcode sync is caught
+  and shown instead of producing an unhandled rejection.
+- Current checks: 60 portfolio client/queue behavior tests and all five existing
+  isolated app UI regressions pass. TypeScript, lint, production build,
+  `verify:account` and `verify:sync-pending-domains` pass. The new simultaneous
+  writer app test still fails; these green checks do not supersede it.
+
+### Owner Decision Requested
+
+An asynchronous question asks permission to move **only the portfolio local
+cache** to native IndexedDB transactions, retaining old data and leaving the
+cloud provider and account system unchanged. No answer has been received yet;
+no application IndexedDB migration has been implemented or activated.
+
+Proposed boundaries if approved:
+
+1. Read, merge and commit content/pending/baseline/recovery state in one native
+   transaction. Publish saved UI and notifications only after transaction
+   completion, never merely after the first successful write request.
+2. Treat the old cache as a preserved import/recovery source, not a second
+   concurrently writable authority. Never infer legacy ownership from login.
+3. Validate per-account import before activation. Retain malformed sources and
+   unconfirmed changes for explicit recovery; no delete/reset or empty fallback.
+4. Keep network work outside local transactions and reuse the existing cloud
+   protocol/drain. Reuse identifiers-only cross-tab notifications for refresh.
+5. Validate quota/abort/reload, late ACK, independent and competing edits,
+   account switching and old-client coexistence in the actual app. A rollback
+   must keep reading the new store or enter read-only recovery; reverting to
+   old localStorage-only code could hide newer unuploaded data.
+6. Local/preview first; production rollout remains separately gated. Keep the
+   real physical same-account A/B acceptance requirement unchanged.
+
 ## Completed Locally
 
 - Reuse the existing portfolio drain for initial sync, debounced edits and
