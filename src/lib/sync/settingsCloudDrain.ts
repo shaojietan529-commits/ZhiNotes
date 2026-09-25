@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  applyRemoteAccountModuleSettings,
+  applyRemoteWorkspaceSettings,
   buildModuleSettingSyncRowId,
   getPendingAccountModuleSettingSyncLogEntries,
   getPendingWorkspaceSettingSyncLogEntries,
@@ -18,6 +20,7 @@ import {
   markWorkspaceSettingSyncLogEntriesSynced,
   type SyncLogEntry,
 } from "@/lib/db/local/queries";
+import { fetchAccountSession } from "@/lib/account/clientSession";
 import {
   ensureFreshCloudSession,
   type ZhiNotesCloudSession,
@@ -25,13 +28,15 @@ import {
 import {
   buildAccountModuleSettingCloudPayload,
   buildAccountModuleSettingsPendingSyncPlan,
+  buildAccountModuleSettingsCloudRestorePlan,
   type AccountModuleSettingCloudPayload,
   type SupportedAccountSettingSyncKey,
 } from "@/lib/sync/accountModuleSettingsPendingSync";
-import { SETTINGS_SYNC_MANUAL_REVIEW_FAILURE_THRESHOLD } from "@/lib/sync/settingsSyncStatus";
+import { SETTINGS_SYNC_MANUAL_REVIEW_FAILURE_THRESHOLD, SETTINGS_CLOUD_APPLIED_EVENT } from "@/lib/sync/settingsSyncStatus";
 import {
   buildWorkspaceSettingCloudPayload,
   buildWorkspaceSettingsPendingSyncPlan,
+  buildWorkspaceSettingsCloudRestorePlan,
   type WorkspaceSettingCloudPayload,
   type SupportedWorkspaceSettingSyncKey,
 } from "@/lib/sync/workspaceSettingsPendingSync";
@@ -85,34 +90,48 @@ interface SettingsCloudAckReceiptShape {
   sync_rule?: unknown;
 }
 
+interface SettingsSyncConnection {
+  session: ZhiNotesCloudSession | null;
+  workspaceId: string;
+}
+
+let drainInFlight: Promise<DrainPendingSettingsCloudSyncResult> | null = null;
+
 export async function drainPendingSettingsCloudSync(
   options: DrainPendingSettingsCloudSyncOptions = {}
 ): Promise<DrainPendingSettingsCloudSyncResult> {
-  const sessionResult = await ensureFreshCloudSession();
-  if (sessionResult.status !== "refreshed") {
-    return buildSettingsDrainResult({
-      status: "disabled",
-      message:
-        "需要先完成云端登录；设置变更仍保留在本地待上传队列。",
-    });
-  }
-  const workspaceId = readLocalWorkspaceIdentity()?.cloud_workspace_id ?? "";
-  if (!workspaceId) {
-    return buildSettingsDrainResult({
-      status: "disabled",
-      message:
-        "需要先把本地工作区连接到云工作区；设置变更仍保留在本地待上传队列。",
-    });
+  if (drainInFlight) return drainInFlight;
+  drainInFlight = runSettingsCloudSync(options).finally(() => { drainInFlight = null; });
+  return drainInFlight;
+}
+
+async function runSettingsCloudSync(
+  options: DrainPendingSettingsCloudSyncOptions
+): Promise<DrainPendingSettingsCloudSyncResult> {
+  const boundWorkspaceId = readLocalWorkspaceIdentity()?.cloud_workspace_id;
+  let connection: SettingsSyncConnection;
+  if (boundWorkspaceId) {
+    const sessionResult = await ensureFreshCloudSession();
+    if (sessionResult.status !== "refreshed") {
+      return buildSettingsDrainResult({ status: "disabled",
+        message: "云工作区登录暂时无法确认；设置变更仍保留在待上传队列。" });
+    }
+    connection = { session: sessionResult.session, workspaceId: boundWorkspaceId };
+  } else {
+    const account = await fetchAccountSession();
+    if (account.status !== "ok" || !account.authenticated || account.stale || !account.account) {
+      return buildSettingsDrainResult({ status: "disabled",
+        message: "账号登录暂时无法确认；设置变更仍保留在待上传队列。" });
+    }
+    connection = { session: null, workspaceId: `account-${account.account.id}` };
   }
 
   const workspaceResult = await drainWorkspaceSettings({
-    session: sessionResult.session,
-    workspaceId,
+    ...connection,
     includeManualReview: options.includeManualReview,
   });
   const accountModuleResult = await drainAccountModuleSettings({
-    session: sessionResult.session,
-    workspaceId,
+    ...connection,
     includeManualReview: options.includeManualReview,
   });
   const attempted = workspaceResult.attempted + accountModuleResult.attempted;
@@ -121,8 +140,14 @@ export async function drainPendingSettingsCloudSync(
   const skipped = workspaceResult.skipped + accountModuleResult.skipped;
   const markedSynced =
     workspaceResult.markedSynced + accountModuleResult.markedSynced;
+  let pullError = "";
+  try {
+    await pullSettingsCloudSync(connection);
+  } catch (error) {
+    pullError = formatSettingsCloudDrainError(error);
+  }
   const status: SettingsCloudDrainStatus =
-    failed > 0
+    failed > 0 || pullError
       ? "error"
       : skipped > 0
         ? "needs-attention"
@@ -138,7 +163,7 @@ export async function drainPendingSettingsCloudSync(
     skipped,
     markedSynced,
     message:
-      attempted === 0 && skipped === 0
+      pullError ? pullError : attempted === 0 && skipped === 0
         ? "当前没有可自动补传的设置变更。"
         : `设置补传完成：已上传 ${synced}/${attempted} 项，确认本地 pending ${markedSynced} 条${
             skipped > 0 ? `；${skipped} 条不在白名单或缺失本地记录，已保留为待处理` : ""
@@ -147,16 +172,15 @@ export async function drainPendingSettingsCloudSync(
 }
 
 async function drainWorkspaceSettings(input: {
-  session: ZhiNotesCloudSession;
+  session: ZhiNotesCloudSession | null;
   workspaceId: string;
   includeManualReview?: boolean;
 }): Promise<DrainPendingSettingsCloudSyncResult> {
   let attemptedKeys: SupportedWorkspaceSettingSyncKey[] = [];
   try {
-    const [settings, pendingEntries] = await Promise.all([
-      listWorkspaceSettings(),
-      getPendingWorkspaceSettingSyncLogEntries(),
-    ]);
+    const pendingEntries = await getPendingWorkspaceSettingSyncLogEntries();
+    const maxLogId = Math.max(0, ...pendingEntries.map((entry) => entry.id));
+    const settings = await listWorkspaceSettings();
     const plan = buildWorkspaceSettingsPendingSyncPlan({
       pendingEntries: filterRetryableSettingsEntries(
         pendingEntries,
@@ -205,7 +229,7 @@ async function drainWorkspaceSettings(input: {
 
     const markedSynced =
       uploadedKeys.length > 0
-        ? await markWorkspaceSettingSyncLogEntriesSynced(uploadedKeys)
+        ? await markWorkspaceSettingSyncLogEntriesSynced(uploadedKeys, maxLogId)
         : 0;
     if (failedKeys.length > 0) {
       await markWorkspaceSettingSyncLogEntriesFailed(
@@ -241,18 +265,19 @@ async function drainWorkspaceSettings(input: {
 }
 
 async function drainAccountModuleSettings(input: {
-  session: ZhiNotesCloudSession;
+  session: ZhiNotesCloudSession | null;
   workspaceId: string;
   includeManualReview?: boolean;
 }): Promise<DrainPendingSettingsCloudSyncResult> {
   let attemptedAccountKeys: SupportedAccountSettingSyncKey[] = [];
   let attemptedModuleRowIds: string[] = [];
   try {
-    const [accountSettings, moduleSettings, pendingEntries] =
+    const pendingEntries = await getPendingAccountModuleSettingSyncLogEntries();
+    const maxLogId = Math.max(0, ...pendingEntries.map((entry) => entry.id));
+    const [accountSettings, moduleSettings] =
       await Promise.all([
         listAccountSettings(),
         listModuleSettings(),
-        getPendingAccountModuleSettingSyncLogEntries(),
       ]);
     const plan = buildAccountModuleSettingsPendingSyncPlan({
       pendingEntries: filterRetryableSettingsEntries(
@@ -339,10 +364,10 @@ async function drainAccountModuleSettings(input: {
 
     const [markedAccount, markedModule] = await Promise.all([
       uploadedAccountKeys.length > 0
-        ? markAccountSettingSyncLogEntriesSynced(uploadedAccountKeys)
+        ? markAccountSettingSyncLogEntriesSynced(uploadedAccountKeys, maxLogId)
         : Promise.resolve(0),
       uploadedModuleRowIds.length > 0
-        ? markModuleSettingSyncLogEntriesSynced(uploadedModuleRowIds)
+        ? markModuleSettingSyncLogEntriesSynced(uploadedModuleRowIds, maxLogId)
         : Promise.resolve(0),
     ]);
     await Promise.all([
@@ -417,9 +442,60 @@ function filterRetryableSettingsEntries(
   });
 }
 
+async function pullSettingsCloudSync(input: SettingsSyncConnection) {
+  const response = await fetchSettingsCloudApiWithTimeout(
+    `/api/workspaces/${encodeURIComponent(input.workspaceId)}/settings`,
+    { headers: input.session ? { Authorization: `Bearer ${input.session.accessToken}` } : {} }
+  );
+  const body = await readSettingsCloudApiBody(response);
+  if (!response.ok) throw new Error(getSettingsCloudApiDetail(body, response));
+  if (body?.workspace_id !== input.workspaceId) {
+    throw new Error("设置读取回执不匹配；本地设置未被替换。");
+  }
+  const workspacePending = await getPendingWorkspaceSettingSyncLogEntries();
+  const accountModulePending = await getPendingAccountModuleSettingSyncLogEntries();
+  const workspacePlan = buildWorkspaceSettingsCloudRestorePlan({
+    cloudReadBody: body, pendingEntries: workspacePending,
+  });
+  const accountModulePlan = buildAccountModuleSettingsCloudRestorePlan({
+    cloudReadBody: body, pendingEntries: accountModulePending,
+  });
+  let applied = false;
+  try {
+    if (workspacePlan.restore_allowed) {
+      const local = new Map((await listWorkspaceSettings()).map((row) => [row.key, row.valueJson]));
+      const settings = workspacePlan.settings_to_restore.filter(
+        (row) => local.get(row.key) !== JSON.stringify(row.value ?? {})
+      );
+      if (settings.length) {
+        await applyRemoteWorkspaceSettings({ settings });
+        applied = true;
+      }
+    }
+    if (accountModulePlan.restore_allowed) {
+      const accounts = new Map((await listAccountSettings()).map((row) => [row.key, row.valueJson]));
+      const modules = new Map((await listModuleSettings()).map((row) => [
+        buildModuleSettingSyncRowId(row.moduleId, row.key), row.valueJson,
+      ]));
+      const accountSettings = accountModulePlan.account_settings_to_restore.filter(
+        (row) => accounts.get(row.key) !== JSON.stringify(row.value ?? {})
+      );
+      const moduleSettings = accountModulePlan.module_settings_to_restore.filter(
+        (row) => modules.get(buildModuleSettingSyncRowId(row.moduleId, row.key)) !== JSON.stringify(row.value ?? {})
+      );
+      if (accountSettings.length || moduleSettings.length) {
+        await applyRemoteAccountModuleSettings({ accountSettings, moduleSettings });
+        applied = true;
+      }
+    }
+  } finally {
+    if (applied) window.dispatchEvent(new Event(SETTINGS_CLOUD_APPLIED_EVENT));
+  }
+}
+
 async function patchWorkspaceSettings(
   input: {
-    session: ZhiNotesCloudSession;
+    session: ZhiNotesCloudSession | null;
     workspaceId: string;
   },
   payload: SettingsCloudPayload
@@ -431,7 +507,7 @@ async function patchWorkspaceSettings(
       {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${input.session.accessToken}`,
+          ...(input.session ? { Authorization: `Bearer ${input.session.accessToken}` } : {}),
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),

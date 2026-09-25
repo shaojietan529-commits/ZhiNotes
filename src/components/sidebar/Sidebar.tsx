@@ -1,5 +1,7 @@
 "use client";
 
+import { SETTINGS_CLOUD_APPLIED_EVENT } from "@/lib/sync/settingsSyncStatus";
+
 import {
   useCallback,
   useMemo,
@@ -1103,8 +1105,11 @@ export default function Sidebar() {
     }
 
     void loadWorkspaceSidebarSettings();
+    const handleCloudSettings = () => void loadWorkspaceSidebarSettings();
+    window.addEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
     return () => {
       cancelled = true;
+      window.removeEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
     };
   }, []);
 

@@ -1,4 +1,5 @@
 export const SETTINGS_SYNC_STATUS_EVENT = "zhinote:settings-sync-status";
+export const SETTINGS_CLOUD_APPLIED_EVENT = "zhinote:settings-cloud-applied";
 export const SETTINGS_SYNC_STATUS_STORAGE_KEY = "zhinote:settings-sync-status-updated";
 export const SETTINGS_SYNC_MANUAL_REVIEW_FAILURE_THRESHOLD = 3;
 

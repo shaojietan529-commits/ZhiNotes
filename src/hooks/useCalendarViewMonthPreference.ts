@@ -1,5 +1,7 @@
 "use client";
 
+import { SETTINGS_CLOUD_APPLIED_EVENT } from "@/lib/sync/settingsSyncStatus";
+
 import { useCallback, useEffect, useState } from "react";
 import {
   getWorkspaceSetting,
@@ -64,8 +66,11 @@ export function useCalendarViewMonthPreference(surface: CalendarViewSurface) {
     }
 
     void loadCalendarViewState();
+    const handleCloudSettings = () => void loadCalendarViewState();
+    window.addEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
     return () => {
       cancelled = true;
+      window.removeEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
     };
   }, [surface]);
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { SETTINGS_CLOUD_APPLIED_EVENT } from "@/lib/sync/settingsSyncStatus";
+
 import { useCallback, useEffect, useState } from "react";
 import { getWorkspaceSetting, upsertWorkspaceSetting } from "@/lib/db/local/queries";
 import {
@@ -91,6 +93,8 @@ export function usePageFavorites() {
     }
 
     void hydrateFromWorkspaceSettings();
+    const handleCloudSettings = () => void hydrateFromWorkspaceSettings();
+    window.addEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key === STORAGE_KEY) refreshFavoriteIds();
@@ -101,6 +105,7 @@ export function usePageFavorites() {
     window.addEventListener(FAVORITES_CHANGED_EVENT, handleFavoritesChanged);
     return () => {
       cancelled = true;
+      window.removeEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(FAVORITES_CHANGED_EVENT, handleFavoritesChanged);
     };

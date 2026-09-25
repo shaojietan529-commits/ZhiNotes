@@ -1,5 +1,7 @@
 "use client";
 
+import { SETTINGS_CLOUD_APPLIED_EVENT } from "@/lib/sync/settingsSyncStatus";
+
 import { useCallback, useEffect, useState } from "react";
 import { getWorkspaceSetting, upsertWorkspaceSetting } from "@/lib/db/local/queries";
 import {
@@ -189,6 +191,8 @@ export function usePageViewPreferences(pageId: string) {
     }
 
     void hydrateFromWorkspaceSettings();
+    const handleCloudSettings = () => void hydrateFromWorkspaceSettings();
+    window.addEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
 
     const handleChanged = (event: Event) => {
       const preferencesFromEvent = (
@@ -209,6 +213,7 @@ export function usePageViewPreferences(pageId: string) {
     window.addEventListener(PAGE_VIEW_PREFERENCES_CHANGED_EVENT, handleChanged);
     return () => {
       cancelled = true;
+      window.removeEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
       window.removeEventListener(
         PAGE_VIEW_PREFERENCES_CHANGED_EVENT,
         handleChanged

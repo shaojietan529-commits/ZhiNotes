@@ -1,5 +1,7 @@
 "use client";
 
+import { SETTINGS_CLOUD_APPLIED_EVENT } from "@/lib/sync/settingsSyncStatus";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getWorkspaceSetting,
@@ -59,8 +61,11 @@ export function useMeetingReviewStatePreference() {
     }
 
     void loadMeetingReviewState();
+    const handleCloudSettings = () => void loadMeetingReviewState();
+    window.addEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
     return () => {
       cancelled = true;
+      window.removeEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
     };
   }, []);
 

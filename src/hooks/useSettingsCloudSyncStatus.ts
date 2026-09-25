@@ -25,6 +25,7 @@ const SETTINGS_STATUS_REFRESH_INTERVAL_MS = 6 * 1000;
 const SETTINGS_STATUS_REFRESH_LEASE_KEY =
   "zhinote.settingssync.statusLeaderLease.v1";
 const SETTINGS_STATUS_REFRESH_LEASE_TTL_MS = 14 * 1000;
+const SETTINGS_CLOUD_REFRESH_INTERVAL_MS = 30 * 1000;
 
 export function useSettingsCloudSyncStatus() {
   const dbReady = useWorkspaceStore((s) => s.dbReady);
@@ -38,6 +39,7 @@ export function useSettingsCloudSyncStatus() {
   const runningRef = useRef(false);
   const syncRunningRef = useRef(false);
   const rerunAfterCurrentRefreshRef = useRef(false);
+  const lastCloudRefreshRef = useRef(0);
 
   const setStatusIfMounted = useCallback(
     (nextStatus: SettingsCloudSyncStatus) => {
@@ -137,6 +139,14 @@ export function useSettingsCloudSyncStatus() {
       };
     }
     void refresh();
+    const refreshCloud = () => {
+      if (document.visibilityState !== "visible" || !navigator.onLine ||
+          Date.now() - lastCloudRefreshRef.current < SETTINGS_CLOUD_REFRESH_INTERVAL_MS ||
+          !claimVisibleRefreshLease(SETTINGS_STATUS_REFRESH_LEASE_KEY, SETTINGS_STATUS_REFRESH_LEASE_TTL_MS)) return;
+      lastCloudRefreshRef.current = Date.now();
+      void syncNow().catch(() => undefined);
+    };
+    refreshCloud();
     const interval = window.setInterval(() => {
       if (
         document.visibilityState === "visible" &&
@@ -146,13 +156,14 @@ export function useSettingsCloudSyncStatus() {
         )
       ) {
         void refresh();
+        refreshCloud();
       }
     }, SETTINGS_STATUS_REFRESH_INTERVAL_MS);
-    const handleForeground = () => void refresh();
+    const handleForeground = () => { void refresh(); refreshCloud(); };
     const handleVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") handleForeground();
     };
-    const handleAccountProfileUpdated = () => void refresh();
+    const handleAccountProfileUpdated = handleForeground;
     const handleStatus = (event: Event) => {
       const detail = (event as CustomEvent<SettingsCloudSyncStatus | undefined>)
         .detail;
@@ -193,7 +204,7 @@ export function useSettingsCloudSyncStatus() {
       window.removeEventListener("storage", handleStorage);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [dbReady, refresh, setStatusIfMounted]);
+  }, [dbReady, refresh, setStatusIfMounted, syncNow]);
 
   return { status, refresh, syncNow };
 }

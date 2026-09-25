@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { openAccountSettings } from "@/lib/account/settingsStore";
 import {
   authRequiredResponse,
   badRequestResponse,
@@ -126,20 +127,25 @@ export async function GET(
   request: Request,
   context: WorkspaceSettingsContext
 ) {
-  const disabled = cloudNotConfiguredResponse("workspace-settings-read");
+  const { workspaceId } = await context.params;
+  const accountAccess = workspaceId.startsWith("account-")
+    ? await openAccountSettings(request, workspaceId) : null;
+  if (accountAccess && !accountAccess.ok) return accountAccess.response;
+  const disabled = !accountAccess && cloudNotConfiguredResponse("workspace-settings-read");
   if (disabled) return disabled;
 
-  const accessToken = getBearerToken(request);
-  if (!accessToken) return authRequiredResponse();
+  const accessToken = getBearerToken(request) ?? "";
+  if (!accountAccess && !accessToken) return authRequiredResponse();
 
-  const { workspaceId } = await context.params;
-  if (!isUuid(workspaceId)) {
+  if (!accountAccess && !isUuid(workspaceId)) {
     return badRequestResponse("workspaceId 必须是 UUID。");
   }
 
   try {
-    const user = await getSupabaseUser(accessToken);
-    const [workspaceRows, membershipRows] = await Promise.all([
+    const user = accountAccess ? null : await getSupabaseUser(accessToken);
+    const [workspaceRows, membershipRows] = accountAccess
+      ? [[accountAccess.workspace], [accountAccess.membership]]
+      : await Promise.all([
       requestSupabaseRest<CloudWorkspaceRow[]>(
         `/workspaces?id=eq.${encodeURIComponent(
           workspaceId
@@ -150,7 +156,7 @@ export async function GET(
       requestSupabaseRest<CloudMembershipRow[]>(
         `/workspace_members?workspace_id=eq.${encodeURIComponent(
           workspaceId
-        )}&user_id=eq.${encodeURIComponent(user.id)}&select=role`,
+        )}&user_id=eq.${encodeURIComponent(user!.id)}&select=role`,
         { method: "GET" },
         accessToken
       ),
@@ -250,17 +256,20 @@ export async function PATCH(
   request: Request,
   context: WorkspaceSettingsContext
 ) {
-  const disabled = cloudNotConfiguredResponse("workspace-settings-update");
+  const { workspaceId } = await context.params;
+  const accountAccess = workspaceId.startsWith("account-")
+    ? await openAccountSettings(request, workspaceId) : null;
+  if (accountAccess && !accountAccess.ok) return accountAccess.response;
+  const disabled = !accountAccess && cloudNotConfiguredResponse("workspace-settings-update");
   if (disabled) return disabled;
 
-  const writesDisabled = requireCloudWritesResponse("workspace-settings-update");
+  const writesDisabled = !accountAccess && requireCloudWritesResponse("workspace-settings-update");
   if (writesDisabled) return writesDisabled;
 
-  const accessToken = getBearerToken(request);
-  if (!accessToken) return authRequiredResponse();
+  const accessToken = getBearerToken(request) ?? "";
+  if (!accountAccess && !accessToken) return authRequiredResponse();
 
-  const { workspaceId } = await context.params;
-  if (!isUuid(workspaceId)) {
+  if (!accountAccess && !isUuid(workspaceId)) {
     return badRequestResponse("workspaceId 必须是 UUID。");
   }
 
@@ -312,8 +321,10 @@ export async function PATCH(
   }
 
   try {
-    const user = await getSupabaseUser(accessToken);
-    const [workspaceRows, membershipRows] = await Promise.all([
+    const user = accountAccess ? null : await getSupabaseUser(accessToken);
+    const [workspaceRows, membershipRows] = accountAccess
+      ? [[accountAccess.workspace], [accountAccess.membership]]
+      : await Promise.all([
       requestSupabaseRest<CloudWorkspaceRow[]>(
         `/workspaces?id=eq.${encodeURIComponent(
           workspaceId
@@ -324,7 +335,7 @@ export async function PATCH(
       requestSupabaseRest<CloudMembershipRow[]>(
         `/workspace_members?workspace_id=eq.${encodeURIComponent(
           workspaceId
-        )}&user_id=eq.${encodeURIComponent(user.id)}&select=role`,
+        )}&user_id=eq.${encodeURIComponent(user!.id)}&select=role`,
         { method: "GET" },
         accessToken
       ),
@@ -478,7 +489,9 @@ export async function PATCH(
         );
     }
 
-    await requestSupabaseRest<null>(
+    if (accountAccess) {
+      await accountAccess.save(nextSettings);
+    } else await requestSupabaseRest<null>(
       `/workspaces?id=eq.${encodeURIComponent(workspaceId)}`,
       {
         method: "PATCH",

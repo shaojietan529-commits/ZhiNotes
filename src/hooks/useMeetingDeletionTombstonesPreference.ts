@@ -1,5 +1,7 @@
 "use client";
 
+import { SETTINGS_CLOUD_APPLIED_EVENT } from "@/lib/sync/settingsSyncStatus";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import {
@@ -43,7 +45,7 @@ export function useMeetingDeletionTombstonesPreference() {
               )
             : workspaceState;
           setTombstonesState(next, setTombstones, tombstonesRef);
-          if (locallyEditedRef.current) {
+          if (locallyEditedRef.current && JSON.stringify(next) !== JSON.stringify(workspaceState)) {
             void persistMeetingDeletionTombstonesPreference(
               next,
               "merge-cloud-and-local-meeting-deletion-tombstones"
@@ -73,8 +75,11 @@ export function useMeetingDeletionTombstonesPreference() {
     }
 
     void loadMeetingDeletionTombstones();
+    const handleCloudSettings = () => void loadMeetingDeletionTombstones();
+    window.addEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
     return () => {
       cancelled = true;
+      window.removeEventListener(SETTINGS_CLOUD_APPLIED_EVENT, handleCloudSettings);
     };
   }, []);
 

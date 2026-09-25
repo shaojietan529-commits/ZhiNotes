@@ -4350,7 +4350,8 @@ export async function markDatabaseSyncLogEntriesFailed(
 }
 
 export async function markWorkspaceSettingSyncLogEntriesSynced(
-  keys: string[]
+  keys: string[],
+  maxLogId = Number.MAX_SAFE_INTEGER
 ): Promise<number> {
   const db = await getDb();
   const uniqueKeys = Array.from(
@@ -4368,8 +4369,8 @@ export async function markWorkspaceSettingSyncLogEntriesSynced(
        FROM sync_log
        WHERE table_name = 'workspace_settings'
          AND row_id IN (${placeholders})
-         AND synced = 0`,
-      chunk
+         AND synced = 0 AND id <= ?`,
+      [...chunk, maxLogId]
     );
     db.run(
       `UPDATE sync_log
@@ -4380,8 +4381,8 @@ export async function markWorkspaceSettingSyncLogEntriesSynced(
            last_error = NULL
        WHERE table_name = 'workspace_settings'
          AND row_id IN (${placeholders})
-         AND synced = 0`,
-      [nowISO(), ...chunk]
+         AND synced = 0 AND id <= ?`,
+      [nowISO(), ...chunk, maxLogId]
     );
     marked += Number(beforeRows[0]?.count ?? 0);
   }
@@ -4499,9 +4500,10 @@ export async function hasPendingWorkspaceSettingSyncLogEntry(
 }
 
 export async function markAccountSettingSyncLogEntriesSynced(
-  keys: string[]
+  keys: string[],
+  maxLogId = Number.MAX_SAFE_INTEGER
 ): Promise<number> {
-  return markNamedSettingSyncLogEntriesSynced("account_settings", keys);
+  return markNamedSettingSyncLogEntriesSynced("account_settings", keys, maxLogId);
 }
 
 export async function markAccountSettingSyncLogEntriesAttempted(
@@ -4525,9 +4527,10 @@ export async function markAccountSettingSyncLogEntriesFailed(
 }
 
 export async function markModuleSettingSyncLogEntriesSynced(
-  rowIds: string[]
+  rowIds: string[],
+  maxLogId = Number.MAX_SAFE_INTEGER
 ): Promise<number> {
-  return markNamedSettingSyncLogEntriesSynced("module_settings", rowIds);
+  return markNamedSettingSyncLogEntriesSynced("module_settings", rowIds, maxLogId);
 }
 
 export async function markModuleSettingSyncLogEntriesAttempted(
@@ -4574,7 +4577,8 @@ type NamedSettingSyncTable = "account_settings" | "module_settings";
 
 async function markNamedSettingSyncLogEntriesSynced(
   tableName: NamedSettingSyncTable,
-  rowIds: string[]
+  rowIds: string[],
+  maxLogId: number
 ): Promise<number> {
   const db = await getDb();
   const uniqueRowIds = normalizeSettingSyncRowIds(rowIds);
@@ -4590,8 +4594,8 @@ async function markNamedSettingSyncLogEntriesSynced(
        FROM sync_log
        WHERE table_name = ?
          AND row_id IN (${placeholders})
-         AND synced = 0`,
-      [tableName, ...chunk]
+         AND synced = 0 AND id <= ?`,
+      [tableName, ...chunk, maxLogId]
     );
     db.run(
       `UPDATE sync_log
@@ -4602,8 +4606,8 @@ async function markNamedSettingSyncLogEntriesSynced(
            last_error = NULL
        WHERE table_name = ?
          AND row_id IN (${placeholders})
-         AND synced = 0`,
-      [nowISO(), tableName, ...chunk]
+         AND synced = 0 AND id <= ?`,
+      [nowISO(), tableName, ...chunk, maxLogId]
     );
     marked += Number(beforeRows[0]?.count ?? 0);
   }

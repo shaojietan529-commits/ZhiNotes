@@ -54,6 +54,8 @@ const EMPTY_CLOUD_DATABASE_ACK_MESSAGE =
   "云端没有返回任何数据库 ACK，已保留本地待上传状态并稍后重试。";
 const PARTIAL_CLOUD_DATABASE_ACK_MESSAGE =
   "云端只确认了部分数据库记录，未确认的记录已保留在 pending queue 并稍后重试。";
+const MISSING_PENDING_CLOUD_DATABASE_MESSAGE =
+  "待上传的本地数据库记录暂时不可用；已保留待上传标记，等待恢复后重试。";
 
 let queuedCloudDatabasePush = new Map<string, CloudDatabaseRecord>();
 let queuedCloudDatabasePushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1681,12 +1683,19 @@ function markPendingCloudDatabasePushFailedRecords(
   status: DatabaseSyncStatus,
   message?: string
 ): void {
+  markPendingCloudDatabasePushFailedKeys(records.map(getRemoteDatabaseRecordKey), status, message);
+}
+
+function markPendingCloudDatabasePushFailedKeys(
+  keys: string[],
+  status: DatabaseSyncStatus,
+  message?: string
+): void {
   const failedAt = new Date().toISOString();
   const meta = getPendingCloudDatabasePushMeta();
   const next: PendingCloudDatabasePushMeta = { ...meta };
   const reason = normalizePendingCloudDatabasePushError(status, message);
-  for (const record of records) {
-    const key = getRemoteDatabaseRecordKey(record);
+  for (const key of keys) {
     const previous = meta[key];
     if (!isValidRecordKey(key)) continue;
     next[key] = {
@@ -1695,7 +1704,7 @@ function markPendingCloudDatabasePushFailedRecords(
       lastAttemptAt: failedAt,
       lastFailureAt: failedAt,
       lastError: reason,
-      failureCount: Math.min((previous.failureCount ?? 0) + 1, 999),
+      failureCount: Math.min((previous?.failureCount ?? 0) + 1, 999),
     };
   }
   setPendingCloudDatabasePushMeta(next);
@@ -1797,7 +1806,14 @@ export async function flushPendingCloudDatabasePushes(
   const records = await getDatabaseRecordsForSyncByKeys(retryableKeys);
   const foundKeys = new Set(records.map(getRemoteDatabaseRecordKey));
   const missingKeys = retryableKeys.filter((key) => !foundKeys.has(key));
-  clearPendingCloudDatabasePushKeys(missingKeys);
+  // A missing local row is not an ACK. Retain it for retry while allowing
+  // unrelated records and cloud pulls to make progress.
+  if (missingKeys.length > 0) {
+    markPendingCloudDatabasePushFailedKeys(
+      missingKeys, "error", MISSING_PENDING_CLOUD_DATABASE_MESSAGE
+    );
+    emitDatabaseSyncStatusChanged();
+  }
   if (records.length === 0) {
     recordDatabaseSyncOutcome({
       status: "ok",
@@ -1805,8 +1821,9 @@ export async function flushPendingCloudDatabasePushes(
       pulled: 0,
       pushed: 0,
       accepted: 0,
-      skipped: missingKeys.length,
+      skipped: 0,
       pendingAfter: getPendingCloudDatabasePushKeys().length,
+      message: missingKeys.length > 0 ? MISSING_PENDING_CLOUD_DATABASE_MESSAGE : undefined,
     });
     return {
       status: "ok",
@@ -1814,14 +1831,15 @@ export async function flushPendingCloudDatabasePushes(
       skipped: 0,
       total: retryableKeys.length,
       acceptedKeys: [],
-      skippedKeys: missingKeys,
+      skippedKeys: [],
+      message: missingKeys.length > 0 ? MISSING_PENDING_CLOUD_DATABASE_MESSAGE : undefined,
     };
   }
   const result = await pushCloudDatabaseRecordsInBatches(records);
   const next = {
     ...result,
     total: keys.length,
-    skippedKeys: [...(result.skippedKeys ?? []), ...missingKeys],
+    skippedKeys: result.skippedKeys ?? [],
   };
   recordDatabaseSyncOutcome({
     status: next.status,

@@ -87,6 +87,8 @@ const EMPTY_CLOUD_PAGE_ACK_MESSAGE =
   "云端没有返回任何页面 ACK，已保留本地待上传状态并稍后重试。";
 const PARTIAL_CLOUD_PAGE_ACK_MESSAGE =
   "云端只确认了部分页面记录，未确认的记录已保留在 pending queue 并稍后重试。";
+const MISSING_PENDING_CLOUD_PAGE_MESSAGE =
+  "待上传的本地页面记录暂时不可用；已保留待上传标记，等待恢复后重试。";
 const PAGE_SYNC_STATUS_ENRICH_DELAY_MS = 80;
 let queuedCloudPush = new Map<string, RemotePageRecord>();
 let queuedCloudPushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1297,7 +1299,8 @@ export async function pushCloudPages(
       message: EMPTY_CLOUD_PAGE_ACK_MESSAGE,
     };
   }
-  applyPageCloudAckReceipt(ack);
+  // An upload receipt does not prove that this device has downloaded changes
+  // from other devices. Only a completed pull may advance the download cursor.
   const acknowledgedIds = [...accepted, ...skipped];
   if (records.length > 0 && acknowledgedIds.length === 0) {
     markPendingCloudPushFailedRecords(
@@ -1763,13 +1766,22 @@ async function flushPendingCloudPushes(
       missing.push(id);
     }
   }
-  clearPendingCloudPushIds([...missing, ...evicted]);
+  // Missing/evicted cache rows are not cloud acknowledgements. Keep them in
+  // the queue, but let other uploads and cloud pulls continue recovering data.
+  const unavailableIds = [...missing, ...evicted];
+  if (unavailableIds.length > 0) {
+    markPendingCloudPushFailedIds(
+      unavailableIds, "error", MISSING_PENDING_CLOUD_PAGE_MESSAGE
+    );
+    emitPageSyncStatusChanged();
+  }
   if (records.length === 0) {
     return {
       status: "ok",
       pushed: 0,
       skipped: 0,
       pending: getPendingCloudPushIds().length,
+      message: unavailableIds.length > 0 ? MISSING_PENDING_CLOUD_PAGE_MESSAGE : undefined,
     };
   }
 
@@ -2078,12 +2090,6 @@ function normalizePageCloudAckReceipt(
       reads_file_bytes: false,
     },
   };
-}
-
-function applyPageCloudAckReceipt(ack: PageCloudAckReceipt | null): void {
-  if (!ack) return;
-  setRemoteWatermark(ack.remote_watermark);
-  setRemoteCursor(ack.remote_cursor);
 }
 
 function pageCloudAckConfirmsPush(
@@ -2653,14 +2659,22 @@ function markPendingCloudPushFailedRecords(
   status: PageSyncStatus,
   message?: string
 ): void {
+  markPendingCloudPushFailedIds(records.map((record) => record.id), status, message);
+}
+
+function markPendingCloudPushFailedIds(
+  ids: string[],
+  status: PageSyncStatus,
+  message?: string
+): void {
   const failedAt = new Date().toISOString();
   const meta = getPendingCloudPushMeta();
   const next: PendingCloudPushMeta = { ...meta };
   const reason = normalizePendingCloudPushError(status, message);
-  for (const record of records) {
-    if (!isValidRemotePageId(record.id)) continue;
-    const previous = meta[record.id];
-    next[record.id] = {
+  for (const id of ids) {
+    if (!isValidRemotePageId(id)) continue;
+    const previous = meta[id];
+    next[id] = {
       ...previous,
       queuedAt: previous?.queuedAt ?? failedAt,
       lastAttemptAt: failedAt,
