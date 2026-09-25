@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Private local artifacts and downloaded test tools are not project source.
+    ".local/**",
     // The Chrome extension is a standalone browser-extension bundle with its
     // own runtime (chrome.* APIs); it is not part of the Next.js app.
     "chrome-extension/**",
