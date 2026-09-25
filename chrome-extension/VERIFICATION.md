@@ -58,10 +58,21 @@ test. It does not exercise Chrome activeTab permission or a deployed API.
 - The supplied Comein page is accessible in normal Chrome. The installed old
   extension still selected a video playback clock rather than the meeting time.
 - The new 0.1.1 unpacked directory must be reloaded in Chrome before repeating
-  this real-page test. The app must also deploy the matching parser/API changes.
-- Vercel connector authentication has expired; production deployment must be
-  independently checked after the Git push. A successful build is not proof
-  that `zhi-note.com` is serving the new version.
+  this real-page test. The user has been asked to refresh the installed copy.
+- The initial production deployment of `f00d4a3` failed during dependency install:
+  pnpm 11 no longer recognizes `ignoredBuiltDependencies`. Separate commit
+  `955d158` migrates the two existing denials to `allowBuilds: false`, preserving
+  the script restrictions without changing dependency versions.
+- Production deployment `8XmRavPkFShYkgb5XT16G5rZsHEL` for `955d158` is Ready,
+  verified in the authenticated Chrome Vercel dashboard and GitHub status.
+  The Vercel connector itself needed reauthentication, so it was not used as
+  deployment evidence.
+- A synthetic, non-writing POST to the real `zhi-note.com/api/meetings/intake`
+  returned HTTP 200 with edited topic/platform/end time and blank organizer
+  preserved, `calendarWriteStatus: not_started` and
+  `fetchedPageReadStatus: not_started`. A malformed reviewed envelope returned
+  HTTP 400 with `meeting_intake_invalid_review`. This proves the matching API
+  is live; it is not a calendar import or synchronization acceptance test.
 - ZhiHui autofill/green notice, final manual import and same-account cross-browser
   synchronization remain live acceptance gates. No automatic import was made.
 - Same-origin iframe and waiting behavior are verified with synthetic fixtures;
