@@ -1411,9 +1411,13 @@ check(
     pushCloudPagesBody.includes("normalizePageCloudAckReceipt(res.json.ack)") &&
     pushCloudPagesBody.includes("...toPageCloudAckOutcomeFields(ack)") &&
     pushCloudPagesBody.includes("const acknowledgedIds = [...accepted, ...skipped]") &&
-    pushCloudPagesBody.includes("clearPendingCloudPushIds(acknowledgedIds)") &&
+    pushCloudPagesBody.includes("clearPendingCloudPushIds(current.filter") &&
+    pushCloudPagesBody.includes("snapshotEntries.filter((entry) => acknowledgedSet.has(entry.pageId))") &&
+    pushCloudPagesBody.indexOf("const snapshot = await getPendingPageSyncRecords(") <
+      pushCloudPagesBody.indexOf('const res = await call({ action: "push"') &&
+    pushCloudPagesBody.includes("sent === JSON.stringify(toRecord(page))") &&
     pushCloudPagesBody.includes("if (acknowledgedIds.length > 0) setLastPageSyncAtNow();"),
-  "直接 pushCloudPages 必须先登记 pending id，再尝试云端上传；成功或被远端跳过后才清理 pending，并保存 metadata-only 云端 ACK 回执"
+  "直接 pushCloudPages 必须先登记 pending 并捕获发送版本；ACK 只能清理该快照日志及仍匹配发送版本的 ID，不能清除后续编辑"
 );
 check(
   pageSyncClient.includes("export interface PageCloudAckReceipt") &&
@@ -1436,8 +1440,9 @@ check(
 );
 check(
   pageSyncClient.includes("void pushCloudRecordsInBatches(batch)") &&
-    pageSyncClient.includes("clearPendingCloudPushIds([...result.accepted, ...result.skipped])"),
-  "页面同步客户端的防抖上传成功或被远端跳过后应清理待上传 id"
+    !pageSyncClient.includes("clearPendingCloudPushIds([...result.accepted, ...result.skipped])") &&
+    !pageSyncClient.includes("markAcknowledgedPageSyncIds"),
+  "防抖批次必须复用逐请求版本校验，不能在 ACK 后重新按 ID 清空后来写入的队列或日志"
 );
 check(
   pageSyncClient.includes("const pendingPush = await flushPendingCloudPushes({") &&
