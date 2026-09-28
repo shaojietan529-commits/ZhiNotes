@@ -1,5 +1,38 @@
 # Stage 1: portfolio acknowledgements and concurrent writes
 
+## Published New-Position Tag Failure (2026-09-28)
+
+The current public `/portfolio` HTML identifies deployment
+`dpl_BJNK2gatYZ6K7ULpdBvA6vkYUcHz`. Its public client bundles still use the v1
+portfolio receipt and unscoped localStorage keys, not the version-bound local
+implementation below. Deployment metadata through the Vercel connector requires
+reauthentication; no deployed Git SHA was confirmed.
+
+`scripts/portfolio-tag-handoff.browser.test.mjs` reproduces a specific user-facing
+failure with the published UI: while the initial upload reply is delayed, enter
+a label for a new position. Device A displays that label and "synced", but the
+simulated server still has no label and a fresh, independent device B displays
+"unclassified". The startup sync-ready gate skips queueing the intervening edit;
+the earlier upload completion does not schedule it. This is a reproduced client
+failure, not a claim to have inspected the owner's actual server holdings.
+
+The same check against the current local production build passes: one upload,
+the expected label on both clients, and the label retained after device B reloads.
+Both runs have zero page errors. Each device is a separate fresh Chrome context;
+every API is intercepted, email/AI APIs are refused, and only public UI assets can
+leave the browser. No production session, holdings or cloud writes are used.
+
+Run with `PLAYWRIGHT_MODULE=/path/to/playwright node --test
+scripts/portfolio-tag-handoff.browser.test.mjs` against loopback port 3007.
+Optional `PORTFOLIO_TEST_URL=https://zhi-note.com PORTFOLIO_PUBLIC_ASSETS=1`
+reads the published UI with the same synthetic API boundary. Failure there is an
+intentional regression signal until the client is fixed and released.
+
+This check does not close the native-storage concurrency gate below, authorize a
+cache migration, or constitute a production/physical-two-device acceptance.
+Only this regression and evidence were added on September 28; no app fix was
+deployed in this diagnostic pass.
+
 ## Native Redis Write Verification (2026-09-26)
 
 An independent server fix now handles replay of the *same EVAL request* after
