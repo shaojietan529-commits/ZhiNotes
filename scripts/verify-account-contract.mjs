@@ -864,7 +864,9 @@ check(
 check(
   board.includes("useSyncExternalStore(subscribePortfolioAccount, portfolioScopeSnapshot") &&
     board.includes("!isAccountSessionStorageKey(event.key) && event.key !== null") &&
-    board.includes("<ScopedPortfolioBoard key={scope} scope={scope}") &&
+    board.includes("<PortfolioStorageGate key={scope} scope={scope}") &&
+    board.includes("hydratePortfolioStorage(scope)") &&
+    board.includes("<ScopedPortfolioBoard scope={scope}") &&
     board.includes("fetchAccountSession({ force: true })") &&
     board.includes('window.addEventListener("storage", storage)') &&
     board.includes('window.removeEventListener("storage", storage)') &&
