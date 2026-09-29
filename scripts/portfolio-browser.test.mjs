@@ -23,11 +23,28 @@ const initial = {
 
 async function installPortfolioStorageProbe(context) {
   await context.addInitScript(() => {
-    window.readSyntheticPortfolio = (prefix, suffix) => {
-      const state = localStorage.getItem(`${prefix}state.v2`);
-      return state === null ? localStorage.getItem(`${prefix}${suffix}`)
-        : JSON.parse(state).values[`zhinote.portfolio.${suffix}`];
+    window.syntheticPortfolioRecord = async (prefix, edit) => {
+      const scope = decodeURIComponent(prefix.slice("zhinote.portfolio.scoped.v1.".length, -1));
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open("zhinote-portfolio", 1);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try { return await new Promise((resolve, reject) => {
+        const tx = db.transaction("accounts", edit ? "readwrite" : "readonly");
+        const store = tx.objectStore("accounts");
+        const request = store.get(scope);
+        let record;
+        request.onsuccess = () => {
+          record = request.result;
+          if (edit) { edit(record); record.revision++; store.put(record, scope); }
+        };
+        tx.oncomplete = () => resolve(record);
+        tx.onabort = () => reject(tx.error);
+      }); } finally { db.close(); }
     };
+    window.readSyntheticPortfolio = async (prefix, suffix) =>
+      (await window.syntheticPortfolioRecord(prefix))?.values[`zhinote.portfolio.${suffix}`] ?? null;
   });
 }
 
@@ -102,21 +119,21 @@ test("portfolio UI: instant editing, late ACK, interrupted-save recovery, and no
       await input.press("Enter");
       assert.equal(await tag.textContent(), value);
     }
-    await page.evaluate((prefix) => {
+    await page.evaluate(() => {
       window.syntheticFailPortfolioSave = true;
-      const setItem = Storage.prototype.setItem;
-      Storage.prototype.setItem = function (key, value) {
-        if (window.syntheticFailPortfolioSave && key === `${prefix}state.v2`) throw new DOMException("Synthetic full storage", "QuotaExceededError");
-        return setItem.call(this, key, value);
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (...args) {
+        if (window.syntheticFailPortfolioSave && this.name === "accounts") throw new DOMException("Synthetic full storage", "QuotaExceededError");
+        return put.apply(this, args);
       };
-    }, scopedPrefix);
+    });
     await tag.click();
     const failedInput = page.locator('input[list="zhinote-portfolio-tags"]');
     await failedInput.fill("first edit");
     await failedInput.press("Enter");
     await page.getByText(/本次修改未保存/).waitFor();
     assert.equal(await failedInput.inputValue(), "first edit", "failed saves keep the editor draft available for retry");
-    assert.equal(await page.evaluate((prefix) => JSON.parse(window.readSyntheticPortfolio(prefix, "tags.v1"))["SAMPLE US"], scopedPrefix), "original");
+    assert.equal(await page.evaluate(async (prefix) => JSON.parse(await window.readSyntheticPortfolio(prefix, "tags.v1"))["SAMPLE US"], scopedPrefix), "original");
     assert.equal(uploads.length, 0);
     await page.evaluate(() => { window.syntheticFailPortfolioSave = false; });
     await failedInput.press("Enter");
@@ -126,12 +143,12 @@ test("portfolio UI: instant editing, late ACK, interrupted-save recovery, and no
     // A focus-triggered pull may return newer remote data, but cannot replace pending input.
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await held.shift()();
-    await page.waitForFunction((prefix) => JSON.parse(window.readSyntheticPortfolio(prefix, "sync.status.v1"))?.pending === 1, scopedPrefix);
+    await waitForAsync(page, async (prefix) => JSON.parse(await window.readSyntheticPortfolio(prefix, "sync.status.v1"))?.pending === 1, scopedPrefix);
     assert.equal(await tag.textContent(), "newer edit");
     holdUploads = false;
     // A second debounce may have fired before the first reply; the queue must retry regardless.
     for (const reply of held.splice(0)) await reply();
-    await page.waitForFunction((prefix) => JSON.parse(window.readSyntheticPortfolio(prefix, "sync.status.v1"))?.queueState === "synced", scopedPrefix, { timeout: 20000 });
+    await waitForAsync(page, async (prefix) => JSON.parse(await window.readSyntheticPortfolio(prefix, "sync.status.v1"))?.queueState === "synced", scopedPrefix, { timeout: 20000 });
     assert.equal(cloud.tagMap["SAMPLE US"], "newer edit");
     assert.equal(uploads.length, 2);
     await page.evaluate(() => {
@@ -147,7 +164,7 @@ test("portfolio UI: instant editing, late ACK, interrupted-save recovery, and no
     // The confirmed server revision wins even when another device's clock is behind.
     cloud = { ...cloud, tagMap: {}, updatedAt: "2020-01-01T00:00:00.000Z" };
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-    await page.waitForFunction((prefix) => Object.keys(JSON.parse(window.readSyntheticPortfolio(prefix, "tags.v1"))).length === 0, scopedPrefix);
+    await waitForAsync(page, async (prefix) => Object.keys(JSON.parse(await window.readSyntheticPortfolio(prefix, "tags.v1"))).length === 0, scopedPrefix);
     assert.equal(await tag.textContent(), "未分类");
     assert.equal(uploads.length, 2, "remote deletion must not be unioned back or uploaded again");
     holdUploads = true;
@@ -158,12 +175,13 @@ test("portfolio UI: instant editing, late ACK, interrupted-save recovery, and no
     assert.equal(await tag.textContent(), "saved before reload");
     await until(() => uploads.length === 3);
     assert.equal(uploads[2].tagMap["SAMPLE US"], "saved before reload");
-    await page.waitForFunction((prefix) => JSON.parse(window.readSyntheticPortfolio(prefix, "sync.status.v1"))?.queueState === "manual_review", scopedPrefix);
+    await waitForAsync(page, async (prefix) => JSON.parse(await window.readSyntheticPortfolio(prefix, "sync.status.v1"))?.queueState === "manual_review", scopedPrefix);
     assert.equal(await tag.textContent(), "saved before reload");
     assert.equal(cloud.tagMap["SAMPLE US"], "another device");
-    const backup = await page.evaluate((prefix) => {
-      const key = Object.keys(localStorage).find((key) => key.startsWith(`${prefix}conflict.v2`));
-      return key ? JSON.parse(localStorage.getItem(key)) : null;
+    const backup = await page.evaluate(async (prefix) => {
+      const values = (await window.syntheticPortfolioRecord(prefix)).values;
+      const key = Object.keys(values).find((key) => key.startsWith("zhinote.portfolio.conflict.v2"));
+      return key ? JSON.parse(values[key]) : null;
     }, scopedPrefix);
     assert.equal(backup.local.tagMap["SAMPLE US"], "saved before reload");
     assert.equal(backup.cloud.tagMap["SAMPLE US"], "another device");
@@ -208,34 +226,32 @@ test("portfolio UI: instant editing, late ACK, interrupted-save recovery, and no
     await editTag("before interrupted save");
     cloud = { ...cloud, allocation: 300, tagMap: { "SAMPLE US": "remote recovery" } };
     await until(() => uploads.length === 6);
-    await page.waitForFunction((prefix) => JSON.parse(window.readSyntheticPortfolio(prefix, "sync.status.v1"))?.queueState === "manual_review", scopedPrefix);
+    await waitForAsync(page, async (prefix) => JSON.parse(await window.readSyntheticPortfolio(prefix, "sync.status.v1"))?.queueState === "manual_review", scopedPrefix);
     await page.getByRole("button", { name: "处理同步冲突", exact: true }).click();
     await dialog.getByText("资金规模", { exact: true }).waitFor();
     await dialog.getByRole("button", { name: "全部选云端" }).click();
     await dialog.getByRole("button", { name: "确认并同步" }).click();
     await until(() => held.length === 1);
-    await page.evaluate((prefix) => {
-      const setItem = Storage.prototype.setItem;
-      Storage.prototype.setItem = function (key, value) {
-        if (key === `${prefix}state.v2` && JSON.parse(value).values["zhinote.portfolio.allocation.v1"] === "300") throw new DOMException("Synthetic interrupted write", "QuotaExceededError");
-        return setItem.call(this, key, value);
+    await page.evaluate(() => {
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (value, key) {
+        if (this.name === "accounts" && value.values["zhinote.portfolio.allocation.v1"] === "300") throw new DOMException("Synthetic interrupted write", "QuotaExceededError");
+        return put.call(this, value, key);
       };
-    }, scopedPrefix);
+    });
     await held.shift()();
     await dialog.getByRole("alert").waitFor();
-    assert.equal(await page.evaluate((prefix) => JSON.parse(window.readSyntheticPortfolio(prefix, "sync.resolution.v1.account")).state, scopedPrefix), "queued");
-    assert.equal(await page.evaluate((prefix) => window.readSyntheticPortfolio(prefix, "allocation.v1"), scopedPrefix), "250");
+    assert.equal(await page.evaluate(async (prefix) => JSON.parse(await window.readSyntheticPortfolio(prefix, "sync.resolution.v1.account")).state, scopedPrefix), "queued");
+    assert.equal(await page.evaluate(async (prefix) => window.readSyntheticPortfolio(prefix, "allocation.v1"), scopedPrefix), "250");
     // Simulate an interrupted journal from an older release. Atomic commits
     // cannot create a partially applied portfolio, but must still recover it.
-    await page.evaluate((prefix) => {
-      const record = JSON.parse(localStorage.getItem(`${prefix}state.v2`));
+    await page.evaluate(async (prefix) => window.syntheticPortfolioRecord(prefix, (record) => {
       const key = "zhinote.portfolio.sync.resolution.v1.account";
       const journal = JSON.parse(record.values[key]);
       journal.state = "applying";
       record.values[key] = JSON.stringify(journal);
       record.values["zhinote.portfolio.tags.v1"] = JSON.stringify(journal.data.tagMap);
-      localStorage.setItem(`${prefix}state.v2`, JSON.stringify(record));
-    }, scopedPrefix);
+    }), scopedPrefix);
     await page.reload();
     await page.getByRole("button", { name: "处理同步冲突", exact: true }).click();
     await dialog.getByRole("button", { name: "全部选保存前" }).waitFor();
@@ -261,26 +277,23 @@ test("portfolio UI: instant editing, late ACK, interrupted-save recovery, and no
     assert.equal(await tag.textContent(), "before interrupted save");
     assert.equal(uploads.length, afterRecovery);
 
-    await page.evaluate((prefix) => {
-      const key = `${prefix}state.v2`, oldValue = localStorage.getItem(key);
-      const record = JSON.parse(oldValue);
-      record.values["zhinote.portfolio.sync.status.v1"] = "synthetic broken queue";
-      const newValue = JSON.stringify(record);
-      localStorage.setItem(key, newValue);
-      window.dispatchEvent(new StorageEvent("storage", { key, oldValue, newValue }));
+    await page.evaluate(async (prefix) => {
+      await window.syntheticPortfolioRecord(prefix, (record) => {
+        record.values["zhinote.portfolio.sync.status.v1"] = "synthetic broken queue";
+      });
       window.dispatchEvent(new Event("focus"));
     }, scopedPrefix);
     await page.getByRole("button", { name: "处理同步冲突", exact: true }).click();
     await dialog.getByText("内容已一致，等待云端确认。", { exact: true }).waitFor();
     await page.keyboard.press("Escape");
-    assert.equal(await page.evaluate((prefix) => window.readSyntheticPortfolio(prefix, "sync.status.v1"), scopedPrefix), "synthetic broken queue", "opening/cancelling review must retain raw damaged state");
+    assert.equal(await page.evaluate(async (prefix) => window.readSyntheticPortfolio(prefix, "sync.status.v1"), scopedPrefix), "synthetic broken queue", "opening/cancelling review must retain raw damaged state");
     assert.equal(uploads.length, afterRecovery);
     await page.getByRole("button", { name: "处理同步冲突", exact: true }).click();
     await dialog.getByText("内容已一致，等待云端确认。", { exact: true }).waitFor();
     await dialog.getByRole("button", { name: "确认并同步" }).click();
     await until(() => held.length === 1);
-    assert.equal(await page.evaluate((prefix) => Object.keys(localStorage).some((key) =>
-      key.startsWith(`${prefix}conflict.review.v1.`) && JSON.parse(localStorage.getItem(key)).review?.queueSnapshot === "synthetic broken queue"), scopedPrefix), true);
+    assert.equal(await page.evaluate(async (prefix) => Object.entries((await window.syntheticPortfolioRecord(prefix)).values).some(([key, value]) =>
+      key.startsWith("zhinote.portfolio.conflict.review.v1.") && JSON.parse(value).review?.queueSnapshot === "synthetic broken queue"), scopedPrefix), true);
     assert.equal(await tag.textContent(), "before interrupted save");
     await held.shift()();
     await dialog.waitFor({ state: "hidden" });
@@ -351,7 +364,7 @@ test("portfolio UI: account A/B/A, delayed ACK and explicit legacy ownership rev
     await synced.waitFor();
     assert.equal(await tag.textContent(), "account-a");
     assert.equal(uploads.length, 0, "unowned legacy data must not be adopted automatically");
-    const status = (id) => page.evaluate((id) => JSON.parse(window.readSyntheticPortfolio(`zhinote.portfolio.scoped.v1.${encodeURIComponent(`account:${id}`)}.`, "sync.status.v1")), id);
+    const status = (id) => page.evaluate(async (id) => JSON.parse(await window.readSyntheticPortfolio(`zhinote.portfolio.scoped.v1.${encodeURIComponent(`account:${id}`)}.`, "sync.status.v1")), id);
     async function edit(value) {
       await tag.click();
       const input = page.locator('input[list="zhinote-portfolio-tags"]');
@@ -557,11 +570,11 @@ for (const mode of ["account", "passcode"]) {
         const text = `confirmed edit ${lateStatus}`;
         await edit(text); await synced.waitFor();
         assert.equal(cloud.tagMap["SAMPLE US"], text);
-        const saved = await page.evaluate((prefix) => localStorage.getItem(`${prefix}state.v2`), prefix);
+        const saved = await page.evaluate(async (prefix) => JSON.stringify((await window.syntheticPortfolioRecord(prefix)).values), prefix);
         await release(lateStatus);
         assert.equal(await tag.textContent(), text, "a cleared queue is not permission to apply a pre-edit response");
         assert.equal(await synced.count(), 1, "a late failure cannot regress confirmed status");
-        assert.equal(await page.evaluate((prefix) => localStorage.getItem(`${prefix}state.v2`), prefix), saved);
+        assert.equal(await page.evaluate(async (prefix) => JSON.stringify((await window.syntheticPortfolioRecord(prefix)).values), prefix), saved);
       }
 
       // A real second browser tab shares localStorage, not the first tab's refs.
@@ -573,6 +586,8 @@ for (const mode of ["account", "passcode"]) {
       await second.getByTitle("点击修改标签", { exact: true }).click();
       const secondInput = second.locator('input[list="zhinote-portfolio-tags"]');
       await secondInput.fill("confirmed in another tab"); await secondInput.press("Enter");
+      await waitForAsync(second, async (prefix) => JSON.parse(await window.readSyntheticPortfolio(prefix, "tags.v1"))["SAMPLE US"] === "confirmed in another tab" &&
+        JSON.parse(await window.readSyntheticPortfolio(prefix, "sync.status.v1")).pending === 0, prefix);
       await second.getByRole("button", { name: /已同步/ }).waitFor();
       await expectTag("confirmed in another tab");
       await release();
@@ -595,10 +610,116 @@ for (const mode of ["account", "passcode"]) {
   });
 }
 
+test("portfolio native locks: queued tabs merge independent edits, retain competing drafts, and never lock across upload", { timeout: 90000 }, async () => {
+  const browser = await chromium.launch({ headless: true,
+    ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+  try {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    await installPortfolioStorageProbe(context);
+    const lockName = "zhinote.portfolio.write.v1.account%3Asynthetic";
+    let cloud = structuredClone(initial), holdUploads = true;
+    const held = [], errors = [];
+    await context.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.origin !== new URL(base).origin) return route.abort();
+      const json = (body, status = 200) => route.fulfill({ status, json: { accountId: "synthetic", ...body } });
+      if (url.pathname === "/api/account/me") return json({ authenticated: true, account: {
+        id: "synthetic", email_hint: "s***@example.invalid", display_name: "Synthetic", createdAt: now,
+      } });
+      if (url.pathname === "/api/portfolio/account-sync") {
+        const body = route.request().postDataJSON();
+        if (body.action === "pull") return json({ data: cloud, version: versionOf(cloud) });
+        if (body.action === "push") {
+          if (body.base?.revision !== versionOf(cloud).revision && JSON.stringify(body.data) !== JSON.stringify(cloud)) {
+            return json({ code: "portfolio-conflict", data: cloud, version: versionOf(cloud) }, 409);
+          }
+          cloud = body.data;
+          const reply = () => json({ tagMap: body.data.tagMap, ack: {
+            format: "zhinote-portfolio-cloud-ack-receipt", format_version: 2,
+            request_id: body.requestId, ...versionOf(body.data), ack_status: "acknowledged",
+            accepted: true, updated_at: body.data.updatedAt,
+          } });
+          if (holdUploads) { held.push(reply); return; }
+          return reply();
+        }
+      }
+      if (url.pathname.startsWith("/api/")) return json({ error: "isolated" }, 501);
+      return route.continue();
+    });
+    const a = await context.newPage(), b = await context.newPage(), keeper = await context.newPage();
+    for (const page of [a, b, keeper]) {
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.goto(`${base}/portfolio`);
+      await page.getByRole("button", { name: "账号已同步" }).waitFor();
+    }
+    const input = (page) => page.locator('input[list="zhinote-portfolio-tags"]');
+    const openTag = async (page, text) => {
+      await page.getByTitle("点击修改标签", { exact: true }).click();
+      await input(page).fill(text);
+    };
+    const waitForData = (tag, allocation) => waitForAsync(a, async ({ prefix, tag, allocation }) =>
+      JSON.parse(await window.readSyntheticPortfolio(prefix, "tags.v1"))["SAMPLE US"] === tag &&
+      Number(await window.readSyntheticPortfolio(prefix, "allocation.v1")) === allocation,
+      { prefix: scopedPrefix, tag, allocation });
+    const takeLock = async () => {
+      await keeper.evaluate((name) => {
+        window.releaseSyntheticLock = null;
+        void navigator.locks.request(name, () => new Promise((resolve) => { window.releaseSyntheticLock = resolve; }));
+      }, lockName);
+      await keeper.waitForFunction(() => Boolean(window.releaseSyntheticLock));
+    };
+    await openTag(a, "tab A label");
+    await b.getByTitle("点击修改 GMV allocation", { exact: true }).click();
+    const allocationInput = b.locator('input[inputmode="decimal"]');
+    await allocationInput.fill("0.0002");
+    await takeLock();
+    await input(a).press("Enter"); await allocationInput.press("Enter");
+    await waitForAsync(keeper, async (name) => (await navigator.locks.query()).pending.filter((item) => item.name === name).length >= 2, lockName);
+    await waitForData("original", 100);
+    assert.equal(await input(a).inputValue(), "tab A label");
+    await keeper.evaluate(() => window.releaseSyntheticLock());
+    await waitForData("tab A label", 200);
+    await until(() => held.length > 0);
+
+    // The upload is still held, yet the local native lock must be available.
+    assert.equal(await a.evaluate((name) => navigator.locks.request(name,
+      { signal: AbortSignal.timeout(3000) }, () => true), lockName), true);
+    await openTag(a, "first local choice");
+    await openTag(b, "competing draft stays here");
+    await takeLock();
+    await input(a).press("Enter"); await input(b).press("Enter");
+    await waitForAsync(keeper, async (name) => (await navigator.locks.query()).pending.filter((item) => item.name === name).length >= 2, lockName);
+    // Closing the lock-owning tab releases the native lock without a custom lease.
+    await keeper.close();
+    await waitForData("first local choice", 200);
+    await b.getByText(/本次修改未保存/).waitFor();
+    assert.equal(await input(b).inputValue(), "competing draft stays here");
+    assert.equal(await b.getByText(/此标签已在另一处修改/).count(), 1);
+    assert.equal(await a.evaluate(async (prefix) => JSON.parse(await window.readSyntheticPortfolio(prefix, "sync.status.v1")).pending, scopedPrefix), 1);
+    await input(b).press("Escape");
+    holdUploads = false;
+    for (const reply of held.splice(0)) await reply();
+    await waitForAsync(a, async (prefix) => JSON.parse(await window.readSyntheticPortfolio(prefix, "sync.status.v1")).pending === 0, scopedPrefix);
+    assert.equal(cloud.tagMap["SAMPLE US"], "first local choice");
+    assert.equal(cloud.allocation, 200);
+    await a.reload(); await a.getByRole("button", { name: "账号已同步" }).waitFor();
+    await waitForData("first local choice", 200);
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); }
+});
+
 async function until(check) {
   const start = Date.now();
   while (!check()) {
     if (Date.now() - start > 20000) throw new Error("Expected synthetic request did not arrive");
     await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
+async function waitForAsync(page, predicate, argument, options = {}) {
+  const deadline = Date.now() + (options.timeout ?? 30000);
+  while (!await page.evaluate(predicate, argument)) {
+    assert.ok(Date.now() < deadline, "Timed out waiting for native storage condition");
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
 }

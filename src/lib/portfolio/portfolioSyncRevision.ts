@@ -78,5 +78,5 @@ export function retainPortfolioConflict(mode: Mode, local: CloudPortfolioData, r
     portfolioStorage(scope).setItem(key, JSON.stringify({ local, cloud: response.data, version, savedAt: new Date().toISOString() }));
   }
   portfolioStorage(scope).setItem(`${PORTFOLIO_ACTIVE_CONFLICT_KEY}.${mode}`, JSON.stringify(version));
-  window.dispatchEvent(new Event(PORTFOLIO_CONFLICT_EVENT));
+  afterPortfolioStorageCommit(scope, () => window.dispatchEvent(new Event(PORTFOLIO_CONFLICT_EVENT)));
 }

@@ -3,7 +3,7 @@
 // cloud copy of the portfolio data.
 
 import type { PortfolioSnapshot, TagMap } from "./positionReport";
-import { assertPortfolioScopeCurrent, getPortfolioStorageScope, portfolioStorage } from "./portfolioStorageScope";
+import { assertPortfolioScopeCurrent, getPortfolioStorageScope, portfolioStorage, withPortfolioStorageLock } from "./portfolioStorageScope";
 import {
   acceptPortfolioCloudVersion, createPortfolioPushGuard, parsePortfolioCloudVersion,
   retainPortfolioConflict, type PortfolioCloudVersion, type PortfolioPushGuard,
@@ -79,12 +79,13 @@ export async function pushCloudData(
   passcode: string,
   data: CloudPortfolioData,
   reviewedVersion?: PortfolioCloudVersion,
-  scope = getPortfolioStorageScope()
+  scope = getPortfolioStorageScope(),
+  capturedGuard?: PortfolioPushGuard
 ): Promise<SyncResult<TagMap | null>> {
   try {
     assertPortfolioScopeCurrent(scope);
     if (scope !== "local") throw new Error("已登录账号不能使用匿名组合的同步密码上传。");
-    const localGuard = createPortfolioPushGuard("passcode", scope);
+    const localGuard = capturedGuard ?? createPortfolioPushGuard("passcode", scope);
     if (reviewedVersion && localGuard.base && reviewedVersion.scope !== localGuard.base.scope) {
       return { status: "error", retryable: false, message: "同步空间已改变，未上传冲突处理结果。" };
     }
@@ -100,12 +101,12 @@ export async function pushCloudData(
     const result = await res.json();
     assertPortfolioScopeCurrent(scope);
     if (!res.ok) {
-      if (res.status === 409 && result.code === "portfolio-conflict") retainPortfolioConflict("passcode", data, result, scope);
+      if (res.status === 409 && result.code === "portfolio-conflict") await withPortfolioStorageLock(scope, () => retainPortfolioConflict("passcode", data, result, scope));
       return { status: "error", message: result.error, retryable: res.status !== 409 && res.status !== 428 };
     }
     if (!portfolioCloudAckConfirmsPush(result.ack, data, guard)) return { status: "error" };
     const version = parsePortfolioCloudVersion(result.ack)!;
-    if (!acceptPortfolioCloudVersion("passcode", localGuard, version, scope)) return { status: "error" };
+    if (!await withPortfolioStorageLock(scope, () => acceptPortfolioCloudVersion("passcode", localGuard, version, scope))) return { status: "error" };
     return {
       status: "ok",
       data: data.tagMap,

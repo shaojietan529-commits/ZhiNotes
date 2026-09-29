@@ -3,13 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import { ACCOUNT_SESSION_CHANGED_EVENT, isAccountSessionStorageKey } from "@/lib/account/clientSession";
-import { portfolioStorageKey, PORTFOLIO_STATE_KEY } from "@/lib/portfolio/portfolioStorageScope";
+import { getPortfolioStorageScope, hydratePortfolioStorage, isPortfolioStorageReady, subscribePortfolioStorage } from "@/lib/portfolio/portfolioStorageScope";
 import {
   drainPendingPortfolioCloudSync,
   getPendingPortfolioCloudSyncStatus,
   PORTFOLIO_SYNC_STATUS_EVENT,
   PORTFOLIO_SYNC_STATUS_PING_STORAGE_KEY,
-  PORTFOLIO_SYNC_STATUS_STORAGE_KEY,
   type DrainPortfolioCloudSyncResult,
   type PortfolioCloudSyncStatus,
 } from "@/lib/portfolio/portfolioSyncStatus";
@@ -104,7 +103,21 @@ export function usePortfolioCloudSyncStatus() {
 
   useEffect(() => {
     mountedRef.current = true;
+    let disposed = false;
+    let subscribedScope: string | null = null;
+    let unsubscribeStorage: (() => void) | undefined;
     const refreshAndMaybeRetry = () => {
+      if (disposed) return;
+      try {
+        const scope = getPortfolioStorageScope();
+        if (subscribedScope !== scope) {
+          unsubscribeStorage?.();
+          subscribedScope = scope;
+          unsubscribeStorage = subscribePortfolioStorage(scope, refreshAndMaybeRetry);
+          void hydratePortfolioStorage(scope).then(refreshAndMaybeRetry).catch(() => refresh());
+        }
+        if (!isPortfolioStorageReady(scope)) return;
+      } catch { refresh(); return; }
       const nextStatus = getPendingPortfolioCloudSyncStatus();
       setStatusIfMounted(nextStatus);
       scheduleAutoRetry(nextStatus, PORTFOLIO_AUTO_RETRY_DELAY_MS);
@@ -124,17 +137,9 @@ export function usePortfolioCloudSyncStatus() {
         refreshAndMaybeRetry();
         return;
       }
-      let statusKey: string;
-      try { statusKey = portfolioStorageKey(PORTFOLIO_SYNC_STATUS_STORAGE_KEY); }
-      catch { refreshAndMaybeRetry(); return; }
-      if (
-        event.key !== statusKey &&
-        event.key !== portfolioStorageKey(PORTFOLIO_STATE_KEY) &&
-        event.key !== PORTFOLIO_SYNC_STATUS_PING_STORAGE_KEY
-      ) {
-        return;
+      if (event.key === PORTFOLIO_SYNC_STATUS_PING_STORAGE_KEY) {
+        try { void hydratePortfolioStorage().then(refreshAndMaybeRetry).catch(refresh); } catch { refresh(); }
       }
-      refreshAndMaybeRetry();
     };
     const handleAccountProfileUpdated = () => refreshAndMaybeRetry();
     refreshAndMaybeRetry();
@@ -149,7 +154,9 @@ export function usePortfolioCloudSyncStatus() {
     );
     document.addEventListener("visibilitychange", handleVisible);
     return () => {
+      disposed = true;
       mountedRef.current = false;
+      unsubscribeStorage?.();
       autoRetryRunningRef.current = false;
       window.clearInterval(interval);
       if (autoRetryTimerRef.current !== null) {

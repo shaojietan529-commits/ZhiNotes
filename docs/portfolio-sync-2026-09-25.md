@@ -1,5 +1,66 @@
 # Stage 1: portfolio acknowledgements and concurrent writes
 
+## Portfolio Local Transactions (2026-09-29)
+
+The owner's "continue" after the narrowly scoped cache decision is applied to
+local implementation only. Portfolio content now uses native IndexedDB
+read/write transactions (`zhinote-portfolio`, `accounts`) instead of relying on
+localStorage freshness after acquiring a Web Lock. No dependency, cloud service,
+account contract, production data or login settings were changed in this pass.
+
+- Content, pending revision, baseline and recovery copies commit together.
+  Success notifications and display snapshots advance only on transaction
+  completion. A successful individual `put` followed by an abort is not a save.
+- Every transaction reads the latest record, rechecks the selected account and
+  protects in-progress edits. Network calls remain outside local transactions.
+  Existing Web Locks are short coordination aids, not the persistence guarantee;
+  native transactions also work when Web Locks are unavailable.
+- First access copies only that account's scoped cache. Old keys are not deleted
+  or rewritten; recovery copies and the raw import source are retained. Anonymous
+  unowned data still needs the existing explicit ownership review. Passcodes are
+  not duplicated into the new record.
+- A delayed write from an old client cannot overwrite the new record on reload.
+  Both the original import snapshot and the later legacy value remain available.
+  Late legacy edits are **not automatically reconciled**: close/reload old tabs
+  during rollout and review differing legacy records before reusing them.
+- Broken/incomplete records, failed open, quota failure, callback exceptions and
+  aborted writes do not become empty successful saves. Local editors retain the
+  draft on failed save. Failed initial storage open has a visible retry action.
+- Cross-tab refresh uses identifiers-only notifications, focus refresh and the
+  existing visible polling interval; content changes, not status pings, trigger
+  uploads. The account-wide sidebar loads the portfolio queue before retrying.
+
+Verification uses synthetic data and intercepted APIs only:
+
+- `npm run test:sync`: 293/293, including 60 portfolio behavior cases. Those
+  deterministic tests use an in-memory backend adapter; they do not by themselves
+  establish native browser durability or cross-tab isolation.
+- `portfolio-local-storage.browser.test.mjs`: 7/7 on both Chrome and Edge cover
+  scoped migration, unchanged originals, abort-after-put, reload/old-client
+  coexistence, 200/200 concurrent updates with and without Web Locks, damaged
+  records, failed open and retry.
+- `portfolio-browser.test.mjs` plus `portfolio-tag-handoff.browser.test.mjs`:
+  7/7 on both Chrome and Edge against the local production build. Independent synthetic devices
+  converge on the new-stock label and retain it after reload; the previously
+  failing three-tab independent-edit case now passes. Desktop/mobile conflict
+  and recovery screenshots were inspected locally.
+- Lint, production build/TypeScript, `verify:account` and
+  `verify:sync-pending-domains` pass. The account contract check follows the new
+  account-keyed storage-loading gate rather than requiring its previous JSX shape.
+
+Run browser checks with `PLAYWRIGHT_MODULE=/path/to/playwright` and
+`PLAYWRIGHT_CHANNEL=chrome` (or `msedge`). App tests use a loopback production
+server on port 3007; storage tests use an entirely intercepted synthetic origin.
+
+**Not deployed.** The Vercel connector still returns `UNAUTHORIZED` and requests
+reauthentication on September 29; no installed Vercel CLI is available. The shared
+branch also contains accumulated changes beyond this fix. Before release, confirm
+the deployed Git SHA, isolate/review the release range, deploy a preview with
+production data writes disabled, then perform owner-approved same-account A/B
+acceptance. Safari/mobile physical devices and managed-cloud writes are not
+covered by the isolated local tests. Do not roll back to a localStorage-only
+client after new-store writes: keep the new reader or enter read-only recovery.
+
 ## Published New-Position Tag Failure (2026-09-28)
 
 The current public `/portfolio` HTML identifies deployment
@@ -73,7 +134,10 @@ This closes the local native-Lua execution gap, not managed Upstash deployment
 verification, disk-failure durability, old-client rollout or real-device
 acceptance. The browser-local concurrency gate below is still unresolved.
 
-## Current Working Tree: Native Storage Gate (2026-09-26)
+## Historical Blocker: Native Storage Gate (2026-09-26)
+
+The following records the earlier blocker. The September 29 section supersedes
+its local implementation status, but does not claim production acceptance.
 
 The local concurrency changes are **not release-ready**. The earlier completed
 checks below describe the preceding checkpoint, not proof that simultaneous
@@ -113,7 +177,7 @@ writers are safe now. Do not push/deploy these working-tree changes as a fix.
   `verify:account` and `verify:sync-pending-domains` pass. The new simultaneous
   writer app test still fails; these green checks do not supersede it.
 
-### Owner Decision Requested
+### Historical Owner Decision Requested
 
 An asynchronous question asks permission to move **only the portfolio local
 cache** to native IndexedDB transactions, retaining old data and leaving the

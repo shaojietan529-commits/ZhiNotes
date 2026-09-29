@@ -21,6 +21,9 @@ class FixedDate extends Date {
 function fixture(storage = new Map()) {
   const requests = [];
   const controls = { failContentRead: false, failReadPrefix: null, gate: "ready", failWritePrefix: null, failWriteIf: null, beforeGate: null };
+  // Existing single-thread behavior cases grant immediately. Contention is
+  // exercised separately in real browser tabs using the native lock manager.
+  const locks = { request: (_name, _options, callback) => Promise.resolve().then(callback) };
   const writes = [], notifications = [];
   const tabStorage = new Map();
   const sessionStorage = {
@@ -29,7 +32,10 @@ function fixture(storage = new Map()) {
     removeItem: (key) => tabStorage.delete(key),
   };
   const modules = new Map();
+  let persistenceFailure;
   const localStorage = {
+    get length() { return storage.size; },
+    key: (index) => [...storage.keys()][index] ?? null,
     getItem(key) {
       if (controls.failReadPrefix && key.startsWith(controls.failReadPrefix)) throw new Error("Synthetic read error");
       if (controls.failContentRead && key.startsWith("zhinote.portfolio.") && !key.includes("sync.")) throw new Error("Synthetic read error");
@@ -43,7 +49,52 @@ function fixture(storage = new Map()) {
     },
     removeItem: (key) => storage.delete(key),
   };
+  // Deterministic in-memory transaction adapter for queue/client unit tests.
+  // Native IndexedDB isolation/abort/upgrade behavior is covered by browser tests.
+  const recordFor = (scope) => {
+    const prefix = `zhinote.portfolio.scoped.v1.${encodeURIComponent(scope)}.`;
+    const state = localStorage.getItem(`${prefix}state.v2`);
+    if (state !== null) JSON.parse(state);
+    const values = Object.fromEntries([
+      "snapshot.v1", "tags.v1", "allocation.v1", "maxNetPct.v1", "lastEmailMessage.v1", "updatedAt.v1",
+      "sync.status.v1", "sync.base.v2.account", "sync.base.v2.passcode",
+      "sync.resolution.v1.account", "sync.resolution.v1.passcode",
+      "sync.conflict.v1.account", "sync.conflict.v1.passcode", "legacy-reviewed.v1",
+    ].map((key) => [`zhinote.portfolio.${key}`, null]));
+    for (const key of storage.keys()) {
+      if (key.startsWith(prefix) && !key.endsWith("state.v2")) {
+        values[`zhinote.portfolio.${key.slice(prefix.length)}`] = localStorage.getItem(key);
+      }
+    }
+    return { format: 1, scope, revision: 1, values, legacySource: {} };
+  };
+  const database = {
+    PORTFOLIO_LOCAL_VALUE_KEYS: Object.keys(recordFor("local").values),
+    cachedPortfolioRecord: recordFor,
+    readPortfolioRecord: async (scope) => recordFor(scope),
+    changePortfolioRecord: (scope, change) => {
+      try {
+        const before = recordFor(scope);
+        const next = change(before);
+        if (next.record !== before) {
+          const prefix = `zhinote.portfolio.scoped.v1.${encodeURIComponent(scope)}.`;
+          const raw = JSON.stringify({ format: 2, values: next.record.values });
+          for (const [name, value] of Object.entries(next.record.values)) {
+            const key = `${prefix}${name.slice("zhinote.portfolio.".length)}`;
+            if (value !== before.values[name] && controls.failWritePrefix && key.startsWith(controls.failWritePrefix)) throw new Error("Synthetic full storage");
+          }
+          localStorage.setItem(`${prefix}state.v2`, raw);
+          for (const [name, value] of Object.entries(next.record.values)) {
+            const key = `${prefix}${name.slice("zhinote.portfolio.".length)}`;
+            if (value === null) storage.delete(key); else storage.set(key, value);
+          }
+        }
+        return Promise.resolve(next.result);
+      } catch (error) { persistenceFailure = error; return Promise.reject(error); }
+    },
+  };
   function load(name, parent = path.join(root, "src/entry.ts")) {
+    if (name.endsWith("/portfolioLocalDatabase")) return database;
     if (name === "@/lib/account/accountCloudSyncGate") {
       return { checkAccountCloudSyncGate: async () => {
         if (controls.beforeGate) await controls.beforeGate();
@@ -61,7 +112,7 @@ function fixture(storage = new Map()) {
     }).outputText);
     vm.runInNewContext(compiled.get(file), {
       exports: loadedModule.exports, module: loadedModule, require: (dependency) => load(dependency, file),
-      Date: FixedDate, crypto: webcrypto, AbortController, setTimeout, clearTimeout, Event,
+      Date: FixedDate, crypto: webcrypto, AbortController, setTimeout, clearTimeout, Event, navigator: { locks },
       CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
       window: { localStorage, sessionStorage, dispatchEvent: (event) => notifications.push(event.type) },
       fetch: async (url, init) => new Promise((resolve, reject) => {
@@ -83,8 +134,44 @@ function fixture(storage = new Map()) {
     }, { filename: file });
     return loadedModule.exports;
   }
-  const store = load("@/lib/portfolio/portfolioStore");
-  const queue = load("@/lib/portfolio/portfolioSyncStatus");
+  const scope = load("@/lib/portfolio/portfolioStorageScope");
+  const mutations = new Set(["batchPortfolioStorage", "commitPortfolioLocalEdit", "markPortfolioCloudSyncPending",
+    "markPortfolioCloudSyncAttempt", "markPortfolioCloudSyncAck", "markPortfolioCloudSyncFailure", "markPortfolioCloudSyncOff",
+    "rememberPortfolioCloudBase", "acceptPortfolioCloudVersion", "retainPortfolioConflict", "clearActivePortfolioConflict",
+    "stagePortfolioConflictResolution", "writePortfolioConflictResolution", "finishPortfolioConflictResolution", "saveLocalPortfolioData"]);
+  let mutationDepth = 0;
+  const mutate = (fn) => {
+    if (mutationDepth) return fn();
+    persistenceFailure = undefined;
+    let result, failure;
+    let granted = false;
+    const request = locks.request;
+    locks.request = (_name, _options, callback) => Promise.resolve(callback());
+    // Only the fixture's setup/low-level synchronous helpers run this way.
+    // Async clients/drains use the real helper with ordinary deferred grants.
+    const pending = scope.withPortfolioStorageLock(scope.getPortfolioStorageScope(), () => {
+      granted = true;
+      mutationDepth++;
+      try { result = fn(); } catch (error) { failure = error; throw error; }
+      finally { mutationDepth--; }
+    });
+    locks.request = request;
+    pending.catch(() => {});
+    assert.ok(granted, "fixture mutations must receive their synchronous setup lock");
+    if (failure || persistenceFailure) throw failure ?? persistenceFailure;
+    return result;
+  };
+  const expose = (module) => Object.fromEntries(Object.entries(module).map(([name, value]) => {
+    if (name === "portfolioStorage") return [name, (...args) => {
+      const storage = value(...args);
+      return { ...storage, setItem: (...args) => mutate(() => storage.setItem(...args)),
+        removeItem: (...args) => mutate(() => storage.removeItem(...args)) };
+    }];
+    return [name, typeof value === "function" && (mutations.has(name) || /^save(Snapshot|TagMap|Allocation|MaxNetPct|DataUpdatedAt|LastEmailMessageId)$/.test(name))
+      ? (...args) => mutate(() => value(...args)) : value];
+  }));
+  const store = expose(load("@/lib/portfolio/portfolioStore"));
+  const queue = expose(load("@/lib/portfolio/portfolioSyncStatus"));
   const session = load("@/lib/account/clientSession");
   const setAccount = (id) => session.rememberLastAuthenticatedAccount({
     id, email_hint: "synthetic@example.invalid", display_name: "Synthetic", createdAt: now,
@@ -102,14 +189,67 @@ function fixture(storage = new Map()) {
     queue.markPortfolioCloudSyncPending(mode);
   };
   const waitForRequest = async () => {
-    for (let i = 0; i < 20 && !requests.length; i++) await Promise.resolve();
+    for (let i = 0; i < 100 && !requests.length; i++) await Promise.resolve();
     assert.ok(requests.length);
     return requests.at(-1);
   };
-  const scope = load("@/lib/portfolio/portfolioStorageScope");
-  return { store, queue, seed, waitForRequest, requests, controls, storage, load, session, setAccount,
-    key: scope.portfolioStorageKey, scope: scope.getPortfolioStorageScope, persistence: scope, writes, notifications };
+  return { store, queue, seed, waitForRequest, requests, controls, storage, locks, load: (name) => expose(load(name)), rawLoad: load, session, setAccount,
+    key: scope.portfolioStorageKey, scope: scope.getPortfolioStorageScope, persistence: expose(scope), writes, notifications };
 }
+
+test("storage lock boundary: unlocked mutations fail; a queued grant rechecks account identity", async () => {
+  const f = fixture(); f.seed();
+  const rawQueue = f.rawLoad("@/lib/portfolio/portfolioSyncStatus");
+  const rawScope = f.rawLoad("@/lib/portfolio/portfolioStorageScope");
+  const before = JSON.stringify([...f.storage]);
+  assert.throws(() => rawQueue.commitPortfolioLocalEdit("account", () => ({ allocation: 999 })), /保存锁/);
+  assert.equal(JSON.stringify([...f.storage]), before);
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  f.locks.request = async (_name, _options, callback) => { await gate; return callback(); };
+  let called = false;
+  const pending = rawScope.withPortfolioStorageLock(f.scope(), () => { called = true; });
+  f.setAccount("synthetic-b");
+  release();
+  await assert.rejects(pending, /账号/);
+  assert.equal(called, false);
+  f.locks.request = undefined;
+  await rawScope.withPortfolioStorageLock(f.scope(), () => { called = true; });
+  assert.equal(called, true, "native database transactions do not depend on Web Locks support");
+});
+
+test("disabling sync retains pending content and invalidates an in-flight receipt until re-enabled", async () => {
+  const f = fixture(); f.seed("passcode");
+  const content = f.store.readPortfolioLocalFingerprint();
+  const revision = f.queue.getPendingPortfolioCloudSyncStatus().pendingRevision;
+  const upload = f.queue.drainPendingPortfolioCloudSync();
+  const request = await f.waitForRequest();
+  f.queue.markPortfolioCloudSyncOff();
+  f.load("@/lib/portfolio/cloudSync").clearSyncPasscode();
+  let status = f.queue.getPendingPortfolioCloudSyncStatus();
+  assert.equal(status.mode, null);
+  assert.equal(status.queueState, "off");
+  assert.equal(status.pending, 1);
+  assert.equal(status.pendingRevision, revision);
+  assert.equal(status.inFlight, 0);
+  assert.equal(status.attemptId, null);
+  request.reply();
+  assert.equal((await upload).status, "deferred");
+  assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+  assert.equal(f.store.readPortfolioLocalFingerprint(), content);
+  assert.equal((await f.queue.drainPendingPortfolioCloudSync()).status, "disabled");
+  assert.equal(f.requests.length, 1);
+  f.load("@/lib/portfolio/cloudSync").saveSyncPasscode("synthetic-only");
+  f.queue.markPortfolioCloudSyncPending("passcode", "enable-passcode-sync");
+  const retry = f.queue.drainPendingPortfolioCloudSync();
+  for (let i = 0; i < 100 && f.requests.length < 2; i++) await Promise.resolve();
+  assert.equal(f.requests.length, 2);
+  f.requests[1].reply();
+  assert.equal((await retry).status, "ok");
+  status = f.queue.getPendingPortfolioCloudSyncStatus();
+  assert.equal(status.pending, 0);
+  assert.equal(f.store.readPortfolioLocalFingerprint(), content);
+});
 
 test("portfolio: exact ACK clears only the uploaded revision without applying unsolicited labels", async () => {
   const f = fixture(); f.seed();
@@ -142,7 +282,7 @@ for (const [field, edit] of [
     assert.equal(f.store.readPortfolioLocalFingerprint(), expected);
     assert.equal(f.queue.getPendingPortfolioCloudSyncStatus().pending, 1);
     const retry = f.queue.drainPendingPortfolioCloudSync();
-    for (let i = 0; i < 10; i++) await Promise.resolve();
+    await new Promise(setImmediate);
     f.requests.at(-1).reply();
     assert.equal((await retry).status, "ok");
     assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
@@ -192,7 +332,7 @@ test("portfolio: auto push and manual drain share one request, then retry latest
   request.reply();
   await first;
   const next = f.queue.drainPendingPortfolioCloudSync();
-  for (let i = 0; i < 10; i++) await Promise.resolve();
+  await new Promise(setImmediate);
   assert.equal(f.requests[1].body.data.allocation, 300);
   assert.equal(f.requests[1].body.data.updatedAt, now, "retry does not invent a newer edit timestamp");
   f.requests[1].reply();
@@ -427,7 +567,7 @@ for (const mode of ["account", "passcode"]) {
     assert.equal(f.store.readPortfolioLocalFingerprint(), f.review.fingerprint);
     assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
     const retry = f.queue.drainPendingPortfolioCloudSync();
-    for (let i = 0; i < 20; i++) await Promise.resolve();
+    await new Promise(setImmediate);
     const second = f.requests.at(-1);
     assert.equal(JSON.stringify(second.body.data), payload);
     second.reply({ revision: "d".repeat(64) });
@@ -528,7 +668,7 @@ test("conflicts: local application failure after ACK retains pending and the imm
   assert.equal(f.store.loadAllocation(), 100, "a failed atomic apply cannot partially replace the old portfolio");
   f.controls.failWritePrefix = null;
   const retry = f.queue.drainPendingPortfolioCloudSync();
-  for (let i = 0; i < 20; i++) await Promise.resolve();
+  await new Promise(setImmediate);
   f.requests.at(-1).reply({ revision: "d".repeat(64) });
   assert.equal((await retry).status, "ok");
   assert.equal(f.store.loadAllocation(), 250);
@@ -604,7 +744,7 @@ test("queue repair: explicit review retains malformed metadata and waits for ACK
   const review = await preparing;
   assert.equal(f.storage.get(key), "broken-queue", "opening or cancelling review cannot reset metadata");
   const applying = f.queue.submitPortfolioConflictResolution(review, Object.fromEntries(review.fields.map((field) => [field.id, "cloud"])));
-  for (let i = 0; i < 20; i++) await Promise.resolve();
+  await new Promise(setImmediate);
   const backup = JSON.parse(f.storage.get(f.key(`zhinote.portfolio.conflict.review.v1.${review.id}`)));
   assert.equal(backup.review.queueSnapshot, "broken-queue");
   assert.equal(f.store.loadAllocation(), 100);
@@ -636,7 +776,7 @@ test("legacy interrupted apply: refresh and mixed original/current/cloud recover
     field.id === "allocation" ? "original" : field.id === "tag:REMOTE" ? "cloud" : "local"]));
   const before = g.store.readPortfolioLocalFingerprint();
   const applying = g.queue.submitPortfolioConflictResolution(review, choices);
-  for (let i = 0; i < 20; i++) await Promise.resolve();
+  await new Promise(setImmediate);
   const upload = g.requests.at(-1);
   assert.equal(upload.body.data.allocation, 100);
   assert.equal(upload.body.data.tagMap.SAMPLE, "new input after interruption");
@@ -651,9 +791,8 @@ test("legacy interrupted apply: refresh and mixed original/current/cloud recover
   assert.ok(g.storage.has(g.key("zhinote.portfolio.conflict.review.v1.synthetic-review")));
 });
 
-test("atomic local edit: one native commit contains content, timestamp and pending; reload can retry", async () => {
+test("atomic local edit: one backend commit contains content, timestamp and pending; reload can retry", async () => {
   const f = fixture(); f.seed();
-  const oldKeys = new Map(f.storage);
   f.writes.length = 0;
   const edited = f.queue.commitPortfolioLocalEdit("account", (current) => ({
     snapshot: { ...current.snapshot, fileName: "new-synthetic.xlsx" },
@@ -661,8 +800,7 @@ test("atomic local edit: one native commit contains content, timestamp and pendi
   }));
   const commits = f.writes.filter(({ key }) => key === f.key("zhinote.portfolio.state.v2"));
   assert.equal(commits.length, 1);
-  assert.ok(f.writes.every(({ key }) => key.endsWith("state.v2") || key.endsWith("sync.status.ping.v1")));
-  for (const [key, value] of oldKeys) assert.equal(f.storage.get(key), value, "individual old keys are not erased or rewritten");
+  assert.ok(f.writes.every(({ key }) => key.endsWith("state.v2") || key.endsWith("sync.status.ping.v1") || key.endsWith("local-commit.v1")));
   const g = fixture(f.storage);
   assert.equal(JSON.stringify(g.store.readLocalPortfolioData()), JSON.stringify(edited));
   assert.equal(g.queue.hasUnsyncedPortfolioChanges(), true);
@@ -815,7 +953,7 @@ test("scoped cache: A and B have separate queues and concurrent drains, A resume
   f.seed();
   f.store.saveTagMap({ ONLY_B: "private to B" });
   const bUpload = f.queue.drainPendingPortfolioCloudSync();
-  for (let i = 0; i < 20; i++) await Promise.resolve();
+  await new Promise(setImmediate);
   assert.equal(f.requests.length, 2, "B's drain is not deduplicated into A's in-flight promise");
   assert.equal(f.requests[1].body.expectedAccountId, "synthetic-b");
   assert.equal(f.requests[1].body.data.tagMap.SAMPLE, undefined);
@@ -829,7 +967,7 @@ test("scoped cache: A and B have separate queues and concurrent drains, A resume
   assert.equal(f.store.readPortfolioLocalFingerprint(), aState);
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
   const resumed = f.queue.drainPendingPortfolioCloudSync();
-  for (let i = 0; i < 20; i++) await Promise.resolve();
+  await new Promise(setImmediate);
   assert.equal(f.requests[2].body.data.tagMap.SAMPLE, "original");
   assert.equal(f.requests[2].body.data.tagMap.ONLY_B, undefined);
   f.requests[2].reply();
@@ -839,6 +977,7 @@ test("scoped cache: A and B have separate queues and concurrent drains, A resume
 test("scoped cache: base, conflict, decision and passcode never cross accounts or anonymous mode", async () => {
   const f = conflictFixture();
   f.resolution.stagePortfolioConflictResolution(f.review, f.choices);
+  await new Promise(setImmediate);
   f.setAccount("synthetic-b");
   const bState = new Map(f.storage);
   assert.equal(f.versions.readPortfolioCloudBase("account"), null);
@@ -857,7 +996,7 @@ test("scoped cache: base, conflict, decision and passcode never cross accounts o
 test("legacy cache: no automatic adoption; explicit review waits for exact ACK and preserves originals", async () => {
   const f = fixture();
   const resolution = f.load("@/lib/portfolio/portfolioConflictResolution");
-  f.store.saveTagMap({ LEGACY: "unowned data" }, "legacy");
+  f.storage.set("zhinote.portfolio.tags.v1", JSON.stringify({ LEGACY: "unowned data" }));
   const legacyBefore = f.store.readPortfolioLocalFingerprint("legacy");
   assert.equal(Object.keys(f.store.loadTagMap()).length, 0);
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
@@ -869,7 +1008,7 @@ test("legacy cache: no automatic adoption; explicit review waits for exact ACK a
   assert.equal(Object.keys(f.store.loadTagMap()).length, 0);
   const choices = Object.fromEntries(review.fields.map((field) => [field.id, "local"]));
   const uploading = f.queue.submitPortfolioConflictResolution(review, choices);
-  for (let i = 0; i < 20; i++) await Promise.resolve();
+  await new Promise(setImmediate);
   assert.equal(f.requests[1].body.data.tagMap.LEGACY, "unowned data");
   assert.equal(Object.keys(f.store.loadTagMap()).length, 0, "target stays unchanged before ACK");
   f.requests[1].reply();
@@ -877,7 +1016,7 @@ test("legacy cache: no automatic adoption; explicit review waits for exact ACK a
   assert.equal(f.store.loadTagMap().LEGACY, "unowned data");
   assert.equal(f.store.readPortfolioLocalFingerprint("legacy"), legacyBefore);
   assert.equal(resolution.hasUnreviewedLegacyPortfolio(), false);
-  f.store.saveTagMap({ LEGACY: "new input from an older tab" }, "legacy");
+  f.storage.set("zhinote.portfolio.tags.v1", JSON.stringify({ LEGACY: "new input from an older tab" }));
   assert.equal(resolution.hasUnreviewedLegacyPortfolio(), true, "later legacy edits still require review");
   assert.equal(f.store.loadTagMap().LEGACY, "unowned data");
   assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false, "later legacy input is not uploaded implicitly");
@@ -889,11 +1028,12 @@ test("legacy cache: changed original or new target input prevents applying stale
   for (const changedScope of ["legacy", "account:synthetic-a"]) {
     const f = fixture();
     const resolution = f.load("@/lib/portfolio/portfolioConflictResolution");
-    f.store.saveTagMap({ LEGACY: "original" }, "legacy");
+    f.storage.set("zhinote.portfolio.tags.v1", JSON.stringify({ LEGACY: "original" }));
     const reviewing = resolution.prepareLegacyPortfolioReview();
     (await f.waitForRequest()).reply({ json: { data: null, version: { scope: "a".repeat(64), revision: null } } });
     const review = await reviewing;
-    f.store.saveTagMap({ NEW: "later input" }, changedScope);
+    if (changedScope === "legacy") f.storage.set("zhinote.portfolio.tags.v1", JSON.stringify({ NEW: "later input" }));
+    else f.store.saveTagMap({ NEW: "later input" }, changedScope);
     await assert.rejects(() => f.queue.submitPortfolioConflictResolution(review,
       Object.fromEntries(review.fields.map((field) => [field.id, "local"]))), /变化|修改/);
     assert.equal(f.requests.length, 1);

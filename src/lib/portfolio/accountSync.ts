@@ -7,10 +7,10 @@ import { portfolioCloudAckConfirmsPush, type CloudPortfolioData } from "./cloudS
 import type { TagMap } from "./positionReport";
 import {
   acceptPortfolioCloudVersion, createPortfolioPushGuard, parsePortfolioCloudVersion,
-  retainPortfolioConflict, type PortfolioCloudVersion,
+  retainPortfolioConflict, type PortfolioCloudVersion, type PortfolioPushGuard,
 } from "./portfolioSyncRevision";
 import { capturePortfolioAccountContext, isPortfolioAccountContextCurrent, type PortfolioAccountContext } from "./portfolioAccountContext";
-import { assertPortfolioScopeCurrent, getPortfolioStorageScope, type PortfolioStorageScope } from "./portfolioStorageScope";
+import { assertPortfolioScopeCurrent, getPortfolioStorageScope, withPortfolioStorageLock, type PortfolioStorageScope } from "./portfolioStorageScope";
 
 const ACCOUNT_PORTFOLIO_SYNC_REQUEST_TIMEOUT_MS = 12000;
 
@@ -28,7 +28,7 @@ function accountChangedResult(): AccountSyncResult<never> {
 
 async function call<T>(
   body: Record<string, unknown>,
-  pick: (json: Record<string, unknown>) => T,
+  pick: (json: Record<string, unknown>) => T | Promise<T>,
   scope?: PortfolioStorageScope
 ): Promise<AccountSyncResult<T>> {
   let context: PortfolioAccountContext | undefined;
@@ -77,7 +77,10 @@ async function call<T>(
     }
     if (!res.ok) {
       if (res.status === 409 && json.code === "portfolio-conflict" && body.action === "push") {
-        retainPortfolioConflict("account", body.data as CloudPortfolioData, json, scope);
+        await withPortfolioStorageLock(scope ?? getPortfolioStorageScope(), () => {
+          if (!isPortfolioAccountContextCurrent(context!)) throw new Error("组合账号已改变。");
+          retainPortfolioConflict("account", body.data as CloudPortfolioData, json, scope);
+        });
       }
       return {
         status: "error",
@@ -85,7 +88,9 @@ async function call<T>(
         retryable: res.status !== 409 && res.status !== 428,
       };
     }
-    return { status: "ok", data: pick(json), version: parsePortfolioCloudVersion(json.version) ?? undefined };
+    const data = await pick(json);
+    if (!isPortfolioAccountContextCurrent(context)) return accountChangedResult();
+    return { status: "ok", data, version: parsePortfolioCloudVersion(json.version) ?? undefined };
   } catch (error) {
     if (context && !isPortfolioAccountContextCurrent(context)) return accountChangedResult();
     return {
@@ -142,22 +147,23 @@ export function accountPullCloud(
 export async function accountPushCloud(
   data: CloudPortfolioData,
   reviewedVersion?: PortfolioCloudVersion,
-  scope = getPortfolioStorageScope()
+  scope = getPortfolioStorageScope(),
+  capturedGuard?: PortfolioPushGuard
 ): Promise<AccountSyncResult<TagMap | null>> {
   assertPortfolioScopeCurrent(scope);
-  const localGuard = createPortfolioPushGuard("account", scope);
+  const localGuard = capturedGuard ?? createPortfolioPushGuard("account", scope);
   if (reviewedVersion && localGuard.base && reviewedVersion.scope !== localGuard.base.scope) {
     return { status: "error", retryable: false, message: "账号已改变，未上传冲突处理结果。" };
   }
   const guard = reviewedVersion ? { ...localGuard, base: reviewedVersion } : localGuard;
-  return call({ action: "push", data, ...guard }, (json) => {
+  return call({ action: "push", data, ...guard }, async (json) => {
     const ack = json.ack;
     if (!portfolioCloudAckConfirmsPush(ack, data, guard)) {
       throw new Error(
         "组合同步缺少云端 ACK；本地组合数据已保留，会稍后重试。"
       );
     }
-    if (!acceptPortfolioCloudVersion("account", localGuard, parsePortfolioCloudVersion(ack)!, scope)) {
+    if (!await withPortfolioStorageLock(scope, () => acceptPortfolioCloudVersion("account", localGuard, parsePortfolioCloudVersion(ack)!, scope))) {
       throw new Error("组合云端版本已变化；保留待上传修改，下次同步重新核对。");
     }
     // v2 persists the exact submitted document; it no longer unions tags.

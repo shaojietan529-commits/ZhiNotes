@@ -5,7 +5,7 @@ import {
   saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap,
 } from "./portfolioStore";
 import { parsePortfolioCloudVersion, readActivePortfolioConflict, readPortfolioCloudBase, retainPortfolioConflict, type PortfolioCloudVersion } from "./portfolioSyncRevision";
-import { assertPortfolioScopeCurrent, getPortfolioStorageScope, portfolioStorage, type PortfolioStorageScope } from "./portfolioStorageScope";
+import { assertPortfolioScopeCurrent, getPortfolioStorageScope, portfolioStorage, withPortfolioStorageLock, type PortfolioStorageScope } from "./portfolioStorageScope";
 import { hasUnsyncedPortfolioChanges, PORTFOLIO_SYNC_STATUS_STORAGE_KEY } from "./portfolioSyncStatus";
 export { readLocalPortfolioData } from "./portfolioStore";
 
@@ -104,20 +104,23 @@ export async function preparePortfolioConflictReview(mode: PortfolioConflictMode
   if (result.status !== "ok" || !result.version || !result.data) {
     throw new Error("暂时无法取得完整云端版本；未改动本机数据，请稍后重试。");
   }
+  const { data: cloud, version } = result;
+  return withPortfolioStorageLock(scope, () => {
   if (readPortfolioLocalFingerprint(scope) !== fingerprint) throw new Error("本机组合刚有新修改，请重新读取差异。");
   if (readPortfolioConflictResolution(mode, scope)?.review.id !== interrupted?.review.id ||
       portfolioStorage(scope).getItem(PORTFOLIO_SYNC_STATUS_STORAGE_KEY) !== queueSnapshot) throw new Error("恢复记录已变化，请重新读取差异。");
   const base = readPortfolioCloudBase(mode, scope);
   const active = readActivePortfolioConflict(mode, scope);
-  if ((base && base.scope !== result.version.scope) || (active && active.scope !== result.version.scope)) {
+  if ((base && base.scope !== version.scope) || (active && active.scope !== version.scope)) {
     throw new Error("登录账号或同步空间已改变，未进行跨账号合并。");
   }
   const local = readLocalPortfolioData(scope);
   const recoveryOriginal = interrupted?.review.previousLocal ?? interrupted?.review.local;
-  retainPortfolioConflict(mode, local, { data: result.data, version: result.version }, scope);
-  return { id: crypto.randomUUID(), mode, storageScope: scope, version: result.version, local, cloud: result.data,
+  retainPortfolioConflict(mode, local, { data: cloud, version }, scope);
+  return { id: crypto.randomUUID(), mode, storageScope: scope, version, local, cloud,
     fingerprint, queueSnapshot, recoveryOriginal, recoveryId: interrupted?.review.id,
-    fields: portfolioConflictFields(local, result.data, recoveryOriginal) };
+    fields: portfolioConflictFields(local, cloud, recoveryOriginal) };
+  });
 }
 
 export function stagePortfolioConflictResolution(review: PortfolioConflictReview, choices: Record<string, PortfolioConflictChoice>): PortfolioConflictResolution {

@@ -17,9 +17,9 @@ import {
   saveDataUpdatedAt,
   saveTagMap,
 } from "@/lib/portfolio/portfolioStore";
-import { clearActivePortfolioConflict, readActivePortfolioConflict } from "./portfolioSyncRevision";
+import { clearActivePortfolioConflict, createPortfolioPushGuard, readActivePortfolioConflict } from "./portfolioSyncRevision";
 import { capturePortfolioAccountContext, isPortfolioAccountContextCurrent, type PortfolioAccountContext } from "./portfolioAccountContext";
-import { afterPortfolioStorageCommit, batchPortfolioStorage, assertPortfolioScopeCurrent, getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorage, type PortfolioStorageScope } from "./portfolioStorageScope";
+import { afterPortfolioStorageCommit, batchPortfolioStorage, getPortfolioStorageScope, isPortfolioScopeCurrent, portfolioStorage, withPortfolioStorageLock, type PortfolioStorageScope } from "./portfolioStorageScope";
 import {
   finishPortfolioConflictResolution, readPortfolioConflictResolution, saveLocalPortfolioData,
   stagePortfolioConflictResolution,
@@ -318,10 +318,11 @@ export async function submitPortfolioConflictResolution(
   review: PortfolioConflictReview,
   choices: Record<string, PortfolioConflictChoice>
 ): Promise<DrainPortfolioCloudSyncResult> {
-  assertPortfolioScopeCurrent(review.storageScope);
-  if (getPendingPortfolioCloudSyncStatus(review.storageScope).inFlight > 0) throw new Error("上一笔上传仍在确认，请稍后重试。");
-  stagePortfolioConflictResolution(review, choices);
-  markPortfolioCloudSyncPending(review.mode, "conflict-resolution", review.storageScope);
+  await withPortfolioStorageLock(review.storageScope, () => batchPortfolioStorage(review.storageScope, () => {
+    if (getPendingPortfolioCloudSyncStatus(review.storageScope).inFlight > 0) throw new Error("上一笔上传仍在确认，请稍后重试。");
+    stagePortfolioConflictResolution(review, choices);
+    markPortfolioCloudSyncPending(review.mode, "conflict-resolution", review.storageScope);
+  }));
   return drainPendingPortfolioCloudSync({ mode: review.mode, scope: review.storageScope });
 }
 
@@ -383,17 +384,22 @@ export function markPortfolioCloudSyncFailure(
 }
 
 export function markPortfolioCloudSyncOff(scope = getPortfolioStorageScope()): void {
-  if (getPendingPortfolioCloudSyncStatus(scope).storageError) throw new Error("同步记录无法读取，未清除待上传状态。");
+  const previous = getPendingPortfolioCloudSyncStatus(scope);
+  if (previous.storageError) throw new Error("同步记录无法读取，未清除待上传状态。");
   const now = new Date().toISOString();
   writePortfolioCloudSyncStatus({
-    ...buildEmptyPortfolioCloudSyncStatus(null),
+    ...previous,
+    mode: null,
+    queueState: "off",
+    attemptId: null,
+    inFlight: 0,
     lastOutcome: {
       status: "disabled",
       source: "portfolio-cloud-sync",
       at: now,
       mode: null,
-      pendingAfter: 0,
-      message: "这台设备已关闭组合同步。",
+      pendingAfter: previous.pending,
+      message: "这台设备已关闭组合同步，未确认上传的修改仍保留。",
     },
   }, scope);
 }
@@ -425,58 +431,51 @@ async function drainPortfolioCloudSync(
     return { status: "deferred", attempted: 0, synced: 0, failed: 0, manualReview: 0, authDeferred: 1,
       pendingAfter: getPendingPortfolioCloudSyncStatus(scope).pending, message: "组合所属账号暂不可确认，未上传其他账号的本机数据。" };
   }
-  const snapshotStatus = getPendingPortfolioCloudSyncStatus(scope);
-  const mode = options.mode ?? snapshotStatus.mode;
-  if (snapshotStatus.storageError) return {
-    status: "manual_review", attempted: 0, synced: 0, failed: 0, manualReview: 1,
-    authDeferred: 0, pendingAfter: 1, message: snapshotStatus.lastFailureMessage ?? undefined,
-  };
-  if (mode !== "account" && mode !== "passcode") {
-    setPortfolioCloudSyncOutcome("disabled", mode, 0, "组合同步未开启。", scope);
-    return {
-      status: "disabled",
-      attempted: 0,
-      synced: 0,
-      failed: 0,
-      manualReview: 0,
-      authDeferred: 0,
-      pendingAfter: 0,
-      message: "组合同步未开启。",
-    };
-  }
-  if (
-    snapshotStatus.manualReviewCount > 0 ||
-    snapshotStatus.queueState === "manual_review"
-  ) {
-    return {
-      status: "manual_review",
-      attempted: 0,
-      synced: 0,
-      failed: 0,
-      manualReview: 1,
-      authDeferred: 0,
-      pendingAfter: snapshotStatus.pending,
-      message: "组合队列已进入人工处理，先确认失败原因。",
-    };
-  }
+  const mode = options.mode ?? getPendingPortfolioCloudSyncStatus(scope).mode;
   let attempt: PortfolioCloudSyncAttempt | undefined;
+  let submittedPasscode: string | null = null;
   let result: Awaited<ReturnType<typeof accountPushCloud>> | Awaited<ReturnType<typeof pushCloudData>>;
   try {
-    const resolution = readPortfolioConflictResolution(mode, scope);
-    if (resolution && (resolution.state !== "queued" || readPortfolioLocalFingerprint(scope) !== resolution.review.fingerprint)) {
-      markPortfolioCloudSyncFailure(mode, "处理期间本机有新修改或保存被中断；原始版本仍保留，请重新读取差异。", { retryable: false, scope });
-      return { status: "manual_review", attempted: 0, synced: 0, failed: 0, manualReview: 1, authDeferred: 0, pendingAfter: 1 };
-    }
-    const data = resolution?.data ?? readLocalPortfolioData(scope);
-    // Validate the entire snapshot before touching metadata. Retries retain the
-    // original timestamp; only a truly absent timestamp receives a new one.
-    if (!resolution) saveDataUpdatedAt(data.updatedAt, scope);
-    attempt = markPortfolioCloudSyncAttempt(mode, scope);
+    // Take the payload, revision and attempt from the same locked snapshot.
+    // Release before networking so another tab can save immediately.
+    const prepared = await withPortfolioStorageLock(scope, () => {
+      const status = getPendingPortfolioCloudSyncStatus(scope);
+      const stop = (result: DrainPortfolioCloudSyncResult) => ({ kind: "stopped" as const, result });
+      if (status.storageError || status.manualReviewCount > 0 || status.queueState === "manual_review") return stop({
+        status: "manual_review", attempted: 0, synced: 0, failed: 0, manualReview: 1,
+        authDeferred: 0, pendingAfter: status.pending, message: status.lastFailureMessage ?? "组合队列已进入人工处理，先确认失败原因。",
+      });
+      if (mode !== "account" && mode !== "passcode") {
+        setPortfolioCloudSyncOutcome("disabled", mode, status.pending, "组合同步未开启。", scope);
+        return stop({ status: "disabled", attempted: 0, synced: 0, failed: 0, manualReview: 0,
+          authDeferred: 0, pendingAfter: status.pending, message: "组合同步未开启。" });
+      }
+      if (!hasUnsyncedPortfolioChanges(scope)) return stop({ status: "deferred", attempted: 0,
+        synced: 0, failed: 0, manualReview: 0, authDeferred: 0, pendingAfter: 0 });
+      const resolution = readPortfolioConflictResolution(mode, scope);
+      if (resolution && (resolution.state !== "queued" || readPortfolioLocalFingerprint(scope) !== resolution.review.fingerprint)) {
+        markPortfolioCloudSyncFailure(mode, "处理期间本机有新修改或保存被中断；原始版本仍保留，请重新读取差异。", { retryable: false, scope });
+        return stop({ status: "manual_review", attempted: 0, synced: 0, failed: 0, manualReview: 1, authDeferred: 0, pendingAfter: 1 });
+      }
+      const data = resolution?.data ?? readLocalPortfolioData(scope);
+      return batchPortfolioStorage(scope, () => {
+        if (!resolution) saveDataUpdatedAt(data.updatedAt, scope);
+        return { kind: "ready" as const, data, resolution, mode,
+          attempt: markPortfolioCloudSyncAttempt(mode, scope), guard: createPortfolioPushGuard(mode, scope),
+          passcode: loadSyncPasscode(scope) };
+      });
+    });
+    if (prepared.kind === "stopped") return prepared.result;
+    const { data, resolution, guard } = prepared;
+    attempt = prepared.attempt;
+    submittedPasscode = prepared.passcode;
     result = mode === "account"
-      ? await accountPushCloud(data, resolution?.review.version, scope)
-      : await pushCloudData(loadSyncPasscode(scope) ?? "", data, resolution?.review.version, scope);
+      ? await accountPushCloud(data, resolution?.review.version, scope, guard)
+      : await pushCloudData(submittedPasscode ?? "", data, resolution?.review.version, scope, guard);
     if (result.status === "ok") {
-      const cleared = markPortfolioCloudSyncAck(mode, attempt, result.data, resolution ?? undefined);
+      const receipt = result;
+      const uploadedAttempt = attempt;
+      const cleared = await withPortfolioStorageLock(scope, () => markPortfolioCloudSyncAck(mode, uploadedAttempt, receipt.data, resolution ?? undefined));
       const current = getPendingPortfolioCloudSyncStatus(scope);
       return {
         status: cleared ? "ok" : "deferred",
@@ -491,31 +490,33 @@ async function drainPortfolioCloudSync(
   } catch {
     result = { status: "error", message: "无法确认本机组合版本；本地数据仍保留，未清除待上传状态。" };
   }
-  // An older request's failure must not undo a later ACK or a newer edit.
-  if (attempt && !isPortfolioCloudSyncAttemptCurrent(attempt)) {
-    const current = getPendingPortfolioCloudSyncStatus(scope);
-    return { status: current.storageError ? "manual_review" : "deferred", attempted: 1, synced: 0, failed: 0,
-      manualReview: current.manualReviewCount, authDeferred: 0, pendingAfter: current.pending };
-  }
   const failure = classifyPortfolioCloudSyncFailure(result);
-  if (result.status === "unauthorized") clearSyncPasscode(scope);
-  markPortfolioCloudSyncFailure(mode, failure.message, {
-    retryable: failure.retryable,
-    authRetryStatus: failure.authRetryStatus ?? undefined,
-    attempt,
-    scope,
-  });
-  const nextStatus = getPendingPortfolioCloudSyncStatus(scope);
-  return {
-    status: failure.authRetryStatus ? "deferred" : nextStatus.manualReviewCount > 0 ? "manual_review" : "failed",
-    attempted: 1,
-    synced: 0,
-    failed: failure.authRetryStatus ? 0 : 1,
-    manualReview: nextStatus.manualReviewCount,
-    authDeferred: failure.authRetryStatus ? 1 : 0,
-    pendingAfter: nextStatus.pending,
-    message: failure.message,
-  };
+  try {
+    return await withPortfolioStorageLock(scope, () => {
+      // Recheck after waiting for the lock: an edit/ACK may have won meanwhile.
+      if ((attempt && !isPortfolioCloudSyncAttemptCurrent(attempt)) ||
+          (mode === "passcode" && attempt && loadSyncPasscode(scope) !== submittedPasscode)) {
+        const current = getPendingPortfolioCloudSyncStatus(scope);
+        return { status: current.storageError ? "manual_review" : "deferred", attempted: 1, synced: 0, failed: 0,
+          manualReview: current.manualReviewCount, authDeferred: 0, pendingAfter: current.pending };
+      }
+      if (result.status === "unauthorized") clearSyncPasscode(scope);
+      markPortfolioCloudSyncFailure(mode, failure.message, {
+        retryable: failure.retryable, authRetryStatus: failure.authRetryStatus ?? undefined, attempt, scope,
+      });
+      const nextStatus = getPendingPortfolioCloudSyncStatus(scope);
+      return {
+        status: failure.authRetryStatus ? "deferred" : nextStatus.manualReviewCount > 0 ? "manual_review" : "failed",
+        attempted: 1, synced: 0, failed: failure.authRetryStatus ? 0 : 1, manualReview: nextStatus.manualReviewCount,
+        authDeferred: failure.authRetryStatus ? 1 : 0, pendingAfter: nextStatus.pending, message: failure.message,
+      };
+    });
+  } catch {
+    const current = getPendingPortfolioCloudSyncStatus(scope);
+    return { status: isPortfolioScopeCurrent(scope) ? "manual_review" : "deferred", attempted: attempt ? 1 : 0,
+      synced: 0, failed: 0, manualReview: current.manualReviewCount, authDeferred: 0,
+      pendingAfter: current.pending, message: "本机保存暂不可用；原始数据和待上传记录仍保留，请重试。" };
+  }
 }
 
 export function emitPortfolioCloudSyncStatusEvent(
