@@ -23,6 +23,7 @@ import {
   getAllPageMetadata,
   getAllPagesForSync,
   getPagesForSyncByIds,
+  getPage,
   getPageSyncLogPendingCounts,
   getPendingPageSyncRecords,
   getLocalPageSyncSummary,
@@ -301,6 +302,7 @@ export interface RebuildPageCacheResult {
 export interface CloudPageLookupResult {
   status: PageSyncStatus;
   pages: RemotePageRecord[];
+  accountId?: string;
   message?: string;
 }
 
@@ -640,13 +642,19 @@ export async function fetchCloudPagesByIds(
   if (uniqueIds.length === 0) {
     return { status: "ok", pages: [] };
   }
-  const cacheKey = cloudPageLookupCacheKey(uniqueIds);
+  const gate = await checkAccountCloudSyncGate();
+  const { getLastAuthenticatedAccount } = await import("@/lib/account/clientSession");
+  const accountId = getLastAuthenticatedAccount()?.id;
+  if (gate.status !== "ready" || !accountId) {
+    return { status: "unconfirmed", pages: [] };
+  }
+  const cacheKey = `${accountId}\n${cloudPageLookupCacheKey(uniqueIds)}`;
   const cached = readCloudPageLookupCache(cacheKey);
   if (cached) return cached;
   const inFlight = pageLookupInFlight.get(cacheKey);
   if (inFlight) return inFlight;
 
-  const request = runFetchCloudPagesByIds(uniqueIds).finally(() => {
+  const request = runFetchCloudPagesByIds(uniqueIds, accountId).finally(() => {
     pageLookupInFlight.delete(cacheKey);
   });
   pageLookupInFlight.set(cacheKey, request);
@@ -656,7 +664,8 @@ export async function fetchCloudPagesByIds(
 }
 
 async function runFetchCloudPagesByIds(
-  uniqueIds: string[]
+  uniqueIds: string[],
+  accountId: string
 ): Promise<CloudPageLookupResult> {
   const res = await call({ action: "pull", ids: uniqueIds });
   if (!res.ok) {
@@ -665,7 +674,115 @@ async function runFetchCloudPagesByIds(
   const pages = Array.isArray(res.json.pages)
     ? (res.json.pages as RemotePageRecord[])
     : [];
-  return { status: "ok", pages };
+  if (!pages.every(isCloudLookupRecord) || pages.some((page) => !uniqueIds.includes(page.id))) {
+    return { status: "error", pages: [] };
+  }
+  const { getLastAuthenticatedAccount } = await import("@/lib/account/clientSession");
+  if (getLastAuthenticatedAccount()?.id !== accountId) {
+    return { status: "unconfirmed", pages: [] };
+  }
+  return { status: "ok", pages, accountId };
+}
+
+function isCloudLookupRecord(value: unknown): value is RemotePageRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const page = value as Record<string, unknown>;
+  return typeof page.id === "string" && isValidRemotePageId(page.id) &&
+    (page.parent_id === null || (typeof page.parent_id === "string" && isValidRemotePageId(page.parent_id))) &&
+    ["title", "created_at", "updated_at"].every((key) => typeof page[key] === "string") &&
+    ["icon", "cover_url", "content_text", "properties", "deleted_at"]
+      .every((key) => page[key] === null || typeof page[key] === "string") &&
+    typeof page.position === "number" && Number.isFinite(page.position) &&
+    typeof page.depth === "number" && Number.isFinite(page.depth);
+}
+
+// A direct URL can arrive before the background feed has cached its parents.
+// Read only this page's ancestor chain, then persist missing parents and the
+// requested page together. Existing ancestor bodies and edits stay as-is.
+export async function cacheCloudPageWithAncestors(
+  record: RemotePageRecord,
+  accountId: string
+): Promise<Page | null> {
+  const { getLastAuthenticatedAccount } = await import("@/lib/account/clientSession");
+  const isCurrent = () => isPageSyncEnabled() &&
+    getLastAuthenticatedAccount()?.id === accountId;
+  const assertCurrent = () => {
+    if (!accountId || !isCurrent()) throw new Error("Page lookup account changed");
+  };
+  assertCurrent();
+  if (!isCloudLookupRecord(record)) throw new Error("Invalid cloud page record");
+  const previous = (await getPagesForSyncByIds([record.id]))[0];
+  assertCurrent();
+  if (previous && previous.updated_at > record.updated_at) {
+    throw new Error("A newer local page is available");
+  }
+  const expectedLocalPages = [{
+    id: record.id, updated_at: previous?.updated_at ?? null,
+    parent_id: previous?.parent_id ?? null, deleted_at: previous?.deleted_at ?? null,
+  }];
+  // Deletion applies to this record even if its former ancestors are gone.
+  if (record.deleted_at) {
+    const applied = await applyRemotePages([record], {
+      isCurrent, isProtected: isCloudPagePendingSync, requiredParentIds: [], expectedLocalPages,
+    });
+    assertCurrent();
+    if (!previous || previous.deleted_at !== record.deleted_at) {
+      emitPagesUpdated("cloud-pull", applied.length, toPageUpdatePayloads(applied));
+    }
+    return null;
+  }
+  const incoming = [record];
+  const requiredParentIds: string[] = [];
+  const visited = new Set([record.id]);
+  let parentId = record.parent_id;
+  while (parentId) {
+    assertCurrent();
+    if (!isValidRemotePageId(parentId) || visited.has(parentId) || visited.size >= 64) {
+      throw new Error("Page hierarchy cannot be confirmed");
+    }
+    visited.add(parentId);
+    requiredParentIds.push(parentId);
+    const local = (await getPagesForSyncByIds([parentId]))[0];
+    assertCurrent();
+    expectedLocalPages.push({
+      id: parentId, updated_at: local?.updated_at ?? null,
+      parent_id: local?.parent_id ?? null, deleted_at: local?.deleted_at ?? null,
+    });
+    if (local?.deleted_at) throw new Error("Page parent was deleted locally");
+    const response = await call({ action: "pull", ids: [parentId] });
+    assertCurrent();
+    const pages = response.ok && Array.isArray(response.json.pages)
+      ? response.json.pages as RemotePageRecord[] : [];
+    const parent = pages[0];
+    if (pages.length !== 1 || !isCloudLookupRecord(parent) ||
+        parent.id !== parentId || parent.deleted_at) {
+      throw new Error("Page hierarchy is incomplete");
+    }
+    if (!local) {
+      incoming.push(parent);
+    } else if (local.parent_id !== parent.parent_id) {
+      // Earlier single-page downloads could cache the correct cloud version
+      // with a null parent. Repair only that exact version's missing relation.
+      if (local.parent_id !== null || local.updated_at !== parent.updated_at) {
+        throw new Error("Page parent has a different local hierarchy");
+      }
+      incoming.push({ ...local, parent_id: parent.parent_id, depth: parent.depth });
+    }
+    parentId = parent.parent_id;
+  }
+  // The query rechecks these conditions after its own database await, before
+  // any INSERT/UPDATE. A failed chain must never become a new local root.
+  const applied = await applyRemotePages(incoming, {
+    isCurrent, isProtected: isCloudPagePendingSync, requiredParentIds, expectedLocalPages,
+  });
+  assertCurrent();
+  const cached = await getPage(record.id);
+  assertCurrent();
+  if (incoming.length > 1 || !previous || previous.parent_id !== record.parent_id ||
+      previous.title !== record.title) {
+    emitPagesUpdated("cloud-pull", applied.length, toPageUpdatePayloads(applied));
+  }
+  return cached;
 }
 
 function cloudPageLookupCacheKey(ids: string[]): string {

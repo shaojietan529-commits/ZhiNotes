@@ -2576,72 +2576,128 @@ export interface RemotePageRecord {
 // timestamps exactly (so a re-compare sees local == remote and does not
 // echo the same page back up). Intentionally does NOT write sync_log.
 export async function applyRemotePages(
-  records: RemotePageRecord[]
+  records: RemotePageRecord[],
+  guard?: {
+    isCurrent: () => boolean;
+    isProtected: (id: string) => boolean;
+    requiredParentIds: string[];
+    expectedLocalPages?: Array<{
+      id: string;
+      updated_at: string | null;
+      parent_id: string | null;
+      deleted_at: string | null;
+    }>;
+  }
 ): Promise<RemotePageRecord[]> {
   const db = await getDb();
-  const validRecords = records.filter(
-    (record) => record.id && !hasPendingSyncChange(db, "pages", record.id)
-  );
-  const incomingIds = new Set(validRecords.map((record) => record.id));
+  if (guard) {
+    // Keep this check after getDb: account changes and local edits can happen
+    // while SQLite is opening. No await may separate it from the writes below.
+    if (!guard.isCurrent()) throw new Error("Page lookup account changed");
+    for (const expected of guard.expectedLocalPages ?? []) {
+      const [current] = db.query(
+        "SELECT updated_at, parent_id, deleted_at FROM pages WHERE id = ?", [expected.id]
+      ) as unknown as Array<{ updated_at: string; parent_id: string | null; deleted_at: string | null }>;
+      if ((expected.updated_at === null ? Boolean(current) : !current) ||
+          (current && (current.updated_at !== expected.updated_at ||
+            current.parent_id !== expected.parent_id || current.deleted_at !== expected.deleted_at))) {
+        throw new Error("Local page changed during hierarchy lookup");
+      }
+    }
+    const incomingIds = new Set(records.map((record) => record.id));
+    const requiredIds = new Set([
+      ...records.map((record) => record.id),
+      ...guard.requiredParentIds,
+      ...records.flatMap((record) => !record.deleted_at && record.parent_id ? [record.parent_id] : []),
+    ]);
+    for (const id of requiredIds) {
+      if (guard.isProtected(id) || hasPendingSyncChange(db, "pages", id)) {
+        throw new Error("Page hierarchy has pending local changes");
+      }
+      if (!incomingIds.has(id)) {
+        const parent = db.query(
+          "SELECT id FROM pages WHERE id = ? AND deleted_at IS NULL", [id]
+        );
+        if (parent.length === 0) throw new Error("Page hierarchy is incomplete");
+      }
+    }
+  }
+  const writePages = () => {
+    const validRecords = records.filter(
+      (record) => record.id && !hasPendingSyncChange(db, "pages", record.id)
+    );
+    const incomingIds = new Set(validRecords.map((record) => record.id));
 
-  for (const record of validRecords) {
-    const existing = db.query("SELECT id FROM pages WHERE id = ?", [
-      record.id,
-    ]) as unknown as { id: string }[];
+    for (const record of validRecords) {
+      const existing = db.query("SELECT id FROM pages WHERE id = ?", [
+        record.id,
+      ]) as unknown as { id: string }[];
 
-    if (existing.length === 0) {
-      // Insert all incoming records before assigning parent_id. This avoids a
-      // foreign-key failure when a child appears before its parent in the same
-      // cloud pull batch.
+      if (existing.length === 0) {
+        // Insert all incoming records before assigning parent_id. This avoids a
+        // foreign-key failure when a child appears before its parent in the same
+        // cloud pull batch.
+        db.run(
+          `INSERT INTO pages (id, owner_id, title, position, depth, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            record.id,
+            DEFAULT_OWNER_ID,
+            record.title,
+            record.position,
+            record.depth,
+            record.created_at,
+            record.updated_at,
+          ]
+        );
+      }
+    }
+
+    for (const record of validRecords) {
+      let parentId = record.parent_id;
+      if (parentId && !incomingIds.has(parentId)) {
+        const parent = db.query("SELECT id FROM pages WHERE id = ?", [
+          parentId,
+        ]) as unknown as { id: string }[];
+        if (parent.length === 0) parentId = null;
+      }
+
       db.run(
-        `INSERT INTO pages (id, owner_id, title, position, depth, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `UPDATE pages SET parent_id = ?, title = ?, icon = ?, cover_url = ?,
+                content_text = ?, properties = ?, daily_date_key = ?,
+                position = ?, depth = ?,
+                created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
+         WHERE id = ?`,
         [
-          record.id,
-          DEFAULT_OWNER_ID,
+          parentId,
           record.title,
+          record.icon,
+          record.cover_url,
+          record.content_text,
+          record.properties,
+          inferDailyDateKey(record.title, record.properties),
           record.position,
           record.depth,
           record.created_at,
           record.updated_at,
+          record.deleted_at,
+          record.id,
         ]
       );
     }
+    return validRecords;
+  };
+  if (!guard) return writePages();
+  db.run("SAVEPOINT page_lookup_hierarchy");
+  try {
+    const applied = writePages();
+    db.run("RELEASE SAVEPOINT page_lookup_hierarchy");
+    return applied;
+  } catch (error) {
+    db.run("ROLLBACK TO SAVEPOINT page_lookup_hierarchy");
+    db.run("RELEASE SAVEPOINT page_lookup_hierarchy");
+    throw error;
   }
-
-  for (const record of validRecords) {
-    let parentId = record.parent_id;
-    if (parentId && !incomingIds.has(parentId)) {
-      const parent = db.query("SELECT id FROM pages WHERE id = ?", [
-        parentId,
-      ]) as unknown as { id: string }[];
-      if (parent.length === 0) parentId = null;
-    }
-
-    db.run(
-      `UPDATE pages SET parent_id = ?, title = ?, icon = ?, cover_url = ?,
-              content_text = ?, properties = ?, daily_date_key = ?,
-              position = ?, depth = ?,
-              created_at = ?, updated_at = ?, deleted_at = ?, sync_version = 1
-       WHERE id = ?`,
-      [
-        parentId,
-        record.title,
-        record.icon,
-        record.cover_url,
-        record.content_text,
-        record.properties,
-        inferDailyDateKey(record.title, record.properties),
-        record.position,
-        record.depth,
-        record.created_at,
-        record.updated_at,
-        record.deleted_at,
-        record.id,
-      ]
-    );
-  }
-  return validRecords;
 }
 
 export async function applyRemotePageMetadata(

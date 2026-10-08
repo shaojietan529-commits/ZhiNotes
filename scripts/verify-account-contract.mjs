@@ -2540,8 +2540,10 @@ check(
     ) &&
     usePageHook.includes("return fetchCloudPageById(pageId);") &&
     usePageHook.includes("remoteIsAtLeastAsFresh(remoteRecord, localPage)") &&
-    usePageHook.includes("hydrateRemotePageIntoLocalCache(remoteRecord)"),
-  "usePage 打开页面时应拉取云端正文快照，并在云端不旧于本地时回填本地缓存"
+    usePageHook.includes("cacheCloudPageWithAncestors(remoteRecord, cloud.accountId)") &&
+    pageSyncClient.includes("export async function cacheCloudPageWithAncestors(") &&
+    pageSyncClient.includes("isCurrent, isProtected: isCloudPagePendingSync, requiredParentIds, expectedLocalPages"),
+  "usePage 打开页面时应拉取云端正文快照，并在补齐祖先及核对账号和本地修改后回填本地缓存"
 );
 check(
   usePageHook.includes("publishPageBodyHydrationStatus") &&
@@ -2601,7 +2603,8 @@ check(
     usePageHook.includes('priority === "interactive"') &&
     usePageHook.includes("getPageForContentHydration") &&
     usePageHook.includes("const latestLocalPage = getLocalPage();") &&
-    usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
+    usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages, getLocalPage)") &&
+    usePageHook.includes("getPagesForSyncByIds([remoteRecord.id])") &&
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
     usePageHook.includes("PAGE_CLOUD_BODY_STATUS_FALLBACK_MS = 3200") &&

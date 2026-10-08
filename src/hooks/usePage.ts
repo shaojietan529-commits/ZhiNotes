@@ -12,6 +12,7 @@ import {
   getPage,
   getPageForContentHydration,
   getPageMetadata,
+  getPagesForSyncByIds,
   createPage,
   deletePage,
   type RemotePageRecord,
@@ -283,12 +284,11 @@ export function usePage(
         cloud,
         localPage,
         setPageForCurrentLoad,
-        upsertPages
+        upsertPages,
+        () => visiblePageRef.current
       );
       if (!isCurrentLoad()) return;
       if (cloudApplied) {
-        clearPendingPageDraft(pageId);
-        clearPageRouteHandoff(pageId);
         const latest =
           visiblePageRef.current?.id === pageId ? visiblePageRef.current : null;
         if (latest) {
@@ -674,7 +674,7 @@ async function refreshPageFromCloud(
   try {
     const cloud = await fetchCloudPageByIdWithAccountSync(pageId);
     const latestLocalPage = getLocalPage();
-    const cloudApplied = await applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages);
+    const cloudApplied = await applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages, getLocalPage);
     const latest = getLocalPage();
     if (cloudApplied && latest) {
       publishPageBodyHydrationForSnapshot(
@@ -960,18 +960,44 @@ async function applyCloudPageLookup(
   cloud: CloudPageLookupResult | null,
   localPage: Page | null,
   setPage: (page: Page | null) => void,
-  upsertPages: (pages: Page[]) => void
+  upsertPages: (pages: Page[]) => void,
+  getCurrentPage?: () => Page | null
 ): Promise<boolean> {
   if (!cloud || cloud.status !== "ok" || cloud.pages.length === 0) {
     return false;
   }
   const remoteRecord = cloud.pages[0];
   if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
-    const hydrated = await hydrateRemotePageIntoLocalCache(remoteRecord);
+    const { cacheCloudPageWithAncestors } = await loadPageAccountSyncModule();
+    if (!cloud.accountId) return false;
+    let hydrated: Page | null;
+    try {
+      hydrated = await cacheCloudPageWithAncestors(remoteRecord, cloud.accountId);
+    } catch {
+      const { getLastAuthenticatedAccount } = await import("@/lib/account/clientSession");
+      if (getLastAuthenticatedAccount()?.id !== cloud.accountId) return false;
+      const [stored] = await getPagesForSyncByIds([remoteRecord.id]).catch(() => []);
+      if (getLastAuthenticatedAccount()?.id !== cloud.accountId) return false;
+      const visible = getCurrentPage?.();
+      if (visible && visible.id !== remoteRecord.id) return false;
+      const latestLocal = [visible, stored, localPage]
+        .filter((page): page is Page => Boolean(page))
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at) ||
+          Number(a.content_text == null) - Number(b.content_text == null))[0];
+      // A blocked parent chain must not make a readable cloud page disappear.
+      // Re-read edits/deletions made during the request; otherwise display the remote copy without
+      // caching a false root or emitting a successful-download event.
+      hydrated = latestLocal ? (latestLocal.deleted_at ? null : latestLocal)
+        : (remoteRecord.deleted_at ? null : remoteRecordToPage(remoteRecord));
+      setPage(hydrated);
+      return true;
+    }
     if (!hydrated) {
       setPage(null);
       return true;
     }
+    clearPendingPageDraft(remoteRecord.id);
+    clearPageRouteHandoff(remoteRecord.id);
     upsertPages([hydrated]);
     setPage(hydrated);
     return true;

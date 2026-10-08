@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { useLocalFirstPageNavigation } from "@/hooks/useLocalFirstPageNavigation";
 import { getPage } from "@/lib/db/local/queries";
 import { displayPageTitle } from "@/lib/pages/displayTitle";
+import {
+  PAGE_LOCAL_UPDATE_EVENT,
+  subscribePagesUpdated,
+  type PageUpdateMessage,
+} from "@/lib/pages/pageUpdateBus";
 import type { Page } from "@/lib/utils/types";
 
 interface BreadcrumbProps {
@@ -17,13 +22,17 @@ export default function Breadcrumb({ pageId }: BreadcrumbProps) {
   const [collapsedOpen, setCollapsedOpen] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    let revision = 0;
+    let watchedIds = new Set([pageId]);
     async function loadPath() {
+      const request = ++revision;
       const chain: Page[] = [];
       let currentId: string | null = pageId;
       const visited = new Set<string>();
 
       // Walk up the parent chain
-      while (currentId) {
+      while (currentId && visited.size < 64) {
         if (visited.has(currentId)) break;
         visited.add(currentId);
         const page = await getPage(currentId);
@@ -32,10 +41,29 @@ export default function Breadcrumb({ pageId }: BreadcrumbProps) {
         currentId = page.parent_id;
       }
 
-      setPath(chain);
+      if (!cancelled && request === revision) {
+        watchedIds = visited;
+        setPath(chain);
+      }
     }
 
-    loadPath();
+    const reload = () => { void loadPath().catch(() => undefined); };
+    const onUpdate = (message: PageUpdateMessage) => {
+      if (!message.pages?.length || message.pages.some((page) => watchedIds.has(page.id))) reload();
+    };
+    const onLocalUpdate = (event: Event) => {
+      const message = (event as CustomEvent<PageUpdateMessage>).detail;
+      if (message?.type === "pages-updated") onUpdate(message);
+    };
+    const unsubscribe = subscribePagesUpdated(onUpdate);
+    window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, onLocalUpdate);
+    reload();
+    return () => {
+      cancelled = true;
+      revision++;
+      unsubscribe();
+      window.removeEventListener(PAGE_LOCAL_UPDATE_EVENT, onLocalUpdate);
+    };
   }, [pageId]);
 
   useEffect(() => {
