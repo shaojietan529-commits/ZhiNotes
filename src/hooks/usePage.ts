@@ -13,6 +13,7 @@ import {
   getPageForContentHydration,
   getPageMetadata,
   getPagesForSyncByIds,
+  getPendingPageSyncRecords,
   createPage,
   deletePage,
   type RemotePageRecord,
@@ -968,7 +969,7 @@ async function applyCloudPageLookup(
   }
   const remoteRecord = cloud.pages[0];
   if (remoteIsAtLeastAsFresh(remoteRecord, localPage)) {
-    const { cacheCloudPageWithAncestors } = await loadPageAccountSyncModule();
+    const { cacheCloudPageWithAncestors, isCloudPagePendingSync } = await loadPageAccountSyncModule();
     if (!cloud.accountId) return false;
     let hydrated: Page | null;
     try {
@@ -976,19 +977,34 @@ async function applyCloudPageLookup(
     } catch {
       const { getLastAuthenticatedAccount } = await import("@/lib/account/clientSession");
       if (getLastAuthenticatedAccount()?.id !== cloud.accountId) return false;
-      const [stored] = await getPagesForSyncByIds([remoteRecord.id]).catch(() => []);
+      const [storedPages, pending] = await Promise.all([
+        getPagesForSyncByIds([remoteRecord.id]).catch(() => []),
+        getPendingPageSyncRecords(1, [remoteRecord.id]).catch(() => null),
+      ]);
       if (getLastAuthenticatedAccount()?.id !== cloud.accountId) return false;
       const visible = getCurrentPage?.();
       if (visible && visible.id !== remoteRecord.id) return false;
-      const latestLocal = [visible, stored, localPage]
+      const draft = readPendingPageDraft(remoteRecord.id);
+      const latestLocal = [visible, draft, storedPages[0], localPage]
         .filter((page): page is Page => Boolean(page))
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at) ||
+          Number(Boolean(b.deleted_at)) - Number(Boolean(a.deleted_at)) ||
           Number(a.content_text == null) - Number(b.content_text == null))[0];
+      const hasPendingLocalChange = Boolean(draft) || isCloudPagePendingSync(remoteRecord.id) ||
+        !pending || pending.entries.length > 0;
       // A blocked parent chain must not make a readable cloud page disappear.
-      // Re-read edits/deletions made during the request; otherwise display the remote copy without
-      // caching a false root or emitting a successful-download event.
+      // Only borrow the same version's body for a clean metadata placeholder.
+      // Actual local bodies (including an empty string), drafts, and deletions win.
       hydrated = latestLocal ? (latestLocal.deleted_at ? null : latestLocal)
         : (remoteRecord.deleted_at ? null : remoteRecordToPage(remoteRecord));
+      if (latestLocal && !latestLocal.deleted_at && !remoteRecord.deleted_at &&
+          latestLocal.content_text == null && latestLocal.content_yjs == null &&
+          latestLocal.updated_at === remoteRecord.updated_at &&
+          remoteRecord.content_text !== null && !hasPendingLocalChange) {
+        hydrated = { ...latestLocal, content_text: remoteRecord.content_text };
+      }
+      // This is display-only: do not cache a false root, clear drafts, or emit
+      // a successful-download event while the ancestor chain is blocked.
       setPage(hydrated);
       return true;
     }

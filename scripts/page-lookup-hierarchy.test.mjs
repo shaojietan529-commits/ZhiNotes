@@ -516,6 +516,8 @@ function loadPageLookupFallback(f, options = {}) {
     exports: result, DEFAULT_OWNER_ID: "solo-user",
     loadPageAccountSyncModule: async () => f.sync,
     getPagesForSyncByIds: f.queries.getPagesForSyncByIds,
+    getPendingPageSyncRecords: f.queries.getPendingPageSyncRecords,
+    readPendingPageDraft: options.readPendingPageDraft ?? (() => null),
     clearPendingPageDraft: options.clearPendingPageDraft ?? (() => assert.fail("fallback must keep the pending draft")),
     clearPageRouteHandoff: options.clearPageRouteHandoff ?? (() => assert.fail("fallback must keep the route handoff")),
     require: (name) => {
@@ -548,6 +550,115 @@ for (const condition of ["missing ancestor", "pending ancestor"]) {
       assert.equal(upserted.length, 0, "a display-only fallback must not update the workspace cache");
       assert.deepEqual(f.rows(), before);
       assert.equal(f.events.length, 0, "blocked caching must not emit a successful download");
+    });
+  }
+}
+
+for (const condition of ["missing ancestor", "pending ancestor"]) {
+  for (const body of [null, ""]) {
+    test(`usePage fallback: ${condition}, ${body === null ? "metadata-only cache displays same-version cloud body" : "intentional empty local body stays empty"}`, async (t) => {
+      const f = fixture(t);
+      if (condition === "missing ancestor") f.remote.delete("daily");
+      else f.pending("daily");
+      await f.queries.applyRemotePages([record("minutes", null, { content_text: body })]);
+      const local = await f.queries.getPage("minutes");
+      const before = f.rows();
+      const shown = [], upserted = [];
+      const applied = await loadPageLookupFallback(f)(
+        { status: "ok", pages: [chain()[0]], accountId: "alpha" }, local,
+        (page) => shown.push(page), (pages) => upserted.push(...pages), () => local,
+      );
+      assert.equal(applied, true);
+      assert.equal(shown.length, 1);
+      assert.equal(shown[0].content_text, body === null ? chain()[0].content_text : "");
+      assert.equal(upserted.length, 0, "display-only body must not enter the workspace cache");
+      assert.deepEqual(f.rows(), before, "metadata-only SQLite cache stays untouched on blocked hierarchy");
+      assert.equal(f.events.length, 0, "displaying a cloud body is not a persisted-download receipt");
+    });
+  }
+
+  test(`usePage fallback: ${condition}, newer local metadata cannot accept an older cloud body`, async (t) => {
+    const f = fixture(t);
+    if (condition === "missing ancestor") f.remote.delete("daily");
+    else f.pending("daily");
+    await f.queries.applyRemotePages([record("minutes", null, { content_text: null })]);
+    const local = await f.queries.getPage("minutes");
+    let updatedSnapshot;
+    f.controls.afterRequest = async () => {
+      f.controls.afterRequest = null;
+      await f.queries.applyRemotePages([record("minutes", null, {
+        content_text: null, title: "Newer metadata version", updated_at: "2026-10-09T04:00:00.000Z",
+      })]);
+      updatedSnapshot = f.rows();
+    };
+    const shown = [], upserted = [];
+    const applied = await loadPageLookupFallback(f)(
+      { status: "ok", pages: [chain()[0]], accountId: "alpha" }, local,
+      (page) => shown.push(page), (pages) => upserted.push(...pages), () => local,
+    );
+    assert.equal(applied, true);
+    assert.ok(updatedSnapshot, "the metadata version actually changed during ancestor loading");
+    assert.equal(shown.length, 1);
+    assert.equal(shown[0].content_text, null, "an older cloud body cannot be grafted onto newer metadata");
+    assert.equal(shown[0].updated_at, "2026-10-09T04:00:00.000Z");
+    assert.equal(upserted.length, 0);
+    assert.deepEqual(f.rows(), updatedSnapshot);
+    assert.equal(f.events.length, 0);
+  });
+
+  test(`usePage fallback: ${condition}, pending target draft outranks metadata and cloud body`, async (t) => {
+    const f = fixture(t);
+    if (condition === "missing ancestor") f.remote.delete("daily");
+    else f.pending("daily");
+    await f.queries.applyRemotePages([record("minutes", null, { content_text: null })]);
+    f.pending("minutes");
+    const local = await f.queries.getPage("minutes");
+    const draft = { ...local, content_text: "Unsent target draft must remain visible" };
+    const before = f.rows();
+    const shown = [], upserted = [];
+    const applied = await loadPageLookupFallback(f, {
+      readPendingPageDraft: (id) => id === "minutes" ? draft : null,
+    })(
+      { status: "ok", pages: [chain()[0]], accountId: "alpha" }, local,
+      (page) => shown.push(page), (pages) => upserted.push(...pages), () => local,
+    );
+    assert.equal(applied, true);
+    assert.equal(shown.length, 1);
+    assert.equal(shown[0].content_text, draft.content_text);
+    assert.equal(upserted.length, 0);
+    assert.deepEqual(f.rows(), before);
+    assert.equal(f.events.length, 0);
+    assert.equal(f.db.prepare("SELECT COUNT(*) AS count FROM sync_log WHERE row_id = 'minutes' AND synced = 0").get().count, 1);
+  });
+
+  for (const protection of ["target sync log", "target push queue", "local Yjs body"]) {
+    test(`usePage fallback: ${condition}, ${protection} prevents borrowing a cloud body`, async (t) => {
+      const f = fixture(t);
+      if (condition === "missing ancestor") f.remote.delete("daily");
+      else f.pending("daily");
+      await f.queries.applyRemotePages([record("minutes", null, { content_text: null })]);
+      if (protection === "target sync log") f.pending("minutes");
+      if (protection === "target push queue") {
+        f.storage.set("zhinote.pagesync.pendingPushIds", JSON.stringify(["minutes"]));
+      }
+      if (protection === "local Yjs body") {
+        f.db.prepare("UPDATE pages SET content_yjs = ? WHERE id = 'minutes'")
+          .run(new Uint8Array([1, 2, 3]));
+      }
+      const local = await f.queries.getPage("minutes");
+      const before = f.rows();
+      const shown = [], upserted = [];
+      const applied = await loadPageLookupFallback(f)(
+        { status: "ok", pages: [chain()[0]], accountId: "alpha" }, local,
+        (page) => shown.push(page), (pages) => upserted.push(...pages), () => local,
+      );
+      assert.equal(applied, true);
+      assert.equal(shown.length, 1);
+      assert.equal(shown[0].content_text, null, "local pending or Yjs content is not a blank placeholder");
+      if (protection === "local Yjs body") assert.deepEqual(shown[0].content_yjs, local.content_yjs);
+      assert.equal(upserted.length, 0);
+      assert.deepEqual(f.rows(), before);
+      assert.equal(f.events.length, 0);
     });
   }
 }
