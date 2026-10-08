@@ -8,9 +8,19 @@ import { test } from "node:test";
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const base = process.env.PORTFOLIO_TEST_URL ?? "http://127.0.0.1:3007";
-const origin = new URL(base).origin;
-assert.ok(["127.0.0.1", "localhost"].includes(new URL(base).hostname) ||
+const target = new URL(base);
+const origin = target.origin;
+const preview = process.env.PORTFOLIO_PREVIEW_ASSETS === "1" &&
+  target.protocol === "https:" && /^zhi-notes-[a-z0-9]+-zhinote\.vercel\.app$/.test(target.hostname);
+assert.ok(["127.0.0.1", "localhost"].includes(target.hostname) || preview ||
   (process.env.PORTFOLIO_PUBLIC_ASSETS === "1" && origin === "https://zhi-note.com"));
+// A Vercel-generated preview share link authenticates only this fresh context.
+// Never log the link, persist its cookies, or reuse a user's browser session.
+const access = new URLSearchParams();
+if (preview && target.searchParams.has("_vercel_share")) {
+  access.set("_vercel_share", target.searchParams.get("_vercel_share"));
+}
+const entry = `${origin}/portfolio${access.size ? `?${access}` : ""}`;
 const now = "2026-09-28T00:00:00.000Z";
 const newKey = "SYNTHETIC US";
 const scopedPrefix = "zhinote.portfolio.scoped.v1.account%3Asynthetic.";
@@ -25,7 +35,7 @@ const initial = {
 const versionOf = (data) => ({ scope: "a".repeat(64),
   revision: createHash("sha256").update(JSON.stringify(data)).digest("hex") });
 
-test("new-position label entered during startup sync reaches an independent device", { timeout: 60000 }, async (t) => {
+test("new-position label entered during startup sync reaches an independent browser context", { timeout: 90000 }, async (t) => {
   const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL ?? "chrome" });
   let cloud = structuredClone(initial);
   let firstUpload = true;
@@ -75,7 +85,8 @@ test("new-position label entered during startup sync reaches an independent devi
       if (url.pathname.startsWith("/api/")) return json({ error: "Isolated synthetic test" }, 501);
       // Only public UI resources can leave the isolated browser context.
       if (request.method() === "GET" && (url.pathname === "/portfolio" ||
-          url.pathname.startsWith("/_next/static/") || url.pathname === "/favicon.ico")) return route.continue();
+          url.pathname.startsWith("/_next/static/") || url.pathname === "/favicon.ico" ||
+          (preview && access.size > 0 && url.pathname.startsWith("/_vercel/")))) return route.continue();
       return route.abort();
     });
     if (seed) await context.addInitScript(({ data, prefix }) => {
@@ -90,7 +101,7 @@ test("new-position label entered during startup sync reaches an independent devi
     }, { data: initial, prefix: scopedPrefix });
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto(`${origin}/portfolio`);
+    await page.goto(entry);
     await page.getByTitle("点击修改标签", { exact: true }).waitFor();
     return page;
   }
