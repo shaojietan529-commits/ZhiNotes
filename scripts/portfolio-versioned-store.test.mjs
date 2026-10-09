@@ -107,6 +107,24 @@ test("account: all reads and writes require identity intent; success echoes conf
 });
 
 for (const mode of ["account", "passcode"]) {
+  test(`${mode}: AI Exposure range validation, roundtrip, old-client protection and explicit clearing`, async () => {
+    const f = fixture(mode);
+    assert.equal((await f.push(initial)).status, 200, "old documents remain readable/writable before adoption");
+    const base = (await f.pull()).body.version;
+    for (const values of [null, [], { A: "1" }, { A: 1.1 }, { A: -1.1 }, { A: null }]) {
+      assert.equal((await f.push({ ...initial, aiExposureMap: values }, base)).status, 400);
+    }
+    const updated = { ...initial, aiExposureMap: { A: 1, B: -1, C: 0, D: 0.1234 } };
+    assert.equal((await f.push(updated, base)).status, 200);
+    const read = (await f.pull()).body;
+    assert.deepEqual(read.data.aiExposureMap, updated.aiExposureMap);
+    assert.equal((await f.push({ ...initial, allocation: 200 }, read.version)).status, 428);
+    assert.deepEqual((await f.pull()).body.data.aiExposureMap, updated.aiExposureMap);
+    assert.equal((await f.push({ ...updated, aiExposureMap: {} }, read.version)).status, 200);
+    assert.deepEqual((await f.pull()).body.data.aiExposureMap, {});
+    assert.equal((await f.push(updated, read.version)).status, 409, "stale device cannot restore cleared coefficients");
+  });
+
   test(`${mode}: durable versioned ACK and idempotent retry; no ACK on failed write`, async () => {
     const f = fixture(mode);
     const first = await f.push(initial);

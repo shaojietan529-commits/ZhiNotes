@@ -1,6 +1,6 @@
 import { getLastAuthenticatedAccount } from "@/lib/account/clientSession";
 import { capturePortfolioAccountContext } from "./portfolioAccountContext";
-import { cachedPortfolioRecord, changePortfolioRecord, readPortfolioRecord, PORTFOLIO_LOCAL_VALUE_KEYS, type PortfolioLocalRecord } from "./portfolioLocalDatabase";
+import { cachedPortfolioRecord, changePortfolioRecord, readPortfolioRecord, PORTFOLIO_LOCAL_VALUE_KEYS, PORTFOLIO_OPTIONAL_VALUE_KEYS, type PortfolioLocalRecord } from "./portfolioLocalDatabase";
 
 export type PortfolioStorageScope = "local" | "legacy" | `account:${string}`;
 const PREFIX = "zhinote.portfolio.";
@@ -37,10 +37,11 @@ function importScopedRecord(scope: PortfolioStorageScope): PortfolioLocalRecord 
   if (raw !== null) {
     const parsed = JSON.parse(raw);
     if (parsed?.format !== 2 || !parsed.values || typeof parsed.values !== "object" ||
-        STATE_KEYS.some((key) => parsed.values[key] !== null && typeof parsed.values[key] !== "string")) {
+        STATE_KEYS.some((key) => !(PORTFOLIO_OPTIONAL_VALUE_KEYS.includes(key) && parsed.values[key] === undefined) &&
+          parsed.values[key] !== null && typeof parsed.values[key] !== "string")) {
       throw new Error("旧版组合保存记录无法读取，原始记录已保留，未自动迁移。");
     }
-    for (const key of STATE_KEYS) values[key] = parsed.values[key];
+    for (const key of STATE_KEYS) values[key] = parsed.values[key] ?? null;
   }
   delete values[PORTFOLIO_STATE_KEY];
   // Import only the selected account's cache. Unscoped data needs explicit review.

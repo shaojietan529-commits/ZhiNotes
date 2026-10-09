@@ -2,7 +2,7 @@ import { accountPullCloud } from "./accountSync";
 import { loadSyncPasscode, pullCloudData, type CloudPortfolioData } from "./cloudSync";
 import {
   DEFAULT_GMV_ALLOCATION, DEFAULT_MAX_NET_PCT, readLocalPortfolioData, readPortfolioLocalFingerprint,
-  saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap,
+  saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap, saveAiExposureMap,
 } from "./portfolioStore";
 import { parsePortfolioCloudVersion, readActivePortfolioConflict, readPortfolioCloudBase, retainPortfolioConflict, type PortfolioCloudVersion } from "./portfolioSyncRevision";
 import { assertPortfolioScopeCurrent, getPortfolioStorageScope, portfolioStorage, withPortfolioStorageLock, type PortfolioStorageScope } from "./portfolioStorageScope";
@@ -64,6 +64,7 @@ export async function prepareLegacyPortfolioReview(scope = getPortfolioStorageSc
 export function saveLocalPortfolioData(data: CloudPortfolioData, scope = getPortfolioStorageScope()): void {
   saveSnapshot(data.snapshot, scope);
   saveTagMap(data.tagMap, scope);
+  if (data.aiExposureMap !== undefined) saveAiExposureMap(data.aiExposureMap, scope);
   saveAllocation(data.allocation, scope);
   saveMaxNetPct(data.maxNetPct ?? DEFAULT_MAX_NET_PCT, scope);
   saveLastEmailMessageId(data.lastEmailMessageId ?? null, scope);
@@ -90,6 +91,10 @@ export function portfolioConflictFields(local: CloudPortfolioData, cloud: CloudP
   add("maxNetPct", "最大净敞口 (%)", local.maxNetPct ?? DEFAULT_MAX_NET_PCT, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT, original?.maxNetPct ?? DEFAULT_MAX_NET_PCT);
   for (const key of [...new Set([...Object.keys(local.tagMap), ...Object.keys(cloud.tagMap), ...Object.keys(original?.tagMap ?? {})])].sort()) {
     add(`tag:${key}`, `标签 · ${key}`, tagValue(local, key), tagValue(cloud, key), original ? tagValue(original, key) : undefined);
+  }
+  for (const key of [...new Set([...Object.keys(local.aiExposureMap ?? {}), ...Object.keys(cloud.aiExposureMap ?? {}), ...Object.keys(original?.aiExposureMap ?? {})])].sort()) {
+    add(`ai:${key}`, `AI Exposure · ${key}`, local.aiExposureMap?.[key] ?? null, cloud.aiExposureMap?.[key] ?? null,
+      original ? original.aiExposureMap?.[key] ?? null : undefined);
   }
   return fields;
 }
@@ -136,7 +141,7 @@ export function stagePortfolioConflictResolution(review: PortfolioConflictReview
   } else if (!active || active.scope !== review.version.scope || active.revision !== review.version.revision) {
     throw new Error("冲突版本已变化，请重新读取差异。");
   }
-  const data: CloudPortfolioData = { ...review.local, tagMap: { ...review.local.tagMap }, updatedAt: new Date().toISOString() };
+  const data: CloudPortfolioData = { ...review.local, tagMap: { ...review.local.tagMap }, aiExposureMap: { ...review.local.aiExposureMap }, updatedAt: new Date().toISOString() };
   for (const field of review.fields) {
     const choice = choices[field.id];
     if (choice !== "local" && choice !== "cloud" && !(choice === "original" && review.recoveryOriginal)) throw new Error("请为每一项差异选择保留版本。");
@@ -145,6 +150,12 @@ export function stagePortfolioConflictResolution(review: PortfolioConflictReview
     if (field.id === "report") { data.snapshot = selected.snapshot; data.lastEmailMessageId = selected.lastEmailMessageId; }
     else if (field.id === "allocation") data.allocation = selected.allocation;
     else if (field.id === "maxNetPct") data.maxNetPct = selected.maxNetPct ?? DEFAULT_MAX_NET_PCT;
+    else if (field.id.startsWith("ai:")) {
+      const key = field.id.slice(3);
+      const value = selected.aiExposureMap?.[key];
+      if (value === undefined) delete data.aiExposureMap![key];
+      else Object.defineProperty(data.aiExposureMap, key, { value, enumerable: true, writable: true, configurable: true });
+    }
     else {
       const key = field.id.slice(4);
       const value = tagValue(selected, key);

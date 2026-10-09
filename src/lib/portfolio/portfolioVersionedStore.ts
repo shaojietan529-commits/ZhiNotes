@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { parsePortfolioCloudVersion } from "./portfolioSyncRevision";
+import { isAiExposureMap } from "./positionReport";
 
 type KvConfig = { url: string; token: string };
 type PushBody = { data?: unknown; protocol?: unknown; requestId?: unknown; base?: unknown };
@@ -37,6 +38,7 @@ function validPortfolio(value: unknown): value is Record<string, unknown> {
       Array.isArray((data.snapshot as Record<string, unknown>).positions))) &&
     !!data.tagMap && typeof data.tagMap === "object" && !Array.isArray(data.tagMap) &&
     Object.values(data.tagMap).every((tag) => typeof tag === "string") &&
+    (data.aiExposureMap === undefined || isAiExposureMap(data.aiExposureMap)) &&
     typeof data.allocation === "number" && Number.isFinite(data.allocation) && data.allocation > 0 &&
     (data.maxNetPct === undefined || (typeof data.maxNetPct === "number" && data.maxNetPct > 0 && data.maxNetPct <= 100)) &&
     (data.lastEmailMessageId === undefined || data.lastEmailMessageId === null || typeof data.lastEmailMessageId === "string") &&
@@ -63,6 +65,10 @@ export async function writeVersionedPortfolio(
     signal: () => AbortSignal.timeout(8000) });
   const raw = await redis.get<string>(key);
   const current = portfolioCloudEnvelope(raw, key);
+  // An old tab cannot acknowledge an exact-document write that drops this new field.
+  if (body.data.aiExposureMap === undefined && Object.keys(current.data?.aiExposureMap ?? {}).length > 0) {
+    return reply(428, { error: "云端已有 AI Exposure；请刷新页面后重试同步，本机修改已保留。" });
+  }
   const base = parsePortfolioCloudVersion(body.base);
   if (base && base.scope !== current.version.scope) {
     return reply(409, { error: "账号或同步空间已改变；本机组合已保留，请先确认账号。", code: "scope-mismatch" });

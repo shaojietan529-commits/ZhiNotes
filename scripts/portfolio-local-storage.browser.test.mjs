@@ -65,12 +65,40 @@ async function fixture(t) {
   return { page, context };
 }
 
+test("native AI Exposure: existing IndexedDB records without the field can upgrade, persist and reload", { timeout: 30000 }, async (t) => {
+  const { page } = await fixture(t);
+  await page.evaluate(async () => {
+    const p = window.persistence, scope = p.getPortfolioStorageScope();
+    await p.hydratePortfolioStorage(scope);
+    await window.rawRecord(scope, record => {
+      delete record.values["zhinote.portfolio.aiExposure.v1"];
+      record.values["zhinote.portfolio.tags.v1"] = JSON.stringify({ SAMPLE: "original" });
+      return record;
+    });
+  });
+  await page.reload();
+  const result = await page.evaluate(async () => {
+    const p = window.persistence, scope = p.getPortfolioStorageScope();
+    await p.hydratePortfolioStorage(scope);
+    await p.withPortfolioStorageLock(scope, () => p.portfolioStorage().setItem("zhinote.portfolio.aiExposure.v1", '{"SAMPLE":-0.5}'));
+    return (await window.rawRecord(scope)).values;
+  });
+  assert.equal(result["zhinote.portfolio.tags.v1"], '{"SAMPLE":"original"}');
+  assert.equal(result["zhinote.portfolio.aiExposure.v1"], '{"SAMPLE":-0.5}');
+  await page.reload();
+  assert.equal(await page.evaluate(async () => {
+    await window.persistence.hydratePortfolioStorage();
+    return window.persistence.portfolioStorage().getItem("zhinote.portfolio.aiExposure.v1");
+  }), '{"SAMPLE":-0.5}');
+});
+
 test("native migration: scoped content, queue and recovery copied; originals and other accounts untouched", { timeout: 30000 }, async (t) => {
   const { page } = await fixture(t);
   const result = await page.evaluate(async () => {
     const p = window.persistence, db = window.backend;
     const scope = p.getPortfolioStorageScope(), key = (name) => `zhinote.portfolio.${name}`;
     const values = Object.fromEntries(db.PORTFOLIO_LOCAL_VALUE_KEYS.map((name) => [name, null]));
+    delete values[key("aiExposure.v1")]; // Previously persisted clients do not have the new field.
     values[key("tags.v1")] = JSON.stringify({ SAMPLE: "confirmed" });
     values[key("sync.status.v1")] = "synthetic-pending-record";
     localStorage.setItem(p.portfolioStorageKey(key("state.v2"), scope), JSON.stringify({ format: 2, values }));

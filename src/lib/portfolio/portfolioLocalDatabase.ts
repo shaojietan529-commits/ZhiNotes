@@ -2,12 +2,13 @@
 // Network calls must stay outside the synchronous transaction callback.
 export const PORTFOLIO_LOCAL_DB = "zhinote-portfolio";
 export const PORTFOLIO_LOCAL_STORE = "accounts";
+export const PORTFOLIO_OPTIONAL_VALUE_KEYS = ["zhinote.portfolio.aiExposure.v1"];
 export const PORTFOLIO_LOCAL_VALUE_KEYS = [
   "snapshot.v1", "tags.v1", "allocation.v1", "maxNetPct.v1", "lastEmailMessage.v1", "updatedAt.v1",
   "sync.status.v1", "sync.base.v2.account", "sync.base.v2.passcode",
   "sync.resolution.v1.account", "sync.resolution.v1.passcode",
   "sync.conflict.v1.account", "sync.conflict.v1.passcode", "legacy-reviewed.v1",
-].map((key) => `zhinote.portfolio.${key}`);
+].map((key) => `zhinote.portfolio.${key}`).concat(PORTFOLIO_OPTIONAL_VALUE_KEYS);
 export interface PortfolioLocalRecord {
   format: 1;
   scope: string;
@@ -55,7 +56,7 @@ export function validatePortfolioRecord(value: unknown, scope: string): Portfoli
     Object.entries(values).every(([key, val]) => key.startsWith("zhinote.portfolio.") && (val === null || typeof val === "string"));
   if (!record || record.format !== 1 || record.scope !== scope || !Number.isSafeInteger(record.revision) || record.revision < 1 ||
       !isValues(record.values) || !isValues(record.legacySource) ||
-      PORTFOLIO_LOCAL_VALUE_KEYS.some((key) => !Object.hasOwn(record.values, key))) {
+      PORTFOLIO_LOCAL_VALUE_KEYS.some((key) => !PORTFOLIO_OPTIONAL_VALUE_KEYS.includes(key) && !Object.hasOwn(record.values, key))) {
     throw new Error("组合本机记录无法读取，原始记录已保留。");
   }
   return record;

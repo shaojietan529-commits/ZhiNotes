@@ -23,6 +23,18 @@ export interface PortfolioSnapshot {
 }
 
 export type TagMap = Record<string, string>;
+export type AiExposureMap = Record<string, number>;
+
+export function isAiExposureMap(value: unknown): value is AiExposureMap {
+  return !!value && typeof value === "object" && !Array.isArray(value) &&
+    Object.values(value).every((item) => typeof item === "number" && Number.isFinite(item) && item >= -1 && item <= 1);
+}
+
+// Signed market value keeps long and short exposure on the same allocation basis.
+export function positionAiExposure(position: PortfolioPosition, values: AiExposureMap): number {
+  const value = Object.hasOwn(values, position.key) ? values[position.key] : 0;
+  return position.nmv * value;
+}
 
 // Bloomberg uses C1/C2/CG etc. for China A-share lines; fold them into CH so
 // the same stock maps to one key across exports.
@@ -233,12 +245,14 @@ export interface ExposureRow {
   short: number; // USD, positive
   net: number;
   gross: number;
+  aiExposure: number; // signed USD; divide by allocation for the portfolio contribution
   positions: PortfolioPosition[];
 }
 
 export function buildExposures(
   positions: PortfolioPosition[],
-  labelOf: (position: PortfolioPosition) => string
+  labelOf: (position: PortfolioPosition) => string,
+  aiExposureMap: AiExposureMap = {}
 ): { rows: ExposureRow[]; totalGross: number } {
   const byLabel = new Map<string, ExposureRow>();
   for (const position of positions) {
@@ -249,12 +263,14 @@ export function buildExposures(
       short: 0,
       net: 0,
       gross: 0,
+      aiExposure: 0,
       positions: [] as PortfolioPosition[],
     };
     if (position.nmv >= 0) row.long += position.nmv;
     else row.short += -position.nmv;
     row.net = row.long - row.short;
     row.gross = row.long + row.short;
+    row.aiExposure += positionAiExposure(position, aiExposureMap);
     row.positions.push(position);
     byLabel.set(label, row);
   }

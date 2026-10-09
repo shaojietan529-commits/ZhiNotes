@@ -2,7 +2,7 @@
 // copy, and account/passcode sync helpers upload normalized snapshots when
 // cloud sync is enabled.
 
-import type { PortfolioSnapshot, TagMap } from "./positionReport";
+import { isAiExposureMap, type AiExposureMap, type PortfolioSnapshot, type TagMap } from "./positionReport";
 import type { CloudPortfolioData } from "./cloudSync";
 import { getPortfolioStorageScope, portfolioStorage, portfolioStorageKey, PORTFOLIO_STATE_KEY, type PortfolioStorageScope } from "./portfolioStorageScope";
 
@@ -12,7 +12,8 @@ const ALLOCATION_KEY = "zhinote.portfolio.allocation.v1";
 const MAX_NET_KEY = "zhinote.portfolio.maxNetPct.v1";
 const EMAIL_MESSAGE_KEY = "zhinote.portfolio.lastEmailMessage.v1";
 const UPDATED_AT_KEY = "zhinote.portfolio.updatedAt.v1";
-const DATA_KEYS = [SNAPSHOT_KEY, TAGS_KEY, ALLOCATION_KEY, MAX_NET_KEY, EMAIL_MESSAGE_KEY, UPDATED_AT_KEY];
+const AI_EXPOSURE_KEY = "zhinote.portfolio.aiExposure.v1";
+const DATA_KEYS = [SNAPSHOT_KEY, TAGS_KEY, ALLOCATION_KEY, MAX_NET_KEY, EMAIL_MESSAGE_KEY, UPDATED_AT_KEY, AI_EXPOSURE_KEY];
 
 export function isPortfolioDataStorageKey(key: string | null, scope = getPortfolioStorageScope()): boolean {
   return key !== null && [...DATA_KEYS, PORTFOLIO_STATE_KEY].some((dataKey) => key === portfolioStorageKey(dataKey, scope));
@@ -31,7 +32,10 @@ export function hasPortfolioDataStorageChange(event: Pick<StorageEvent, "key" | 
 // Memory-only comparison token. Unlike display loaders, a failed read must
 // throw so an ACK cannot mistake unreadable local data for an empty portfolio.
 export function readPortfolioLocalFingerprint(scope = getPortfolioStorageScope()): string {
-  return JSON.stringify(DATA_KEYS.map((key) => portfolioStorage(scope).getItem(key)));
+  const values = DATA_KEYS.map((key) => portfolioStorage(scope).getItem(key));
+  // Keep pre-feature pending receipts and legacy-review markers comparable.
+  if (values[6] === null) values.pop();
+  return JSON.stringify(values);
 }
 
 export const DEFAULT_GMV_ALLOCATION = 108_700_000;
@@ -44,15 +48,17 @@ export function readLocalPortfolioData(scope = getPortfolioStorageScope()): Clou
   const tagMap = raw[1] === null ? {} : JSON.parse(raw[1]);
   const allocation = raw[2] === null ? DEFAULT_GMV_ALLOCATION : Number(raw[2]);
   const maxNetPct = raw[3] === null ? DEFAULT_MAX_NET_PCT : Number(raw[3]);
+  const aiExposureMap = raw[6] == null ? {} : JSON.parse(raw[6]);
   if ((snapshot !== null && (!snapshot || !Array.isArray(snapshot.positions))) ||
       !tagMap || typeof tagMap !== "object" || Array.isArray(tagMap) ||
       !Object.values(tagMap).every((tag) => typeof tag === "string") ||
+      !isAiExposureMap(aiExposureMap) ||
       !Number.isFinite(allocation) || allocation <= 0 ||
       !Number.isFinite(maxNetPct) || maxNetPct <= 0 || maxNetPct > 100 ||
       (raw[5] !== null && !Number.isFinite(Date.parse(raw[5])))) {
     throw new Error("本机组合格式异常，未用空值替代原始内容，请先恢复备份。");
   }
-  return { snapshot, tagMap, allocation, maxNetPct, lastEmailMessageId: raw[4],
+  return { snapshot, tagMap, ...(raw[6] == null ? {} : { aiExposureMap }), allocation, maxNetPct, lastEmailMessageId: raw[4],
     updatedAt: raw[5] ?? new Date().toISOString() };
 }
 
@@ -88,6 +94,19 @@ export function loadTagMap(scope = getPortfolioStorageScope()): TagMap {
 
 export function saveTagMap(map: TagMap, scope = getPortfolioStorageScope()) {
   portfolioStorage(scope).setItem(TAGS_KEY, JSON.stringify(map));
+}
+
+export function loadAiExposureMap(scope = getPortfolioStorageScope()): AiExposureMap {
+  if (typeof window === "undefined") return {};
+  const raw = portfolioStorage(scope).getItem(AI_EXPOSURE_KEY);
+  const values: unknown = raw === null ? {} : JSON.parse(raw);
+  if (!isAiExposureMap(values)) throw new Error("AI Exposure 格式异常，原数据已保留。");
+  return values;
+}
+
+export function saveAiExposureMap(map: AiExposureMap, scope = getPortfolioStorageScope()) {
+  if (!isAiExposureMap(map)) throw new Error("AI Exposure 必须是 -1 到 1 之间的数字。");
+  portfolioStorage(scope).setItem(AI_EXPOSURE_KEY, JSON.stringify(map));
 }
 
 export function loadAllocation(scope = getPortfolioStorageScope()): number {
@@ -155,6 +174,7 @@ export function bindPortfolioStore(scope: PortfolioStorageScope) {
   return {
     loadSnapshot: () => loadSnapshot(scope), saveSnapshot: (value: PortfolioSnapshot | null) => saveSnapshot(value, scope),
     loadTagMap: () => loadTagMap(scope), saveTagMap: (value: TagMap) => saveTagMap(value, scope),
+    loadAiExposureMap: () => loadAiExposureMap(scope), saveAiExposureMap: (value: AiExposureMap) => saveAiExposureMap(value, scope),
     loadAllocation: () => loadAllocation(scope), saveAllocation: (value: number) => saveAllocation(value, scope),
     loadMaxNetPct: () => loadMaxNetPct(scope), saveMaxNetPct: (value: number) => saveMaxNetPct(value, scope),
     loadLastEmailMessageId: () => loadLastEmailMessageId(scope), saveLastEmailMessageId: (value: string | null) => saveLastEmailMessageId(value, scope),

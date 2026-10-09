@@ -2,7 +2,7 @@
 // browser's localStorage; all devices entering the same passcode share one
 // cloud copy of the portfolio data.
 
-import type { PortfolioSnapshot, TagMap } from "./positionReport";
+import type { AiExposureMap, PortfolioSnapshot, TagMap } from "./positionReport";
 import { assertPortfolioScopeCurrent, getPortfolioStorageScope, portfolioStorage, withPortfolioStorageLock } from "./portfolioStorageScope";
 import {
   acceptPortfolioCloudVersion, createPortfolioPushGuard, parsePortfolioCloudVersion,
@@ -12,6 +12,7 @@ import {
 export interface CloudPortfolioData {
   snapshot: PortfolioSnapshot | null;
   tagMap: TagMap;
+  aiExposureMap?: AiExposureMap; // absent on older clients and cloud documents
   allocation: number;
   // Optional: older cloud payloads may not carry this field.
   maxNetPct?: number;

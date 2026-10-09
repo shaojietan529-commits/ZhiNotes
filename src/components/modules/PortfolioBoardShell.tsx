@@ -11,8 +11,11 @@ import {
 } from "react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import PortfolioConflictDialog from "./PortfolioConflictDialog";
+import AiExposureInput from "./AiExposureInput";
 import {
   buildExposures,
+  positionAiExposure,
+  type AiExposureMap,
   parseBookTagRows,
   parsePositionRows,
   type ExposureRow,
@@ -243,8 +246,8 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     saveSyncPasscode: (code: string) => passcodeCloud.saveSyncPasscode(code, scope),
     clearSyncPasscode: () => passcodeCloud.clearSyncPasscode(scope),
   }), [scope]);
-  const { loadSnapshot, loadTagMap, loadAllocation, loadMaxNetPct, loadLastEmailMessageId, loadDataUpdatedAt,
-    saveSnapshot, saveTagMap, saveAllocation, saveMaxNetPct, saveLastEmailMessageId, saveDataUpdatedAt } = store;
+  const { loadSnapshot, loadTagMap, loadAiExposureMap, loadAllocation, loadMaxNetPct, loadLastEmailMessageId, loadDataUpdatedAt,
+    saveSnapshot, saveTagMap, saveAiExposureMap, saveAllocation, saveMaxNetPct, saveLastEmailMessageId, saveDataUpdatedAt } = store;
   const mountedRef = useRef(false);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
   const isCurrent = useCallback(() => mountedRef.current && isPortfolioScopeCurrent(scope), [scope]);
@@ -268,6 +271,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
   }, [isCurrent, scope]);
   const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
   const [tagMap, setTagMap] = useState<TagMap>({});
+  const [aiExposureMap, setAiExposureMap] = useState<AiExposureMap>({});
   const [allocation, setAllocation] = useState<number>(DEFAULT_GMV_ALLOCATION);
   const [maxNetPct, setMaxNetPct] = useState<number>(DEFAULT_MAX_NET_PCT);
   const [tab, setTab] = useState<BoardTab>("positions");
@@ -336,6 +340,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
   const viewStashRef = useRef<{
     snapshot: PortfolioSnapshot | null;
     tagMap: TagMap;
+    aiExposureMap: AiExposureMap;
     allocation: number;
     maxNetPct: number;
   } | null>(null);
@@ -369,6 +374,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
       if (!isCurrent()) return;
       setSnapshot(loadSnapshot());
       setTagMap(loadTagMap());
+      setAiExposureMap(loadAiExposureMap());
       setAllocation(loadAllocation());
       setMaxNetPct(loadMaxNetPct());
       // Signed in → account sync takes over; otherwise legacy passcode mode.
@@ -416,11 +422,13 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     snap: PortfolioSnapshot | null,
     tags: TagMap,
     alloc: number,
-    maxNet: number
+    maxNet: number,
+    aiExposure: AiExposureMap
   ) =>
     JSON.stringify({
       snapshot: snap,
       tagMap: tags,
+      aiExposureMap: aiExposure,
       allocation: alloc,
       maxNetPct: maxNet,
     });
@@ -468,11 +476,12 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
       lastPayloadRef.current = null;
       setSnapshot(loadSnapshot());
       setTagMap(loadTagMap());
+      setAiExposureMap(loadAiExposureMap());
       setAllocation(loadAllocation());
       setMaxNetPct(loadMaxNetPct());
       setPushRetryVersion((version) => version + 1);
     }, 5000);
-  }, [syncPasscode, isCurrent, loadAllocation, loadMaxNetPct, loadSnapshot, loadSyncPasscode, loadTagMap]);
+  }, [syncPasscode, isCurrent, loadAllocation, loadMaxNetPct, loadSnapshot, loadSyncPasscode, loadTagMap, loadAiExposureMap]);
 
   const beginOwnPortfolioPull = useCallback((mode: Exclude<SyncMode, null>, code: string | null): PortfolioPull => {
     const sequence = ++pullSequenceRef.current;
@@ -493,6 +502,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
       if (hasUnsyncedPortfolioChanges()) throw new Error("本机存在待确认修改，未用云端覆盖。");
       saveSnapshot(cloud.snapshot);
       saveTagMap(cloud.tagMap);
+      saveAiExposureMap(cloud.aiExposureMap ?? {});
       saveAllocation(cloud.allocation);
       saveMaxNetPct(cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
       saveLastEmailMessageId(cloud.lastEmailMessageId ?? null);
@@ -502,14 +512,15 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     }));
     if (!applied) return false;
     if (!isCurrent()) return false;
-    lastPayloadRef.current = corePayload(cloud.snapshot, cloud.tagMap, cloud.allocation, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
+    lastPayloadRef.current = corePayload(cloud.snapshot, cloud.tagMap, cloud.allocation, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT, cloud.aiExposureMap ?? {});
     setSnapshot(cloud.snapshot);
     setTagMap(cloud.tagMap);
+    setAiExposureMap(cloud.aiExposureMap ?? {});
     setAllocation(cloud.allocation);
     setMaxNetPct(cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT);
     setSyncStatus("synced");
     return true;
-  }, [isCurrent, rememberPortfolioCloudBase, saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap, scope, hasUnsyncedPortfolioChanges]);
+  }, [isCurrent, rememberPortfolioCloudBase, saveAllocation, saveDataUpdatedAt, saveLastEmailMessageId, saveMaxNetPct, saveSnapshot, saveTagMap, saveAiExposureMap, scope, hasUnsyncedPortfolioChanges]);
 
   const runInitialSync = useCallback(
     async function initialize(code: string | null, manual: boolean, retryStale = true) {
@@ -601,11 +612,12 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         const localAlloc = local.allocation;
         const localMaxNet = local.maxNetPct ?? DEFAULT_MAX_NET_PCT;
 
-        const localPayload = corePayload(localSnapshot, localTags, localAlloc, localMaxNet);
+        const localPayload = corePayload(localSnapshot, localTags, localAlloc, localMaxNet, local.aiExposureMap ?? {});
         const sameContent = cloud && localPayload === corePayload(
-          cloud.snapshot, cloud.tagMap, cloud.allocation, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT
+          cloud.snapshot, cloud.tagMap, cloud.allocation, cloud.maxNetPct ?? DEFAULT_MAX_NET_PCT, cloud.aiExposureMap ?? {}
         ) && loadLastEmailMessageId() === (cloud.lastEmailMessageId ?? null);
         const localEmpty = !localUpdated && !localSnapshot && Object.keys(localTags).length === 0 &&
+          Object.keys(local.aiExposureMap ?? {}).length === 0 &&
           localAlloc === DEFAULT_GMV_ALLOCATION && localMaxNet === DEFAULT_MAX_NET_PCT;
         if (!hadPending && cloud && (base || sameContent || localEmpty)) {
           if (!await applyCleanCloudPortfolio(cloud, version, activeMode, pull)) { needsFreshPull = true; return; }
@@ -616,6 +628,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
           const currentPull = pull;
           const applied = await withPortfolioStorageLock(scope, () => batchPortfolioStorage(scope, () => {
             if (!currentPull.isUnchanged() || hasUnsyncedPortfolioChanges()) return false;
+            saveAiExposureMap({});
             rememberPortfolioCloudBase(activeMode, version);
             return true;
           }));
@@ -627,14 +640,26 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         }
         // Pending or unbased legacy input must not adopt a pull as its baseline:
         // doing so would authorize it to overwrite edits made on another device.
+        if (local.aiExposureMap === undefined) {
+          const currentPull = pull;
+          const initialized = await withPortfolioStorageLock(scope, () => {
+            if (!currentPull.isUnchanged()) return false;
+            // This browser has never edited the new field. Retain existing cloud
+            // coefficients without authorizing older edits to other fields.
+            saveAiExposureMap(cloud?.aiExposureMap ?? {});
+            return true;
+          });
+          if (!initialized) { needsFreshPull = true; return; }
+        }
         lastPayloadRef.current = localPayload;
         if (!hadPending) await markPortfolioCloudSyncPending(activeMode, "initial-local-data");
         const pushed = await drainPendingPortfolioCloudSync({ mode: activeMode });
         if (!isCurrent() || viewingOwnerRef.current || syncModeRef.current !== activeMode) return;
         if (pushed.status === "ok") {
           const serverTags = loadTagMap();
-          lastPayloadRef.current = corePayload(loadSnapshot(), serverTags, loadAllocation(), loadMaxNetPct());
+          lastPayloadRef.current = corePayload(loadSnapshot(), serverTags, loadAllocation(), loadMaxNetPct(), loadAiExposureMap());
           setTagMap(serverTags);
+          setAiExposureMap(loadAiExposureMap());
           setSyncStatus("synced");
         } else if (pushed.status === "deferred") {
           setSyncStatus(hasUnsyncedPortfolioChanges() ? "syncing" : "synced");
@@ -663,7 +688,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     },
     [applyCleanCloudPortfolio, beginOwnPortfolioPull, schedulePortfolioPushRetry, showNotice, clearSyncPasscode, drainPendingPortfolioCloudSync,
       getPendingPortfolioCloudSyncStatus, hasUnsyncedPortfolioChanges, isCurrent, loadAllocation, loadDataUpdatedAt,
-      loadLastEmailMessageId, loadMaxNetPct, loadSnapshot, loadTagMap, markPortfolioCloudSyncPending,
+      loadLastEmailMessageId, loadMaxNetPct, loadSnapshot, loadTagMap, loadAiExposureMap, saveAiExposureMap, markPortfolioCloudSyncPending,
       markPortfolioFailureFromSyncResult, readPortfolioCloudBase, rememberPortfolioCloudBase, scope]
   );
 
@@ -778,18 +803,20 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
       fingerprint = nextFingerprint;
       const nextSnapshot = loadSnapshot();
       const nextTags = loadTagMap();
+      const nextAiExposure = loadAiExposureMap();
       const nextAllocation = loadAllocation();
       const nextMaxNet = loadMaxNetPct();
       setSnapshot(nextSnapshot);
       setTagMap(nextTags);
+      setAiExposureMap(nextAiExposure);
       setAllocation(nextAllocation);
       setMaxNetPct(nextMaxNet);
       lastPayloadRef.current = hasUnsyncedPortfolioChanges()
         ? null
-        : corePayload(nextSnapshot, nextTags, nextAllocation, nextMaxNet);
+        : corePayload(nextSnapshot, nextTags, nextAllocation, nextMaxNet, nextAiExposure);
     };
     return subscribePortfolioStorage(scope, handleStorage);
-  }, [hasUnsyncedPortfolioChanges, isCurrent, loadAllocation, loadMaxNetPct, loadSnapshot, loadTagMap, scope, store]);
+  }, [hasUnsyncedPortfolioChanges, isCurrent, loadAllocation, loadMaxNetPct, loadSnapshot, loadTagMap, loadAiExposureMap, scope, store]);
 
   // Push local changes to the cloud (debounced) once initial sync completed.
   useEffect(() => {
@@ -798,7 +825,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     const active =
       syncMode === "account" || (syncMode === "passcode" && syncPasscode);
     if (!active || !syncReadyRef.current) return;
-    const payload = corePayload(snapshot, tagMap, allocation, maxNetPct);
+    const payload = corePayload(snapshot, tagMap, allocation, maxNetPct, aiExposureMap);
     // Durable edits already enqueue themselves; rendering remote data is not a
     // local edit and must not recreate an upload after another tab's ACK.
     if (!hasUnsyncedPortfolioChanges()) { lastPayloadRef.current = payload; return; }
@@ -813,8 +840,9 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         if (!isCurrent() || viewingOwnerRef.current || syncModeRef.current !== modeAtPush) return;
         if (result.status === "ok") {
           const serverTags = loadTagMap();
-          lastPayloadRef.current = corePayload(loadSnapshot(), serverTags, loadAllocation(), loadMaxNetPct());
+          lastPayloadRef.current = corePayload(loadSnapshot(), serverTags, loadAllocation(), loadMaxNetPct(), loadAiExposureMap());
           setTagMap(serverTags);
+          setAiExposureMap(loadAiExposureMap());
           setSyncStatus("synced");
         } else if (result.status === "deferred") {
           setSyncStatus(hasUnsyncedPortfolioChanges() ? "syncing" : "synced");
@@ -841,6 +869,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
   }, [
     snapshot,
     tagMap,
+    aiExposureMap,
     allocation,
     maxNetPct,
     syncPasscode,
@@ -850,7 +879,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     schedulePortfolioPushRetry,
     showNotice,
     drainPendingPortfolioCloudSync, hasUnsyncedPortfolioChanges, isCurrent, loadAllocation,
-    loadMaxNetPct, loadSnapshot, loadTagMap,
+    loadMaxNetPct, loadSnapshot, loadTagMap, loadAiExposureMap,
   ]);
 
   const handleEnableSync = useCallback(async () => {
@@ -947,6 +976,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         if (stash) {
           setSnapshot(stash.snapshot);
           setTagMap(stash.tagMap);
+          setAiExposureMap(stash.aiExposureMap);
           setAllocation(stash.allocation);
           setMaxNetPct(stash.maxNetPct);
           // Restoring my own data is not a change — skip the next push.
@@ -954,7 +984,8 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
             stash.snapshot,
             stash.tagMap,
             stash.allocation,
-            stash.maxNetPct
+            stash.maxNetPct,
+            stash.aiExposureMap
           );
         }
         viewStashRef.current = null;
@@ -969,17 +1000,18 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         return;
       }
       if (!viewingOwnerRef.current) {
-        viewStashRef.current = { snapshot, tagMap, allocation, maxNetPct };
+        viewStashRef.current = { snapshot, tagMap, aiExposureMap, allocation, maxNetPct };
       }
       viewingOwnerRef.current = owner;
       setViewingOwner(owner);
       const cloud = result.data;
       setSnapshot(cloud.snapshot ?? null);
       setTagMap(cloud.tagMap ?? {});
+      setAiExposureMap(cloud.aiExposureMap ?? {});
       if (cloud.allocation > 0) setAllocation(cloud.allocation);
       if (cloud.maxNetPct && cloud.maxNetPct > 0) setMaxNetPct(cloud.maxNetPct);
     },
-    [snapshot, tagMap, allocation, maxNetPct, showNotice, isCurrent]
+    [snapshot, tagMap, aiExposureMap, allocation, maxNetPct, showNotice, isCurrent]
   );
 
   // ----- file imports --------------------------------------------------------
@@ -1259,6 +1291,24 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     }
   }, [snapshot, untagged, knownTags, aiTagging, showNotice, queueLocalPortfolioChange, isCurrent]);
 
+  const handleAiExposureChange = useCallback(async (key: string, value: number | undefined, expected: number | undefined) => {
+    if (value !== undefined && (!Number.isFinite(value) || value < -1 || value > 1)) return false;
+    const saved = await queueLocalPortfolioChange((current) => {
+      if (current.aiExposureMap === undefined && syncModeRef.current) {
+        throw new Error("请先完成云端 AI Exposure 读取或处理同步冲突，再填写数值。");
+      }
+      const existing = current.aiExposureMap?.[key];
+      if (existing !== expected && existing !== value) throw new Error("AI Exposure 已在另一处修改；请核对新值后重试。");
+      const next: AiExposureMap = { ...current.aiExposureMap };
+      if (value === undefined) delete next[key];
+      else Object.defineProperty(next, key, { value, enumerable: true, writable: true, configurable: true });
+      return { aiExposureMap: next };
+    });
+    if (!saved) return false;
+    setAiExposureMap(saved.aiExposureMap ?? {});
+    return true;
+  }, [queueLocalPortfolioChange]);
+
   // ----- derived numbers ------------------------------------------------------
 
   const longs = useMemo(
@@ -1289,18 +1339,21 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
     [shorts]
   );
   const totalNmv = totalLongGmv - totalShortGmv;
+  const totalAiExposure = useMemo(() => snapshot?.positions.reduce(
+    (sum, position) => sum + positionAiExposure(position, aiExposureMap), 0
+  ) ?? 0, [snapshot, aiExposureMap]);
 
   const tagExposures = useMemo(
     () =>
       snapshot
-        ? buildExposures(snapshot.positions, (p) => tagMap[p.key] || "未分类")
+        ? buildExposures(snapshot.positions, (p) => tagMap[p.key] || "未分类", aiExposureMap)
         : null,
-    [snapshot, tagMap]
+    [snapshot, tagMap, aiExposureMap]
   );
   const countryExposures = useMemo(
     () =>
-      snapshot ? buildExposures(snapshot.positions, (p) => p.country) : null,
-    [snapshot]
+      snapshot ? buildExposures(snapshot.positions, (p) => p.country, aiExposureMap) : null,
+    [snapshot, aiExposureMap]
   );
   const syncDescription = hasConflict ? "存在待确认的同步冲突，本机和云端版本均已保留。" : getPortfolioSyncDescription(
     syncMode,
@@ -1317,11 +1370,12 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
           if (!isCurrent()) return;
           setHasLegacy(hasUnreviewedLegacyPortfolio(scope));
           setSnapshot(loadSnapshot()); setTagMap(loadTagMap()); setAllocation(loadAllocation()); setMaxNetPct(loadMaxNetPct());
-          lastPayloadRef.current = corePayload(loadSnapshot(), loadTagMap(), loadAllocation(), loadMaxNetPct());
+          setAiExposureMap(loadAiExposureMap());
+          lastPayloadRef.current = corePayload(loadSnapshot(), loadTagMap(), loadAllocation(), loadMaxNetPct(), loadAiExposureMap());
           setSyncStatus(result.status === "ok" ? "synced" : "error");
         }} />}
-      <main className="flex-1 overflow-y-auto bg-zinc-50/40 dark:bg-zinc-950">
-        <div className="mx-auto max-w-6xl px-8 py-10">
+      <main className="min-w-0 flex-1 overflow-y-auto bg-zinc-50/40 dark:bg-zinc-950">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-8">
           {hasLegacy && !viewingOwner && <div className="mb-5 flex flex-wrap items-center gap-3 border-l-2 border-amber-500 pl-3 text-sm">
             <span>旧版本机组合尚未确认归属，原始数据已保留。</span>
             <button type="button" className="underline underline-offset-4 disabled:opacity-50" disabled={syncMode !== "account"}
@@ -1508,7 +1562,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
           ) : (
             <>
               {/* Summary cards */}
-              <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <AllocationCard
                   allocation={allocation}
                   usedGmv={totalLongGmv + totalShortGmv}
@@ -1541,6 +1595,12 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                   netMoney={formatSignedMoney(totalNmv)}
                   maxNetPct={maxNetPct}
                   onMaxNetChange={handleMaxNetChange}
+                />
+                <StatCard
+                  label="Total AI Exposure"
+                  value={formatSignedAllocPct(totalAiExposure, allocation)}
+                  sub={`${formatSignedMoney(totalAiExposure)} · 已填 ${snapshot.positions.filter((p) => Object.hasOwn(aiExposureMap, p.key)).length}/${snapshot.positions.length}`}
+                  tone={totalAiExposure >= 0 ? "long" : "short"}
                 />
               </div>
 
@@ -1577,6 +1637,9 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                     tagOf={tagOf}
                     knownTags={knownTags}
                     onTagChange={handleTagChange}
+                    aiExposureMap={aiExposureMap}
+                    onAiExposureChange={handleAiExposureChange}
+                    readOnly={!!viewingOwner}
                   />
                   <PositionTable
                     title="Short"
@@ -1587,6 +1650,9 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                     tagOf={tagOf}
                     knownTags={knownTags}
                     onTagChange={handleTagChange}
+                    aiExposureMap={aiExposureMap}
+                    onAiExposureChange={handleAiExposureChange}
+                    readOnly={!!viewingOwner}
                   />
                 </div>
               ) : tab === "analysis" ? (
@@ -1596,6 +1662,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                       title="按 Tag"
                       icon="🏷️"
                       exposures={tagExposures}
+                      aiExposureMap={aiExposureMap}
                       allocation={allocation}
                       expanded={expandedTagRows}
                       onExpandedChange={setExpandedTagRows}
@@ -1606,6 +1673,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                       title="按 Country"
                       icon="🌏"
                       exposures={countryExposures}
+                      aiExposureMap={aiExposureMap}
                       allocation={allocation}
                       expanded={expandedCountryRows}
                       onExpandedChange={setExpandedCountryRows}
@@ -2909,7 +2977,7 @@ const POSITION_SORT_ACCESSORS = {
   country: (p: PortfolioPosition) => p.country,
 } as const;
 
-type PositionSortKey = keyof typeof POSITION_SORT_ACCESSORS | "tag";
+type PositionSortKey = keyof typeof POSITION_SORT_ACCESSORS | "tag" | "aiExposure";
 
 function PositionTable({
   title,
@@ -2920,6 +2988,9 @@ function PositionTable({
   tagOf,
   knownTags,
   onTagChange,
+  aiExposureMap,
+  onAiExposureChange,
+  readOnly,
 }: {
   title: string;
   tone: "long" | "short";
@@ -2929,6 +3000,9 @@ function PositionTable({
   tagOf: (position: PortfolioPosition) => string;
   knownTags: string[];
   onTagChange: (key: string, tag: string, expected: string) => Promise<boolean>;
+  aiExposureMap: AiExposureMap;
+  onAiExposureChange: (key: string, value: number | undefined, expected: number | undefined) => Promise<boolean>;
+  readOnly: boolean;
 }) {
   const toneBar = tone === "long" ? "bg-emerald-500" : "bg-rose-500";
   const toneText =
@@ -2953,6 +3027,7 @@ function PositionTable({
     const accessor =
       sortKey === "tag"
         ? tagOf
+        : sortKey === "aiExposure" ? (position: PortfolioPosition) => aiExposureMap[position.key] ?? 0
         : POSITION_SORT_ACCESSORS[sortKey];
     const flip = sortDir === "desc" ? -1 : 1;
     return [...positions].sort((a, b) => {
@@ -2964,7 +3039,7 @@ function PositionTable({
           : String(va).localeCompare(String(vb));
       return cmp * flip;
     });
-  }, [positions, sortKey, sortDir, tagOf]);
+  }, [positions, sortKey, sortDir, tagOf, aiExposureMap]);
 
   return (
     <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -3077,6 +3152,8 @@ function PositionTable({
                   dir={sortDir}
                   onSort={handleSort}
                 />
+                <SortableTh label="AI Exposure" sortKey="aiExposure" activeKey={sortKey}
+                  dir={sortDir} onSort={handleSort} align="right" />
               </tr>
             </thead>
             <tbody>
@@ -3115,6 +3192,10 @@ function PositionTable({
                       knownTags={knownTags}
                       onChange={(tag, expected) => onTagChange(position.key, tag, expected)}
                     />
+                  </td>
+                  <td className="px-3 py-2">
+                    <AiExposureInput stockKey={position.key} value={aiExposureMap[position.key]}
+                      readOnly={readOnly} onChange={(value, expected) => onAiExposureChange(position.key, value, expected)} />
                   </td>
                 </tr>
               ))}
@@ -3249,12 +3330,13 @@ function TagEditor({
   );
 }
 
-type ExposureSortKey = "label" | "long" | "short" | "net" | "gross";
+type ExposureSortKey = "label" | "long" | "short" | "net" | "gross" | "aiExposure";
 
 function ExposureTable({
   title,
   icon,
   exposures,
+  aiExposureMap,
   allocation,
   expanded,
   onExpandedChange,
@@ -3262,6 +3344,7 @@ function ExposureTable({
   title: string;
   icon: string;
   allocation: number;
+  aiExposureMap: AiExposureMap;
   exposures: {
     rows: ExposureRow[];
     totalGross: number;
@@ -3272,6 +3355,7 @@ function ExposureTable({
   const { rows } = exposures;
   const totalLong = rows.reduce((sum, row) => sum + row.long, 0);
   const totalShort = rows.reduce((sum, row) => sum + row.short, 0);
+  const totalAi = rows.reduce((sum, row) => sum + row.aiExposure, 0);
   const maxGross = rows.reduce((max, row) => Math.max(max, row.gross), 0);
 
   const [sortKey, setSortKey] = useState<ExposureSortKey | null>(null);
@@ -3324,13 +3408,13 @@ function ExposureTable({
             <tr className="text-[10px] uppercase tracking-widest text-zinc-300 dark:text-zinc-600">
               <th />
               <th
-                colSpan={4}
+                colSpan={5}
                 className="border-b border-zinc-100 px-3 pb-0.5 pt-2 text-center font-medium dark:border-zinc-800"
               >
                 % of Allocation
               </th>
               <th
-                colSpan={4}
+                colSpan={5}
                 className={`border-b border-zinc-100 px-3 pb-0.5 pt-2 text-center font-medium dark:border-zinc-800 ${divCls}`}
               >
                 Dollar
@@ -3379,6 +3463,8 @@ function ExposureTable({
                 onSort={handleSort}
                 align="right"
               />
+              <SortableTh label="AI Exposure" sortKey="aiExposure" activeKey={sortKey}
+                dir={sortDir} onSort={handleSort} align="right" />
               <SortableTh
                 label="Long"
                 sortKey="long"
@@ -3412,6 +3498,8 @@ function ExposureTable({
                 onSort={handleSort}
                 align="right"
               />
+              <SortableTh label="AI Exposure" sortKey="aiExposure" activeKey={sortKey}
+                dir={sortDir} onSort={handleSort} align="right" />
               <th className="w-[14%] px-3 py-2 font-medium">L / S</th>
             </tr>
           </thead>
@@ -3459,6 +3547,9 @@ function ExposureTable({
                       {formatAllocPct(row.gross, allocation)}
                     </td>
                     {/* — $ group — */}
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+                      {formatSignedAllocPct(row.aiExposure, allocation)}
+                    </td>
                     <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70 ${divCls}`}>
                       {formatMoney(row.long)}
                     </td>
@@ -3470,6 +3561,9 @@ function ExposureTable({
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
                       {formatMoney(row.gross)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                      {formatSignedMoney(row.aiExposure)}
                     </td>
                     <td className="px-3 py-2">
                       <div
@@ -3530,6 +3624,9 @@ function ExposureTable({
                           {formatAllocPct(Math.abs(p.nmv), allocation)}
                         </td>
                         {/* — $ group — */}
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-200">
+                          {formatSignedAllocPct(positionAiExposure(p, aiExposureMap), allocation)}
+                        </td>
                         <td className={`whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs text-emerald-600/70 dark:text-emerald-400/70 ${divCls}`}>
                           {p.nmv >= 0 ? formatMoney(p.nmv) : ""}
                         </td>
@@ -3541,6 +3638,9 @@ function ExposureTable({
                         </td>
                         <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
                           {formatMoney(Math.abs(p.nmv))}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                          {formatSignedMoney(positionAiExposure(p, aiExposureMap))}
                         </td>
                         <td className="px-3 py-1.5">
                           <div
@@ -3585,6 +3685,9 @@ function ExposureTable({
                 {formatAllocPct(totalLong + totalShort, allocation)}
               </td>
               {/* — $ group — */}
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+                {formatSignedAllocPct(totalAi, allocation)}
+              </td>
               <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums text-emerald-600/70 dark:text-emerald-400/70 ${divCls}`}>
                 {formatMoney(totalLong)}
               </td>
@@ -3596,6 +3699,9 @@ function ExposureTable({
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
                 {formatMoney(totalLong + totalShort)}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                {formatSignedMoney(totalAi)}
               </td>
               <td />
             </tr>

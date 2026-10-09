@@ -56,7 +56,7 @@ function fixture(storage = new Map()) {
     const state = localStorage.getItem(`${prefix}state.v2`);
     if (state !== null) JSON.parse(state);
     const values = Object.fromEntries([
-      "snapshot.v1", "tags.v1", "allocation.v1", "maxNetPct.v1", "lastEmailMessage.v1", "updatedAt.v1",
+      "snapshot.v1", "tags.v1", "allocation.v1", "maxNetPct.v1", "lastEmailMessage.v1", "updatedAt.v1", "aiExposure.v1",
       "sync.status.v1", "sync.base.v2.account", "sync.base.v2.passcode",
       "sync.resolution.v1.account", "sync.resolution.v1.passcode",
       "sync.conflict.v1.account", "sync.conflict.v1.passcode", "legacy-reviewed.v1",
@@ -69,6 +69,7 @@ function fixture(storage = new Map()) {
     return { format: 1, scope, revision: 1, values, legacySource: {} };
   };
   const database = {
+    PORTFOLIO_OPTIONAL_VALUE_KEYS: ["zhinote.portfolio.aiExposure.v1"],
     PORTFOLIO_LOCAL_VALUE_KEYS: Object.keys(recordFor("local").values),
     cachedPortfolioRecord: recordFor,
     readPortfolioRecord: async (scope) => recordFor(scope),
@@ -167,7 +168,7 @@ function fixture(storage = new Map()) {
       return { ...storage, setItem: (...args) => mutate(() => storage.setItem(...args)),
         removeItem: (...args) => mutate(() => storage.removeItem(...args)) };
     }];
-    return [name, typeof value === "function" && (mutations.has(name) || /^save(Snapshot|TagMap|Allocation|MaxNetPct|DataUpdatedAt|LastEmailMessageId)$/.test(name))
+    return [name, typeof value === "function" && (mutations.has(name) || /^save(Snapshot|TagMap|AiExposureMap|Allocation|MaxNetPct|DataUpdatedAt|LastEmailMessageId)$/.test(name))
       ? (...args) => mutate(() => value(...args)) : value];
   }));
   const store = expose(load("@/lib/portfolio/portfolioStore"));
@@ -196,6 +197,88 @@ function fixture(storage = new Map()) {
   return { store, queue, seed, waitForRequest, requests, controls, storage, locks, load: (name) => expose(load(name)), rawLoad: load, session, setAccount,
     key: scope.portfolioStorageKey, scope: scope.getPortfolioStorageScope, persistence: expose(scope), writes, notifications };
 }
+
+test("AI Exposure: signed weights, missing/zero/negative values and group totals share one basis", () => {
+  const f = fixture();
+  const { buildExposures, positionAiExposure, isAiExposureMap } = f.load("@/lib/portfolio/positionReport");
+  const positions = [
+    { key: "A", nmv: 40, country: "US" }, { key: "B", nmv: -20, country: "US" },
+    { key: "C", nmv: 10, country: "JP" }, { key: "D", nmv: -10, country: "JP" },
+    { key: "E", nmv: 5, country: "JP" }, { key: "F", nmv: 5, country: "US" },
+  ];
+  const values = { A: 1, B: 0.5, C: -1, D: -0.5, F: 0, EXITED: 1 };
+  const total = positions.reduce((sum, p) => sum + positionAiExposure(p, values), 0);
+  assert.equal(total, 25);
+  assert.equal(total / 100 * 100, 25, "allocation of 100 gives 25 percent, not a group average");
+  assert.equal(total / 200 * 100, 12.5);
+  const grouped = buildExposures(positions, p => p.country, values);
+  assert.equal(grouped.rows.find(r => r.label === "US").aiExposure, 30);
+  assert.equal(grouped.rows.find(r => r.label === "JP").aiExposure, -5);
+  assert.equal(grouped.rows.reduce((sum, r) => sum + r.aiExposure, 0), total);
+  assert.equal(buildExposures(positions, () => "all").rows[0].aiExposure, 0);
+  assert.equal(buildExposures([], () => "all", values).rows.length, 0);
+  for (const value of [null, [], { A: NaN }, { A: Infinity }, { A: "0.5" }, { A: 1.01 }, { A: -1.01 }]) assert.equal(isAiExposureMap(value), false);
+  assert.equal(isAiExposureMap(values), true);
+});
+
+for (const mode of ["account", "passcode"]) {
+  test(`${mode}: AI Exposure persists, survives new reports, uploads and clears without discarding tags`, async () => {
+    const f = fixture(); f.seed(mode);
+    assert.equal(Object.keys(f.store.loadAiExposureMap()).length, 0);
+    f.queue.commitPortfolioLocalEdit(mode, () => ({ allocation: 200 }));
+    assert.equal(f.store.readLocalPortfolioData().aiExposureMap, undefined, "old pending data must not become an explicit clear");
+    f.queue.commitPortfolioLocalEdit(mode, () => ({ aiExposureMap: { SAMPLE: -0.25, EXITED: 0 } }));
+    f.queue.commitPortfolioLocalEdit(mode, () => ({ snapshot: { importedAt: now, sourceName: "new-synthetic-report", positions: [] } }));
+    assert.equal(f.store.loadAiExposureMap().SAMPLE, -0.25);
+    assert.equal(f.store.loadTagMap().SAMPLE, "original");
+    const pending = f.queue.drainPendingPortfolioCloudSync({ mode });
+    const request = await f.waitForRequest();
+    assert.equal(request.body.data.aiExposureMap.SAMPLE, -0.25);
+    request.reply();
+    assert.equal((await pending).status, "ok");
+    assert.equal(f.queue.hasUnsyncedPortfolioChanges(), false);
+    assert.equal(f.store.readLocalPortfolioData().aiExposureMap.EXITED, 0);
+    f.queue.commitPortfolioLocalEdit(mode, () => ({ aiExposureMap: {} }));
+    assert.equal(Object.keys(f.store.loadAiExposureMap()).length, 0);
+    assert.equal(f.queue.hasUnsyncedPortfolioChanges(), true);
+    assert.throws(() => f.queue.commitPortfolioLocalEdit(mode, () => ({ aiExposureMap: { SAMPLE: 2 } })), /-1 到 1/);
+  });
+}
+
+test("AI Exposure: account isolation and explicit conflict selection preserve zero and deletion", () => {
+  const f = fixture(); f.seed();
+  f.store.saveAiExposureMap({ A: -0.5, B: 0, C: 1 });
+  const local = f.store.readLocalPortfolioData();
+  const resolver = f.load("@/lib/portfolio/portfolioConflictResolution");
+  const revision = f.load("@/lib/portfolio/portfolioSyncRevision");
+  const version = { scope: "a".repeat(64), revision: "b".repeat(64) };
+  const cloud = { ...local, aiExposureMap: { A: 0, B: 1 } };
+  revision.retainPortfolioConflict("account", local, { data: cloud, version });
+  const review = { id: "ai-review", mode: "account", storageScope: f.scope(), version, local, cloud,
+    fingerprint: f.store.readPortfolioLocalFingerprint(), fields: resolver.portfolioConflictFields(local, cloud) };
+  assert.equal(review.fields.length, 3);
+  const resolved = resolver.stagePortfolioConflictResolution(review, { "ai:A": "cloud", "ai:B": "local", "ai:C": "cloud" });
+  assert.equal(resolved.data.aiExposureMap.A, 0);
+  assert.equal(resolved.data.aiExposureMap.B, 0);
+  assert.equal(Object.hasOwn(resolved.data.aiExposureMap, "C"), false);
+  assert.equal(f.store.loadAiExposureMap().A, -0.5, "live input unchanged before cloud ACK");
+  f.setAccount("synthetic-b");
+  assert.equal(Object.keys(f.store.loadAiExposureMap()).length, 0);
+  f.setAccount("synthetic-a");
+  assert.equal(f.store.loadAiExposureMap().A, -0.5);
+});
+
+test("AI Exposure: absent field keeps pre-feature legacy review fingerprints valid", () => {
+  const f = fixture(); f.seed();
+  f.storage.set("zhinote.portfolio.tags.v1", '{"LEGACY":"reviewed"}');
+  const previous = JSON.stringify([null, '{"LEGACY":"reviewed"}', null, null, null, null]);
+  f.storage.set(f.key("zhinote.portfolio.legacy-reviewed.v1"), previous);
+  const resolution = f.load("@/lib/portfolio/portfolioConflictResolution");
+  assert.equal(f.store.readPortfolioLocalFingerprint("legacy"), previous);
+  assert.equal(resolution.hasUnreviewedLegacyPortfolio(), false);
+  f.storage.set("zhinote.portfolio.aiExposure.v1", '{"LEGACY":0.5}');
+  assert.equal(resolution.hasUnreviewedLegacyPortfolio(), true);
+});
 
 test("storage lock boundary: unlocked mutations fail; a queued grant rechecks account identity", async () => {
   const f = fixture(); f.seed();
@@ -265,6 +348,7 @@ test("portfolio: exact ACK clears only the uploaded revision without applying un
 
 for (const [field, edit] of [
   ["tags", (s) => s.saveTagMap({ SAMPLE: "new input" })],
+  ["AI Exposure", (s) => s.saveAiExposureMap({ SAMPLE: -0.5 })],
   ["allocation", (s) => s.saveAllocation(200)],
   ["max net", (s) => s.saveMaxNetPct(20)],
   ["snapshot", (s) => s.saveSnapshot({ importedAt: now, fileName: "new-synthetic.xlsx", positions: [] })],
