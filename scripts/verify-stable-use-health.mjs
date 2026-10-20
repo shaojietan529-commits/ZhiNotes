@@ -6,6 +6,7 @@ import http from "node:http";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
+import { configuredLocalVerificationServer } from "./lib/local-verification-target.mjs";
 
 const HOST = "127.0.0.1";
 const ROUTE_PATH = "/api/stable-use/health";
@@ -45,20 +46,23 @@ const failures = [];
 async function main() {
   verifySourceContracts();
 
-  const port = await findFreePort();
-  const baseUrl = `http://${HOST}:${port}`;
-  const child = startNextDev(port);
+  const existingServer = configuredLocalVerificationServer();
+  const port = existingServer?.port ?? await findFreePort();
+  const baseUrl = existingServer?.baseUrl ?? `http://${HOST}:${port}`;
+  const child = existingServer ? null : startNextDev(port);
   let devServer = null;
   let output = "";
   const appendOutput = (chunk) => {
     output = `${output}${chunk.toString()}`;
     if (output.length > LOG_LIMIT) output = output.slice(-LOG_LIMIT);
   };
-  child.stdout.on("data", appendOutput);
-  child.stderr.on("data", appendOutput);
+  child?.stdout.on("data", appendOutput);
+  child?.stderr.on("data", appendOutput);
 
   try {
-    devServer = await resolveDevServer(baseUrl, child, () => output);
+    devServer = existingServer
+      ? { baseUrl, mode: "explicit-local-server", ownsProcess: false, activePid: null }
+      : await resolveDevServer(baseUrl, child, () => output);
     const result = await requestJson(`${devServer.baseUrl}${ROUTE_PATH}`);
     verifyRouteResult(result);
     printReceipt(
@@ -77,7 +81,7 @@ async function main() {
     printReceipt(null, "failed", port, devServer);
     process.exitCode = 1;
   } finally {
-    await stopChild(child);
+    if (child) await stopChild(child);
   }
 }
 

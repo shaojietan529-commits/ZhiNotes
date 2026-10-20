@@ -6,6 +6,7 @@ import http from "node:http";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
+import { configuredLocalVerificationServer } from "./lib/local-verification-target.mjs";
 
 const HOST = "127.0.0.1";
 const EXISTING_DEV_PORT = 3000;
@@ -91,7 +92,7 @@ const failures = [];
 async function main() {
   verifyRouteSource();
 
-  const existingServer = await findExistingDevServer();
+  const existingServer = configuredLocalVerificationServer() ?? await findExistingDevServer();
   const port = existingServer?.port ?? (await findFreePort());
   const baseUrl = existingServer?.baseUrl ?? `http://${HOST}:${port}`;
   const child = existingServer ? null : startNextDev(port);
