@@ -32,6 +32,19 @@ function fixture(storage = new Map()) {
     removeItem: (key) => tabStorage.delete(key),
   };
   const modules = new Map();
+  const listeners = new Map();
+  const browserWindow = {
+    sessionStorage,
+    addEventListener(type, listener) {
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type).add(listener);
+    },
+    removeEventListener: (type, listener) => listeners.get(type)?.delete(listener),
+    dispatchEvent(event) {
+      notifications.push(event.type);
+      for (const listener of listeners.get(event.type) ?? []) listener(event);
+    },
+  };
   let persistenceFailure;
   const localStorage = {
     get length() { return storage.size; },
@@ -49,6 +62,7 @@ function fixture(storage = new Map()) {
     },
     removeItem: (key) => storage.delete(key),
   };
+  browserWindow.localStorage = localStorage;
   // Deterministic in-memory transaction adapter for queue/client unit tests.
   // Native IndexedDB isolation/abort/upgrade behavior is covered by browser tests.
   const recordFor = (scope) => {
@@ -115,7 +129,7 @@ function fixture(storage = new Map()) {
       exports: loadedModule.exports, module: loadedModule, require: (dependency) => load(dependency, file),
       Date: FixedDate, crypto: webcrypto, AbortController, setTimeout, clearTimeout, Event, navigator: { locks },
       CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
-      window: { localStorage, sessionStorage, dispatchEvent: (event) => notifications.push(event.type) },
+      window: browserWindow,
       fetch: async (url, init) => new Promise((resolve, reject) => {
         const body = init.body ? JSON.parse(init.body) : {};
         requests.push({ url, body, reject, reply: (options = {}) => resolve(Response.json({
@@ -195,8 +209,186 @@ function fixture(storage = new Map()) {
     return requests.at(-1);
   };
   return { store, queue, seed, waitForRequest, requests, controls, storage, locks, load: (name) => expose(load(name)), rawLoad: load, session, setAccount,
-    key: scope.portfolioStorageKey, scope: scope.getPortfolioStorageScope, persistence: expose(scope), writes, notifications };
+    key: scope.portfolioStorageKey, scope: scope.getPortfolioStorageScope, persistence: expose(scope), writes, notifications,
+    window: browserWindow };
 }
+
+function loadPortfolioAccountSubscription(f) {
+  const file = path.join(root, "src/components/modules/PortfolioBoardShell.tsx");
+  const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
+  const names = ["portfolioScopeSnapshot", "subscribePortfolioAccount"];
+  const selected = source.statements.filter((node) => ts.isFunctionDeclaration(node) && names.includes(node.name?.text));
+  assert.equal(selected.length, names.length);
+  const code = selected.map((node) => node.getText(source)).join("\n") +
+    "\nexports.subscribe = subscribePortfolioAccount; exports.snapshot = portfolioScopeSnapshot;";
+  const result = {};
+  vm.runInNewContext(ts.transpileModule(code, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText, {
+    exports: result, window: f.window, ...f.session,
+    getPortfolioStorageScope: f.scope,
+    ACCOUNT_PROFILE_UPDATED_EVENT: "zhinote:account-profile-updated",
+  }, { filename: file });
+  return result;
+}
+
+const settleAccountSubscription = () => new Promise((resolve) => setImmediate(resolve));
+
+test("portfolio account subscription: another tab can log back in after this tab explicitly logged out", async () => {
+  const f = fixture();
+  f.session.clearAccountSessionCache({ clearLastAuthenticated: true });
+  const subscription = loadPortfolioAccountSubscription(f);
+  const snapshots = [];
+  const unsubscribe = subscription.subscribe(() => snapshots.push(subscription.snapshot()));
+  assert.equal(subscription.snapshot(), "local");
+  const otherTab = fixture(f.storage);
+  otherTab.setAccount("synthetic-b");
+  f.window.dispatchEvent({ type: "storage", key: f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+    newValue: f.storage.get(f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) });
+  await settleAccountSubscription();
+  assert.equal(f.requests.length, 1, "cross-tab login must recheck the session even when the old local scope is usable");
+  f.requests[0].reply({ json: { authenticated: true, account: {
+    id: "synthetic-b", email_hint: "synthetic@example.invalid", display_name: "Synthetic B", createdAt: now,
+  } } });
+  await settleAccountSubscription();
+  assert.equal(subscription.snapshot(), "account:synthetic-b");
+  assert.ok(snapshots.includes("account:synthetic-b"));
+  unsubscribe();
+});
+
+test("portfolio account subscription: transient account failure keeps confirmed local edits available", async () => {
+  const f = fixture(); f.seed();
+  const subscription = loadPortfolioAccountSubscription(f);
+  const unsubscribe = subscription.subscribe(() => {});
+  const probe = f.session.fetchAccountSession({ force: true });
+  (await f.waitForRequest()).reject(new Error("Synthetic offline"));
+  await probe;
+  f.window.dispatchEvent({ type: "online" });
+  assert.equal(subscription.snapshot(), "account:synthetic-a");
+  f.store.saveTagMap({ SAMPLE: "offline local edit" });
+  assert.equal(f.store.loadTagMap().SAMPLE, "offline local edit");
+  assert.equal(f.requests.length, 1, "status events do not upload local portfolio content");
+  unsubscribe();
+});
+
+test("portfolio account subscription: offline cross-tab login retries on reconnect even with a local logout marker", async () => {
+  const f = fixture();
+  f.session.clearAccountSessionCache({ clearLastAuthenticated: true });
+  const subscription = loadPortfolioAccountSubscription(f);
+  const unsubscribe = subscription.subscribe(() => {});
+  const otherTab = fixture(f.storage);
+  otherTab.setAccount("synthetic-b");
+  f.window.dispatchEvent({ type: "storage", key: f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+    newValue: f.storage.get(f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) });
+  (await f.waitForRequest()).reject(new Error("Synthetic offline"));
+  await settleAccountSubscription();
+  assert.equal(subscription.snapshot(), "local");
+  f.window.dispatchEvent({ type: "online" });
+  await settleAccountSubscription();
+  assert.equal(f.requests.length, 2, "an unconfirmed cross-tab login must retry after connectivity returns");
+  f.requests[1].reply({ json: { authenticated: true, account: {
+    id: "synthetic-b", email_hint: "synthetic@example.invalid", display_name: "Synthetic B", createdAt: now,
+  } } });
+  await settleAccountSubscription();
+  assert.equal(subscription.snapshot(), "account:synthetic-b");
+  f.window.dispatchEvent({ type: "focus" });
+  assert.equal(f.requests.length, 2, "a confirmed account must not be repeatedly probed by this subscription");
+  unsubscribe();
+});
+
+test("portfolio account subscription: cross-tab switch blocks old scope until confirmation and cleans up listeners", async () => {
+  const f = fixture(); f.seed();
+  const subscription = loadPortfolioAccountSubscription(f);
+  const snapshots = [];
+  const unsubscribe = subscription.subscribe(() => snapshots.push(subscription.snapshot()));
+  const otherTab = fixture(f.storage);
+  otherTab.setAccount("synthetic-b");
+  f.window.dispatchEvent({ type: "storage", key: f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+    newValue: f.storage.get(f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) });
+  assert.equal(subscription.snapshot(), "checking");
+  assert.throws(() => f.store.saveTagMap({ SAMPLE: "must not cross accounts" }), /账号/);
+  (await f.waitForRequest()).reply({ json: { authenticated: true, account: {
+    id: "synthetic-b", email_hint: "synthetic@example.invalid", display_name: "Synthetic B", createdAt: now,
+  } } });
+  await settleAccountSubscription();
+  assert.equal(subscription.snapshot(), "account:synthetic-b");
+  assert.deepEqual({ ...f.store.loadTagMap() }, {});
+  unsubscribe();
+  const count = snapshots.length;
+  f.window.dispatchEvent({ type: f.session.ACCOUNT_SESSION_CHANGED_EVENT });
+  f.window.dispatchEvent({ type: "storage", key: null });
+  assert.equal(snapshots.length, count);
+});
+
+test("portfolio account subscription: logout hides account scope; unrelated storage changes do not probe", () => {
+  const f = fixture(); f.seed();
+  const subscription = loadPortfolioAccountSubscription(f);
+  const snapshots = [];
+  const unsubscribe = subscription.subscribe(() => snapshots.push(subscription.snapshot()));
+  f.window.dispatchEvent({ type: "storage", key: "unrelated" });
+  assert.equal(snapshots.length, 0);
+  const otherTab = fixture(f.storage);
+  otherTab.session.clearAccountSessionCache({ clearLastAuthenticated: true });
+  f.window.dispatchEvent({ type: "storage", key: f.session.ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY,
+    newValue: f.storage.get(f.session.ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY) });
+  assert.equal(subscription.snapshot(), "local");
+  assert.deepEqual({ ...f.store.loadTagMap() }, {});
+  assert.equal(f.requests.length, 0, "an explicit logout must not probe an old session back into the view");
+  unsubscribe();
+});
+
+test("portfolio account subscription: a delayed old probe cannot block or undo another tab's account switch", async () => {
+  const f = fixture();
+  const subscription = loadPortfolioAccountSubscription(f);
+  const unsubscribe = subscription.subscribe(() => {});
+  const oldProbe = f.session.fetchAccountSession({ force: true });
+  const oldRequest = await f.waitForRequest();
+  const otherTab = fixture(f.storage);
+  otherTab.setAccount("synthetic-b");
+  f.window.dispatchEvent({ type: "storage", key: f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+    newValue: f.storage.get(f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) });
+  await settleAccountSubscription();
+  assert.equal(f.requests.length, 2, "the new identity must not reuse the previous account's pending probe");
+  f.requests[1].reply({ json: { authenticated: true, account: {
+    id: "synthetic-b", email_hint: "synthetic@example.invalid", display_name: "Synthetic B", createdAt: now,
+  } } });
+  await settleAccountSubscription();
+  assert.equal(subscription.snapshot(), "account:synthetic-b");
+  oldRequest.reply({ json: { authenticated: true, account: {
+    id: "synthetic-a", email_hint: "synthetic@example.invalid", display_name: "Synthetic A", createdAt: now,
+  } } });
+  await oldProbe;
+  assert.equal(subscription.snapshot(), "account:synthetic-b");
+  f.window.dispatchEvent({ type: "storage", key: f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+    newValue: f.storage.get(f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) });
+  assert.equal(f.requests.length, 2, "same-account storage refreshes must not cause a cross-tab probe loop");
+  unsubscribe();
+});
+
+test("portfolio account subscription: failure during a switch stays guarded and online retry can recover", async () => {
+  const f = fixture();
+  const subscription = loadPortfolioAccountSubscription(f);
+  const snapshots = [];
+  const unsubscribe = subscription.subscribe(() => snapshots.push(subscription.snapshot()));
+  const otherTab = fixture(f.storage);
+  otherTab.setAccount("synthetic-b");
+  f.window.dispatchEvent({ type: "storage", key: f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+    newValue: f.storage.get(f.session.ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY) });
+  (await f.waitForRequest()).reject(new Error("Synthetic unavailable"));
+  await settleAccountSubscription();
+  assert.equal(subscription.snapshot(), "checking");
+  f.window.dispatchEvent({ type: "online" });
+  await settleAccountSubscription();
+  assert.equal(f.requests.length, 2);
+  unsubscribe();
+  const count = snapshots.length;
+  f.requests[1].reply({ json: { authenticated: true, account: {
+    id: "synthetic-b", email_hint: "synthetic@example.invalid", display_name: "Synthetic B", createdAt: now,
+  } } });
+  await settleAccountSubscription();
+  assert.equal(subscription.snapshot(), "account:synthetic-b");
+  assert.equal(snapshots.length, count, "a resolved probe cannot notify an unmounted subscriber");
+});
 
 test("AI Exposure: signed weights, missing/zero/negative values and group totals share one basis", () => {
   const f = fixture();

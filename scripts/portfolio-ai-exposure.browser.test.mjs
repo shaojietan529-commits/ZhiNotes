@@ -33,6 +33,79 @@ const until = async (check) => {
   }
 };
 
+test("Portfolio account handoff: cross-tab logout and login remount the correct synthetic account without uploading", { timeout: 90000 }, async () => {
+  const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL ?? "chrome" });
+  const context = await browser.newContext({ serviceWorkers: "block" });
+  const accountKey = "zhinote:account-session-last-authenticated:v1";
+  const logoutKey = "zhinote:account-session-explicit-logout:v1";
+  const account = (id) => ({ id, email_hint: "s***@example.invalid", display_name: id, createdAt: now });
+  let currentAccount = "synthetic-a";
+  let pushes = 0;
+  const errors = [];
+  try {
+    await context.route("**/*", async route => {
+      const request = route.request(), url = new URL(request.url());
+      if (url.origin !== origin) return route.abort();
+      const json = (body, status = 200) => route.fulfill({ status, json: body });
+      if (url.pathname === "/api/account/me") return json({
+        authenticated: currentAccount !== null,
+        account: currentAccount ? account(currentAccount) : null,
+        ...(currentAccount === null ? { confirmedSignedOut: true } : {}),
+      });
+      if (url.pathname === "/api/portfolio/account-sync") {
+        const body = request.postDataJSON();
+        if (body.action === "push") {
+          pushes++;
+          return json({ error: "Read-only synthetic handoff test" }, 403);
+        }
+        if (!currentAccount || body.expectedAccountId !== currentAccount) return json({ error: "Synthetic account changed" }, 401);
+        if (body.action === "shares") return json({ accountId: currentAccount, members: [], sharedWithMe: [] });
+        if (body.action === "pull") {
+          const key = currentAccount === "synthetic-a" ? "ALPHA US" : "SECOND US";
+          const data = { ...initial, snapshot: { ...initial.snapshot, positions: [position(key, 40, "US")] },
+            tagMap: { [key]: currentAccount }, aiExposureMap: { [key]: 0.25 } };
+          return json({ accountId: currentAccount, data, version: version(data) });
+        }
+      }
+      if (url.pathname.startsWith("/api/")) return json({ error: "Synthetic isolation" }, 501);
+      if (request.method() === "GET" && (url.pathname === "/portfolio" || url.pathname.startsWith("/_next/static/") ||
+        url.pathname.startsWith("/brand/source/") || url.pathname === "/favicon.ico")) return route.continue();
+      return route.abort();
+    });
+    const a = await context.newPage();
+    a.on("pageerror", error => errors.push(error.message));
+    await a.goto(`${origin}/portfolio`);
+    await a.getByRole("spinbutton", { name: "ALPHA US AI Exposure", exact: true }).waitFor();
+    currentAccount = null;
+    await a.evaluate(({ accountKey, logoutKey }) => {
+      for (const storage of [localStorage, sessionStorage]) {
+        storage.removeItem(accountKey);
+        storage.setItem(logoutKey, String(Date.now()));
+      }
+      window.dispatchEvent(new Event("zhinote:account-session-changed"));
+    }, { accountKey, logoutKey });
+    await until(async () => await a.getByRole("spinbutton", { name: "ALPHA US AI Exposure", exact: true }).count() === 0);
+    const b = await context.newPage();
+    b.on("pageerror", error => errors.push(error.message));
+    await b.goto(`${origin}/portfolio`);
+    await b.getByRole("heading", { name: /组合管理/ }).waitFor();
+    currentAccount = "synthetic-b";
+    await b.evaluate(({ accountKey, logoutKey, account }) => {
+      for (const storage of [localStorage, sessionStorage]) {
+        storage.removeItem(logoutKey);
+        storage.setItem(accountKey, JSON.stringify({ storedAt: Date.now(), account }));
+      }
+      window.dispatchEvent(new Event("zhinote:account-session-changed"));
+    }, { accountKey, logoutKey, account: account(currentAccount) });
+    await a.getByRole("spinbutton", { name: "SECOND US AI Exposure", exact: true }).waitFor();
+    assert.equal(await a.getByRole("spinbutton", { name: "ALPHA US AI Exposure", exact: true }).count(), 0);
+    await a.reload();
+    await a.getByRole("spinbutton", { name: "SECOND US AI Exposure", exact: true }).waitFor();
+    assert.equal(pushes, 0, "identity handoff must not upload or migrate either account's local portfolio");
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); }
+});
+
 test("AI Exposure: input, totals, analysis, import retention, isolated handoff, refresh and read-only sharing", { timeout: 120000 }, async () => {
   const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL ?? "chrome" });
   let cloud = structuredClone(initial);

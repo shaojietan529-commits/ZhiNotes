@@ -48,6 +48,8 @@ import {
 } from "@/lib/portfolio/portfolioSyncStatus";
 import {
   ACCOUNT_SESSION_CHANGED_EVENT,
+  ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
+  clearAccountSessionRuntimeCache,
   isAccountSessionStorageKey,
   fetchAccountSession,
   getLastAuthenticatedAccount,
@@ -191,26 +193,50 @@ function portfolioScopeSnapshot(): PortfolioStorageScope | "checking" {
 }
 
 function subscribePortfolioAccount(callback: () => void) {
+  let active = true;
+  let confirmationNeeded = false;
+  let confirmationGeneration = 0;
+  const changed = () => { if (active) callback(); };
+  const confirmAccount = () => {
+    const generation = ++confirmationGeneration;
+    confirmationNeeded = true;
+    void fetchAccountSession({ force: true }).then((session) => {
+      if (!active || generation !== confirmationGeneration) return;
+      confirmationNeeded = session.status !== "ok" || Boolean(session.stale);
+      changed();
+    }).catch(changed);
+  };
   const retry = () => {
-    if (portfolioScopeSnapshot() === "checking") void fetchAccountSession({ force: true }).then(callback).catch(callback);
+    if (confirmationNeeded || portfolioScopeSnapshot() === "checking") confirmAccount();
   };
   const storage = (event: StorageEvent) => {
     if (!isAccountSessionStorageKey(event.key) && event.key !== null) return;
-    callback();
-    retry();
+    changed();
+    const scope = portfolioScopeSnapshot();
+    if (scope === "checking" || (scope === "local" &&
+        event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY && event.newValue)) {
+      // A tab-local logout marker can outlive another tab's new login.
+      // Discard old probes, then confirm ownership before entering that account.
+      clearAccountSessionRuntimeCache();
+      confirmAccount();
+    } else if (scope === "local") {
+      confirmationNeeded = false;
+      confirmationGeneration++;
+    }
   };
   window.addEventListener("focus", retry);
   window.addEventListener("online", retry);
   window.addEventListener("storage", storage);
-  window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, callback);
-  window.addEventListener(ACCOUNT_PROFILE_UPDATED_EVENT, callback);
+  window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, changed);
+  window.addEventListener(ACCOUNT_PROFILE_UPDATED_EVENT, changed);
   retry();
   return () => {
+    active = false;
     window.removeEventListener("focus", retry);
     window.removeEventListener("online", retry);
     window.removeEventListener("storage", storage);
-    window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, callback);
-    window.removeEventListener(ACCOUNT_PROFILE_UPDATED_EVENT, callback);
+    window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, changed);
+    window.removeEventListener(ACCOUNT_PROFILE_UPDATED_EVENT, changed);
   };
 }
 
