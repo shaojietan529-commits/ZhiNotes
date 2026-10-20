@@ -12127,7 +12127,7 @@ function run() {
   assertIncludes(
     files.settingsCloudSyncStatusHook,
     settingsCloudSyncStatusHook,
-    "return { status, refresh, syncNow }",
+    "return { status, refresh, syncNow, health }",
     "Settings cloud sync status hook must return syncNow so account-level quick sync can drain settings pending rows."
   );
   assertIncludes(
@@ -12205,7 +12205,7 @@ function run() {
   assertIncludes(
     files.knowledgeCloudSyncStatusHook,
     knowledgeCloudSyncStatusHook,
-    "return { status, refresh, syncNow }",
+    "return { status, refresh, syncNow, health }",
     "Knowledge sync status hook must return syncNow so account-level quick sync can drain knowledge pending rows."
   );
   for (const [file, source, snippet, message] of [
@@ -13019,7 +13019,7 @@ function run() {
   assertIncludes(
     files.sidebar,
     sidebar,
-    "/modules/sync#database-pending-upload-queue",
+    "/modules/sync#sync-domain-databases",
     "Sidebar cloud-sync control must deep-link database pending rows to the database upload queue."
   );
   assertIncludes(
@@ -13296,7 +13296,7 @@ function run() {
     "const classifiedPendingTotal =",
     "const classifiedFailedTotal =",
     "const classifiedManualReviewTotal =",
-    "(syncSummary?.pending ?? 0) - classifiedPendingTotal",
+    "(pagePendingStatus.syncLogPending ?? 0) -",
     "(syncSummary?.failed ?? 0) - classifiedFailedTotal",
     "(syncSummary?.manualReview ?? 0) - classifiedManualReviewTotal",
     "otherPendingTotal: syncLocalUseQueueSnapshot.otherPendingTotal",
@@ -13444,13 +13444,13 @@ function run() {
   assertIncludes(
     files.syncPendingDomainRegistry,
     syncPendingDomainRegistry,
-    "pageStatus.pending + pageStatus.queued + syncLogPending",
+    "pending: pendingEntityCount(pageStatus)",
     "Sync UI pending domain rows must include page pending, in-memory, and sync_log page queues."
   );
   assertIncludes(
     files.syncPendingDomainRegistry,
     syncPendingDomainRegistry,
-    "databaseStatus.pending +\n          databaseStatus.queued +\n          syncLogPending",
+    "pending: pendingEntityCount(databaseStatus)",
     "Sync UI pending domain rows must include database cloud-key, in-memory, and sync_log queues."
   );
   assertIncludes(
@@ -13552,13 +13552,13 @@ function run() {
   assertIncludes(
     files.syncShell,
     syncShell,
-    "pageStatus.pending + pageStatus.queued + (pageStatus.syncLogPending ?? 0)",
+    "pendingEntityCount(pageStatus)",
     "Sync upload safety panel must include page pending, in-memory, and sync_log queues."
   );
   assertIncludes(
     files.syncShell,
     syncShell,
-    "databaseStatus.pending +",
+    "pendingEntityCount(databaseStatus)",
     "Sync upload safety panel must include database cloud-key, sync_log, and in-memory queues."
   );
   assertIncludes(

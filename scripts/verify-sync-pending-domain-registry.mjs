@@ -28,6 +28,15 @@ const sandbox = {
   exports: cjsModule.exports,
   module: cjsModule,
   require(id) {
+    if (id === "./pendingEntityCount") {
+      const helper = { exports: {} };
+      const code = ts.transpileModule(
+        readFileSync(path.join(root, "src/lib/sync/pendingEntityCount.ts"), "utf8"),
+        { compilerOptions: { module: ts.ModuleKind.CommonJS } }
+      ).outputText;
+      vm.runInNewContext(code, { module: helper, exports: helper.exports });
+      return helper.exports;
+    }
     throw new Error(`Unexpected runtime import from registry verifier: ${id}`);
   },
 };
@@ -187,8 +196,8 @@ const missingCoverageReport = buildPendingDomainCoverageReport(
 
 check(rows[0]?.id === "pages", "largest pending core queue should sort first");
 check(
-  pageRow?.pending === 9,
-  "page row should merge page pending + queued + sync_log pending"
+  pageRow?.pending === 7,
+  "page row should use the conservative fallback without adding overlapping pending and queued counts"
 );
 check(pageRow?.failed === 1, "page row should preserve page failures");
 check(
@@ -202,8 +211,8 @@ check(
 );
 
 check(
-  databaseRow?.pending === 6 && databaseRow?.manualReview === 2,
-  "database row should merge pending, queued, sync_log pending, and manual review"
+  databaseRow?.pending === 5 && databaseRow?.manualReview === 2,
+  "database row should preserve manual review without double-counting overlapping pending and queued counts"
 );
 check(
   databaseRow?.tableNames.includes("pending_database_cloud_push") &&

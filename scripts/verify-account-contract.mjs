@@ -4084,7 +4084,7 @@ check(
     syncDashboardShell.includes("const classifiedFailedTotal =") &&
     syncDashboardShell.includes("const classifiedManualReviewTotal =") &&
     syncDashboardShell.includes(
-      "(syncSummary?.pending ?? 0) - classifiedPendingTotal"
+      "(pagePendingStatus.syncLogPending ?? 0) -"
     ) &&
     syncDashboardShell.includes(
       "(syncSummary?.failed ?? 0) - classifiedFailedTotal"
@@ -4132,10 +4132,10 @@ check(
     syncPendingDomainRegistry.includes("buildPendingDomainCoverageReport") &&
     syncPendingDomainRegistry.includes("mergeCorePendingDomainRows") &&
     syncPendingDomainRegistry.includes(
-      "pageStatus.pending + pageStatus.queued + syncLogPending"
+      "pending: pendingEntityCount(pageStatus)"
     ) &&
     syncPendingDomainRegistry.includes(
-      "databaseStatus.pending +\n          databaseStatus.queued +\n          syncLogPending"
+      "pending: pendingEntityCount(databaseStatus)"
     ) &&
     syncPendingDomainRegistry.includes("fileStatus.pending") &&
     syncPendingDomainRegistry.includes("file_embed_sync_queue") &&
@@ -4714,7 +4714,7 @@ check(
 );
 const accountCoordinatorAutoRetryEffect =
   accountCloudSyncCoordinator.match(
-    /useEffect\(\(\) => \{[\s\S]*?autoRetryableSyncWorkTotal[\s\S]*?syncBlockedBySignedOut[\s\S]*?\}, \[[\s\S]*?syncBlockedBySignedOut[\s\S]*?\]\);/
+    /useEffect\(\(\) => \{\s*if \(typeof window === "undefined"\) return;[\s\S]*?autoRetryableSyncWorkTotal[\s\S]*?syncBlockedBySignedOut[\s\S]*?\}, \[[\s\S]*?syncBlockedBySignedOut[\s\S]*?\]\);/
   )?.[0] ?? "";
 check(
   accountCoordinatorAutoRetryEffect.includes("state === \"syncing\"") &&
@@ -4789,7 +4789,8 @@ check(
     settingsCloudSyncStatusHook.includes("SETTINGS_SYNC_STATUS_STORAGE_KEY") &&
     settingsCloudSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
     settingsCloudSyncStatusHook.includes("drainPendingSettingsCloudSync") &&
-    settingsCloudSyncStatusHook.includes("return { status, refresh, syncNow }") &&
+    settingsCloudSyncStatusHook.includes("return { status, refresh, syncNow, health }") &&
+    settingsCloudSyncStatusHook.includes("readError: true") &&
     settingsCloudSyncStatusHook.includes("handleAccountProfileUpdated") &&
     settingsCloudSyncStatusHook.includes("isAccountSessionStorageKey") &&
     settingsCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
@@ -4833,7 +4834,8 @@ check(
     knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_EVENT") &&
     knowledgeCloudSyncStatusHook.includes("KNOWLEDGE_SYNC_STATUS_STORAGE_KEY") &&
     knowledgeCloudSyncStatusHook.includes("ACCOUNT_PROFILE_UPDATED_EVENT") &&
-    knowledgeCloudSyncStatusHook.includes("return { status, refresh, syncNow }") &&
+    knowledgeCloudSyncStatusHook.includes("return { status, refresh, syncNow, health }") &&
+    knowledgeCloudSyncStatusHook.includes("readError: true") &&
     knowledgeCloudSyncStatusHook.includes("handleAccountProfileUpdated") &&
     knowledgeCloudSyncStatusHook.includes("isAccountSessionStorageKey") &&
     knowledgeCloudSyncStatusHook.includes('window.addEventListener("storage", handleStorage)') &&
@@ -5143,11 +5145,11 @@ check(
     sidebar.includes("data-local-use-status={accountSync.localUseReadiness.status}") &&
     sidebar.includes('"open-sync-center"') &&
     sidebar.includes('"quick-sync"') &&
-    sidebar.includes("/modules/sync#sync-upload-safety-panel") &&
-    sidebar.includes("/modules/sync#page-pending-upload-queue") &&
-    sidebar.includes("/modules/sync#database-pending-upload-queue") &&
-    sidebar.includes("/modules/sync#knowledge-replay-batch-plan") &&
-    sidebar.includes("/modules/sync#account-module-settings-pending-plan") &&
+    sidebar.includes("/modules/sync#sync-overview") &&
+    sidebar.includes("/modules/sync#sync-domain-pages") &&
+    sidebar.includes("/modules/sync#sync-domain-databases") &&
+    sidebar.includes("/modules/sync#sync-domain-knowledge") &&
+    sidebar.includes("/modules/sync#sync-domain-settings") &&
     sidebar.includes(
       "const accountSyncActionLabel = accountSyncShouldOpenSyncCenter"
     ) &&
@@ -5186,8 +5188,8 @@ check(
     sidebar.includes("数据库同步未开启") &&
     sidebar.includes("accountSync.pendingTotal") &&
     sidebar.includes("普通同步只补传 pending queue") &&
-    sidebar.includes("pageSync.pendingStatus.pending") &&
-    sidebar.includes("databaseSync.pendingStatus.syncLogPending") &&
+    sidebar.includes("const pageSyncPendingTotal = accountSync.pagePendingTotal") &&
+    sidebar.includes("const databaseSyncPendingTotal = accountSync.databasePendingTotal") &&
     syncDashboardShell.includes('id="page-pending-upload-queue"') &&
     syncDashboardShell.includes('data-testid="page-pending-upload-queue"') &&
     syncDashboardShell.includes('id="database-pending-upload-queue"') &&
