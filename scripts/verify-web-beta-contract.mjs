@@ -1810,8 +1810,8 @@ function run() {
       "Core manifest comparison must read cloud database manifest summary.",
     ],
     [
-      "页面、每日纪要、会议和数据库这四个",
-      "Core manifest comparison must cover all first-phase core domains.",
+      "页面、每日纪要、会议、数据库和组合管理这五个",
+      "Core manifest comparison must cover all five connected core domains.",
     ],
     [
       "count、deleted、watermark",
@@ -4061,8 +4061,8 @@ function run() {
       "usePage cloud hydration must compare against the latest visible local page instead of the stale opening snapshot.",
     ],
     [
-      "applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)",
-      "usePage cloud hydration must pass the latest local page into cloud conflict comparison.",
+      "applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages, getLocalPage)",
+      "usePage cloud hydration must pass both the latest local snapshot and a live reader into cloud conflict comparison.",
     ],
     [
       "requestIdleCallback(run",
@@ -6487,8 +6487,16 @@ function run() {
       "Portfolio board must listen for cross-tab account login/logout/profile fallback changes.",
     ],
     [
-      "handleAccountSessionStorage",
-      "Portfolio board must keep an explicit storage handler for account sync takeover.",
+      "isAccountSessionStorageKey(event.key)",
+      "Portfolio board must use the shared login/logout storage filter for account sync takeover.",
+    ],
+    [
+      "clearAccountSessionRuntimeCache();\n      confirmAccount();",
+      "Portfolio board must replace stale in-flight probes before confirming a cross-tab account change.",
+    ],
+    [
+      'scope === "local" &&\n        event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY && event.newValue',
+      "Portfolio board must confirm another tab's login even when a tab-local logout marker leaves a usable local scope.",
     ],
     [
       "fetchAccountSession({ force: true })",
@@ -6503,8 +6511,12 @@ function run() {
       "Portfolio board must start account sync after cross-tab sign-in without requiring a refresh.",
     ],
     [
-      "A failed account probe should not disable local portfolio editing.",
-      "Portfolio board must not disable local editing when a cross-tab account probe fails.",
+      "useSyncExternalStore(subscribePortfolioAccount, portfolioScopeSnapshot",
+      "Portfolio board edit availability must follow local account ownership rather than transient network probe status.",
+    ],
+    [
+      "<PortfolioStorageGate key={scope} scope={scope} />",
+      "Portfolio board must remount its storage gate on account ownership changes.",
     ],
     [
       "PORTFOLIO_ACTION_REQUEST_TIMEOUT_MS = 12000",
@@ -7126,7 +7138,7 @@ function run() {
   assertSourceIncludes(
     files.settingsCloudSyncStatusHook,
     settingsCloudSyncStatusHook,
-    "return { status, refresh, syncNow }",
+    "return { status, refresh, syncNow, health }",
     "Settings cloud sync status hook must return syncNow so account-level quick sync can drain settings pending rows."
   );
   assertSourceIncludes(
@@ -7204,7 +7216,7 @@ function run() {
   assertSourceIncludes(
     files.knowledgeCloudSyncStatusHook,
     knowledgeCloudSyncStatusHook,
-    "return { status, refresh, syncNow }",
+    "return { status, refresh, syncNow, health }",
     "Knowledge sync status hook must return syncNow so account-level quick sync can drain knowledge pending rows."
   );
   for (const [file, source, snippet, message] of [
@@ -12386,8 +12398,8 @@ function run() {
       "Sync UI must render a plain-language upload safety overview.",
     ],
     [
-      "pageStatus.pending + pageStatus.queued + (pageStatus.syncLogPending ?? 0)",
-      "Upload safety overview must include page durable, in-memory, and sync_log queues.",
+      "pendingEntityCount(pageStatus)",
+      "Upload safety overview must count unique page entities across durable, in-memory, and sync_log queues.",
     ],
     [
       "databaseStatus.syncLogPending",
@@ -13134,12 +13146,12 @@ function run() {
       "Full-domain pending distribution must merge core page/database/file queues even when sync_log is catching up.",
     ],
     [
-      "pageStatus.pending + pageStatus.queued + syncLogPending",
-      "Full-domain pending distribution must include page pending, in-memory, and sync_log page queues.",
+      "pageStatus.uniquePending + Math.max(row.pending - (pageStatus.syncLogPending ?? 0), 0)",
+      "Full-domain pending distribution must deduplicate page entities while preserving additional domain log rows.",
     ],
     [
-      "databaseStatus.pending +\n          databaseStatus.queued +\n          syncLogPending",
-      "Full-domain pending distribution must include database cloud-key, in-memory, and sync_log queues.",
+      "databaseStatus.uniquePending + Math.max(row.pending - (databaseStatus.syncLogPending ?? 0), 0)",
+      "Full-domain pending distribution must deduplicate database entities while preserving additional domain log rows.",
     ],
     [
       "fileStatus.pending",
@@ -13870,8 +13882,8 @@ function run() {
       "Database sync client must emit queue status updates for open dashboards.",
     ],
     [
-      "const pending = await getPendingDatabaseSyncRecords(1000)",
-      "Database pending status must read the local sync_log pending queue.",
+      "const [pending, counts, keys] = await Promise.all([\n      getPendingDatabaseSyncRecords(1000),\n      getDatabaseSyncLogPendingCounts(),\n      getPendingSyncEntityKeys(\"databases\"),",
+      "Database pending status must read retryable entries, complete counts and unique entity keys together.",
     ],
     [
       "pending: pendingKeys.length",
@@ -28515,20 +28527,20 @@ function run() {
     [
       files.sidebar,
       sidebar,
-      "/modules/sync#sync-upload-safety-panel",
-      "Sidebar cloud-sync control must deep-link failed and manual-review queues to upload safety.",
+      "/modules/sync#sync-overview",
+      "Sidebar cloud-sync control must deep-link failed and manual-review queues to the account sync overview.",
     ],
     [
       files.sidebar,
       sidebar,
-      "/modules/sync#page-pending-upload-queue",
-      "Sidebar cloud-sync control must deep-link page pending rows to the page upload queue.",
+      "/modules/sync#sync-domain-pages",
+      "Sidebar cloud-sync control must deep-link page pending entities to the page sync category.",
     ],
     [
       files.sidebar,
       sidebar,
-      "/modules/sync#database-pending-upload-queue",
-      "Sidebar cloud-sync control must deep-link database pending rows to the database upload queue.",
+      "/modules/sync#sync-domain-databases",
+      "Sidebar cloud-sync control must deep-link database pending entities to the database sync category.",
     ],
     [
       files.syncShell,
@@ -28575,14 +28587,14 @@ function run() {
     [
       files.sidebar,
       sidebar,
-      "/modules/sync#knowledge-replay-batch-plan",
-      "Sidebar cloud-sync control must deep-link knowledge-domain pending rows to knowledge replay.",
+      "/modules/sync#sync-domain-knowledge",
+      "Sidebar cloud-sync control must deep-link knowledge-domain pending rows to the knowledge sync category.",
     ],
     [
       files.sidebar,
       sidebar,
-      "/modules/sync#account-module-settings-pending-plan",
-      "Sidebar cloud-sync control must deep-link settings pending rows to settings sync.",
+      "/modules/sync#sync-domain-settings",
+      "Sidebar cloud-sync control must deep-link settings pending rows to the settings sync category.",
     ],
     [
       files.sidebar,

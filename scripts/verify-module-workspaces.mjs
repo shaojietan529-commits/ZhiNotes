@@ -437,7 +437,7 @@ check(
     usePageHook.includes("pageLocalBodyHydrationQueue.delete(key);") &&
     usePageHook.includes("function pageLocalBodyHydrationQueueKey(") &&
     usePageHook.includes("const latestLocalPage = getLocalPage();") &&
-    usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)") &&
+    usePageHook.includes("applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages, getLocalPage)") &&
     usePageHook.includes("requestIdleCallback(run") &&
     usePageHook.includes("PAGE_CLOUD_HYDRATION_IDLE_MS") &&
     usePageHook.includes("const pageCloudHydrationQueue = new Map<string, PageCloudHydrationState>()") &&

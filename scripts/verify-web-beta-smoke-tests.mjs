@@ -9660,8 +9660,8 @@ function run() {
   assertIncludes(
     files.usePage,
     usePage,
-    "applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages)",
-    "Page cloud hydration must pass the latest local page into cloud conflict comparison."
+    "applyCloudPageLookup(cloud, latestLocalPage, setPage, upsertPages, getLocalPage)",
+    "Page cloud hydration must pass both the latest snapshot and a live local-page reader into cloud conflict comparison."
   );
   assertIncludes(
     files.usePage,
@@ -11014,8 +11014,20 @@ function run() {
       "Portfolio board must listen for cross-tab account login/logout/profile fallback changes.",
     ],
     [
-      "handleAccountSessionStorage",
-      "Portfolio board must keep an explicit storage handler for account sync takeover.",
+      "isAccountSessionStorageKey(event.key)",
+      "Portfolio board must use the shared login/logout storage filter for account sync takeover.",
+    ],
+    [
+      'window.addEventListener("storage", storage)',
+      "Portfolio board must subscribe its account ownership check to cross-tab storage changes.",
+    ],
+    [
+      "clearAccountSessionRuntimeCache();\n      confirmAccount();",
+      "Portfolio board must replace stale in-flight account probes when another tab changes account ownership.",
+    ],
+    [
+      'scope === "local" &&\n        event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY && event.newValue',
+      "Portfolio board must recheck cross-tab login even when a tab-local logout marker leaves the old local scope usable.",
     ],
     [
       "fetchAccountSession({ force: true })",
@@ -11030,8 +11042,12 @@ function run() {
       "Portfolio board must start account sync after cross-tab sign-in without requiring a refresh.",
     ],
     [
-      "A failed account probe should not disable local portfolio editing.",
-      "Portfolio board must not disable local editing when a cross-tab account probe fails.",
+      "useSyncExternalStore(subscribePortfolioAccount, portfolioScopeSnapshot",
+      "Portfolio board edit availability must follow verified local account ownership rather than transient network probe status.",
+    ],
+    [
+      "<PortfolioStorageGate key={scope} scope={scope} />",
+      "Portfolio board must remount its local storage gate when account ownership changes.",
     ],
     [
       "PORTFOLIO_ACTION_REQUEST_TIMEOUT_MS = 12000",
@@ -18836,8 +18852,8 @@ function run() {
   assertIncludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
-    "const pending = await getPendingDatabaseSyncRecords(1000)",
-    "Database pending status must read local sync_log metadata."
+    "const [pending, counts, keys] = await Promise.all([\n      getPendingDatabaseSyncRecords(1000),\n      getDatabaseSyncLogPendingCounts(),\n      getPendingSyncEntityKeys(\"databases\"),",
+    "Database pending status must read retryable entries, all pending counts and unique entity keys together."
   );
   assertIncludes(
     files.syncShell,
