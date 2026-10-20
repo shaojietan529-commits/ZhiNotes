@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import { pendingEntityCount } from "./pendingEntityCount";
 import type { SyncLogSummary } from "@/lib/db/local/queries";
 import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
@@ -106,11 +107,9 @@ export function buildCloudUploadReliabilityReport(
   const syncLogCoveredPendingRows =
     pageSyncLogPendingRows + databaseSyncLogPendingRows;
   const pageWaitingRows =
-    input.pageStatus.pending + input.pageStatus.queued + pageSyncLogPendingRows;
+    pendingEntityCount(input.pageStatus);
   const databaseWaitingRows =
-    input.databaseStatus.pending +
-    input.databaseStatus.queued +
-    databaseSyncLogPendingRows;
+    pendingEntityCount(input.databaseStatus);
   const fileWaitingRows = input.fileStatus.pending;
   const syncLogPendingRows = Math.max(
     (input.syncSummary?.pending ?? 0) - syncLogCoveredPendingRows,

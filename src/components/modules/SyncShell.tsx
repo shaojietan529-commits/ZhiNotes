@@ -1,5 +1,6 @@
 "use client";
 
+import { pendingEntityCount } from "@/lib/sync/pendingEntityCount";
 import {
   useCallback,
   useEffect,
@@ -2852,7 +2853,7 @@ function SyncContent() {
   );
 }
 
-function SyncDashboard() {
+export function SyncDashboard() {
   const router = useRouter();
   const cloudCallbackHandoffHandledRef = useRef(false);
   const cloudHandoffAutoRecoverStartedRef = useRef(false);
@@ -3742,13 +3743,9 @@ function SyncDashboard() {
   );
   const syncLocalUseQueueSnapshot = useMemo(() => {
     const pageWaiting =
-      pagePendingStatus.pending +
-      pagePendingStatus.queued +
-      (pagePendingStatus.syncLogPending ?? 0);
+      pendingEntityCount(pagePendingStatus);
     const databaseWaiting =
-      databasePendingStatus.pending +
-      databasePendingStatus.queued +
-      (databasePendingStatus.syncLogPending ?? 0);
+      pendingEntityCount(databasePendingStatus);
     const fileWaiting = fileEmbedPendingStatus.pending;
     const portfolioWaiting = portfolioPendingStatus.pending;
     const settingsQueue = summarizeSyncSummaryTables(syncSummary, [
@@ -3797,7 +3794,10 @@ function SyncDashboard() {
       knowledgeQueue.manualReview +
       portfolioPendingStatus.manualReviewCount;
     const otherPendingTotal = Math.max(
-      (syncSummary?.pending ?? 0) - classifiedPendingTotal,
+      (syncSummary?.pending ?? 0) -
+        (pagePendingStatus.syncLogPending ?? 0) -
+        (databasePendingStatus.syncLogPending ?? 0) -
+        settingsWaiting - knowledgeWaiting,
       0
     );
     const otherFailedTotal = Math.max(
@@ -7111,13 +7111,9 @@ function SyncDashboard() {
       setSyncEntries(nextSyncEntries);
       setSyncDrainReceipt(receipt);
       const afterPageWaiting =
-        afterPageStatus.pending +
-        afterPageStatus.queued +
-        (afterPageStatus.syncLogPending ?? 0);
+        pendingEntityCount(afterPageStatus);
       const afterDatabaseWaiting =
-        afterDatabaseStatus.pending +
-        afterDatabaseStatus.queued +
-        (afterDatabaseStatus.syncLogPending ?? 0);
+        pendingEntityCount(afterDatabaseStatus);
       setPagePendingMessage(
         `统一补传后：页面推送 ${pageResult.pushed} 个，拉取 ${pageResult.pulled} 个；当前页面待上传 ${
           afterPageWaiting
@@ -7163,7 +7159,7 @@ function SyncDashboard() {
       const nextStatus = await getPendingCloudPageSyncStatusWithSyncLog();
       setPagePendingStatus(nextStatus);
       const nextPendingTotal =
-        nextStatus.pending + nextStatus.queued + (nextStatus.syncLogPending ?? 0);
+        pendingEntityCount(nextStatus);
       const nextSyncLogRetryable =
         nextStatus.syncLogRetryable ?? nextStatus.syncLogPending ?? 0;
       const nextSyncLogDeferred = nextStatus.syncLogDeferred ?? 0;
@@ -7206,9 +7202,7 @@ function SyncDashboard() {
       const nextStatus = await getPendingCloudDatabaseSyncStatus();
       setDatabasePendingStatus(nextStatus);
       const nextDatabaseTotal =
-        nextStatus.pending +
-        nextStatus.queued +
-        (nextStatus.syncLogPending ?? 0);
+        pendingEntityCount(nextStatus);
       const nextDatabaseRetryable =
         nextStatus.syncLogRetryable ?? nextStatus.syncLogPending ?? 0;
       const nextDatabaseDeferred = nextStatus.syncLogDeferred ?? 0;
@@ -7469,9 +7463,7 @@ function SyncDashboard() {
           localSummary: localPageSummary,
           cloudResult: cloudPageSummary,
           pending:
-            nextPagePending.pending +
-            nextPagePending.queued +
-            (nextPagePending.syncLogPending ?? 0),
+            pendingEntityCount(nextPagePending),
         }),
         buildCoreManifestDomainCompare({
           id: "daily",
@@ -7479,9 +7471,7 @@ function SyncDashboard() {
           localSummary: localDailySummary,
           cloudResult: cloudDailySummary,
           pending:
-            nextPagePending.pending +
-            nextPagePending.queued +
-            (nextPagePending.syncLogPending ?? 0),
+            pendingEntityCount(nextPagePending),
         }),
         buildCoreManifestDomainCompare({
           id: "meetings",
@@ -7489,9 +7479,7 @@ function SyncDashboard() {
           localSummary: localMeetingSummary,
           cloudResult: cloudMeetingSummary,
           pending:
-            nextPagePending.pending +
-            nextPagePending.queued +
-            (nextPagePending.syncLogPending ?? 0),
+            pendingEntityCount(nextPagePending),
         }),
         buildCoreManifestDomainCompare({
           id: "databases",
@@ -7499,9 +7487,7 @@ function SyncDashboard() {
           localSummary: localDatabaseSummary,
           cloudResult: cloudDatabaseSummary,
           pending:
-            nextDatabasePending.pending +
-            nextDatabasePending.queued +
-            (nextDatabasePending.syncLogPending ?? 0),
+            pendingEntityCount(nextDatabasePending),
         }),
         buildPortfolioCoreManifestDomainCompare({
           portfolioStatus: portfolioPendingStatus,
@@ -9046,14 +9032,13 @@ function SyncDashboard() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-xs font-medium tracking-wider text-zinc-400">
-                Web Beta 准备度
+                工作区试验与开发验收
               </p>
               <h1 className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
-                云同步与权限
+                高级诊断
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                为 ZhiNotes 的私有 Web Beta 做准备：检查本地数据、备份覆盖、
-                同步队列、恢复规划、权限和隐私边界。
+                旧工作区云配置、权限规则演练与发布验收。未就绪的演练项不等于当前账号同步失败。
               </p>
             </div>
             <button
@@ -24349,11 +24334,9 @@ function SyncUploadSafetyPanel({
   handoffReceipt: SyncHandoffReadinessReceipt;
 }) {
   const pageWaiting =
-    pageStatus.pending + pageStatus.queued + (pageStatus.syncLogPending ?? 0);
+    pendingEntityCount(pageStatus);
   const databaseWaiting =
-    databaseStatus.pending +
-    databaseStatus.queued +
-    (databaseStatus.syncLogPending ?? 0);
+    pendingEntityCount(databaseStatus);
   const fileWaiting = fileStatus.pending;
   const syncLogCoveredWaiting =
     (pageStatus.syncLogPending ?? 0) + (databaseStatus.syncLogPending ?? 0);
@@ -25976,7 +25959,7 @@ function PagePendingQueueDetails({
   const syncLogRetryable = status.syncLogRetryable ?? syncLogPending;
   const syncLogDeferred =
     status.syncLogDeferred ?? Math.max(0, syncLogPending - syncLogRetryable);
-  const totalWaiting = status.pending + status.queued + syncLogPending;
+  const totalWaiting = pendingEntityCount(status);
   const queueHealth = getSyncQueueHealth({
     domain: "页面",
     enabled: status.enabled,
@@ -26229,7 +26212,7 @@ function DatabasePendingQueueDetails({
   const syncLogRetryable = status.syncLogRetryable ?? syncLogPending;
   const syncLogDeferred =
     status.syncLogDeferred ?? Math.max(0, syncLogPending - syncLogRetryable);
-  const totalWaiting = status.pending + status.queued + syncLogPending;
+  const totalWaiting = pendingEntityCount(status);
   const queueHealth = getSyncQueueHealth({
     domain: "数据库",
     enabled: status.enabled,
@@ -26492,11 +26475,9 @@ function CacheRebuildSafetyPanel({
   onOpenAccount: () => void;
 }) {
   const pagePending =
-    pageStatus.pending + pageStatus.queued + (pageStatus.syncLogPending ?? 0);
+    pendingEntityCount(pageStatus);
   const databasePending =
-    databaseStatus.pending +
-    databaseStatus.queued +
-    (databaseStatus.syncLogPending ?? 0);
+    pendingEntityCount(databaseStatus);
   const syncLogCoveredPending =
     (pageStatus.syncLogPending ?? 0) + (databaseStatus.syncLogPending ?? 0);
   const syncLogUnclassifiedPending = Math.max(
@@ -32635,9 +32616,7 @@ function isSyncStatusStorageEvent(event: StorageEvent): boolean {
 
 function isActivePagePendingStatus(status: PendingCloudPageSyncStatus): boolean {
   return (
-    status.pending +
-      status.queued +
-      (status.syncLogPending ?? 0) +
+    pendingEntityCount(status) +
       status.failed +
       status.manualReviewCount >
     0
@@ -32648,9 +32627,7 @@ function isActiveDatabasePendingStatus(
   status: PendingCloudDatabaseSyncStatus
 ): boolean {
   return (
-    status.pending +
-      status.queued +
-      (status.syncLogPending ?? 0) +
+    pendingEntityCount(status) +
       status.failed +
       status.manualReviewCount >
     0

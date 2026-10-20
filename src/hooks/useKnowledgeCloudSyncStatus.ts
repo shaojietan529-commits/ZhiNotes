@@ -24,6 +24,7 @@ const KNOWLEDGE_STATUS_REFRESH_LEASE_KEY =
 const KNOWLEDGE_STATUS_REFRESH_LEASE_TTL_MS = 14 * 1000;
 
 export function useKnowledgeCloudSyncStatus() {
+  const [health, setHealth] = useState({ initialized: false, readError: false });
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const [status, setStatus] = useState<KnowledgeCloudSyncStatus>(
     buildEmptyKnowledgeCloudSyncStatus(false)
@@ -48,6 +49,7 @@ export function useKnowledgeCloudSyncStatus() {
     if (!dbReady) {
       const disabledStatus = buildEmptyKnowledgeCloudSyncStatus(false);
       lastGoodStatusRef.current = disabledStatus;
+      if (mountedRef.current) setHealth({ initialized: false, readError: false });
       setStatusIfMounted(disabledStatus);
       return;
     }
@@ -60,11 +62,13 @@ export function useKnowledgeCloudSyncStatus() {
       const entries = await getPendingKnowledgeSyncLogEntries();
       const nextStatus = summarizeKnowledgeCloudSyncStatus(entries, true);
       lastGoodStatusRef.current = nextStatus;
+      if (mountedRef.current) setHealth({ initialized: true, readError: false });
       setStatusIfMounted(nextStatus);
     } catch {
       const fallbackStatus = lastGoodStatusRef.current.enabled
         ? lastGoodStatusRef.current
         : buildEmptyKnowledgeCloudSyncStatus(true);
+      if (mountedRef.current) setHealth((previous) => ({ ...previous, readError: true }));
       setStatusIfMounted(fallbackStatus);
     } finally {
       runningRef.current = false;
@@ -194,5 +198,5 @@ export function useKnowledgeCloudSyncStatus() {
     };
   }, [dbReady, refresh, setStatusIfMounted]);
 
-  return { status, refresh, syncNow };
+  return { status, refresh, syncNow, health };
 }

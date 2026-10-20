@@ -1,4 +1,5 @@
 import type { ZhiNotesCloudSession } from "@/lib/cloud/clientSession";
+import { pendingEntityCount } from "./pendingEntityCount";
 import type { SyncLogSummary } from "@/lib/db/local/queries";
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
 import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
@@ -163,18 +164,16 @@ export function buildCloudSetupDiagnostics(
       input.bootstrapProof?.checked_at
   );
   const pageQueuePending =
-    input.pageStatus.pending +
-    input.pageStatus.queued +
-    input.pageStatus.syncLogPending;
+    pendingEntityCount(input.pageStatus);
   const databaseQueuePending =
-    input.databaseStatus.pending +
-    input.databaseStatus.queued +
-    input.databaseStatus.syncLogPending;
+    pendingEntityCount(input.databaseStatus);
   const fileQueuePending = input.fileStatus.pending;
   const classifiedPending =
     pageQueuePending + databaseQueuePending + fileQueuePending;
   const unclassifiedPending = Math.max(
-    (input.syncSummary?.pending ?? 0) - classifiedPending,
+    (input.syncSummary?.pending ?? 0) -
+      (input.pageStatus.syncLogPending ?? 0) -
+      (input.databaseStatus.syncLogPending ?? 0),
     0
   );
   const totalPendingRows = classifiedPending + unclassifiedPending;

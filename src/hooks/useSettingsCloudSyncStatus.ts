@@ -28,6 +28,7 @@ const SETTINGS_STATUS_REFRESH_LEASE_TTL_MS = 14 * 1000;
 const SETTINGS_CLOUD_REFRESH_INTERVAL_MS = 30 * 1000;
 
 export function useSettingsCloudSyncStatus() {
+  const [health, setHealth] = useState({ initialized: false, readError: false });
   const dbReady = useWorkspaceStore((s) => s.dbReady);
   const [status, setStatus] = useState<SettingsCloudSyncStatus>(
     buildEmptySettingsCloudSyncStatus(false)
@@ -53,6 +54,7 @@ export function useSettingsCloudSyncStatus() {
     if (!dbReady) {
       const disabledStatus = buildEmptySettingsCloudSyncStatus(false);
       lastGoodStatusRef.current = disabledStatus;
+      if (mountedRef.current) setHealth({ initialized: false, readError: false });
       setStatusIfMounted(disabledStatus);
       return;
     }
@@ -71,11 +73,13 @@ export function useSettingsCloudSyncStatus() {
         true
       );
       lastGoodStatusRef.current = nextStatus;
+      if (mountedRef.current) setHealth({ initialized: true, readError: false });
       setStatusIfMounted(nextStatus);
     } catch {
       const fallbackStatus = lastGoodStatusRef.current.enabled
         ? lastGoodStatusRef.current
         : buildEmptySettingsCloudSyncStatus(true);
+      if (mountedRef.current) setHealth((previous) => ({ ...previous, readError: true }));
       setStatusIfMounted(fallbackStatus);
     } finally {
       runningRef.current = false;
@@ -206,5 +210,5 @@ export function useSettingsCloudSyncStatus() {
     };
   }, [dbReady, refresh, setStatusIfMounted, syncNow]);
 
-  return { status, refresh, syncNow };
+  return { status, refresh, syncNow, health };
 }

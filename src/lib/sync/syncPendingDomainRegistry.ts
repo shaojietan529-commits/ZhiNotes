@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import { pendingEntityCount } from "./pendingEntityCount";
 import type { SyncLogSummary } from "@/lib/db/local/queries";
 import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
@@ -290,9 +291,10 @@ function mergeCorePendingDomainRows(
 ): PendingDomainRow[] {
   return rows.map((row) => {
     if (row.id === "pages") {
-      const syncLogPending = pageStatus.syncLogPending ?? 0;
       return mergePendingDomainRowWithCoreStatus(row, {
-        pending: pageStatus.pending + pageStatus.queued + syncLogPending,
+        pending: pendingEntityCount(pageStatus),
+        exactPending: pageStatus.uniquePending === undefined ? undefined
+          : pageStatus.uniquePending + Math.max(row.pending - (pageStatus.syncLogPending ?? 0), 0),
         failed: pageStatus.failed,
         manualReview: pageStatus.manualReviewCount,
         lastChangeAt:
@@ -304,12 +306,10 @@ function mergeCorePendingDomainRows(
       });
     }
     if (row.id === "databases") {
-      const syncLogPending = databaseStatus.syncLogPending ?? 0;
       return mergePendingDomainRowWithCoreStatus(row, {
-        pending:
-          databaseStatus.pending +
-          databaseStatus.queued +
-          syncLogPending,
+        pending: pendingEntityCount(databaseStatus),
+        exactPending: databaseStatus.uniquePending === undefined ? undefined
+          : databaseStatus.uniquePending + Math.max(row.pending - (databaseStatus.syncLogPending ?? 0), 0),
         failed: databaseStatus.failed,
         manualReview: databaseStatus.manualReviewCount,
         lastChangeAt:
@@ -354,6 +354,7 @@ function mergePendingDomainRowWithCoreStatus(
   row: PendingDomainRow,
   status: {
     pending: number;
+    exactPending?: number;
     failed: number;
     inFlight?: number;
     manualReview: number;
@@ -361,7 +362,7 @@ function mergePendingDomainRowWithCoreStatus(
     tableNames: string[];
   }
 ): PendingDomainRow {
-  const pending = Math.max(row.pending, status.pending);
+  const pending = status.exactPending ?? Math.max(row.pending, status.pending);
   const failed = Math.max(row.failed, status.failed);
   const inFlight = Math.max(row.inFlight, status.inFlight ?? 0);
   const manualReview = Math.max(row.manualReview, status.manualReview);

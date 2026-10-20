@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import { pendingEntityCount } from "./pendingEntityCount";
 import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import type { PortfolioCloudSyncStatus } from "@/lib/portfolio/portfolioSyncStatus";
@@ -251,17 +252,11 @@ export function buildSyncHandoffReadinessReceipt(
     input.totalSyncPending - syncLogCoveredPendingRows,
     0
   );
-  const pagePendingRows =
-    input.pageStatus.pending +
-    input.pageStatus.queued +
-    pageSyncLogPendingRows;
-  const databasePendingRows =
-    input.databaseStatus.pending +
-    input.databaseStatus.queued +
-    databaseSyncLogPendingRows;
+  const pagePendingRows = pendingEntityCount(input.pageStatus);
+  const databasePendingRows = pendingEntityCount(input.databaseStatus);
   const filePendingRows = input.fileStatus.pending;
   const portfolioPendingRows =
-    input.portfolioStatus.pending + input.portfolioStatus.inFlight;
+    input.portfolioStatus.pending;
   const deduplicatedPendingRows =
     pagePendingRows +
     databasePendingRows +
@@ -892,7 +887,7 @@ function buildGates(input: {
       id: "page-pending-drained",
       title: "页面待上传队列无阻断",
       status: input.pagePendingRows > 0 ? "block" : "pass",
-      evidence: `页面 pending + 内存批次 + sync_log ${input.pagePendingRows} 条。`,
+      evidence: `页面待上传 ${input.pagePendingRows} 条（优先使用去重计数）。`,
       next_action:
         input.pagePendingRows > 0
           ? "先补传页面待上传队列；未上传页面不能在其他设备可靠出现。"
@@ -902,7 +897,7 @@ function buildGates(input: {
       id: "database-pending-drained",
       title: "数据库待上传队列无阻断",
       status: input.databasePendingRows > 0 ? "block" : "pass",
-      evidence: `数据库 pending + 内存批次 + sync_log ${input.databasePendingRows} 条。`,
+      evidence: `数据库待上传 ${input.databasePendingRows} 条（优先使用去重计数）。`,
       next_action:
         input.databasePendingRows > 0
           ? "先补传数据库待上传队列；未上传数据库修改不能在其他设备可靠出现。"
@@ -922,7 +917,7 @@ function buildGates(input: {
       id: "portfolio-pending-drained",
       title: "组合 pending 队列无待上传",
       status: input.portfolioPendingRows > 0 ? "block" : "pass",
-      evidence: `组合 pending + in-flight ${input.portfolioPendingRows} 条。`,
+      evidence: `组合待上传 ${input.portfolioPendingRows} 条（包含正在上传）。`,
       next_action:
         input.portfolioPendingRows > 0
           ? "先补传组合队列并等待云端 ACK；未确认的持仓导入或标签不能在其他设备可靠出现。"

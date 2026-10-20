@@ -22,6 +22,8 @@ const GLOBAL_SYNC_LOG_STATUS_FAST_REFRESH_DELAYS_MS = [
 ] as const;
 
 export interface GlobalSyncLogStatus {
+  initialized: boolean;
+  readError: boolean;
   enabled: boolean;
   pending: number;
   failed: number;
@@ -54,6 +56,8 @@ const GLOBAL_SYNC_LOG_STATUS_BOUNDARY: GlobalSyncLogStatus["boundary"] = {
 
 function buildEmptyGlobalSyncLogStatus(enabled = true): GlobalSyncLogStatus {
   return {
+    initialized: false,
+    readError: false,
     enabled,
     pending: 0,
     failed: 0,
@@ -70,6 +74,8 @@ function summarizeGlobalSyncLogStatus(
   enabled = true
 ): GlobalSyncLogStatus {
   return {
+    initialized: true,
+    readError: false,
     enabled,
     pending: summary.pending,
     failed: summary.failed,
@@ -119,7 +125,7 @@ export function useGlobalSyncLogStatus() {
       const fallbackStatus = lastGoodStatusRef.current.enabled
         ? lastGoodStatusRef.current
         : buildEmptyGlobalSyncLogStatus(true);
-      setStatusIfMounted(fallbackStatus);
+      setStatusIfMounted({ ...fallbackStatus, readError: true });
     } finally {
       runningRef.current = false;
       if (rerunAfterCurrentRefreshRef.current) {

@@ -284,27 +284,27 @@ function getAccountSyncCenterTarget(accountSync: {
     accountSync.globalSyncLogExtraFailedTotal > 0 ||
     accountSync.globalSyncLogExtraManualReviewTotal > 0
   ) {
-    return "/modules/sync#sync-upload-safety-panel";
+    return "/modules/sync#sync-overview";
   }
   if (accountSync.pagePendingTotal > 0) {
-    return "/modules/sync#page-pending-upload-queue";
+    return "/modules/sync#sync-domain-pages";
   }
   if (accountSync.databasePendingTotal > 0) {
-    return "/modules/sync#database-pending-upload-queue";
+    return "/modules/sync#sync-domain-databases";
   }
   if (accountSync.filePendingTotal > 0) {
-    return "/modules/sync#file-embed-pending-upload-queue";
+    return "/modules/sync#sync-domain-files";
   }
   if (accountSync.knowledgePendingTotal > 0) {
-    return "/modules/sync#knowledge-replay-batch-plan";
+    return "/modules/sync#sync-domain-knowledge";
   }
   if (accountSync.settingsPendingTotal > 0) {
-    return "/modules/sync#account-module-settings-pending-plan";
+    return "/modules/sync#sync-domain-settings";
   }
   if (accountSync.globalSyncLogExtraPendingTotal > 0) {
-    return "/modules/sync#sync-upload-safety-panel";
+    return "/modules/sync#sync-overview";
   }
-  return "/modules/sync#sync-upload-safety-panel";
+  return "/modules/sync#sync-overview";
 }
 
 function getAccountSyncDomainBreakdown(accountSync: {
@@ -782,7 +782,21 @@ async function persistSidebarPrimaryCustomizations(
   );
 }
 
-export default function Sidebar() {
+type AccountSync = ReturnType<typeof useAccountCloudSyncCoordinator>;
+
+export default function Sidebar({ accountSync, onOpenSyncCenter }: {
+  accountSync?: AccountSync;
+  onOpenSyncCenter?: () => void;
+} = {}) {
+  return accountSync ? <SidebarContent accountSync={accountSync} onOpenSyncCenter={onOpenSyncCenter} /> : <ConnectedSidebar />;
+}
+
+function ConnectedSidebar() {
+  const accountSync = useAccountCloudSyncCoordinator();
+  return <SidebarContent accountSync={accountSync} />;
+}
+
+function SidebarContent({ accountSync, onOpenSyncCenter }: { accountSync: AccountSync; onOpenSyncCenter?: () => void }) {
   useHotCacheRouteWarmup();
   const { databases, refresh: refreshDatabases } = useDatabases();
   const sidebarOpen = useWorkspaceStore((s) => s.sidebarOpen);
@@ -816,19 +830,12 @@ export default function Sidebar() {
   const accountLabelRefreshRequestRef = useRef(0);
   const primaryPointerDragRef = useRef<SidebarPrimaryPointerDrag | null>(null);
   const suppressPrimaryClickRef = useRef(false);
-  const accountSync = useAccountCloudSyncCoordinator();
   const { pageSync, databaseSync } = accountSync;
   const sidebarModules = PLATFORM_MODULES.filter(
     (module) => module.route && module.route !== "/"
   );
-  const pageSyncPendingTotal =
-    pageSync.pendingStatus.pending +
-    pageSync.pendingStatus.queued +
-    (pageSync.pendingStatus.syncLogPending ?? 0);
-  const databaseSyncPendingTotal =
-    databaseSync.pendingStatus.pending +
-    databaseSync.pendingStatus.queued +
-    (databaseSync.pendingStatus.syncLogPending ?? 0);
+  const pageSyncPendingTotal = accountSync.pagePendingTotal;
+  const databaseSyncPendingTotal = accountSync.databasePendingTotal;
   const pageSyncTitle =
     pageSync.pendingStatus.failed > 0
       ? `页面同步：${pageSync.pendingStatus.failed} 个待重试；打开同步中心查看最近失败原因`
@@ -954,6 +961,7 @@ export default function Sidebar() {
     : "";
   const handleAccountSyncButtonClick = useCallback(() => {
     if (accountSyncShouldOpenSyncCenter) {
+      onOpenSyncCenter?.();
       if (accountSyncShouldRecheckBeforeStatusOpen) {
         void accountSync.syncNow({ forceLease: true, forceAccountGate: true });
       }
@@ -967,6 +975,7 @@ export default function Sidebar() {
     accountSyncShouldOpenSyncCenter,
     accountSyncShouldRecheckBeforeStatusOpen,
     openModuleRoute,
+    onOpenSyncCenter,
   ]);
 
   const refreshAccountLabel = useCallback(

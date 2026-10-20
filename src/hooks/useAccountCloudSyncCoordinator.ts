@@ -332,7 +332,13 @@ export function useAccountCloudSyncCoordinator() {
     globalSyncLogExtraManualReviewTotal > 0;
   const coreSyncStatusKnown =
     pageSync.pendingStatus.initialized &&
-    databaseSync.pendingStatus.initialized;
+    databaseSync.pendingStatus.initialized &&
+    pageSync.pendingStatus.uniquePending !== undefined &&
+    databaseSync.pendingStatus.uniquePending !== undefined;
+  const metadataReadError =
+    globalSyncLog.status.readError ||
+    settingsSync.health.readError ||
+    knowledgeSync.health.readError;
   const enabledDomainCount =
     (!pageSync.pendingStatus.initialized ||
     pageSync.pendingStatus.enabled ||
@@ -411,18 +417,22 @@ export function useAccountCloudSyncCoordinator() {
     : null;
   const initializingEnabledDomain =
     !coreSyncStatusKnown ||
+    !globalSyncLog.status.initialized ||
+    !settingsSync.health.initialized ||
+    !knowledgeSync.health.initialized ||
     (pageSync.pendingStatus.enabled && pageSync.state === "disabled") ||
     (databaseSync.pendingStatus.enabled && databaseSync.state === "disabled");
   const syncBlockedBySignedOut =
     pageSync.state === "signed-out" || databaseSync.state === "signed-out";
   const accountUncertainByAuthRetry = Boolean(authRetryDomainLabel);
   const syncErrorWithoutAuthRetry =
+    metadataReadError ||
     (pageSync.state === "error" && !pageSync.pendingStatus.authRetryStatus) ||
     (databaseSync.state === "error" &&
       !databaseSync.pendingStatus.authRetryStatus);
 
   const state: AccountCloudSyncCoordinatorState =
-    enabledDomainCount === 0
+    enabledDomainCount === 0 && !metadataReadError
       ? "disabled"
       : manualReviewTotal > 0 || failedTotal > 0
         ? "attention"
@@ -501,6 +511,7 @@ export function useAccountCloudSyncCoordinator() {
         : "账号云同步需要登录后继续";
     }
     if (state === "error") {
+      if (metadataReadError) return "同步队列状态读取失败；本地记录未改动，暂时不能确认待上传数量。";
       return `账号云同步暂不可确认，低频重试；本地输入已保留${
         details.length ? `：${details.join("，")}` : ""
       }`;
@@ -517,6 +528,7 @@ export function useAccountCloudSyncCoordinator() {
     knowledgePendingTotal,
     lastSyncAt,
     manualReviewTotal,
+    metadataReadError,
     pagePendingTotal,
     pendingTotal,
     portfolioPendingTotal,

@@ -1,4 +1,5 @@
 import type { PendingCloudDatabaseSyncStatus } from "@/lib/database/accountDatabaseSync";
+import { pendingEntityCount } from "./pendingEntityCount";
 import type { PendingFileEmbedSyncStatus } from "@/lib/files/fileEmbedSyncQueue";
 import type { PendingCloudPageSyncStatus } from "@/lib/pages/accountPageSync";
 import type { LocalPerformanceSnapshot } from "@/lib/performance/localPerformance";
@@ -127,13 +128,9 @@ export function buildCloudNativeFluidityReport(
 ): CloudNativeFluidityReport {
   const generatedAt = input.generatedAt ?? new Date().toISOString();
   const pagePendingRows =
-    input.pageStatus.pending +
-    input.pageStatus.queued +
-    (input.pageStatus.syncLogPending ?? 0);
+    pendingEntityCount(input.pageStatus);
   const databasePendingRows =
-    input.databaseStatus.pending +
-    input.databaseStatus.queued +
-    (input.databaseStatus.syncLogPending ?? 0);
+    pendingEntityCount(input.databaseStatus);
   const filePendingRows = input.fileStatus.pending;
   const syncLogCoveredPendingRows =
     (input.pageStatus.syncLogPending ?? 0) +

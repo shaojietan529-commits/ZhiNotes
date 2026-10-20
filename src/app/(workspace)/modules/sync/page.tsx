@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-const SyncModule = dynamic(() => import("@/components/modules/SyncShell"), {
+const SyncModule = dynamic(() => import("@/components/modules/SyncCenterShell"), {
   ssr: false,
   loading: () => <ModuleSkeleton />,
 });
