@@ -14,6 +14,7 @@ import {
   getDatabaseSyncLogPendingCounts,
   getLocalDatabaseSyncSummary,
   getPendingDatabaseSyncRecords,
+  getPendingSyncEntityKeys,
   getRemoteDatabaseRecordKey,
   markDatabaseSyncLogEntriesAttempted,
   markDatabaseSyncLogEntriesFailed,
@@ -45,7 +46,7 @@ const QUICK_INCREMENTAL_BATCH_LIMIT = 3;
 const PULL_BATCH = 80;
 const PUSH_BATCH_RECORDS = 80;
 const PUSH_BATCH_BYTES = 800 * 1024;
-const CLOUD_DATABASE_PUSH_DEBOUNCE_MS = 1000;
+const CLOUD_DATABASE_PUSH_DEBOUNCE_MS = 400;
 const ACCOUNT_DATABASE_SYNC_REQUEST_TIMEOUT_MS = 12000;
 const AUTH_RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const METADATA_DELTA_THROTTLE_MS = 2500;
@@ -238,6 +239,7 @@ export interface PendingCloudDatabaseSyncStatus {
   enabled: boolean;
   pending: number;
   queued: number;
+  uniquePending?: number;
   syncLogPending: number;
   syncLogRetryable: number;
   syncLogDeferred: number;
@@ -1882,14 +1884,17 @@ export async function flushPendingCloudDatabasePushes(
 }
 
 export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudDatabaseSyncStatus> {
+  let entityKeys: string[] | undefined;
   let syncLogPending = 0;
   let syncLogRetryable = 0;
   let syncLogDeferred = 0;
   try {
-    const [pending, counts] = await Promise.all([
+    const [pending, counts, keys] = await Promise.all([
       getPendingDatabaseSyncRecords(1000),
       getDatabaseSyncLogPendingCounts(),
+      getPendingSyncEntityKeys("databases"),
     ]);
+    entityKeys = keys;
     syncLogRetryable = pending.entries.length;
     syncLogPending = Math.max(counts.total, syncLogRetryable);
     syncLogDeferred = Math.max(0, syncLogPending - syncLogRetryable);
@@ -1936,6 +1941,9 @@ export async function getPendingCloudDatabaseSyncStatus(): Promise<PendingCloudD
     enabled: isDatabaseSyncEnabled(),
     pending: pendingKeys.length,
     queued: queuedCloudDatabasePush.size,
+    uniquePending: entityKeys === undefined ? undefined : new Set([
+      ...pendingKeys, ...queuedCloudDatabasePush.keys(), ...entityKeys,
+    ]).size,
     syncLogPending,
     syncLogRetryable,
     syncLogDeferred,

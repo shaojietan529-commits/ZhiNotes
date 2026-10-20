@@ -255,6 +255,25 @@ function localDatabaseFixture() {
   return { db, queries: load("@/lib/db/local/queries"), page, record, pending };
 }
 
+test("pending count SQL: distinct entities include deferred/in-flight rows beyond the retry batch without mutation", async () => {
+  const f = localDatabaseFixture();
+  try {
+    for (let i = 0; i < 1005; i++) f.pending("pages", `page-${i}`, "failed");
+    f.pending("pages", "page-0", "in_flight");
+    for (const table of ["databases", "database_fields", "database_rows", "database_views"]) {
+      f.pending(table, "same-id", "pending");
+      f.pending(table, "same-id", "failed");
+    }
+    f.pending("pages", "already-synced", "synced");
+    f.pending("account_settings", "not-a-page");
+    const before = f.db.prepare("SELECT * FROM sync_log ORDER BY id").all();
+    assert.equal((await f.queries.getPendingSyncEntityKeys("pages")).length, 1005);
+    assert.deepEqual(Array.from(await f.queries.getPendingSyncEntityKeys("databases")).sort(),
+      ["database:same-id", "field:same-id", "row:same-id", "view:same-id"]);
+    assert.deepEqual(f.db.prepare("SELECT * FROM sync_log ORDER BY id").all(), before);
+  } finally { f.db.close(); }
+});
+
 for (const method of ["applyRemotePages", "applyRemotePageMetadata"]) {
   test(`${method}: pending rename/body/delete survive pull, then converge after ACK`, async () => {
     const f = localDatabaseFixture();

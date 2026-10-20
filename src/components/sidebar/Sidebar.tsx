@@ -308,6 +308,7 @@ function getAccountSyncCenterTarget(accountSync: {
 }
 
 function getAccountSyncDomainBreakdown(accountSync: {
+  portfolioPendingTotal?: number;
   pagePendingTotal: number;
   databasePendingTotal: number;
   filePendingTotal: number;
@@ -318,6 +319,9 @@ function getAccountSyncDomainBreakdown(accountSync: {
   manualReviewTotal: number;
 }) {
   const parts = [
+    (accountSync.portfolioPendingTotal ?? 0) > 0
+      ? `组合 ${accountSync.portfolioPendingTotal}`
+      : null,
     accountSync.pagePendingTotal > 0
       ? `页面 ${accountSync.pagePendingTotal}`
       : null,
@@ -345,6 +349,7 @@ function getAccountSyncDomainBreakdown(accountSync: {
 }
 
 function getAccountSyncDomainBreakdownItems(accountSync: {
+  portfolioPendingTotal?: number;
   pagePendingTotal: number;
   databasePendingTotal: number;
   filePendingTotal: number;
@@ -355,6 +360,12 @@ function getAccountSyncDomainBreakdownItems(accountSync: {
   manualReviewTotal: number;
 }): AccountSyncDomainBreakdownItem[] {
   return [
+    {
+      id: "portfolio",
+      label: "组合",
+      count: accountSync.portfolioPendingTotal ?? 0,
+      tone: "pending" as const,
+    },
     {
       id: "pages",
       label: "页面",
@@ -860,7 +871,9 @@ export default function Sidebar() {
               ? "数据库同步未开启"
               : "数据库同步：账号或网络暂不可确认，已保留本地输入，后台低频重试";
   const accountLocalUseTitle = `${accountSync.localUseReadiness.label}：${accountSync.localUseReadiness.detail}\n下一步：${accountSync.localUseReadiness.nextAction}`;
-  const accountSyncTitle = `${accountSync.localUseReadiness.label}\n${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}\n${accountLocalUseTitle}`;
+  const realtimeLabel = accountSync.realtimeState === "connected" ? "实时通知已连接" :
+    accountSync.realtimeState === "connecting" ? "正在连接实时通知，定时同步仍可用" : "定时同步";
+  const accountSyncTitle = `${accountSync.localUseReadiness.label}\n${realtimeLabel}\n${accountSync.title}\n${pageSyncTitle}\n${databaseSyncTitle}\n${accountLocalUseTitle}`;
   const accountHasRecentIdentity = accountLabel !== "账号";
   const accountSyncShortLabel = getAccountSyncShortLabel(accountSync.state);
   const accountSyncButtonLabel = getAccountSyncButtonLabel(
@@ -1689,6 +1702,7 @@ export default function Sidebar() {
             data-testid="sidebar-sync-status"
             data-sync-state={accountSync.state}
             data-sync-pending={accountSync.pendingTotal}
+            data-realtime-state={accountSync.realtimeState}
             data-sync-pending-total={accountSync.pendingTotal}
             data-sync-failed={accountSync.failedTotal}
             data-sync-manual-review={accountSync.manualReviewTotal}

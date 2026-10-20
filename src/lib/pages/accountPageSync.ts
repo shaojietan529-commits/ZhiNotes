@@ -26,6 +26,7 @@ import {
   getPage,
   getPageSyncLogPendingCounts,
   getPendingPageSyncRecords,
+  getPendingSyncEntityKeys,
   getLocalPageSyncSummary,
   getNextPosition,
   markPageSyncLogEntriesAttempted,
@@ -83,7 +84,7 @@ const AUTH_RETRY_PROBE_WINDOW_KEY = "__zhinotePageSyncAuthRetryProbe";
 // Covers stored as data URLs can be multi-MB; skip oversized ones rather
 // than failing the whole page push.
 const MAX_COVER_CHARS = 300 * 1024;
-const CLOUD_PUSH_DEBOUNCE_MS = 1000;
+const CLOUD_PUSH_DEBOUNCE_MS = 400;
 const EMPTY_CLOUD_PAGE_ACK_MESSAGE =
   "云端没有返回任何页面 ACK，已保留本地待上传状态并稍后重试。";
 const PARTIAL_CLOUD_PAGE_ACK_MESSAGE =
@@ -99,6 +100,7 @@ let metadataDeltaInFlight: Promise<CloudPageMetadataDeltaResult> | null = null;
 let lastMetadataDeltaAt = 0;
 let lastMetadataDeltaResult: CloudPageMetadataDeltaResult | null = null;
 let metadataDeltaGeneration = 0;
+let pageLookupGeneration = 0;
 const pageLookupInFlight = new Map<string, Promise<CloudPageLookupResult>>();
 const pageLookupCache = new Map<
   string,
@@ -190,6 +192,7 @@ export interface PendingCloudPageSyncStatus {
   enabled: boolean;
   pending: number;
   queued: number;
+  uniquePending?: number;
   syncLogPending: number;
   syncLogRetryable: number;
   syncLogDeferred: number;
@@ -648,7 +651,7 @@ export async function fetchCloudPagesByIds(
   if (gate.status !== "ready" || !accountId) {
     return { status: "unconfirmed", pages: [] };
   }
-  const cacheKey = `${accountId}\n${cloudPageLookupCacheKey(uniqueIds)}`;
+  const cacheKey = `${accountId}\n${pageLookupGeneration}\n${cloudPageLookupCacheKey(uniqueIds)}`;
   const cached = readCloudPageLookupCache(cacheKey);
   if (cached) return cached;
   const inFlight = pageLookupInFlight.get(cacheKey);
@@ -661,6 +664,12 @@ export async function fetchCloudPagesByIds(
   const result = await request;
   rememberCloudPageLookupResult(cacheKey, result);
   return result;
+}
+
+export function invalidateCloudPageLookups(): void {
+  pageLookupGeneration += 1;
+  pageLookupCache.clear();
+  pageLookupInFlight.clear();
 }
 
 async function runFetchCloudPagesByIds(
@@ -2895,14 +2904,18 @@ export function getPendingCloudPageSyncStatus(): PendingCloudPageSyncStatus {
 export async function getPendingCloudPageSyncStatusWithSyncLog(): Promise<PendingCloudPageSyncStatus> {
   const status = getPendingCloudPageSyncStatus();
   try {
-    const [pending, counts] = await Promise.all([
+    const [pending, counts, entityIds] = await Promise.all([
       getPendingPageSyncRecords(1000),
       getPageSyncLogPendingCounts(),
+      getPendingSyncEntityKeys("pages"),
     ]);
     const retryable = pending.entries.length;
     const total = Math.max(counts.total, retryable);
     return {
       ...status,
+      uniquePending: new Set([
+        ...getPendingCloudPushIds(), ...queuedCloudPush.keys(), ...entityIds,
+      ]).size,
       syncLogPending: total,
       syncLogRetryable: retryable,
       syncLogDeferred: Math.max(0, total - retryable),

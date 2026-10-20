@@ -107,10 +107,16 @@ export function subscribeDatabasesUpdated(
     }
   };
   const currentChannel = getChannel();
+  const onLocalCloudPull = (event: Event) => {
+    const message = (event as CustomEvent<DatabaseUpdateMessage>).detail;
+    if (isDatabaseUpdateMessage(message) && message.reason === "cloud-pull") handler(message);
+  };
   currentChannel?.addEventListener("message", onMessage);
+  window.addEventListener(DATABASE_LOCAL_UPDATE_EVENT, onLocalCloudPull);
   window.addEventListener("storage", onStorage);
   return () => {
     currentChannel?.removeEventListener("message", onMessage);
+    window.removeEventListener(DATABASE_LOCAL_UPDATE_EVENT, onLocalCloudPull);
     window.removeEventListener("storage", onStorage);
   };
 }

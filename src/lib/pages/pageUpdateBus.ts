@@ -153,10 +153,16 @@ export function subscribePagesUpdated(
     }
   };
   const currentChannel = getChannel();
+  const onLocalCloudPull = (event: Event) => {
+    const message = (event as CustomEvent<PageUpdateMessage>).detail;
+    if (isPageUpdateMessage(message) && message.reason === "cloud-pull") handler(message);
+  };
   currentChannel?.addEventListener("message", onMessage);
+  window.addEventListener(PAGE_LOCAL_UPDATE_EVENT, onLocalCloudPull);
   window.addEventListener("storage", onStorage);
   return () => {
     currentChannel?.removeEventListener("message", onMessage);
+    window.removeEventListener(PAGE_LOCAL_UPDATE_EVENT, onLocalCloudPull);
     window.removeEventListener("storage", onStorage);
   };
 }

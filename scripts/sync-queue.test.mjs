@@ -42,10 +42,12 @@ function fixture(domain, options = {}) {
     getRemoteDatabaseRecordKey: (row) => `${row.type}:${row.id}`,
     getPendingPageSyncRecords: pendingLog,
     getPendingDatabaseSyncRecords: pendingLog,
+    getPendingSyncEntityKeys: async () => options.entityKeys ??
+      local.entries.map((entry) => entry.pageId ?? entry.key),
     markPageSyncLogEntriesSynced: acknowledgeLog,
     markDatabaseSyncLogEntriesSynced: acknowledgeLog,
-    getPageSyncLogPendingCounts: async () => ({ pending: 0, failed: 0, manualReview: 0 }),
-    getDatabaseSyncLogPendingCounts: async () => ({ pending: 0, failed: 0, manualReview: 0 }),
+    getPageSyncLogPendingCounts: async () => ({ total: local.entries.length, failed: 0, manualReview: 0 }),
+    getDatabaseSyncLogPendingCounts: async () => ({ total: local.entries.length, failed: 0, manualReview: 0 }),
   };
   const localStorage = {
     getItem: (name) => storage.get(name) ?? null,
@@ -61,6 +63,9 @@ function fixture(domain, options = {}) {
     "@/lib/account/accountCloudSyncGate": {
       checkAccountCloudSyncGate: async () => ({ status: options.gate ?? "ready" }),
     },
+    "@/lib/account/clientSession": {
+      getLastAuthenticatedAccount: () => ({ id: "synthetic-account" }),
+    },
   };
   const sandbox = {
     exports: {}, Date, URL, TextEncoder, AbortController,
@@ -75,7 +80,9 @@ function fixture(domain, options = {}) {
       const body = JSON.parse(init.body);
       requests.push(body);
       if (body.action === "pull") {
-        return { ok: true, status: 200, json: async () => ({ pages: options.cloudRows ?? [] }) };
+        const pages = structuredClone(options.cloudRows ?? []);
+        await options.duringPull?.();
+        return { ok: true, status: 200, json: async () => ({ pages }) };
       }
       await options.duringRequest?.(local, body, requests.length);
       if (options.networkError) throw new Error("Synthetic network failure");
@@ -118,10 +125,47 @@ function fixture(domain, options = {}) {
   };
 }
 
+test("page: a change invalidates cached and in-flight body lookups", async () => {
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  const options = { cloudRows: [record("note")] };
+  const f = fixture("page", options);
+  assert.equal((await f.api.fetchCloudPageById("note")).pages[0].content_text, "test");
+  await f.api.fetchCloudPageById("note");
+  assert.equal(f.requests.length, 1, "ordinary reads reuse the cache");
+  f.api.invalidateCloudPageLookups();
+  options.duringPull = () => held;
+  const older = f.api.fetchCloudPageById("note");
+  while (f.requests.length < 2) await Promise.resolve();
+  f.api.invalidateCloudPageLookups();
+  options.duringPull = undefined;
+  options.cloudRows = [{ ...record("note"), content_text: "new" }];
+  const newer = f.api.fetchCloudPageById("note");
+  release();
+  await older;
+  assert.equal((await newer).pages[0].content_text, "new");
+  assert.equal((await f.api.fetchCloudPageById("note")).pages[0].content_text, "new",
+    "an older response must not repopulate the current generation");
+});
+
 for (const domain of ["page", "database"]) {
   const id = domain === "page" ? "missing" : "database:missing";
   const entry = (logId) => ({ logId, ...(domain === "page" ? { pageId: "missing" } : { key: id }) });
   const push = (f, rows) => domain === "page" ? f.api.pushCloudPages(rows) : f.api.pushCloudDatabaseRecords(rows);
+
+  test(`${domain}: pending badge counts entities, not overlapping queues or log rows`, async () => {
+    const f = fixture(domain, { entries: [entry(1), entry(2)], entityKeys: [id, "deferred-only"] });
+    f.enqueue([id]);
+    if (domain === "page") f.api.queueCloudPagePush(record("missing"));
+    else f.api.queueCloudDatabaseRecords([record("missing")]);
+    const status = domain === "page" ? await f.api.getPendingCloudPageSyncStatusWithSyncLog()
+      : await f.api.getPendingCloudDatabaseSyncStatus();
+    assert.equal(status.pending, 1);
+    assert.equal(status.queued, 1);
+    assert.equal(status.syncLogPending, 2);
+    assert.equal(status.uniquePending, 2, "deferred/log-only edits still count, duplicate IDs do not");
+    assert.deepEqual(f.pending(), [id], "counting must not retire pending writes");
+  });
 
   for (const change of ["rename", "delete", "body"]) {
     test(`${domain}: late ACK cannot consume a concurrent ${change}; next retry uploads it`, async () => {

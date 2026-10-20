@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publishAccountChange } from "@/lib/sync/accountRealtimeServer";
 import {
   accountIdentityMissingEnv,
   getAccountIdentityConfig,
@@ -1897,6 +1898,7 @@ export async function POST(request: Request) {
         skippedCount: skipped.length,
         nextSummary,
       });
+      if (accepted.length > 0) await publishAccountChange(config.kv, account.id, "pages");
       return NextResponse.json({ ok: true, accepted, skipped, ack });
     }
 

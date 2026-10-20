@@ -186,7 +186,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
           onUpdate: onUpdateRef.current,
         };
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = setTimeout(flushPendingSave, 1000);
+        saveTimerRef.current = setTimeout(flushPendingSave, 500);
       },
       [flushPendingSave]
     );
@@ -352,7 +352,7 @@ const Editor = forwardRef<EditorRef, EditorProps>(
 
     useEffect(() => {
       editableRef.current = editable;
-      editor?.setEditable(editable);
+      editor?.setEditable(editable, false);
     }, [editable, editor]);
 
     useEffect(() => {
@@ -618,12 +618,12 @@ const Editor = forwardRef<EditorRef, EditorProps>(
       },
     }));
 
-    // Reset editor content when switching pages. If a lightweight page record
-    // is opened first and the full body arrives later, fill it only while the
-    // editor is still empty so user typing is never overwritten.
+    // A clean open editor follows remote saves. Never replace a local draft,
+    // and never turn a remote refresh into another local edit/upload.
     const appliedInitialContentRef = useRef({
       pageId,
       content: initialContent || "",
+      editorHtml: null as string | null,
     });
     useEffect(() => {
       if (!editor) return;
@@ -631,14 +631,20 @@ const Editor = forwardRef<EditorRef, EditorProps>(
       const applied = appliedInitialContentRef.current;
       if (applied.pageId !== pageId) {
         flushPendingSave();
-        editor.commands.setContent(nextContent);
-        appliedInitialContentRef.current = { pageId, content: nextContent };
+        editor.commands.setContent(nextContent, { emitUpdate: false });
+        appliedInitialContentRef.current = { pageId, content: nextContent, editorHtml: editor.getHTML() };
         return;
       }
+      const currentHtml = editor.getHTML();
+      if (applied.editorHtml === null) applied.editorHtml = currentHtml;
       if (applied.content === nextContent) return;
-      if (!applied.content && nextContent && editor.isEmpty) {
-        editor.commands.setContent(nextContent);
-        appliedInitialContentRef.current = { pageId, content: nextContent };
+      if (currentHtml === nextContent) {
+        appliedInitialContentRef.current = { pageId, content: nextContent, editorHtml: currentHtml };
+        return;
+      }
+      if (!pendingSaveRef.current && currentHtml === applied.editorHtml) {
+        editor.commands.setContent(nextContent, { emitUpdate: false });
+        appliedInitialContentRef.current = { pageId, content: nextContent, editorHtml: editor.getHTML() };
       }
     }, [pageId, initialContent, editor, flushPendingSave]);
 

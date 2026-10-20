@@ -14,6 +14,10 @@ import { usePageCloudSync } from "@/hooks/usePageCloudSync";
 import { usePortfolioCloudSyncStatus } from "@/hooks/usePortfolioCloudSyncStatus";
 import { useSettingsCloudSyncStatus } from "@/hooks/useSettingsCloudSyncStatus";
 import { buildAccountLocalUseReadiness } from "@/lib/sync/accountLocalUseReadiness";
+import { pendingEntityCount } from "@/lib/sync/pendingEntityCount";
+import { useAccountRealtime } from "@/hooks/useAccountRealtime";
+import { getLastAuthenticatedAccount } from "@/lib/account/clientSession";
+import { ACCOUNT_REMOTE_CHANGE_EVENT, type RemoteChange } from "@/lib/sync/realtimeProtocol";
 
 const COORDINATOR_PENDING_DRAIN_DELAY_MS = 900;
 const COORDINATOR_ACCOUNT_UNCERTAIN_RETRY_DELAY_MS = 5_000;
@@ -46,6 +50,7 @@ function formatLastSyncTime(value: string | null) {
 }
 
 export function useAccountCloudSyncCoordinator() {
+  const realtimeState = useAccountRealtime();
   const mountedRef = useRef(true);
   const pageSync = usePageCloudSync();
   const databaseSync = useDatabaseCloudSync();
@@ -62,6 +67,42 @@ export function useAccountCloudSyncCoordinator() {
   const portfolioSyncNow = portfolioSync.syncNow;
   const refreshGlobalSyncLogStatus = globalSyncLog.refresh;
   const retryFileEmbedSync = fileSync.syncNow;
+
+  useEffect(() => {
+    const domains = new Set<string>();
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onChange = (event: Event) => {
+      const change = (event as CustomEvent<RemoteChange>).detail;
+      if (!change || change.accountId !== getLastAuthenticatedAccount()?.id) return;
+      domains.add(change.domain);
+      if (timer !== undefined) return;
+      timer = setTimeout(() => {
+        timer = undefined;
+        if (change.accountId !== getLastAuthenticatedAccount()?.id) {
+          domains.clear();
+          return;
+        }
+        if (domains.has("all") || domains.has("pages")) {
+          void import("@/lib/pages/accountPageSync").then(({ invalidateCloudPageLookups }) => {
+            if (!active || change.accountId !== getLastAuthenticatedAccount()?.id) return;
+            invalidateCloudPageLookups();
+            return pageSyncNow({ quick: true, forceLease: true });
+          }).catch(() => { /* Existing polling retries if the notification refresh fails. */ });
+        }
+        if (domains.has("all") || domains.has("databases")) {
+          void databaseSyncNow({ quick: true, forceLease: true });
+        }
+        domains.clear();
+      }, 100);
+    };
+    window.addEventListener(ACCOUNT_REMOTE_CHANGE_EVENT, onChange);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      window.removeEventListener(ACCOUNT_REMOTE_CHANGE_EVENT, onChange);
+    };
+  }, [pageSyncNow, databaseSyncNow]);
 
   const syncNow = useCallback(
     async (options: AccountCloudSyncCoordinatorOptions = {}) => {
@@ -112,14 +153,8 @@ export function useAccountCloudSyncCoordinator() {
     ]
   );
 
-  const pagePendingTotal =
-    pageSync.pendingStatus.pending +
-    pageSync.pendingStatus.queued +
-    (pageSync.pendingStatus.syncLogPending ?? 0);
-  const databasePendingTotal =
-    databaseSync.pendingStatus.pending +
-    databaseSync.pendingStatus.queued +
-    (databaseSync.pendingStatus.syncLogPending ?? 0);
+  const pagePendingTotal = pendingEntityCount(pageSync.pendingStatus);
+  const databasePendingTotal = pendingEntityCount(databaseSync.pendingStatus);
   const settingsPendingTotal = settingsSync.status.totalPending;
   const knowledgePendingTotal = knowledgeSync.status.totalPending;
   const portfolioPendingTotal = portfolioSync.status.pending;
@@ -612,6 +647,7 @@ export function useAccountCloudSyncCoordinator() {
   }, []);
 
   return {
+    realtimeState,
     state,
     title,
     authRetryActive: Boolean(authRetryDomainLabel),

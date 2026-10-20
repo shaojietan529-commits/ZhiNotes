@@ -4240,6 +4240,22 @@ function normalizePendingSyncLogRetryCounts(
   };
 }
 
+export async function getPendingSyncEntityKeys(domain: "pages" | "databases"): Promise<string[]> {
+  const db = await getDb();
+  const tables = domain === "pages"
+    ? ["pages"]
+    : ["databases", "database_fields", "database_rows", "database_views"];
+  const rows = db.query(
+    `SELECT DISTINCT table_name as tableName, row_id as rowId
+     FROM sync_log WHERE synced = 0 AND status != 'synced'
+       AND table_name IN (${tables.map(() => "?").join(",")})`,
+    tables
+  ) as unknown as Array<{ tableName: string; rowId: string }>;
+  return rows.filter((row) => row.rowId).map((row) =>
+    domain === "pages" ? row.rowId : `${DATABASE_SYNC_TABLE_TYPES[row.tableName]}:${row.rowId}`
+  );
+}
+
 export async function getPageSyncLogPendingCounts(): Promise<PendingSyncLogRetryCounts> {
   const db = await getDb();
   const now = nowISO();

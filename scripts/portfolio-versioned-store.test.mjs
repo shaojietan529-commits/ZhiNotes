@@ -17,7 +17,7 @@ const compiled = new Map();
 
 function fixture(mode) {
   const values = new Map(), modules = new Map();
-  const controls = { failWrite: false, beforeEval: null, accountId: "synthetic", reads: 0 };
+  const controls = { failWrite: false, beforeEval: null, accountId: "synthetic", reads: 0, notifications: [] };
   const config = { kv: { url: "https://synthetic.invalid", token: "synthetic" }, allowedEmails: new Set() };
   class Redis {
     async get(key) { return values.get(key) ?? null; }
@@ -33,6 +33,12 @@ function fixture(mode) {
     }
   }
   function load(name, parent = path.join(root, "src/entry.ts")) {
+    if (name === "@/lib/sync/accountRealtimeServer") return {
+      publishAccountChange: async (_kv, id, domain) => {
+        assert.ok(values.has("zhinotes:portfolio:data:acct:test@example.invalid"), "notify only after persistence");
+        controls.notifications.push({ id, domain });
+      },
+    };
     if (name === "@upstash/redis") return { Redis };
     if (name === "@/lib/account/server") return {
       accountIdentityMissingEnv: () => [], getAccountIdentityConfig: () => config,
@@ -87,6 +93,18 @@ test("account: a cookie changed to another account rejects all old requests befo
   }
   assert.equal(f.controls.reads, 0);
   assert.equal(f.values.size, 0, "even an empty B account cannot accept an unbased A upload");
+});
+
+test("account: only committed writes notify; rejected conflicts and failed writes stay quiet", async () => {
+  const f = fixture("account");
+  assert.equal((await f.push(initial)).status, 200);
+  assert.deepEqual(f.controls.notifications, [{ id: "synthetic", domain: "portfolio" }]);
+  assert.equal((await f.push({ ...initial, allocation: 200 })).status, 409);
+  assert.equal(f.controls.notifications.length, 1);
+  const { body: current } = await f.pull();
+  f.controls.failWrite = true;
+  assert.notEqual((await f.push({ ...initial, allocation: 300 }, current.version)).status, 200);
+  assert.equal(f.controls.notifications.length, 1);
 });
 
 test("account: all reads and writes require identity intent; success echoes confirmed identity", async () => {

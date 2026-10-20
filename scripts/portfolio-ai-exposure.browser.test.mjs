@@ -9,8 +9,13 @@ const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const XLSX = require("xlsx");
 const origin = new URL(process.env.PORTFOLIO_TEST_URL ?? "http://127.0.0.1:3017").origin;
-assert.ok(["127.0.0.1", "localhost"].includes(new URL(origin).hostname));
-const artifacts = new URL("../.local/ai-exposure-verification/", import.meta.url);
+const production = process.env.PORTFOLIO_TEST_PRODUCTION_ALLOWED === "true";
+assert.ok(production
+  ? ["https://zhi-note.com", "https://www.zhi-note.com"].includes(origin)
+  : ["127.0.0.1", "localhost"].includes(new URL(origin).hostname));
+const artifacts = new URL(production
+  ? "../.local/realtime-production-verification/ai-exposure/"
+  : "../.local/ai-exposure-verification/", import.meta.url);
 mkdirSync(artifacts, { recursive: true });
 const now = "2026-10-09T00:00:00.000Z";
 const position = (key, nmv, country) => ({ key, ticker: key.split(" ")[0], name: `Synthetic ${key}`, nmv,

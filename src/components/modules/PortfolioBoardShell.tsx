@@ -1,5 +1,7 @@
 "use client";
 
+import { ACCOUNT_REMOTE_CHANGE_EVENT, type RemoteChange } from "@/lib/sync/realtimeProtocol";
+
 import {
   Fragment,
   useCallback,
@@ -785,11 +787,21 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
       void pullLatestPortfolio();
     };
     const interval = window.setInterval(pullIfVisible, PORTFOLIO_AUTO_PULL_MS);
+    const onRemoteChange = (event: Event) => {
+      const change = (event as CustomEvent<RemoteChange>).detail;
+      if (change?.accountId === getLastAuthenticatedAccount()?.id &&
+          (change.domain === "portfolio" || change.domain === "all") &&
+          syncModeRef.current === "account") pullIfVisible();
+    };
+    window.addEventListener(ACCOUNT_REMOTE_CHANGE_EVENT, onRemoteChange);
     window.addEventListener("focus", pullIfVisible);
+    window.addEventListener("online", pullIfVisible);
     document.addEventListener("visibilitychange", pullIfVisible);
     return () => {
       window.clearInterval(interval);
+      window.removeEventListener(ACCOUNT_REMOTE_CHANGE_EVENT, onRemoteChange);
       window.removeEventListener("focus", pullIfVisible);
+      window.removeEventListener("online", pullIfVisible);
       document.removeEventListener("visibilitychange", pullIfVisible);
     };
   }, [pullLatestPortfolio, runInitialSync, syncPasscode, loadSyncPasscode]);
@@ -862,7 +874,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
         setSyncStatus("error");
         showNotice("无法保存同步状态；待上传记录仍保留，请检查本机存储空间。", "warning");
       });
-    }, 1500);
+    }, 500);
     return () => {
       if (pushTimerRef.current !== null) window.clearTimeout(pushTimerRef.current);
     };

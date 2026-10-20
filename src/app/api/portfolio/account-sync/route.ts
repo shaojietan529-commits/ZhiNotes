@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publishAccountChange } from "@/lib/sync/accountRealtimeServer";
 import {
   accountIdentityMissingEnv,
   getAccountIdentityConfig,
@@ -138,6 +139,7 @@ export async function POST(request: Request) {
       const result = await writeVersionedPortfolio(config.kv,
         `${PORTFOLIO_ACCOUNT_DATA_KEY_PREFIX}${me}`, body,
         { key: `${PORTFOLIO_ACCOUNT_METADATA_KEY_PREFIX}${me}`, owner: me });
+      if (result.status === 200) await publishAccountChange(config.kv, account.id, "portfolio");
       return respond(result.body, result.status);
     }
 
