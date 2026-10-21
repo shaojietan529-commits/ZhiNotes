@@ -7,8 +7,13 @@ import { test } from "node:test";
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const origin = new URL(process.env.SYNC_TEST_URL ?? "http://127.0.0.1:3026").origin;
-assert.ok(["127.0.0.1", "localhost"].includes(new URL(origin).hostname));
-const artifacts = new URL("../.local/sync-status-verification/", import.meta.url);
+const production = process.env.SYNC_TEST_PRODUCTION_ALLOWED === "true";
+assert.ok(production
+  ? ["https://zhi-note.com", "https://www.zhi-note.com"].includes(origin)
+  : ["127.0.0.1", "localhost"].includes(new URL(origin).hostname));
+const artifacts = new URL(production
+  ? "../.local/sync-status-production-verification/overview/"
+  : "../.local/sync-status-verification/", import.meta.url);
 mkdirSync(artifacts, { recursive: true });
 const until = async (check) => {
   const deadline = Date.now() + 25000;
@@ -33,7 +38,9 @@ test("sync overview: counts, privacy, retry, offline, login, advanced view and r
         }
         return route.fulfill({ status: 501, json: { error: "Synthetic isolation", code: "unconfigured" } });
       }
-      if (request.method() === "GET") return route.continue();
+      if (request.method() === "GET" && (url.pathname === "/modules/sync" ||
+        url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/brand/source/") ||
+        url.pathname === "/favicon.ico")) return route.continue();
       return route.abort();
     });
     await context.addInitScript(({ pending, enabled }) => {
@@ -96,6 +103,7 @@ test("sync overview: counts, privacy, retry, offline, login, advanced view and r
     assert.deepEqual(errors, []);
     writeFileSync(new URL("result.json", artifacts), JSON.stringify({
       passed: true, scope: "synthetic-isolated-browser-only", realAccountsRead: false,
+      origin, productionAssets: production, allBusinessApisIntercepted: true,
       productionWrites: false, physicalTwoDeviceAcceptance: false,
       tests: ["deduplicated-counts", "no-eager-advanced-checks", "safe-retry",
         "refresh-retention", "advanced-navigation", "desktop-mobile-layout", "offline-recovery", "signed-out"],
