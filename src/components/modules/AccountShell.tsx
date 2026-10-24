@@ -99,6 +99,7 @@ import {
   type LocalWorkspaceIdentity,
 } from "@/lib/sync/workspaceIdentity";
 import { usePages } from "@/hooks/usePages";
+import { isLoginCodeSent, loginSendFailureMessage } from "@/lib/account/loginResponse";
 
 type Phase =
   | "loading"
@@ -946,8 +947,8 @@ export default function AccountShell() {
         body: JSON.stringify({ email }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setNotice(data.error ?? "发送失败，请稍后重试。");
+      if (!res.ok || !isLoginCodeSent(data)) {
+        setNotice(loginSendFailureMessage(res.status, data));
         return;
       }
       setPhase("code");

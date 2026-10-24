@@ -8,6 +8,12 @@
 // raw emails are never logged, and responses only carry masked emails.
 
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "crypto";
+import {
+  AccountServiceError,
+  accountServiceFailureReason,
+  reportAccountServiceFailure,
+  type AccountServiceOperation,
+} from "./serviceErrors";
 
 const CODE_KEY_PREFIX = "zhinotes:account:code:";
 const USER_KEY_PREFIX = "zhinotes:account:user:";
@@ -205,7 +211,8 @@ function hostMatchesCookieDomain(host: string, domain: string): boolean {
 
 async function fetchAccountServerRequestWithTimeout(
   input: Parameters<typeof fetch>[0],
-  init?: Parameters<typeof fetch>[1]
+  init: Parameters<typeof fetch>[1],
+  operation: AccountServiceOperation
 ): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(
@@ -213,10 +220,35 @@ async function fetchAccountServerRequestWithTimeout(
     ACCOUNT_SERVER_REQUEST_TIMEOUT_MS
   );
   try {
-    return await fetch(input, {
+    const response = await fetch(input, {
       ...init,
       signal: controller.signal,
     });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      throw new AccountServiceError(operation, accountServiceFailureReason(response.status, body), response.status);
+    }
+    if (operation !== "email-send") {
+      const body: unknown = await response.clone().json().catch(() => null);
+      if (body && typeof body === "object" && "error" in body) {
+        throw new AccountServiceError(operation, accountServiceFailureReason(response.status, body), response.status);
+      }
+      if (!body || typeof body !== "object" || !("result" in body)) {
+        throw new AccountServiceError(operation, "invalid-response", response.status);
+      }
+      if (operation === "storage-get" && body.result !== null && typeof body.result !== "string") {
+        throw new AccountServiceError(operation, "invalid-response", response.status);
+      }
+    }
+    return response;
+  } catch (error) {
+    const failure = controller.signal.aborted
+      ? new AccountServiceError(operation, "timeout")
+      : error instanceof AccountServiceError
+        ? error
+        : new AccountServiceError(operation, "network");
+    reportAccountServiceFailure(failure);
+    throw failure;
   } finally {
     clearTimeout(timeout);
   }
@@ -228,7 +260,8 @@ export async function kvGet(env: KvEnv, key: string): Promise<string | null> {
     {
       headers: { authorization: `Bearer ${env.token}` },
       cache: "no-store",
-    }
+    },
+    "storage-get"
   );
   if (!res.ok) throw new Error("kv get failed");
   const data = await res.json();
@@ -247,7 +280,8 @@ async function kvSetEx(
       method: "POST",
       headers: { authorization: `Bearer ${env.token}` },
       body: value,
-    }
+    },
+    "storage-setex"
   );
   if (!res.ok) throw new Error("kv setex failed");
 }
@@ -263,7 +297,8 @@ export async function kvSet(
       method: "POST",
       headers: { authorization: `Bearer ${env.token}` },
       body: value,
-    }
+    },
+    "storage-set"
   );
   if (!res.ok) throw new Error("kv set failed");
 }
@@ -274,7 +309,8 @@ export async function kvDel(env: KvEnv, key: string): Promise<void> {
     {
       method: "POST",
       headers: { authorization: `Bearer ${env.token}` },
-    }
+    },
+    "storage-del"
   );
   if (!res.ok) throw new Error("kv del failed");
 }
@@ -383,7 +419,7 @@ export async function sendLoginCode(
     JSON.stringify({ hash: hashCode(email, code), attempts: 0 })
   );
 
-  const res = await fetchAccountServerRequestWithTimeout(
+  await fetchAccountServerRequestWithTimeout(
     "https://api.resend.com/emails",
     {
       method: "POST",
@@ -397,12 +433,15 @@ export async function sendLoginCode(
         subject: "ZhiNotes 登录验证码",
         text: `你的 ZhiNotes 登录验证码是：${code}\n\n10 分钟内有效。如果不是你本人操作，请忽略这封邮件。`,
       }),
+    },
+    "email-send"
+  ).catch(async (error: unknown) => {
+    // A lost response may still mean delivery: keep that code valid until expiry.
+    if (error instanceof AccountServiceError && error.status !== null && error.status >= 400) {
+      await kvDel(config.kv, `${CODE_KEY_PREFIX}${email}`).catch(() => {});
     }
-  );
-  if (!res.ok) {
-    await kvDel(config.kv, `${CODE_KEY_PREFIX}${email}`);
-    return { status: "email-failed" };
-  }
+    throw error;
+  });
   return { status: "sent" };
 }
 

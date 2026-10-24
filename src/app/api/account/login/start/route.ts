@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { maskEmail } from "@/lib/cloud/api";
+import { AccountServiceError } from "@/lib/account/serviceErrors";
 import {
   accountMissingEnv,
   getAccountConfig,
@@ -30,6 +31,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }
 
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "请输入有效邮箱。" }, { status: 400 });
+  }
+
   const email = normalizeEmail(body.email);
   if (!email) {
     return NextResponse.json({ error: "请输入有效邮箱。" }, { status: 400 });
@@ -44,8 +49,8 @@ export async function POST(request: Request) {
     }
     if (result.status === "rate-limited") {
       return NextResponse.json(
-        { error: "验证码发送太频繁，请 10 分钟后再试。" },
-        { status: 429 }
+        { error: "验证码发送太频繁，请 10 分钟后再试。", reason: "rate-limited" },
+        { status: 429, headers: { "Retry-After": "600" } }
       );
     }
     if (result.status === "email-failed") {
@@ -55,10 +60,16 @@ export async function POST(request: Request) {
       );
     }
     return NextResponse.json({ status: "sent", email_hint: maskEmail(email) });
-  } catch {
+  } catch (error) {
+    const emailFailed = error instanceof AccountServiceError && error.operation === "email-send";
     return NextResponse.json(
-      { error: "云端存储读写失败，请稍后重试。" },
-      { status: 502 }
+      {
+        error: emailFailed
+          ? "验证码邮件服务暂时无法确认发送结果，请稍后重试。"
+          : "云端账号存储暂不可用，验证码尚未发送。请稍后重试；无需清除本机数据。",
+        reason: emailFailed ? "email-unavailable" : "storage-unavailable",
+      },
+      { status: 502, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
