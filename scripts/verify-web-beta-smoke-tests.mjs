@@ -11074,8 +11074,8 @@ function run() {
       "Portfolio email-position browser action must use the bounded helper.",
     ],
     [
-      'fetchPortfolioActionWithTimeout(\n        "/api/ai/suggest-position-tags"',
-      "Portfolio AI-tag browser action must use the bounded helper.",
+      "onClick={handleNextUntagged}",
+      "Portfolio tag action must navigate to manual tagging instead of requesting AI labels.",
     ],
     [
       "本地组合数据已保留，可稍后重试。",

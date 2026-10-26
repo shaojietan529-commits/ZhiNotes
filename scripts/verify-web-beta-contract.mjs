@@ -6547,16 +6547,16 @@ function run() {
       "Portfolio email-position browser action must use the bounded helper.",
     ],
     [
-      'fetchPortfolioActionWithTimeout(\n        "/api/ai/suggest-position-tags"',
-      "Portfolio AI-tag browser action must use the bounded helper.",
+      "onClick={handleNextUntagged}",
+      "Portfolio tag action must navigate to manual tagging instead of requesting AI labels.",
     ],
     [
       "邮箱持仓检查请求超时；本地组合数据已保留，可稍后重试。",
       "Portfolio email-position timeout copy must reassure users that local portfolio data is preserved.",
     ],
     [
-      "AI 打标请求超时；本地组合数据已保留，可稍后重试。",
-      "Portfolio AI-tag timeout copy must reassure users that local portfolio data is preserved.",
+      "if (advance) onCommitted();",
+      "Manual tag navigation must advance only after a successful commit.",
     ],
   ]) {
     assertSourceIncludes(
@@ -6571,6 +6571,12 @@ function run() {
       "Portfolio board shell must keep fetch usage centralized in fetchPortfolioActionWithTimeout."
     );
   }
+  assertSourceExcludes(
+    files.portfolioBoardShell,
+    portfolioBoardShell,
+    "/api/ai/suggest-position-tags",
+    "Manual portfolio tagging must not send positions to the AI tagging endpoint."
+  );
   assertSourceExcludes(
     files.accountDatabaseSync,
     accountDatabaseSync,
