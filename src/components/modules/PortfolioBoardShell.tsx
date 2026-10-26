@@ -14,6 +14,7 @@ import {
 import Sidebar from "@/components/sidebar/Sidebar";
 import PortfolioConflictDialog from "./PortfolioConflictDialog";
 import AiExposureInput from "./AiExposureInput";
+import { ArrowRight } from "lucide-react";
 import {
   buildExposures,
   positionAiExposure,
@@ -107,6 +108,8 @@ function markPortfolioFailureForScope(
 }
 
 const PORTFOLIO_AUTO_PULL_MS = 15 * 1000;
+const MIN_SIDE_GMV_PCT = 44;
+const MAX_SIDE_GMV_PCT = 56;
 const PORTFOLIO_ACTION_REQUEST_TIMEOUT_MS = 12000;
 
 function isPortfolioSyncActive(mode: SyncMode, code: string | null) {
@@ -306,7 +309,10 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
   const [importError, setImportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [noticeTone, setNoticeTone] = useState<NoticeTone>("info");
-  const [aiTagging, setAiTagging] = useState(false);
+  const [tagNavigation, setTagNavigation] = useState<{ afterKey: string | null } | null>(null);
+  const handledTagNavigationRef = useRef<typeof tagNavigation>(null);
+  const guidedTagKeyRef = useRef<string | null>(null);
+  const positionTablesRef = useRef<HTMLDivElement>(null);
   const [emailChecking, setEmailChecking] = useState(false);
   const [syncPasscode, setSyncPasscode] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("off");
@@ -1269,65 +1275,40 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
   const untagged = useMemo(
     () =>
       snapshot
-        ? snapshot.positions.filter((position) => !tagMap[position.key])
+        ? snapshot.positions.filter((position) => !tagMap[position.key]?.trim())
         : [],
     [snapshot, tagMap]
   );
 
-  const handleAiTag = useCallback(async () => {
+  const handleNextUntagged = useCallback(() => {
     if (!isCurrent() || viewingOwnerRef.current) return;
-    if (!snapshot || untagged.length === 0 || aiTagging) return;
-    const ok = window.confirm(
-      `将把 ${untagged.length} 只未打标股票的代码和名称发送给 Claude AI 来按主营业务分配标签（不发送仓位金额或 PnL）。确认继续？`
-    );
-    if (!ok) return;
-    setAiTagging(true);
-    try {
-      const res = await fetchPortfolioActionWithTimeout(
-        "/api/ai/suggest-position-tags",
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            stocks: untagged.map((p) => ({ key: p.key, name: p.name })),
-            availableTags: knownTags,
-          }),
-        }
-      );
-      if (!isCurrent() || viewingOwnerRef.current) return;
-      if (res.status === 501) {
-        window.alert(
-          "AI 功能尚未配置。请在 Vercel 项目设置中添加 ANTHROPIC_API_KEY。"
-        );
-        return;
-      }
-      if (!res.ok) {
-        window.alert("AI 打标失败，请稍后重试。");
-        return;
-      }
-      const data: { tags?: Record<string, string> } = await res.json();
-      const suggested = data.tags ?? {};
-      const count = Object.keys(suggested).length;
-      if (count === 0) {
-        window.alert("AI 没有返回任何标签建议。");
-        return;
-      }
-      if (!isCurrent() || viewingOwnerRef.current) return;
-      // Suggestions only fill gaps; manual labels entered while AI was running win.
-      const saved = await queueLocalPortfolioChange((current) => ({ tagMap: { ...suggested, ...current.tagMap } }));
-      if (!saved) return;
-      setTagMap(saved.tagMap);
-      showNotice(`AI 已为 ${count} 只股票分配标签，可随时手动修改`);
-    } catch (error) {
-      if (error instanceof PortfolioActionRequestTimeoutError) {
-        window.alert("AI 打标请求超时；本地组合数据已保留，可稍后重试。");
-        return;
-      }
-      window.alert("AI 打标出错，请检查网络。");
-    } finally {
-      setAiTagging(false);
+    setTab("positions");
+    setTagNavigation({ afterKey: guidedTagKeyRef.current });
+  }, [isCurrent]);
+
+  const handleTagCommitted = useCallback((key: string) => {
+    if (!isCurrent() || viewingOwnerRef.current || guidedTagKeyRef.current !== key) return;
+    setTagNavigation({ afterKey: key });
+  }, [isCurrent]);
+
+  useEffect(() => {
+    if (tab !== "positions" || viewingOwner) {
+      guidedTagKeyRef.current = null;
+      handledTagNavigationRef.current = tagNavigation;
+      return;
     }
-  }, [snapshot, untagged, knownTags, aiTagging, showNotice, queueLocalPortfolioChange, isCurrent]);
+    if (!tagNavigation || handledTagNavigationRef.current === tagNavigation || !isCurrent()) return;
+    handledTagNavigationRef.current = tagNavigation;
+    // Read the rendered order so navigation follows both tables' current sorting.
+    const editors = Array.from(positionTablesRef.current?.querySelectorAll<HTMLButtonElement | HTMLInputElement>("[data-portfolio-tag-key]") ?? []);
+    const cursor = editors.findIndex((editor) => editor.dataset.portfolioTagKey === tagNavigation.afterKey);
+    const ordered = [...editors.slice(cursor + 1), ...editors.slice(0, cursor + 1)];
+    const next = ordered.find((editor) => !tagMap[editor.dataset.portfolioTagKey!]?.trim() && !editor.disabled);
+    guidedTagKeyRef.current = next?.dataset.portfolioTagKey ?? null;
+    if (next instanceof HTMLButtonElement) next.click();
+    else if (next) next.focus();
+    else if (editors.length > 0) showNotice("所有持仓已完成打标");
+  }, [tagNavigation, tab, viewingOwner, tagMap, isCurrent, showNotice]);
 
   const handleAiExposureChange = useCallback(async (key: string, value: number | undefined, expected: number | undefined) => {
     if (value !== undefined && (!Number.isFinite(value) || value < -1 || value > 1)) return false;
@@ -1537,18 +1518,16 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                   >
                     {emailChecking ? "检查邮箱中…" : "📧 检查邮箱持仓"}
                   </button>
-                  {untagged.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => void handleAiTag()}
-                      disabled={aiTagging}
-                      className="rounded-lg border border-violet-200 bg-violet-50 px-3.5 py-2 text-sm text-violet-700 shadow-sm transition-colors hover:border-violet-300 disabled:opacity-50 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-300"
-                    >
-                      {aiTagging
-                        ? "AI 打标中…"
-                        : `✨ AI 打标（${untagged.length} 只未分类）`}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleNextUntagged}
+                    disabled={untagged.length === 0}
+                    title="定位下一个未打标的 Tag"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm text-zinc-600 shadow-sm transition-colors hover:border-zinc-400 disabled:cursor-default disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                  >
+                    <ArrowRight size={16} aria-hidden="true" className="shrink-0" />
+                    {untagged.length > 0 ? `下一个未打标（${untagged.length}）` : "打标已完成"}
+                  </button>
                 </>
               )}
             </div>
@@ -1614,7 +1593,8 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                   limit={{
                     usedPct:
                       allocation > 0 ? (totalLongGmv / allocation) * 100 : 0,
-                    limitPct: (100 + maxNetPct) / 2,
+                    minPct: MIN_SIDE_GMV_PCT,
+                    maxPct: MAX_SIDE_GMV_PCT,
                   }}
                 />
                 <StatCard
@@ -1625,7 +1605,8 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                   limit={{
                     usedPct:
                       allocation > 0 ? (totalShortGmv / allocation) * 100 : 0,
-                    limitPct: (100 - maxNetPct) / 2,
+                    minPct: MIN_SIDE_GMV_PCT,
+                    maxPct: MAX_SIDE_GMV_PCT,
                   }}
                 />
                 <NetExposureCard
@@ -1665,7 +1646,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
               </div>
 
               {tab === "positions" ? (
-                <div className="space-y-8">
+                <div ref={positionTablesRef} className="space-y-8">
                   <PositionTable
                     title="Long"
                     tone="long"
@@ -1675,6 +1656,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                     tagOf={tagOf}
                     knownTags={knownTags}
                     onTagChange={handleTagChange}
+                    onTagCommitted={handleTagCommitted}
                     aiExposureMap={aiExposureMap}
                     onAiExposureChange={handleAiExposureChange}
                     readOnly={!!viewingOwner}
@@ -1688,6 +1670,7 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
                     tagOf={tagOf}
                     knownTags={knownTags}
                     onTagChange={handleTagChange}
+                    onTagCommitted={handleTagCommitted}
                     aiExposureMap={aiExposureMap}
                     onAiExposureChange={handleAiExposureChange}
                     readOnly={!!viewingOwner}
@@ -1735,9 +1718,6 @@ function ScopedPortfolioBoard({ scope }: { scope: PortfolioStorageScope }) {
 
 // ----- presentational pieces ---------------------------------------------------
 
-// Long/short limits derive from the editable max net exposure:
-// long ≤ (100+maxNet)/2 of allocation, short ≤ (100−maxNet)/2.
-
 function StatCard({
   label,
   value,
@@ -1749,10 +1729,12 @@ function StatCard({
   value: string;
   sub?: string;
   tone: "long" | "short";
-  // usedPct/limitPct are both expressed as % of allocation
-  limit?: { usedPct: number; limitPct: number };
+  // Long and Short use the same allocation band, independently of the net limit.
+  limit?: { usedPct: number; minPct: number; maxPct: number };
 }) {
-  const over = limit ? limit.usedPct > limit.limitPct : false;
+  // Ignore floating-point noise exactly at either boundary.
+  const over = limit ? limit.usedPct - limit.maxPct > 1e-9 : false;
+  const under = limit ? limit.minPct - limit.usedPct > 1e-9 : false;
   return (
     <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
@@ -1774,29 +1756,34 @@ function StatCard({
       )}
       {limit && (
         <div className="mt-1.5 space-y-1">
-          <div className="flex items-baseline justify-between gap-2 text-xs tabular-nums">
-            <span className="text-zinc-400">上限 {limit.limitPct.toFixed(0)}%</span>
-            <span
-              className={`font-semibold ${
-                over
-                  ? "text-rose-600 dark:text-rose-400"
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2 text-xs tabular-nums text-zinc-400">
+            <span>下限 {limit.minPct.toFixed(0)}%</span>
+            <span>上限 {limit.maxPct.toFixed(0)}%</span>
+          </div>
+          <div
+            className={`text-xs font-semibold tabular-nums ${
+              over
+                ? "text-rose-600 dark:text-rose-400"
+                : under
+                  ? "text-amber-600 dark:text-amber-400"
                   : "text-zinc-600 dark:text-zinc-300"
-              }`}
-            >
-              {over
-                ? `超限 ${(limit.usedPct - limit.limitPct).toFixed(1)}%`
-                : `可用 ${(limit.limitPct - limit.usedPct).toFixed(1)}%`}
-            </span>
+            }`}
+          >
+            {over
+              ? `超限 ${(limit.usedPct - limit.maxPct).toFixed(1)}%`
+              : under
+                ? `低于下限 ${(limit.minPct - limit.usedPct).toFixed(1)}%`
+                : `可用 ${Math.max(0, limit.maxPct - limit.usedPct).toFixed(1)}%`}
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200/80 ring-1 ring-inset ring-zinc-300/60 dark:bg-zinc-700 dark:ring-zinc-600/60">
             <div
               className={`h-full rounded-full transition-all ${
-                over ? "bg-rose-500" : "bg-emerald-500"
+                over ? "bg-rose-500" : under ? "bg-amber-500" : "bg-emerald-500"
               }`}
               style={{
                 width: `${Math.min(
-                  limit.limitPct > 0
-                    ? (limit.usedPct / limit.limitPct) * 100
+                  limit.maxPct > 0
+                    ? (limit.usedPct / limit.maxPct) * 100
                     : 0,
                   100
                 )}%`,
@@ -1916,7 +1903,7 @@ function AllocationCard({
 }
 
 // NMV card with an editable max net exposure (click the ±x% to change).
-// The long/short GMV limits derive from this number.
+// This setting does not change the fixed Long/Short GMV bands.
 function NetExposureCard({
   netPct,
   netMoney,
@@ -3026,6 +3013,7 @@ function PositionTable({
   tagOf,
   knownTags,
   onTagChange,
+  onTagCommitted,
   aiExposureMap,
   onAiExposureChange,
   readOnly,
@@ -3038,6 +3026,7 @@ function PositionTable({
   tagOf: (position: PortfolioPosition) => string;
   knownTags: string[];
   onTagChange: (key: string, tag: string, expected: string) => Promise<boolean>;
+  onTagCommitted: (key: string) => void;
   aiExposureMap: AiExposureMap;
   onAiExposureChange: (key: string, value: number | undefined, expected: number | undefined) => Promise<boolean>;
   readOnly: boolean;
@@ -3226,9 +3215,12 @@ function PositionTable({
                   </td>
                   <td className="px-3 py-2">
                     <TagEditor
+                      stockKey={position.key}
                       value={tagOf(position)}
                       knownTags={knownTags}
                       onChange={(tag, expected) => onTagChange(position.key, tag, expected)}
+                      onCommitted={() => onTagCommitted(position.key)}
+                      readOnly={readOnly}
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -3295,16 +3287,30 @@ function PnlCell({ value }: { value: number }) {
 }
 
 function TagEditor({
+  stockKey,
   value,
   knownTags,
   onChange,
+  onCommitted,
+  readOnly,
 }: {
+  stockKey: string;
   value: string;
   knownTags: string[];
   onChange: (tag: string, expected: string) => Promise<boolean>;
+  onCommitted: () => void;
+  readOnly: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editing || readOnly) return;
+    inputRef.current?.scrollIntoView({ block: "center", inline: "center" });
+    inputRef.current?.focus({ preventScroll: true });
+  }, [editing, readOnly]);
 
   useEffect(() => {
     if (!editing) queueMicrotask(() => setDraft(value));
@@ -3313,41 +3319,57 @@ function TagEditor({
   const editBaseRef = useRef(value);
   const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
-  const commit = async () => {
-    if (savingRef.current) return;
+  const commit = async (advance = false) => {
+    if (readOnly || savingRef.current) return;
+    // An empty Enter keeps this item open rather than silently skipping it.
+    if (advance && !draft.trim()) return;
     savingRef.current = true; setSaving(true);
     try {
-      if (draft.trim() !== value && !await onChange(draft, editBaseRef.current)) return;
+      if (draft.trim() !== value && !await onChange(draft, editBaseRef.current)) {
+        setError("标签未保存，请重试。");
+        return;
+      }
+      setError(null);
       setEditing(false);
+      if (advance) onCommitted();
+    } catch {
+      setError("标签未保存，请重试。");
     } finally { savingRef.current = false; setSaving(false); }
   };
 
-  if (editing) {
+  if (editing && !readOnly) {
     return (
       <span>
+        <span className="mb-1 block max-w-28 break-words text-[11px] text-zinc-500 dark:text-zinc-400">{stockKey}</span>
         <input
-          autoFocus
+          ref={inputRef}
+          data-portfolio-tag-key={stockKey}
+          aria-label={`${stockKey} Tag`}
+          aria-invalid={!!error}
           list="zhinote-portfolio-tags"
           readOnly={saving}
           aria-busy={saving}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
+          onChange={(e) => { setDraft(e.target.value); setError(null); }}
+          onBlur={() => void commit()}
           onKeyDown={(e) => {
-            if (savingRef.current) return;
-            if (e.key === "Enter") commit();
+            if (savingRef.current || e.nativeEvent.isComposing || e.keyCode === 229) return;
+            if (e.key === "Enter") { e.preventDefault(); void commit(true); }
             if (e.key === "Escape") {
+              e.preventDefault();
+              setError(null);
               setDraft(value);
               setEditing(false);
             }
           }}
-          className="w-28 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-xs text-zinc-800 outline-none dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+          className="w-28 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-xs text-zinc-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
         />
         <datalist id="zhinote-portfolio-tags">
           {knownTags.map((tag) => (
             <option key={tag} value={tag} />
           ))}
         </datalist>
+        {error && <span role="alert" className="mt-1 block text-xs text-rose-600 dark:text-rose-400">{error}</span>}
       </span>
     );
   }
@@ -3355,7 +3377,9 @@ function TagEditor({
   return (
     <button
       type="button"
-      onClick={() => { editBaseRef.current = value; setEditing(true); }}
+      data-portfolio-tag-key={stockKey}
+      disabled={readOnly}
+      onClick={() => { editBaseRef.current = value; setDraft(value); setError(null); setEditing(true); }}
       className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs transition-colors ${
         value
           ? "bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-950"
