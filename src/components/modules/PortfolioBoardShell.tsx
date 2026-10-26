@@ -2185,6 +2185,19 @@ function RebalanceSimulator({
     };
   }, [positions, trades, positionsByKey]);
 
+  const handleClosePosition = (posKey: string) => {
+    const p = positionsByKey.get(posKey);
+    if (!p || !Number.isFinite(p.nmv) || p.nmv === 0) return;
+    setInlineInputs((prev) => ({
+      ...prev,
+      [posKey]: {
+        action: p.nmv > 0 ? "sell" : "buytocover",
+        // Avoid binary floating-point tails when converting dollars to $k.
+        amountK: String(Number((Math.abs(p.nmv) / 1000).toPrecision(15))),
+      },
+    }));
+  };
+
   const handleConfirmTrade = (posKey: string) => {
     const p = positionsByKey.get(posKey);
     if (!p) return;
@@ -2458,7 +2471,7 @@ function RebalanceSimulator({
                 <th className="px-3 py-2 text-right">金额 ($k)</th>
                 <th className="px-3 py-2 text-right">调整后</th>
                 <th className="px-3 py-2 text-right">调整后 %</th>
-                <th className="w-8 px-2 py-2" />
+                <th className="w-14 px-2 py-2" />
               </tr>
             </thead>
             <tbody>
@@ -2513,6 +2526,7 @@ function RebalanceSimulator({
                         </span>
                       ) : (
                         <select
+                          aria-label={`${p.key} 交易方向`}
                           value={inline.action}
                           onChange={(e) => {
                             const cur =
@@ -2546,29 +2560,44 @@ function RebalanceSimulator({
                     <td className="px-3 py-2 text-right">
                       {confirmedTrade ? (
                         <span className="text-xs font-medium tabular-nums text-zinc-700 dark:text-zinc-200">
-                          {confirmedTrade.amountK.toLocaleString()}
+                          {confirmedTrade.amountK.toLocaleString(undefined, { maximumFractionDigits: 8 })}
                         </span>
                       ) : (
-                        <input
-                          type="number"
-                          value={inline.amountK}
-                          onChange={(e) => {
-                            const cur =
-                              inlineInputs[p.key] ?? {
-                                action: defaultAction,
-                                amountK: "",
-                              };
-                            setInlineInputs((prev) => ({
-                              ...prev,
-                              [p.key]: {
-                                ...cur,
-                                amountK: e.target.value,
-                              },
-                            }));
-                          }}
-                          placeholder="0"
-                          className="w-20 rounded border border-zinc-200 bg-white px-2 py-1 text-right text-xs tabular-nums dark:border-zinc-700 dark:bg-zinc-800"
-                        />
+                        <div className="flex items-center justify-end gap-1.5">
+                          <input
+                            type="number"
+                            aria-label={`${p.key} 交易金额 ($k)`}
+                            min="0"
+                            step="any"
+                            value={inline.amountK}
+                            onChange={(e) => {
+                              const cur =
+                                inlineInputs[p.key] ?? {
+                                  action: defaultAction,
+                                  amountK: "",
+                                };
+                              setInlineInputs((prev) => ({
+                                ...prev,
+                                [p.key]: {
+                                  ...cur,
+                                  amountK: e.target.value,
+                                },
+                              }));
+                            }}
+                            placeholder="0"
+                            className="w-32 shrink-0 rounded border border-zinc-200 bg-white px-2 py-1 text-right text-xs tabular-nums dark:border-zinc-700 dark:bg-zinc-800"
+                          />
+                          <button
+                            type="button"
+                            aria-label={`${p.key} 清仓`}
+                            title="按当前全部仓位填入平仓金额"
+                            onClick={() => handleClosePosition(p.key)}
+                            disabled={!Number.isFinite(p.nmv) || p.nmv === 0}
+                            className="h-7 w-12 shrink-0 whitespace-nowrap rounded border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                          >
+                            清仓
+                          </button>
+                        </div>
                       )}
                     </td>
                     <td
@@ -2607,7 +2636,7 @@ function RebalanceSimulator({
                           onClick={() =>
                             handleCancelTrade(p.key)
                           }
-                          className="rounded px-1.5 py-0.5 text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30"
+                          className="whitespace-nowrap rounded px-1.5 py-0.5 text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30"
                           title="取消调仓"
                         >
                           取消
@@ -2623,7 +2652,7 @@ function RebalanceSimulator({
                             parseFloat(inline.amountK) <=
                               0
                           }
-                          className="rounded px-1.5 py-0.5 text-xs text-blue-600 hover:bg-blue-50 disabled:opacity-30 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                          className="whitespace-nowrap rounded px-1.5 py-0.5 text-xs text-blue-600 hover:bg-blue-50 disabled:opacity-30 dark:text-blue-400 dark:hover:bg-blue-900/30"
                           title="确认调仓"
                         >
                           确认
