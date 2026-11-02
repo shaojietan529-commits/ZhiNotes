@@ -43,6 +43,7 @@ import {
   fetchAccountSession,
   getLastAuthenticatedAccount,
   isAccountSessionStorageKey,
+  handleAccountSessionStorageChange,
 } from "@/lib/account/clientSession";
 import {
   SIDEBAR_PRIMARY_CUSTOMIZATION_SETTING_KEY,
@@ -1139,6 +1140,7 @@ function SidebarContent({ accountSync, onOpenSyncCenter }: { accountSync: Accoun
     void refreshAccountLabel();
     const handleAccountStorage = (event: StorageEvent) => {
       if (isAccountSessionStorageKey(event.key)) {
+        if (!handleAccountSessionStorageChange(event)) return;
         void refreshAccountLabel({
           force: true,
           preferStored: true,

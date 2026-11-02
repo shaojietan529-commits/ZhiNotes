@@ -42,11 +42,44 @@ export function isAccountSessionStorageKey(key: string | null): boolean {
   );
 }
 
+export function isAccountSessionStorageChange(
+  event: Pick<StorageEvent, "key" | "oldValue" | "newValue">
+): boolean {
+  if (event.key === null) return true;
+  if (!isAccountSessionStorageKey(event.key) || event.oldValue === event.newValue) return false;
+  if (event.key === ACCOUNT_SESSION_EXPLICIT_LOGOUT_STORAGE_KEY) return true;
+  if (!event.oldValue || !event.newValue) return true;
+  try {
+    const before = JSON.parse(event.oldValue);
+    const after = JSON.parse(event.newValue);
+    if (typeof before?.account?.id !== "string" || typeof after?.account?.id !== "string" ||
+        typeof before.storedAt !== "number" || typeof after.storedAt !== "number") return true;
+    // A successful session check renews storedAt. It is not a new login and
+    // must not force another check in every other tab (which renews it again).
+    return (["id", "email_hint", "display_name", "createdAt"] as const)
+      .some((key) => before.account[key] !== after.account[key]);
+  } catch {
+    return true;
+  }
+}
+
 let accountSessionInFlight: Promise<AccountSessionResult> | null = null;
 let cachedAccountSession: AccountSessionResult | null = null;
 let cachedAccountSessionAt = 0;
 let accountSessionRetryAfter = 0;
 let accountSessionEpoch = 0;
+const handledSessionStorageEvents = new WeakSet<StorageEvent>();
+
+export function handleAccountSessionStorageChange(event: StorageEvent): boolean {
+  if (!isAccountSessionStorageChange(event)) return false;
+  // Several consumers observe the same event. Invalidate an old in-flight
+  // check once, before any of them starts checking the new identity.
+  if (!handledSessionStorageEvents.has(event)) {
+    handledSessionStorageEvents.add(event);
+    clearAccountSessionRuntimeCache();
+  }
+  return true;
+}
 
 export function clearAccountSessionRuntimeCache(): void {
   accountSessionEpoch++;

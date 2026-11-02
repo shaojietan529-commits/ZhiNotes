@@ -238,24 +238,43 @@ export function BlockDragHandleLayer({
     if (!editable) return;
 
     const editorDom = editor.view.dom;
+    const surface = getSurface() ?? editorDom;
+    let hoverFrame: number | undefined;
+    let hoverTarget: EventTarget | null = null;
+
+    const cancelHover = () => {
+      if (hoverFrame !== undefined) window.cancelAnimationFrame(hoverFrame);
+      hoverFrame = undefined;
+      hoverTarget = null;
+    };
 
     const handleMouseMove = (event: MouseEvent) => {
       if (draggedBlockRef.current) return;
-      const meta = getBlockMetaFromElement(editor, event.target);
-      setHoverBlock(meta ? getVisualBlock(meta) : null);
+      hoverTarget = event.target;
+      if (hoverFrame !== undefined) return;
+      hoverFrame = window.requestAnimationFrame(() => {
+        hoverFrame = undefined;
+        if (draggedBlockRef.current || editor.isDestroyed) return;
+        const meta = getBlockMetaFromElement(editor, hoverTarget);
+        const next = meta ? getVisualBlock(meta) : null;
+        setHoverBlock((previous) => sameVisualBlock(previous, next) ? previous : next);
+      });
     };
 
     const handleMouseLeave = () => {
+      cancelHover();
       if (!draggedBlockRef.current) setHoverBlock(null);
     };
 
     editorDom.addEventListener("mousemove", handleMouseMove);
-    editorDom.addEventListener("mouseleave", handleMouseLeave);
+    // Keep the handle available while crossing the gutter to click or drag it.
+    surface.addEventListener("mouseleave", handleMouseLeave);
     return () => {
+      cancelHover();
       editorDom.removeEventListener("mousemove", handleMouseMove);
-      editorDom.removeEventListener("mouseleave", handleMouseLeave);
+      surface.removeEventListener("mouseleave", handleMouseLeave);
     };
-  }, [editable, editor, getVisualBlock, resetDragState]);
+  }, [editable, editor, getSurface, getVisualBlock]);
 
   useEffect(() => {
     if (!insertMenu) return;
@@ -852,15 +871,56 @@ function getBlockMetaFromElement(
   target: EventTarget | null,
   dragged?: DraggedBlock | null
 ) {
-  if (!(target instanceof Element)) return null;
-  return getDraggableBlocks(editor)
-    .filter((block) => isCompatibleDropTarget(block, dragged))
-    .filter((block) => block.element.contains(target))
-    .sort((a, b) => getRectArea(a.rect) - getRectArea(b.rect))[0] ?? null;
+  if (!(target instanceof Element) || !editor.view.dom.contains(target)) return null;
+
+  // Resolve only the hovered node and its ancestors, not every sibling in the document.
+  let pos: number;
+  try {
+    pos = editor.view.posAtDOM(target, 0);
+  } catch {
+    return null;
+  }
+  const resolved = editor.state.doc.resolve(pos);
+  const candidates: BlockMeta[] = [];
+  const addCandidate = (node: ProseMirrorNode | null, nodePos: number, parentName: string) => {
+    if (!node || !isDraggableBlock(node, parentName)) return;
+    const meta = getBlockMeta(editor, node, nodePos, parentName);
+    if (meta && meta.element.contains(target) && isCompatibleDropTarget(meta, dragged)) {
+      candidates.push(meta);
+    }
+  };
+  // Leaf nodes and node-view wrappers can resolve immediately before the node.
+  addCandidate(resolved.nodeAfter, pos, resolved.parent.type.name);
+  for (let depth = resolved.depth; depth > 0; depth--) {
+    addCandidate(resolved.node(depth), resolved.before(depth), resolved.node(depth - 1).type.name);
+  }
+  return candidates.sort((a, b) => getRectArea(a.rect) - getRectArea(b.rect))[0] ?? null;
 }
 
 function getBlockMetaByPos(editor: TiptapEditor, pos: number) {
-  return getDraggableBlocks(editor).find((block) => block.pos === pos) ?? null;
+  if (pos < 0 || pos >= editor.state.doc.content.size) return null;
+  const node = editor.state.doc.nodeAt(pos);
+  const parentName = editor.state.doc.resolve(pos).parent.type.name;
+  return node && isDraggableBlock(node, parentName)
+    ? getBlockMeta(editor, node, pos, parentName)
+    : null;
+}
+
+function sameVisualBlock(a: VisualBlock | null, b: VisualBlock | null): boolean {
+  return a === b || Boolean(a && b && a.pos === b.pos && a.top === b.top &&
+    a.dragLeft === b.dragLeft && a.insertLeft === b.insertLeft &&
+    a.menuLeft === b.menuLeft && a.menuTop === b.menuTop);
+}
+
+function isDraggableBlock(node: ProseMirrorNode, parentName: string): boolean {
+  return node.isBlock && node.type.name !== "columnBlock" &&
+    (isListItemNode(node.type.name) || parentName === "doc" || parentName === "columnBlock");
+}
+
+function getBlockMeta(editor: TiptapEditor, node: ProseMirrorNode, pos: number, parentName: string): BlockMeta | null {
+  const element = editor.view.nodeDOM(pos);
+  if (!(element instanceof HTMLElement)) return null;
+  return { element, end: pos + node.nodeSize, node, parentName, pos, rect: element.getBoundingClientRect() };
 }
 
 function getClosestBlockMetaByY(
@@ -898,25 +958,9 @@ function getDraggableBlocks(editor: TiptapEditor) {
 
   editor.state.doc.descendants((node, pos, parent) => {
     const parentName = parent?.type.name ?? "";
-    const isListItem = isListItemNode(node.type.name);
-    if (
-      !node.isBlock ||
-      node.type.name === "columnBlock" ||
-      (!isListItem && parentName !== "doc" && parentName !== "columnBlock")
-    ) {
-      return true;
-    }
-
-    const element = editor.view.nodeDOM(pos);
-    if (!(element instanceof HTMLElement)) return true;
-    blocks.push({
-      element,
-      end: pos + node.nodeSize,
-      node,
-      parentName,
-      pos,
-      rect: element.getBoundingClientRect(),
-    });
+    if (!isDraggableBlock(node, parentName)) return true;
+    const meta = getBlockMeta(editor, node, pos, parentName);
+    if (meta) blocks.push(meta);
     return true;
   });
 

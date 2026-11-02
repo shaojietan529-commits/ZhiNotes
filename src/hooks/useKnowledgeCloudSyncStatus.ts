@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
-import { isAccountSessionStorageKey } from "@/lib/account/clientSession";
+import { isAccountSessionStorageKey, handleAccountSessionStorageChange } from "@/lib/account/clientSession";
 import { getPendingKnowledgeSyncLogEntries } from "@/lib/db/local/queries";
 import {
   buildEmptyKnowledgeCloudSyncStatus,
@@ -168,6 +168,7 @@ export function useKnowledgeCloudSyncStatus() {
     };
     const handleStorage = (event: StorageEvent) => {
       if (isAccountSessionStorageKey(event.key)) {
+        if (!handleAccountSessionStorageChange(event)) return;
         void refresh();
         return;
       }

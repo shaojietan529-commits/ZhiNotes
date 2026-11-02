@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ACCOUNT_SESSION_CHANGED_EVENT, fetchAccountSession, isAccountSessionStorageKey } from "@/lib/account/clientSession";
+import { ACCOUNT_SESSION_CHANGED_EVENT, fetchAccountSession, isAccountSessionStorageKey, handleAccountSessionStorageChange } from "@/lib/account/clientSession";
 import { capturePortfolioAccountContext, isPortfolioAccountContextCurrent, type PortfolioAccountContext } from "@/lib/portfolio/portfolioAccountContext";
 
 type Phase = "idle" | "waiting" | "done" | "error";
@@ -77,6 +77,7 @@ export default function EmailSetupPage() {
       setError(null);
     };
     const storage = (event: StorageEvent) => {
+      if (!handleAccountSessionStorageChange(event)) return;
       if (event.key === null || isAccountSessionStorageKey(event.key)) invalidate();
     };
     window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, invalidate);

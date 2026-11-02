@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ACCOUNT_SESSION_CHANGED_EVENT, getLastAuthenticatedAccount, isAccountSessionStorageKey } from "@/lib/account/clientSession";
+import { ACCOUNT_SESSION_CHANGED_EVENT, getLastAuthenticatedAccount, isAccountSessionStorageKey, handleAccountSessionStorageChange } from "@/lib/account/clientSession";
 import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import { listenForAccountChanges, type RealtimeState } from "@/lib/sync/accountRealtimeClient";
 import { ACCOUNT_REMOTE_CHANGE_EVENT } from "@/lib/sync/realtimeProtocol";
@@ -36,6 +36,7 @@ export function useAccountRealtime() {
     };
     const sessionChanged = () => { stop(); refresh(); };
     const storage = (event: StorageEvent) => {
+      if (!handleAccountSessionStorageChange(event)) return;
       if (event.key === null || isAccountSessionStorageKey(event.key)) refresh();
     };
     // Cached identity is a hint only; the server authenticates every connection.

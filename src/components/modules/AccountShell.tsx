@@ -36,6 +36,7 @@ import {
   fetchAccountSession,
   getLastAuthenticatedAccount,
   isAccountSessionStorageKey,
+  handleAccountSessionStorageChange,
   rememberLastAuthenticatedAccount,
 } from "@/lib/account/clientSession";
 import {
@@ -575,6 +576,7 @@ export default function AccountShell() {
   useEffect(() => {
     const handleAccountSessionStorage = (event: StorageEvent) => {
       if (isAccountSessionStorageKey(event.key)) {
+        if (!handleAccountSessionStorageChange(event)) return;
         void refreshSession();
       }
     };

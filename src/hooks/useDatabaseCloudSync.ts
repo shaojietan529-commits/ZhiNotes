@@ -12,6 +12,7 @@ import {
 import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import {
   isAccountSessionStorageKey,
+  handleAccountSessionStorageChange,
 } from "@/lib/account/clientSession";
 import {
   getLocalCacheRecoverySignal,
@@ -516,6 +517,7 @@ export function useDatabaseCloudSync() {
     const handleLocalCacheRecovery = () => void recoverLocalCacheFromCloud();
     const handleLocalCacheRecoveryStorage = (event: StorageEvent) => {
       if (isAccountSessionStorageKey(event.key)) {
+        if (!handleAccountSessionStorageChange(event)) return;
         void runSync({
           forceLease: true,
           forceAccountGate: true,

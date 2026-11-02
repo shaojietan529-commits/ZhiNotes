@@ -52,6 +52,7 @@ import {
   ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
   clearAccountSessionRuntimeCache,
   isAccountSessionStorageKey,
+  handleAccountSessionStorageChange,
   fetchAccountSession,
   getLastAuthenticatedAccount,
 } from "@/lib/account/clientSession";
@@ -214,6 +215,7 @@ function subscribePortfolioAccount(callback: () => void) {
   };
   const storage = (event: StorageEvent) => {
     if (!isAccountSessionStorageKey(event.key) && event.key !== null) return;
+    if (!handleAccountSessionStorageChange(event)) return;
     changed();
     const scope = portfolioScopeSnapshot();
     if (scope === "checking" || (scope === "local" &&

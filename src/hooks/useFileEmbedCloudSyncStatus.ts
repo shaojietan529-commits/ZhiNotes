@@ -5,6 +5,7 @@ import { ACCOUNT_PROFILE_UPDATED_EVENT } from "@/lib/account/clientProfile";
 import {
   ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY,
   isAccountSessionStorageKey,
+  handleAccountSessionStorageChange,
 } from "@/lib/account/clientSession";
 import {
   drainPendingFileEmbedSyncQueue,
@@ -165,6 +166,7 @@ export function useFileEmbedCloudSyncStatus() {
     };
     const handleStorage = (event: StorageEvent) => {
       if (isAccountSessionStorageKey(event.key)) {
+        if (!handleAccountSessionStorageChange(event)) return;
         if (
           event.key === ACCOUNT_SESSION_LAST_AUTHENTICATED_STORAGE_KEY &&
           event.newValue
