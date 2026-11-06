@@ -10,6 +10,42 @@ const artifacts = new URL("../.local/company-board-preview/", import.meta.url);
 const fxPath = "/preview/company-board/exchange-rates";
 const fixtureQuote = () => ({ base: "USD", timestamp: Math.floor(Date.now() / 1000), rates: { USD: 1, CNY: 7, EUR: .9, JPY: 150, TWD: 32, KRW: 1400 } });
 
+test("daily fallback attribution and cadence survive refresh in template and real-company valuation", { timeout: 60000 }, async () => {
+  const browser = await chromium.launch({ channel: "msedge", headless: true });
+  try {
+    for (const template of [true, false]) {
+      const context = await browser.newContext({ viewport: { width: 390, height: 1000 }, serviceWorkers: "block" });
+      let requests = 0;
+      await context.route("**/*", route => {
+        const target = new URL(route.request().url());
+        if (target.origin !== origin || target.pathname.startsWith("/api/")) return route.abort();
+        if (target.pathname === fxPath) {
+          requests++;
+          return route.fulfill({ json: { ...fixtureQuote(), timestamp: Math.floor(Date.now() / 1000) - 10800, provider: "exchangerate-api" } });
+        }
+        return route.continue();
+      });
+      const page = await context.newPage();
+      const errors = [];
+      page.on("pageerror", error => errors.push(error.message));
+      await page.goto(origin + (template ? "/companies/template" : "/companies/nvda"));
+      const choice = page.getByLabel(template ? "显示币种" : "目标估值币种", { exact: true });
+      await choice.selectOption(template ? "USD" : "CNY");
+      const status = page.getByTestId(template ? "fx-status" : "target-fx-status");
+      await status.getByRole("link", { name: "Rates By Exchange Rate API" }).waitFor();
+      assert.match(await status.textContent(), /每日更新.*备用汇率/);
+      assert.doesNotMatch(await status.textContent(), /每小时更新|较旧汇率/);
+      assert.equal(await status.getByRole("link").getAttribute("href"), "https://www.exchangerate-api.com");
+      await page.reload();
+      await status.getByRole("link", { name: "Rates By Exchange Rate API" }).waitFor();
+      assert.equal(requests, 1, "Fresh daily quote must be reused from the session cache");
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      assert.deepEqual(errors, []);
+      await context.close();
+    }
+  } finally { await browser.close(); }
+});
+
 test("company board: layout, notes, valuation, chain membership, persistence and responsive safety", { timeout: 120000 }, async () => {
   await mkdir(artifacts, { recursive: true });
   const browser = await chromium.launch({ channel: "msedge", headless: true });

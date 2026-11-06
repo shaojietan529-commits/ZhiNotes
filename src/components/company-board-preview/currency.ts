@@ -9,7 +9,7 @@ export const REPORT_CURRENCY: Currency = "CNY";
 export const QUOTE_CURRENCY: Currency = "CNY";
 
 export type FxRates = Readonly<Record<Currency, number>>;
-export type FxQuote = { base: "USD"; timestamp: number; rates: FxRates };
+export type FxQuote = { base: "USD"; timestamp: number; rates: FxRates; provider?: "exchangerate-api" };
 export const FX_HOUR = 60 * 60 * 1000;
 export const FX_MAX_AGE = 7 * 24 * FX_HOUR;
 export const FX_SOURCE = "https://www.exchangerate.fun/docs/";
@@ -31,11 +31,25 @@ export function parseFxQuote(value: unknown, now = Date.now()): FxQuote {
     rates[code] = rate;
   }
   if (rates.USD !== 1) throw new Error("Invalid FX base rate");
-  return { base: "USD", timestamp, rates };
+  if (data.provider !== undefined && data.provider !== "exchangerate-api") throw new Error("Invalid FX provider");
+  return { base: "USD", timestamp, rates, ...(data.provider === "exchangerate-api" ? { provider: "exchangerate-api" as const } : {}) };
 }
 
 export function isFxStale(quote: FxQuote, now = Date.now()): boolean {
-  return now - quote.timestamp * 1000 > 2 * FX_HOUR;
+  return now - quote.timestamp * 1000 > (quote.provider === "exchangerate-api" ? 26 : 2) * FX_HOUR;
+}
+
+export function parseDailyFxQuote(value: unknown, now = Date.now()): FxQuote {
+  if (!value || typeof value !== "object") throw new Error("Invalid daily FX response");
+  const data = value as Record<string, unknown>;
+  if (data.result !== "success") throw new Error("Daily FX unavailable");
+  return parseFxQuote({ base: data.base_code, timestamp: data.time_last_update_unix, rates: data.rates, provider: "exchangerate-api" }, now);
+}
+
+export function fxSource(quote: FxQuote) {
+  return quote.provider === "exchangerate-api"
+    ? { url: "https://www.exchangerate-api.com", name: "Rates By Exchange Rate API", cadence: "每日更新 · 备用汇率" }
+    : { url: FX_SOURCE, name: "ExchangeRate.fun", cadence: "每小时更新" };
 }
 
 export function displayCurrency(choice: CurrencyChoice, original: Currency = REPORT_CURRENCY): Currency {

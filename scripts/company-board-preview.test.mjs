@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createDemo, readDemo, moveSection, valuation, STORAGE_KEY } from "../src/components/company-board-preview/model.ts";
 import { FUNDAMENTALS, FUNDAMENTAL_METRICS, DEMO_QUARTERS, formatFundamental, yearOverYear } from "../src/components/company-board-preview/fundamentalsData.ts";
-import { CURRENCIES, REPORT_CURRENCY, displayCurrency, convertMoney, formatMoney, parseFxQuote, isFxStale, FX_HOUR, FX_MAX_AGE } from "../src/components/company-board-preview/currency.ts";
+import { CURRENCIES, REPORT_CURRENCY, displayCurrency, convertMoney, formatMoney, parseFxQuote, parseDailyFxQuote, fxSource, isFxStale, FX_HOUR, FX_MAX_AGE } from "../src/components/company-board-preview/currency.ts";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
 import { NVIDIA } from "../src/lib/company-research/companies.ts";
@@ -145,16 +145,18 @@ test("public FX route deduplicates concurrent requests, strips extra data, cache
   assert.doesNotMatch(source, /cookies\(|authorization|process\.env|upstash|@\/lib\/db|@\/lib\/account/i);
   const compiled = ts.transpileModule(source.replace("@/components/company-board-preview/currency", new URL("../src/components/company-board-preview/currency.ts", import.meta.url).href), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
   const originalFetch = globalThis.fetch;
-  let count = 0, fail = false;
+  let count = 0, fail = false, fallback = false;
   globalThis.fetch = async (url, options) => {
     count++;
-    assert.equal(url, "https://api.exchangerate.fun/latest?base=USD");
+    assert.ok(["https://api.exchangerate.fun/latest?base=USD", "https://open.er-api.com/v6/latest/USD"].includes(url));
     assert.equal(options.next.revalidate, 3600);
     assert.equal(options.credentials, "omit");
     assert.equal(options.redirect, "error");
     assert.ok(options.signal instanceof AbortSignal);
     await new Promise(resolve => setTimeout(resolve, 10));
-    return fail ? new Response("bad", { status: 502 }) : Response.json({ base: "USD", timestamp: Math.floor(Date.now() / 1000), rates: { ...FIXTURE_RATES, GBP: .8 }, ignored: true });
+    if (fail || (fallback && url.includes("exchangerate.fun"))) return new Response("bad", { status: 502 });
+    if (url.includes("open.er-api.com")) return Response.json({ result: "success", base_code: "USD", time_last_update_unix: Math.floor(Date.now() / 1000) - 10800, rates: FIXTURE_RATES });
+    return Response.json({ base: "USD", timestamp: Math.floor(Date.now() / 1000), rates: { ...FIXTURE_RATES, GBP: .8 }, ignored: true });
   };
   try {
     const { GET } = await import("data:text/javascript;base64," + Buffer.from(compiled).toString("base64"));
@@ -163,14 +165,36 @@ test("public FX route deduplicates concurrent requests, strips extra data, cache
     assert.equal(count, 1); assert.equal(ra.status, 200);
     assert.match(ra.headers.get("Cache-Control"), /s-maxage=3600/);
     assert.deepEqual(await ra.json(), await rb.json());
+    fallback = true;
+    const dailyA = GET(), dailyB = GET();
+    const daily = await dailyA;
+    assert.equal(daily.status, 200);
+    const dailyQuote = await daily.json();
+    assert.equal(dailyQuote.provider, "exchangerate-api");
+    assert.deepEqual(dailyQuote, await (await dailyB).json());
+    assert.equal(count, 3);
     fail = true;
     const unavailable = await GET();
     assert.equal(unavailable.status, 503);
     assert.equal(unavailable.headers.get("Cache-Control"), "no-store");
     assert.deepEqual(await unavailable.json(), { error: "FX_UNAVAILABLE" });
     assert.equal((await GET()).status, 503);
-    assert.equal(count, 2);
+    assert.equal(count, 5);
   } finally { globalThis.fetch = originalFetch; }
+});
+test("daily FX preserves source and observation time without presenting daily data as hourly", () => {
+  const now = Date.now();
+  const raw = { result: "success", base_code: "USD", time_last_update_unix: Math.floor(now / 1000) - 10800, rates: FIXTURE_RATES };
+  const quote = parseDailyFxQuote(raw, now);
+  assert.equal(quote.timestamp, raw.time_last_update_unix);
+  assert.equal(quote.provider, "exchangerate-api");
+  assert.deepEqual(parseFxQuote(JSON.parse(JSON.stringify(quote)), now), quote);
+  assert.equal(isFxStale(quote, now), false);
+  assert.equal(isFxStale(quote, now + 24 * FX_HOUR), true);
+  assert.match(fxSource(quote).cadence, /每日更新.*备用/);
+  assert.equal(fxSource(quote).url, "https://www.exchangerate-api.com");
+  for (const invalid of [null, { ...raw, result: "error" }, { ...raw, base_code: "CNY" }, { ...raw, time_last_update_unix: undefined }, { ...raw, time_last_update_unix: raw.time_last_update_unix - FX_MAX_AGE / 1000 }, { ...raw, rates: { ...FIXTURE_RATES, KRW: 0 } }]) assert.throws(() => parseDailyFxQuote(invalid, now));
+  assert.throws(() => parseFxQuote({ ...quote, provider: "untrusted" }, now));
 });
 test("fundamentals expose five full years plus YTD and six consecutive standalone quarters", () => {
   assert.deepEqual(FUNDAMENTALS.annual.map(p => p.id), ["2021", "2022", "2023", "2024", "2025", "2026-ytd"]);

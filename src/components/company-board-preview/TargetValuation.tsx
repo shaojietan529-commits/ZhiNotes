@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
-import { CURRENCIES, convertMoney, displayCurrency, type Currency, type CurrencyChoice, type FxRates } from "./currency";
+import { CURRENCIES, convertMoney, displayCurrency, fxSource, type Currency, type CurrencyChoice, type FxRates } from "./currency";
 import { useExchangeRates } from "./useExchangeRates";
 import { CAP_UNITS, calculateTarget, createTargetDraft, parseTargetNumber, readTargetDraft, targetDraftKey, type CapUnit, type ShareBasis, type TargetDraft, type TargetField } from "./target-valuation";
 import s from "./CompanyBoardPreview.module.css";
@@ -105,6 +105,6 @@ export default function TargetValuation({ companyId, basis, defaultUnit = "hundr
     {storageError ? <p className={s.researchWarning} role="alert">无法保留本次输入，刷新后可能丢失。</p> : null}
     <p className={s.source}>目标市值 = 目标价 × 股本 · {data.shareMode === "custom" ? "自定股本假设" : `${basis.approximate ? "约 " : ""}${numberText(basis.shares / 1e8)} 亿股 · ${basis.asOf}`}</p>
     <div className={s.source}>{basis.url ? <a href={basis.url} target="_blank" rel="noopener noreferrer">{basis.source}</a> : basis.source}{basis.url ? ` · 股本截至 ${basis.asOf}，非实时股本` : null}</div>
-    {needsFx ? <p className={s.source} data-testid="target-fx-status">{fx.quote ? `汇率时间：${new Date(fx.quote.timestamp * 1000).toLocaleString("zh-CN", { hour12: false })} · 每小时更新${fx.stale ? " · 较旧汇率" : ""}${fx.failed ? " · 更新失败，暂用上次汇率" : ""}` : `${fx.failed ? "汇率获取失败" : "正在获取汇率"} · 暂显原币 ${basis.currency}`}</p> : null}
+    {needsFx ? <p className={s.source} data-testid="target-fx-status">{fx.quote ? <><a href={fxSource(fx.quote).url} target="_blank" rel="noopener noreferrer">{fxSource(fx.quote).name}</a>{` · 汇率时间：${new Date(fx.quote.timestamp * 1000).toLocaleString("zh-CN", { hour12: false })} · ${fxSource(fx.quote).cadence}${fx.stale ? " · 较旧汇率" : ""}${fx.failed ? " · 更新失败，暂用上次汇率" : ""}`}</> : `${fx.failed ? "汇率获取失败" : "正在获取汇率"} · 暂显原币 ${basis.currency}`}</p> : null}
   </div>;
 }

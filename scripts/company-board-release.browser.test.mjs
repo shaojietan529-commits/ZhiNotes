@@ -11,6 +11,7 @@ assert.equal(url.origin, origin);
 assert.ok(url.hostname === "127.0.0.1" ||
   (url.protocol === "https:" && ["zhi-note.com", "www.zhi-note.com"].includes(url.hostname)));
 const artifacts = new URL(`../.local/company-board-release/${url.hostname}/`, import.meta.url);
+const realPublicFx = process.env.COMPANY_BOARD_LIVE_FX === "1";
 
 test("released company routes, navigation, valuation and template work without real business data", { timeout: 120000 }, async () => {
   await mkdir(artifacts, { recursive: true });
@@ -28,6 +29,7 @@ test("released company routes, navigation, valuation and template work without r
       }
       if (target.pathname === "/preview/company-board/exchange-rates") {
         fxRequests++;
+        if (realPublicFx) return route.continue();
         return route.fulfill({ json: { base: "USD", timestamp: Math.floor(Date.now() / 1000),
           rates: { USD: 1, CNY: 7, EUR: .9, JPY: 150, TWD: 32, KRW: 1400 } } });
       }
@@ -59,6 +61,10 @@ test("released company routes, navigation, valuation and template work without r
       await page.setViewportSize({ width, height: 1000 });
       await page.getByRole("navigation", { name: "公司研究导航" }).scrollIntoViewIfNeeded();
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth || document.querySelector("main").scrollWidth > document.querySelector("main").clientWidth + 1), false);
+      await page.waitForFunction(() => {
+        const img = document.querySelector('img[alt="ZhiNote"]');
+        return img?.complete && img.naturalWidth > 0;
+      });
       assert.ok(await page.locator('img[alt="ZhiNote"]').evaluate(img => img.complete && img.naturalWidth > 0));
       await page.screenshot({ path: new URL(`nvda-${width}.png`, artifacts).pathname });
     }
@@ -69,7 +75,11 @@ test("released company routes, navigation, valuation and template work without r
     const fundamentals = page.locator('[data-section="fundamentals"]');
     await fundamentals.getByRole("button", { name: "最近六季度", exact: true }).click();
     assert.equal(await fundamentals.locator("thead th").count(), 7);
+    const quoteResponse = page.waitForResponse(response => new URL(response.url()).pathname === "/preview/company-board/exchange-rates");
     await page.getByLabel("显示币种", { exact: true }).selectOption("USD");
+    const response = await quoteResponse;
+    assert.equal(response.status(), 200);
+    const quote = await response.json();
     await page.waitForFunction(() => document.querySelector('[data-testid="scenario-price"]')?.textContent?.endsWith("USD"));
     assert.equal(fxRequests, 1);
     const canvas = await page.locator("canvas").evaluate(c => {
@@ -91,7 +101,8 @@ test("released company routes, navigation, valuation and template work without r
     await page.getByText("SYNTHETIC_RELEASE_CHECK", { exact: true }).waitFor();
     assert.deepEqual(errors, []);
     await writeFile(new URL("result.json", artifacts), JSON.stringify({ passed: true, origin,
-      checkedAt: new Date().toISOString(), syntheticOnly: true, realBusinessRequests: 0,
+      checkedAt: new Date().toISOString(), syntheticOnly: !realPublicFx, syntheticBusinessData: true, realPublicFx,
+      fxProvider: quote.provider ?? "exchangerate.fun", fxTimestamp: quote.timestamp, realBusinessRequests: 0,
       interceptedBusinessRequests: business.length, fxRequests, responsiveWidths: [1440, 390],
       targetConversions: "both-directions", localRefreshPersistence: true, navigation: true, canvasPixels: canvas }, null, 2));
   } finally { await browser.close(); }

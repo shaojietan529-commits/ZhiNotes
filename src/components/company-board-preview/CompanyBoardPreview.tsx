@@ -10,7 +10,7 @@ import InvestmentJudgment from "./InvestmentJudgment";
 import TargetValuation from "./TargetValuation";
 import { DEMO_SHARE_BASIS } from "./target-valuation";
 import { createDemo, defaultSections, moveSection, readDemo, PRICE, STORAGE_KEY, valuation, type DemoState, type Note, type Section, type SectionKind } from "./model";
-import { CURRENCIES, REPORT_CURRENCY, QUOTE_CURRENCY, FX_SOURCE, displayCurrency, convertMoney, formatMoney, type Currency, type CurrencyChoice, type FxRates, type FxQuote } from "./currency";
+import { CURRENCIES, REPORT_CURRENCY, QUOTE_CURRENCY, fxSource, displayCurrency, convertMoney, formatMoney, type Currency, type CurrencyChoice, type FxRates, type FxQuote } from "./currency";
 import { useExchangeRates } from "./useExchangeRates";
 import s from "./CompanyBoardPreview.module.css";
 
@@ -184,9 +184,9 @@ export default function CompanyBoardPreview() {
           <div className={s.currencyNote} role="status" data-testid="fx-status">
             {!needsFx ? <span>原始报表：{REPORT_CURRENCY} · 原始报价：{QUOTE_CURRENCY}</span> : appliedFx ? <>
               <span>1 {REPORT_CURRENCY} = {convertMoney(1, REPORT_CURRENCY, currency, rates).toFixed(6)} {currency}</span>
-              <span><a href={FX_SOURCE} target="_blank" rel="noreferrer">ExchangeRate.fun</a> · 每小时更新 · 非逐秒报价</span>
+              <span><a href={fxSource(appliedFx).url} target="_blank" rel="noreferrer">{fxSource(appliedFx).name}</a> · {fxSource(appliedFx).cadence} · 非逐秒报价</span>
               <span>汇率时间：<time dateTime={new Date(appliedFx.timestamp * 1000).toISOString()}>{new Date(appliedFx.timestamp * 1000).toLocaleString("zh-CN", { hour12: false })}</time></span>
-              {fx.stale ? <span>较旧汇率（超过 2 小时）</span> : null}
+              {fx.stale ? <span>较旧汇率（超过 {appliedFx.provider === "exchangerate-api" ? 26 : 2} 小时）</span> : null}
               {fx.failed ? <span>更新失败，暂用上次汇率</span> : fx.loading ? <span>正在检查更新</span> : null}
               {editingFx ? <span>金额编辑中，汇率已锁定</span> : null}
             </> : <span>{fx.failed ? "汇率获取失败，稍后自动重试" : "正在获取汇率"} · 暂显原币 {REPORT_CURRENCY}，尚未换算为 {data.currency}</span>}
