@@ -99,6 +99,12 @@ const DEFAULT_PRIMARY_ITEMS: SidebarPrimaryItem[] = [
     icon: "💼",
     label: "组合管理",
   },
+  {
+    id: "company-board",
+    href: "/companies/nvda",
+    icon: "▦",
+    label: "公司看板",
+  },
 ];
 
 function getAccountSyncShortLabel(state: AccountCloudSyncCoordinatorState) {
